@@ -1,6 +1,6 @@
 name: 'XEDC Core'
 type: module
-description: '图片 ZIP/7Z 批量导入、后台处理、审核与批量发布。'
+description: '图片 ZIP/7Z 批量导入、后台处理、审核与批量发布，以及服务器监控和文件统计。'
 package: XEDC
 core_version_requirement: ^11
 dependencies:

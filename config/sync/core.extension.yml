@@ -49,6 +49,7 @@ module:
   filter: 0
   help: 0
   image: 0
+  jsonapi: 0
   language: 0
   layout_builder: 0
   layout_discovery: 0
@@ -77,6 +78,7 @@ module:
   redirect: 0
   redirect_404: 0
   redirect_domain: 0
+  redis: 0
   responsive_image: 0
   scheduler: 0
   schema_article: 0
@@ -114,6 +116,7 @@ module:
   workspaces: 0
   workspaces_ui: 0
   xa_views: 0
+  xedc_admin_ui: 0
   xedc_audit: 0
   xedc_auto_translate: 0
   xedc_core: 0
@@ -137,4 +140,5 @@ theme:
   radix: 0
   xedc: 0
   gin: 0
+  xedc_admin: 0
 profile: standard

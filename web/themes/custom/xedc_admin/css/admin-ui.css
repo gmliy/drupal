@@ -1,0 +1,940 @@
+/**
+ * @file
+ * Shared admin surfaces: tabs, index cards, tables, dropbuttons, messages.
+ */
+
+/* Tabs. One row, scroll sideways on a phone, never wrap into a bullet list. */
+.xedc-admin-active .xedc-admin-tabs,
+.xedc-admin-active ul.nav-tabs,
+.xedc-admin-active ul.nav-pills {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 16px;
+  padding: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  list-style: none;
+  background: var(--xedc-admin-surface-secondary);
+  border-radius: 10px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.xedc-admin-active .xedc-admin-tabs > li,
+.xedc-admin-active ul.nav-tabs > li,
+.xedc-admin-active ul.nav-pills > li {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xedc-admin-active .xedc-admin-tabs > li::marker,
+.xedc-admin-active ul.nav-tabs > li::marker,
+.xedc-admin-active ul.nav-pills > li::marker {
+  content: "";
+}
+
+.xedc-admin-content .xedc-admin-tabs a,
+.xedc-admin-content ul.nav-tabs a,
+.xedc-admin-content ul.nav-pills a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--xedc-admin-muted);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.xedc-admin-content .xedc-admin-tabs a.is-active,
+.xedc-admin-content .xedc-admin-tabs li.is-active > a,
+.xedc-admin-content ul.nav-tabs a.active,
+.xedc-admin-content ul.nav-tabs li.active > a,
+.xedc-admin-content ul.nav-pills a.active {
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
+  box-shadow: var(--xedc-admin-shadow);
+}
+
+/* Administration index: /admin, /admin/structure, /admin/config, /admin/reports. */
+.xedc-admin-active .admin,
+.xedc-admin-active .admin .left,
+.xedc-admin-active .admin .right,
+.xedc-admin-active .layout-column,
+.xedc-admin-active .layout-column--half,
+.xedc-admin-active .layout-column--quarter,
+.xedc-admin-active .layout-column--three-quarter {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  float: none;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.xedc-admin-active .layout-container {
+  margin: 0;
+}
+
+.xedc-admin-active .admin .panel,
+.xedc-admin-index-section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.xedc-admin-index-section__title,
+.xedc-admin-active .panel__title {
+  margin: 0 0 12px;
+  color: var(--xedc-admin-foreground);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.xedc-admin-index-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.xedc-admin-index-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-lg);
+  background: var(--xedc-admin-surface);
+  box-shadow: var(--xedc-admin-shadow);
+}
+
+.xedc-admin-index-card:hover {
+  border-color: #D4D4D8;
+}
+
+.xedc-admin-index-card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.xedc-admin-content .xedc-admin-index-card__title a {
+  color: var(--xedc-admin-foreground);
+  text-decoration: none;
+}
+
+.xedc-admin-active .admin dl.list-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 0;
+}
+
+.xedc-admin-active .admin dl.list-group > .list-group__link {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-lg);
+  background: var(--xedc-admin-surface);
+  box-shadow: var(--xedc-admin-shadow);
+}
+
+.xedc-admin-active .admin dl.list-group > .list-group__description {
+  margin: -4px 0 0;
+  padding: 0 16px 16px;
+  border: 1px solid var(--xedc-admin-border);
+  border-top: 0;
+  border-radius: 0 0 var(--xedc-admin-radius-lg) var(--xedc-admin-radius-lg);
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+}
+
+.xedc-admin-active .admin dl.list-group > .list-group__link:has(+ .list-group__description) {
+  padding-bottom: 6px;
+  border-bottom: 0;
+  border-radius: var(--xedc-admin-radius-lg) var(--xedc-admin-radius-lg) 0 0;
+  box-shadow: none;
+}
+
+.xedc-admin-content .xedc-admin-index-card__title a:hover {
+  color: var(--xedc-admin-primary);
+}
+
+.xedc-admin-index-card__desc,
+.xedc-admin-index-section__desc {
+  margin: 0;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.xedc-admin-active .compact-link {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+/* Tables stay in one scrolling card. Columns keep their text. */
+.xedc-admin-table-wrap {
+  display: flow-root;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.xedc-admin-active .xedc-admin-content > *,
+.xedc-admin-active .xedc-admin-content div,
+.xedc-admin-active .xedc-admin-content form {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.xedc-admin-table-wrap > table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.xedc-admin-active .xedc-admin-content th,
+.xedc-admin-active .xedc-admin-content td {
+  white-space: nowrap;
+  vertical-align: middle;
+  line-height: 1.4;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+/* Prose columns wrap inside a cap so the rest of the row can scroll. */
+.xedc-admin-active .xedc-admin-content td.views-field-title,
+.xedc-admin-active .xedc-admin-content td.views-field-description {
+  white-space: normal;
+  min-width: 8rem;
+  max-width: 12rem;
+  overflow-wrap: anywhere;
+}
+
+.xedc-admin-active .xedc-admin-content td.views-field-message,
+.xedc-admin-active .xedc-admin-content th.views-field-message {
+  white-space: normal;
+  min-width: 0;
+  max-width: 9rem;
+  overflow-wrap: anywhere;
+}
+
+.xedc-admin-active table.well,
+.xedc-admin-active table.result,
+.xedc-admin-active table.table,
+.xedc-admin-active table.table-condensed {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.xedc-admin-active table.well th,
+.xedc-admin-active table.well td,
+.xedc-admin-active table.result th,
+.xedc-admin-active table.result td,
+.xedc-admin-active table.table th,
+.xedc-admin-active table.table td,
+.xedc-admin-active table.table-condensed th,
+.xedc-admin-active table.table-condensed td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: none;
+}
+
+.xedc-admin-active .xedc-admin-content td.views-field-timestamp,
+.xedc-admin-active .xedc-admin-content th.views-field-timestamp,
+.xedc-admin-active .xedc-admin-content td.views-field-changed,
+.xedc-admin-active .xedc-admin-content td.views-field-created,
+.xedc-admin-active .xedc-admin-content td.views-field-access {
+  white-space: normal;
+  max-width: 5.5rem;
+}
+
+/* Vocabulary list is only three visible columns. Fit them on a phone. */
+.xedc-admin-active #taxonomy-overview-vocabularies .xedc-admin-table-wrap > table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.xedc-admin-active #taxonomy-overview-vocabularies th:nth-child(1),
+.xedc-admin-active #taxonomy-overview-vocabularies td:nth-child(1) {
+  width: 32%;
+  white-space: nowrap;
+}
+
+.xedc-admin-active #taxonomy-overview-vocabularies th:nth-child(2),
+.xedc-admin-active #taxonomy-overview-vocabularies td:nth-child(2) {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.xedc-admin-active #taxonomy-overview-vocabularies th:last-child,
+.xedc-admin-active #taxonomy-overview-vocabularies td:last-child {
+  width: 7.4rem;
+  white-space: nowrap;
+}
+
+.xedc-admin-active .ck-content th,
+.xedc-admin-active .ck-content td,
+.xedc-admin-active .ck-content table {
+  white-space: normal;
+  min-width: 0;
+  max-width: none;
+  width: auto;
+  overflow-wrap: break-word;
+}
+
+.xedc-admin-active th.priority-low,
+.xedc-admin-active td.priority-low,
+.xedc-admin-active th.priority-medium,
+.xedc-admin-active td.priority-medium {
+  display: table-cell;
+}
+
+.xedc-admin-active td:has(.dropbutton-wrapper) {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  width: 1%;
+  background: var(--xedc-admin-surface);
+  box-shadow: -8px 0 8px -8px rgba(24, 24, 27, 0.12);
+}
+
+.xedc-admin-active tr:hover td:has(.dropbutton-wrapper) {
+  background: #FAFAFA;
+}
+
+.xedc-admin-active td .form-select,
+.xedc-admin-active td select,
+.xedc-admin-active td .form-text,
+.xedc-admin-active td input.form-text {
+  width: auto;
+  min-width: 4.5rem;
+  max-width: 12rem;
+}
+
+.xedc-admin-active td .form-item,
+.xedc-admin-active td .js-form-item {
+  margin: 0;
+}
+
+/* Dropbutton. Core hides the extra actions; this only sets size and alignment. */
+html.xedc-admin-active.js td .dropbutton-multiple,
+html.xedc-admin-active.js .dropbutton-multiple {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+html.xedc-admin-active.js td .dropbutton-widget,
+html.xedc-admin-active.js .dropbutton-widget {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  padding: 0;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-sm);
+  background: var(--xedc-admin-surface);
+}
+
+html.xedc-admin-active.js .dropbutton-multiple .dropbutton-widget {
+  padding-right: 2em;
+}
+
+.xedc-admin-active .dropbutton {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xedc-admin-active .dropbutton li {
+  margin: 0;
+  list-style: none;
+}
+
+.xedc-admin-content .dropbutton a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 10px;
+  color: var(--xedc-admin-foreground);
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.xedc-admin-content .dropbutton a:hover {
+  background: var(--xedc-admin-surface-secondary);
+}
+
+.xedc-admin-active .dropbutton-toggle {
+  width: 2em;
+}
+
+.xedc-admin-active .dropbutton-toggle button {
+  min-height: 32px;
+  padding: 0;
+  background: transparent;
+}
+
+.xedc-admin-active .dropbutton-arrow {
+  border-top-color: var(--xedc-admin-muted);
+}
+
+.xedc-admin-active .dropbutton-multiple.open {
+  z-index: 5;
+}
+
+.xedc-admin-active .dropbutton-multiple.open .secondary-action {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: auto;
+  z-index: 6;
+  min-width: 10rem;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-md);
+  background: var(--xedc-admin-surface);
+  box-shadow: 0 8px 24px rgba(24, 24, 27, 0.08);
+}
+
+.xedc-admin-active .dropbutton-multiple.open .secondary-action a {
+  display: flex;
+  width: 100%;
+}
+
+/* Leftover Bootstrap dropdowns stay closed until toggled. */
+.xedc-admin-active .dropbutton-wrapper .dropdown-menu,
+.xedc-admin-active .btn-group > .dropdown-menu {
+  display: none;
+  position: absolute;
+  z-index: 20;
+  min-width: 10rem;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-md);
+  background: var(--xedc-admin-surface);
+  box-shadow: 0 8px 24px rgba(24, 24, 27, 0.08);
+}
+
+.xedc-admin-active .btn-group.is-open > .dropdown-menu,
+.xedc-admin-active .dropdown-menu.show {
+  display: block;
+}
+
+.xedc-admin-active .btn-group {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  vertical-align: middle;
+}
+
+.xedc-admin-active .dropdown-toggle-split {
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid var(--xedc-admin-border);
+  border-left: 0;
+  border-radius: 0 var(--xedc-admin-radius-sm) var(--xedc-admin-radius-sm) 0;
+  background: var(--xedc-admin-surface);
+}
+
+.xedc-admin-active .dropdown-item {
+  display: block;
+  padding: 8px 10px;
+  color: var(--xedc-admin-foreground);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Close control used by Ajax messages. Empty native buttons looked like gray dots. */
+.xedc-admin-active .btn-close {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin: 0 0 0 8px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--xedc-admin-radius-sm);
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2371717A' d='M3.2 3.2a.8.8 0 0 1 1.1 0L8 6.9l3.7-3.7a.8.8 0 1 1 1.1 1.1L9.1 8l3.7 3.7a.8.8 0 0 1-1.1 1.1L8 9.1l-3.7 3.7a.8.8 0 0 1-1.1-1.1L6.9 8 3.2 4.3a.8.8 0 0 1 0-1.1z'/%3E%3C/svg%3E") center / 14px no-repeat;
+  opacity: 1;
+  cursor: pointer;
+}
+
+.xedc-admin-active .messages {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.xedc-admin-active .messages__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xedc-admin-active .messages__item {
+  margin: 0;
+}
+
+.xedc-admin-active .messages__item + .messages__item {
+  margin-top: 6px;
+}
+
+/* Module list. */
+.xedc-admin-active .system-modules details,
+.xedc-admin-active .system-modules-uninstall details {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.xedc-admin-active .system-modules summary,
+.xedc-admin-active .system-modules-uninstall summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  list-style: none;
+}
+
+.xedc-admin-active .system-modules summary::-webkit-details-marker,
+.xedc-admin-active .system-modules summary::marker,
+.xedc-admin-active .system-modules-uninstall summary::-webkit-details-marker,
+.xedc-admin-active .system-modules-uninstall summary::marker {
+  display: none;
+  content: "";
+}
+
+.xedc-admin-active .system-modules summary::before,
+.xedc-admin-active .system-modules-uninstall summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  margin-top: 6px;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--xedc-admin-muted);
+}
+
+.xedc-admin-active .system-modules details[open] > summary::before,
+.xedc-admin-active .system-modules-uninstall details[open] > summary::before {
+  margin-top: 4px;
+  border-top: 5px solid var(--xedc-admin-muted);
+  border-right: 4px solid transparent;
+  border-bottom: 0;
+  border-left: 4px solid transparent;
+}
+
+html.xedc-admin-active .system-modules td.module,
+html.xedc-admin-active .system-modules td.description,
+html.xedc-admin-active .system-modules td.name,
+html.xedc-admin-active .system-modules td.checkbox {
+  width: auto;
+}
+
+.xedc-admin-active .system-modules td.module {
+  white-space: nowrap;
+}
+
+.xedc-admin-active .system-modules td.checkbox .form-item,
+.xedc-admin-active .system-modules .checkbox .form-item {
+  margin: 0;
+}
+
+.xedc-admin-active .module-link,
+.xedc-admin-active .module-link-help,
+.xedc-admin-active .module-link-permissions,
+.xedc-admin-active .module-link-configure,
+.xedc-admin-active .module-link--non-stable {
+  display: inline-flex;
+  float: none;
+  margin: 8px 8px 0 0;
+  padding: 0;
+  background-image: none;
+  color: var(--xedc-admin-primary);
+  white-space: nowrap;
+}
+
+.xedc-admin-active .system-modules > details,
+.xedc-admin-active details.system-modules-details {
+  margin-bottom: 12px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-lg);
+  background: var(--xedc-admin-surface);
+}
+
+.xedc-admin-active .system-modules > details > summary,
+.xedc-admin-active details.system-modules-details > summary {
+  padding: 12px 14px;
+  font-weight: 650;
+}
+
+/* Package details are the outer ones. Inner description details stay borderless. */
+.xedc-admin-active .system-modules td details {
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.xedc-admin-active .system-modules td details > summary {
+  padding: 0;
+  font-weight: 450;
+}
+
+/* Drag handle and the "show row weights" control. */
+.xedc-admin-active a.tabledrag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  float: none;
+  width: 28px;
+  height: 28px;
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+}
+
+.xedc-admin-active a.tabledrag-handle .handle {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(circle, #a1a1aa 1.15px, transparent 1.25px) 0 0 / 5px 5px;
+}
+
+.xedc-admin-active .indentation {
+  display: inline-block;
+  float: none;
+  width: 16px;
+  height: 1em;
+  margin: 0;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.xedc-admin-active .tabledrag-toggle-weight-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  float: none !important;
+  width: auto;
+  margin: 0 8px 14px auto !important;
+  text-align: right;
+}
+
+.xedc-admin-active .tabledrag-toggle-weight {
+  position: static;
+  float: none;
+}
+
+/* Details and fieldsets. A chevron replaces the browser marker. */
+.xedc-admin-active .xedc-admin-content details,
+.xedc-admin-active .xedc-admin-content fieldset {
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-md);
+  background: var(--xedc-admin-surface);
+}
+
+.xedc-admin-active .xedc-admin-content details > summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.xedc-admin-active .xedc-admin-content details > summary > * {
+  min-width: 0;
+}
+}
+
+.xedc-admin-active .xedc-admin-content details > summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  margin-top: 0.45em;
+  border-style: solid;
+  border-width: 4px 0 4px 5px;
+  border-color: transparent transparent transparent var(--xedc-admin-muted);
+}
+
+.xedc-admin-active .xedc-admin-content details[open] > summary::before {
+  margin-top: 0.35em;
+  border-width: 5px 4px 0 4px;
+  border-color: var(--xedc-admin-muted) transparent transparent transparent;
+}
+
+.xedc-admin-active .xedc-admin-content summary,
+.xedc-admin-active .xedc-admin-content span.summary {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.xedc-admin-active .xedc-admin-content summary {
+  list-style: none;
+}
+
+.xedc-admin-active .xedc-admin-content summary::-webkit-details-marker {
+  display: none;
+}
+
+.xedc-admin-active .xedc-admin-content summary::marker {
+  content: "";
+}
+
+.xedc-admin-active .action-links,
+.xedc-admin-active .block-local-actions-block ul:not(.contextual-links) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+/* Contextual menus stay hidden until their trigger is opened. */
+.xedc-admin-active .contextual .contextual-links {
+  display: none;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+}
+
+.xedc-admin-active .contextual.open .contextual-links {
+  display: block;
+  z-index: 200;
+  min-width: 10rem;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-md);
+  background: var(--xedc-admin-surface);
+  box-shadow: var(--xedc-admin-shadow);
+}
+
+.xedc-admin-pagehead li::marker,
+.xedc-admin-active .action-links li::marker,
+.xedc-admin-active .block-local-actions-block li::marker {
+  content: none;
+}
+
+.xedc-admin-content .action-links a,
+.xedc-admin-content a.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--xedc-admin-primary);
+  border-radius: var(--xedc-admin-radius-sm);
+  background: var(--xedc-admin-primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.xedc-admin-content .action-links a:hover,
+.xedc-admin-content a.btn-primary:hover {
+  border-color: var(--xedc-admin-primary-hover);
+  background: var(--xedc-admin-primary-hover);
+  color: #fff;
+}
+
+.xedc-admin-active .vertical-tabs__menu {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-md);
+  background: var(--xedc-admin-surface);
+}
+
+.xedc-admin-active .vertical-tabs__menu li {
+  list-style: none;
+}
+
+.xedc-admin-content .vertical-tabs__menu a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--xedc-admin-radius-sm);
+  color: var(--xedc-admin-foreground);
+  text-decoration: none;
+}
+
+.xedc-admin-content .vertical-tabs__menu .is-selected a,
+.xedc-admin-content .vertical-tabs__menu .selected a,
+.xedc-admin-content .vertical-tabs__menu a.is-active {
+  background: #EFF6FF;
+  color: var(--xedc-admin-primary);
+}
+
+@media (min-width: 720px) {
+  .xedc-admin-index-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .xedc-admin-index-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .xedc-admin-active .vertical-tabs__menu {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+  }
+
+  .xedc-admin-active .vertical-tabs__menu li {
+    flex: 0 0 auto;
+  }
+
+  .xedc-admin-content .vertical-tabs__menu a {
+    white-space: nowrap;
+  }
+}
+
+/* Module packages use the form id, not a system-modules class. */
+.xedc-admin-active #system-modules details.package-listing,
+.xedc-admin-active #system-modules-uninstall details.package-listing {
+  margin: 0 0 12px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.xedc-admin-active #system-modules details.package-listing > summary,
+.xedc-admin-active #system-modules-uninstall details.package-listing > summary {
+  padding: 12px 14px;
+}
+
+.xedc-admin-active #system-modules td details,
+.xedc-admin-active #system-modules-uninstall td details,
+.xedc-admin-active .package-listing td details {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.xedc-admin-active #system-modules td details > summary,
+.xedc-admin-active #system-modules-uninstall td details > summary {
+  padding: 0;
+  font-weight: 450;
+}
+
+.xedc-admin-active input[type="search"],
+.xedc-admin-active input.table-filter-text {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-sm);
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
+  font: inherit;
+  font-size: 14px;
+}
+
+.xedc-admin-active .theme-selector {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 16px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-lg);
+  background: var(--xedc-admin-surface);
+  box-shadow: var(--xedc-admin-shadow);
+}
+
+.xedc-admin-active .theme-selector img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--xedc-admin-radius-md);
+}
+
+.xedc-admin-active .theme-info__header {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.xedc-admin-active .theme-info__description {
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+}
+
+.xedc-admin-active .theme-info .links,
+.xedc-admin-active .theme-info ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 720px) {
+  .xedc-admin-active .theme-selector {
+    grid-template-columns: 220px minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.xedc-admin-active #system-modules .xedc-admin-table-wrap > table,
+.xedc-admin-active #system-modules-uninstall .xedc-admin-table-wrap > table,
+.xedc-admin-active .field-multiple-table {
+  width: 100%;
+}
+
+.xedc-admin-active #system-modules td.module,
+.xedc-admin-active #system-modules td.description,
+.xedc-admin-active #system-modules-uninstall td.module,
+.xedc-admin-active #system-modules-uninstall td.description {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  white-space: normal;
+}
+
+.xedc-admin-active .field-multiple-table img {
+  max-width: 96px;
+  height: auto;
+}

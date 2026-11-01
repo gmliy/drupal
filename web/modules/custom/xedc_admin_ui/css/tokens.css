@@ -1,0 +1,39 @@
+/**
+ * XEDC admin tokens for Gin 5.0.16.
+ *
+ * Light rules target the body element Gin marks with data-gin-accent.
+ * Dark rules apply only when Gin adds .gin--dark-mode on html. This file
+ * does not turn that mode on.
+ */
+
+body[data-gin-accent] {
+  --gin-bg-app: #F8F9FB;
+  --gin-bg-app-rgb: 248, 249, 251;
+  --gin-bg-layer: #FFFFFF;
+  --gin-bg-layer2: #F4F4F5;
+  --gin-bg-layer-rgb: 255, 255, 255;
+  --gin-color-text: #18181B;
+  --gin-color-title: #18181B;
+  --gin-color-text-light: #71717A;
+  --gin-border-color: #E4E4E7;
+  --gin-border-color-table: #E4E4E7;
+  --gin-color-primary-rgb: 37, 99, 235;
+  --gin-color-primary-hover: #1D4ED8;
+  --gin-color-primary-active: #1E40AF;
+}
+
+html.gin--dark-mode body[data-gin-accent] {
+  --gin-bg-app: #09090B;
+  --gin-bg-app-rgb: 9, 9, 11;
+  --gin-bg-layer: #18181B;
+  --gin-bg-layer2: #27272A;
+  --gin-bg-layer-rgb: 24, 24, 27;
+  --gin-color-text: #FAFAFA;
+  --gin-color-title: #FAFAFA;
+  --gin-color-text-light: #A1A1AA;
+  --gin-border-color: #27272A;
+  --gin-border-color-table: #27272A;
+  --gin-color-primary-rgb: 37, 99, 235;
+  --gin-color-primary-hover: #1D4ED8;
+  --gin-color-primary-active: #1E40AF;
+}

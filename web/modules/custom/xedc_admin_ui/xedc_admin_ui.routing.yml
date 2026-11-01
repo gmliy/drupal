@@ -1,0 +1,9 @@
+xedc_admin_ui.dashboard:
+  path: '/admin/xedc'
+  defaults:
+    _controller: '\Drupal\xedc_admin_ui\Controller\DashboardController::page'
+    _title: '控制台'
+  requirements:
+    _permission: 'access xedc admin dashboard'
+  options:
+    _admin_route: TRUE

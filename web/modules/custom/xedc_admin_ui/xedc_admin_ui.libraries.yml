@@ -1,0 +1,9 @@
+tokens:
+  css:
+    theme:
+      css/tokens.css: {}
+
+dashboard:
+  css:
+    theme:
+      css/dashboard.css: {}

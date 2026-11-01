@@ -29,3 +29,27 @@ xedc_core.settings:
     failed_retention_hours:
       type: integer
       label: 'Failed archive retention'
+    netdata_base_url:
+      type: string
+      label: 'Netdata base URL'
+    file_scan_batch:
+      type: integer
+      label: 'Files per scan batch'
+    file_scan_seconds:
+      type: integer
+      label: 'Seconds per scan batch'
+    file_large_bytes:
+      type: integer
+      label: 'Large file threshold'
+    file_huge_bytes:
+      type: integer
+      label: 'Huge file threshold'
+    file_stale_days:
+      type: integer
+      label: 'Stale file age in days'
+    file_top_files:
+      type: integer
+      label: 'Top file count'
+    file_top_dirs:
+      type: integer
+      label: 'Top directory count'

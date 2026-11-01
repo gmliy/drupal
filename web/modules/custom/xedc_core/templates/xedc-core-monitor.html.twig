@@ -1,0 +1,178 @@
+{#
+/**
+ * @file
+ * Server monitoring dashboard. Numbers come from the controller.
+ */
+#}
+<div class="xedc-ops">
+  <header class="xedc-ops-head">
+    <div>
+      <p class="xedc-ops-kicker">运维中心</p>
+      <h2 class="xedc-ops-title">服务器监控</h2>
+    </div>
+    <a class="xedc-ops-button" href="?refresh=1">重新获取</a>
+  </header>
+
+  {% if not snapshot.ok %}
+    <div class="xedc-ops-alert" role="alert">
+      <strong>监控未连接</strong>
+      <p>{{ snapshot.error }}</p>
+      <p>其他后台页面不受影响。恢复后点「重新获取」。</p>
+    </div>
+  {% endif %}
+
+  <section class="xedc-ops-meta" aria-label="服务器信息">
+    <div><span>服务器</span><strong>{{ snapshot.hostname }}</strong></div>
+    <div><span>系统</span><strong>{{ snapshot.os }}</strong></div>
+    <div><span>内核</span><strong>{{ snapshot.kernel }}</strong></div>
+    <div><span>运行时间</span><strong>{{ snapshot.uptime }}</strong></div>
+    <div><span>监控</span><strong class="is-{{ snapshot.ok ? 'ok' : 'bad' }}">{{ snapshot.connection }}</strong></div>
+    <div><span>采样时间</span><strong>{{ snapshot.updated }}</strong></div>
+    {% if snapshot.agent %}
+      <div><span>Netdata</span><strong>{{ snapshot.agent }}</strong></div>
+    {% endif %}
+  </section>
+
+  {% if snapshot.cards %}
+    <section class="xedc-ops-cards" aria-label="核心指标">
+      {% for card in snapshot.cards %}
+        <article class="xedc-ops-card is-{{ card.state }}">
+          <h3>{{ card.label }}</h3>
+          <p class="xedc-ops-value">{{ card.value }}</p>
+          <p class="xedc-ops-detail">{{ card.detail }}</p>
+        </article>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  {% if snapshot.cores %}
+    <section class="xedc-ops-cores" aria-label="CPU 核心">
+      {% for core in snapshot.cores %}
+        <div>
+          <span>{{ core.label }}</span>
+          <strong>{{ core.value }}</strong>
+        </div>
+      {% endfor %}
+      {% if snapshot.cores_note %}<p>{{ snapshot.cores_note }}</p>{% endif %}
+    </section>
+  {% elseif snapshot.cores_note %}
+    <p class="xedc-ops-note">{{ snapshot.cores_note }}</p>
+  {% endif %}
+
+  <section class="xedc-ops-charts" data-xedc-monitor aria-label="历史趋势">
+    <div class="xedc-ops-ranges">
+      <button type="button" data-range="1h" aria-pressed="true">最近 1 小时</button>
+      <button type="button" data-range="6h" aria-pressed="false">最近 6 小时</button>
+      <button type="button" data-range="24h" aria-pressed="false">最近 24 小时</button>
+      <button type="button" data-range="7d" aria-pressed="false">最近 7 天</button>
+    </div>
+    <p class="xedc-ops-note" data-xedc-monitor-notice>正在读取历史采样。</p>
+    <div class="xedc-ops-chart-grid">
+      {% for key, title in {'cpu': 'CPU 趋势', 'memory': '内存趋势', 'disk': '磁盘趋势', 'network': '网络流量趋势'} %}
+        <article class="xedc-ops-panel" data-chart="{{ key }}">
+          <h3>{{ title }}</h3>
+          <div class="xedc-ops-plot" data-plot></div>
+          <p class="xedc-ops-detail" data-chart-note></p>
+        </article>
+      {% endfor %}
+    </div>
+    <noscript><p class="xedc-ops-note">图表需要浏览器脚本。上方的数字不依赖脚本。</p></noscript>
+  </section>
+
+  {% if snapshot.services %}
+    <section aria-label="服务">
+      <h3 class="xedc-ops-section">服务</h3>
+      <div class="xedc-ops-services">
+        {% for service in snapshot.services %}
+          <article class="xedc-ops-panel">
+            <header>
+              <h3>{{ service.name }}</h3>
+              <span>{{ service.state }}</span>
+            </header>
+            <p class="xedc-ops-value xedc-ops-value--small">{{ service.cpu }}</p>
+            <p class="xedc-ops-detail">CPU · {{ service.cpu_note }}</p>
+            <p class="xedc-ops-detail">内存 {{ service.memory }}</p>
+            {% if service.metrics %}
+              <ul class="xedc-ops-metrics">
+                {% for metric in service.metrics %}
+                  <li>
+                    <span>{{ metric.label }}</span>
+                    <strong>{{ metric.value }}</strong>
+                    {% if metric.reason %}<em>{{ metric.reason }}</em>{% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="xedc-ops-split" aria-label="负载与磁盘">
+    <article class="xedc-ops-panel">
+      <h3>系统负载</h3>
+      {% if snapshot.load %}
+        <ul class="xedc-ops-metrics">
+          {% for row in snapshot.load %}
+            <li><span>{{ row.label }}</span><strong>{{ row.value }}</strong></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="xedc-ops-note">暂无数据</p>
+      {% endif %}
+      {% if snapshot.processes %}<p class="xedc-ops-detail">{{ snapshot.processes }}</p>{% endif %}
+    </article>
+    <article class="xedc-ops-panel">
+      <h3>磁盘读写</h3>
+      {% if snapshot.io %}
+        <ul class="xedc-ops-metrics">
+          {% for row in snapshot.io %}
+            <li><span>{{ row.label }}</span><strong>{{ row.value }}</strong></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="xedc-ops-note">暂无数据</p>
+      {% endif %}
+    </article>
+    <article class="xedc-ops-panel">
+      <h3>内存明细</h3>
+      {% if snapshot.memory %}
+        <ul class="xedc-ops-metrics">
+          {% for row in snapshot.memory %}
+            <li><span>{{ row.label }}</span><strong>{{ row.value }}</strong></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="xedc-ops-note">暂无数据</p>
+      {% endif %}
+    </article>
+  </section>
+
+  <section class="xedc-ops-panel" aria-label="网络接口">
+    <h3>网络接口</h3>
+    {% if snapshot.interfaces %}
+      <div class="xedc-ops-table-wrap">
+        <table class="xedc-ops-table">
+          <thead>
+            <tr><th>接口</th><th>状态</th><th>接收</th><th>发送</th><th>累计流量</th></tr>
+          </thead>
+          <tbody>
+            {% for row in snapshot.interfaces %}
+              <tr>
+                <td>{{ row.name }}</td>
+                <td>{{ row.state }}</td>
+                <td>{{ row.rx }}</td>
+                <td>{{ row.tx }}</td>
+                <td>{{ row.totals }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="xedc-ops-note">暂无数据</p>
+    {% endif %}
+    {% if snapshot.totals_note %}<p class="xedc-ops-note">{{ snapshot.totals_note }}</p>{% endif %}
+  </section>
+</div>

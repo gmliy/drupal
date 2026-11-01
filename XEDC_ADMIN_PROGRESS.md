@@ -1,0 +1,107 @@
+# XEDC Admin 进度清单
+状态：[ ] 未做 / [x] 已完成并验证 / [-] 已做但未验证 / [!] 失败
+
+## 阶段 1 审查
+- [x] Git 工作区检查
+  - 命令：`pwd; git branch --show-current; git status --short; git diff --stat; git diff --cached --stat; git status`
+  - 摘要：cwd=/var/www/drupal，分支 main（与 origin/main 同步）。未暂存修改 13 个文件（xedc_core 导入相关 11 个、xedc_home.module、xedc.theme），diff stat 1575 insertions / 234 deletions。已暂存：无。未跟踪：AGENTS.md、XEDC_ADMIN_PROGRESS.md、XEDC_ADMIN_TASK.md、web/modules/custom/xedc_admin_ui/、xedc_core/css/dashboard.css、ImportAbortException.php。不得覆盖这些文件。
+- [x] 数据库备份 + system.theme 记录 + 前台基线
+  - 命令：`vendor/bin/drush config:get system.theme`；`vendor/bin/drush config:get core.extension --include-overridden`（存 /tmp/xedc_core_extension.txt）；`vendor/bin/drush sql:dump --gzip --result-file=/var/backups/xedc_before_admin_theme_20261101_120455.sql`；`curl` 前台首页与内容页。
+  - 摘要：当时命令读到 system.theme admin=radix，default=xedc。已启用主题：claro、default_admin、olivero、gin 5.0.16、radix 6.0.9、xedc 6.0.9。备份成功：`/var/backups/xedc_before_admin_theme_20261101_120455.sql.gz`（4.3M，gzip -t 通过，库约 80MB）。前台基线：https://gitxx.xyz/ 200 sha256=22662c509501e3f42c79f69273c6487bcdac51b315536559e2d8d4283b9fcee8（39957B）；https://gitxx.xyz/bizhi/1 200 sha256=25437c9497adbffb982fc43fff83ed5ef422beade55f808355e7b38d7202e989（29723B）。更正：开始前真实在用的后台是 gin。`/root/system_theme_before.txt` 正文仍写着 admin: radix，同时刻备份里也有这一行，但不再把 radix 当作恢复目标。恢复只用 gin。
+- [x] Radix 版本与结构
+  - 命令：读取 `web/themes/contrib/radix/radix.info.yml`、`radix.libraries.yml`、`src/kits/radix_starterkit/radix_starterkit.info.yml`、`package.json`、`templates/page/page.html.twig`、`components/page/page.twig`；读取 `web/themes/custom/xedc/xedc.info.yml`、`xedc.libraries.yml`、`package.json`、`css/tokens.css` 前 25 行。
+  - 摘要：Radix machine name 是 `radix`，版本 6.0.9，`base theme: false`。子主题正确写法是 `base theme: radix`（starterkit 与 xedc 均如此）。regions 为 navbar_branding/navbar_left/navbar_right/header/content/page_bottom/footer。Radix 自身不打包 Bootstrap CSS，只 libraries-extend ajax/checkbox/dialog/message/progress，并用 SDC（`{% include 'radix:page' %}`）。Bootstrap 版本以 starterkit package.json 为准：`bootstrap ^5.3.3`。前台 xedc 也是 radix 6.0.9 子主题，tokens 在 `.xa` 下且主色是近黑，不直接复制。图标依赖 npm 构建的 bootstrap-icons，主题内不假定已安装。子主题用独立 CSS，不跑一套会改前台的 Sass 构建。
+- [x] Gin 现状与配套模块
+  - 命令：`vendor/bin/drush config:get system.theme`；`vendor/bin/drush config:get gin.settings`；`vendor/bin/drush pm:list --type=module --filter=gin`；`vendor/bin/drush pm:list --type=theme --status=enabled`；读取 `config/sync/system.theme.yml`、`gin.info.yml` 前 80 行、`gin.libraries.yml` 前 80 行；`core.extension` 已在 /tmp/xedc_core_extension.txt。
+  - 摘要：线上 admin 主题是 **radix**，default 是 xedc。config/sync 里 admin 却是 `default_admin`，存在漂移，禁止 config import。Gin 5.0.16 已启用但不是当前后台主题。gin.settings：accent blue、darkmode 0、classic_toolbar new。`gin_toolbar` 已安装但 Disabled。无 gin_login。核心 `navigation` 与 `toolbar` 均启用，会输出 `.admin-toolbar` / `#toolbar-administration`。新主题只在自身 body 类下用 CSS 隐藏它们，不卸载模块。Gin 的 CSS/JS 只在 Gin 为活动主题时加载（libraries: claro/global-styling + gin/gin）。
+- [x] xedc_admin_ui 审查
+  - 命令：列出 `web/modules/custom/xedc_admin_ui/`；读取 info、libraries、routing、permissions、links.menu、module、DashboardController、dashboard twig、tokens.css；grep `gin|data-gin`。
+  - 摘要：模块未跟踪，禁止改其中文件。路由 `xedc_admin_ui.dashboard` = `/admin/xedc`，权限 `access xedc admin dashboard`。菜单挂在 `system.admin_content`。tokens 库只在活动主题为 gin（或 base 为 gin）时附加。Dashboard 控制器保留权限、缓存、Asia/Shanghai 时间格式，不在页面里跑 Audit。模板类名 `xedc-admin-dashboard`。Gin 选择器在 `css/tokens.css` 的 `body[data-gin-accent]` 与 `html.gin--dark-mode`；`css/dashboard.css` 使用 `--gin-*` 变量并带同色回退。统计逻辑留在 DashboardStats。主题侧用模板覆盖做视觉，不改模块。
+- [x] 路由与权限
+  - 命令：`vendor/bin/drush sql:query` 查询 router 中 /admin/xedc、/admin/content、image-imports、quick-gallery、people、taxonomy、status、dblog、config、moderated、audit、site-audit；`config:get views.view.content` 的 type 过滤器；读取 xedc_core 与 xedc_quick routing 前几行。
+  - 摘要：确认存在的入口：控制台 /admin/xedc；内容 /admin/content（视图 type 过滤器已暴露，identifier=type，可用 ?type=photo|video|article）；图片导入 /admin/content/image-imports（import photo archives 或 administer xedc image imports）；快速发布 /admin/quick-gallery（administer nodes）；分类集合 /admin/structure/taxonomy；标签与人物词汇表 overview 路由 entity.taxonomy_vocabulary.overview_form（词汇 tags、models，以及 article_category/photo_category/video_category）；审核 /admin/content/moderated；会员 /admin/people；SEO/Audit /admin/reports/audit；Site Audit /admin/reports/site-audit；状态 /admin/reports/status；配置 /admin/config；日志 /admin/reports/dblog；原生管理 /admin。未建菜单：会员投稿只有前台 /member/submissions，没有后台路由。角色：administrator、content_editor、authenticated、anonymous。默认语言 zh-hans。
+- [x] 其他模块兼容性
+  - 命令：grep 自定义模块 routing 与 `gin|data-gin`；读取 DashboardStats 前 80 行；确认 xedc_core、xedc_quick、xedc_member、xedc_audit、xedc_site_audit、content_moderation、media_library、ckeditor5 已在 core.extension。
+  - 摘要：图片导入与快速发布只做样式兼容，不改其已有未提交代码。Dashboard 统计有缓存、上海时区、按权限省略数字。Gin 专属选择器只出现在 xedc_admin_ui 的 tokens.css / dashboard.css / module 注释，其他自定义模块未见 data-gin。media_library、ckeditor5、content_moderation、navigation、toolbar 已启用。审核入口用 moderated content 视图。无重大数据风险，不改表结构。继续开发。
+## 阶段 2 创建主题
+- [x] info.yml / libraries.yml / .theme
+  - 命令：`php -l` 两个 PHP 文件；`Symfony Yaml::parseFile` 全部 yml；`node --check` 两个 JS；Twig tokenize/parse（补了 Drupal 的 `t` 过滤器）。
+  - 摘要：PHP、10 个 YAML、5 个 Twig、2 个 JS 均通过。`base theme: radix`。全局库加载 6 个 CSS 和 2 个 JS，依赖 `core/drupal` 与 `core/once`。
+- [x] 设计令牌
+  - 命令：静态页引用 `https://gitxx.xyz/themes/custom/xedc_admin/css/base.css`（HTTP 200），Chrome 1366 截图可见白底、蓝主色、浅灰边框。
+  - 摘要：令牌写在 `css/base.css` 的 `html.xedc-admin-active`。浅色主题。没有做深色模式。
+- [x] 侧边栏 + 顶栏 + 响应式布局
+  - 命令：Chrome DevTools 截图 390 / 390 抽屉打开 / 768 / 1366 / 1366 折叠 / 1920。`node /tmp/xedc-behavior.mjs`。
+  - 摘要：390 与 768 为抽屉，1366 与 1920 为固定侧栏。折叠点击后 `is-collapsed` 为 true，再点恢复。抽屉点击打开，Escape 关闭。各宽度 `scrollWidth === clientWidth`，没有横向溢出。这是静态夹具，不是线上后台页面。
+- [x] theme:install 并确认能加载
+  - 命令：`vendor/bin/drush theme:install xedc_admin -y`；随后 `config:get system.theme`；`curl` 主题 CSS/JS。
+  - 摘要：安装成功。8 个区块配置已进数据库。CSS/JS 全部 HTTP 200。安装后读到 admin=gin。本次验证临时切到 xedc_admin 后已切回 gin，见报告第 13 章。
+## 阶段 3 设计系统
+- [x] Sidebar / Header / Breadcrumb / PageHeader
+  - 命令：同上截图。桌面图含侧栏、面包屑「管理 / 控制台」、标题「控制台」、右侧账户。
+  - 摘要：这些区域在静态页上可见。
+- [x] Card / Button / StatusBadge / DataTable / FormField / EmptyState
+  - 命令：1366 与 1920 截图。
+  - 摘要：统计卡片、保存按钮、绿/黄/红状态、表格、标题输入和正文框可见。空状态在夹具底部，第一屏截图未单独框出。
+- [-] SearchInput / FilterBar / Pagination / DropdownMenu / Dialog / LoadingState / Toast
+  - 命令：临时 `config:set system.theme admin xedc_admin` 后，用已登录 cookie `curl` GET `/admin/content`、`/admin/people`、`/admin/content/moderated`。Chrome 1366 截图。结束后已切回 gin。
+  - 摘要：内容列表、会员列表、审核列表的 HTML 里有 `views-exposed-form` 和分页。每个后台页都有账户下拉的 HTML（`xedc-admin-dropdown`），没有点开。页面源码里的 `ui-dialog` 来自工具栏链接上的属性，Chrome 里没有打开的 `.ui-dialog`。初始页面没有加载中动画，也没有绿色成功提示。对话框、加载中、提示条仍未实际操作，所以这一项保持未验证。
+## 阶段 4 Dashboard
+- [x] /admin/xedc 模板与样式迁移
+  - 命令：`drush config:set system.theme admin xedc_admin -y`；`drush cr`；`curl` GET `https://gitxx.xyz/admin/xedc`（cookie 来自 `drush user:login`）。Chrome 390/768/1366 截图。结束后 `drush config:set system.theme admin gin -y` 与 `drush cr`。
+  - 摘要：HTTP 200，标题「控制台 | DcLili」，约 146KB。HTML 含 `xedc-admin-active`、`xedc-admin-sidebar`。聚合 CSS/JS 带 `theme=xedc_admin`，CSS 内有 `--xedc-admin-primary`。无 PHP 报错。390 与 768 为顶栏菜单按钮加单列卡片，1366 为左侧导航。统计仍来自原控制器。未提交任何表单。
+- [x] 手机端 390px
+  - 命令：Chrome 390 截图，`scroll 390 client 390`；抽屉打开截图。
+  - 摘要：静态控制台在 390px 单列、无横向滚动，抽屉可开。不是线上 `/admin/xedc`。
+## 阶段 5 原生页面
+- [x] 内容列表 / 内容编辑
+  - 命令：同一登录 cookie，GET `/admin/content`、`/admin/content?type=photo`、`/node/1/edit`、`/node/7/edit`。只读，没有 POST。
+  - 摘要：四页都是 HTTP 200，带 `xedc-admin-active` 和侧栏。内容列表标题「内容 | DcLili」，有筛选表单和分页。美图编辑标题含「海边风景手机壁纸 测试」，文章编辑标题含「小墨迹文章图片简介图」。没有点保存。
+- [x] 分类标签
+  - 命令：GET `/admin/structure/taxonomy`，以及 photo_category、video_category、article_category、tags、models 的 overview。
+  - 摘要：六页都是 HTTP 200。标题依次为分类、图片栏目、视频栏目、文章栏目、标签、人物。都有新主题外壳，无 PHP 报错。没有改权重、没有新建术语。
+- [x] 会员管理
+  - 命令：GET `/admin/people` 与 `/user/1/edit`。
+  - 摘要：人员列表 200，标题「人员 | DcLili」，有筛选和分页。用户编辑页 200，标题「admin | DcLili」。没有保存账号，没有改角色。
+- [x] 审核中心
+  - 命令：GET `/admin/content/moderated`。
+  - 摘要：HTTP 200，标题「等待审核的内容 | DcLili」，有筛选和分页，新主题外壳在。没有点发布、退回或拒绝。
+- [-] Media Library
+  - 命令：GET `/node/1/edit`。Chrome 看了 1366 截图。没有点「添加媒体」。
+  - 摘要：编辑页里「图片封面」「图片集」的媒体库小部件在 HTML 里，1366 截图能看到封面图和「移除」。弹窗没有打开，所以搜索、点选、上传、关闭都还没测。保持未验证。手动步骤写在报告第 16 章。
+- [-] CKEditor 5
+  - 命令：GET `/node/7/edit`。Chrome 在页面加载后检查 `.ck-editor`。
+  - 摘要：文章编辑页 DOM 里有 `.ck-editor`（390/768/1366 都是）。工具栏在首屏下面，没有点加粗、链接、图片或表格，也没有输入和保存。美图编辑页没有这个编辑器。保持未验证。手动步骤写在报告第 16 章。
+- [x] 图片导入
+  - 命令：GET `/admin/content/image-imports`。没有 POST 到 upload、publish、cancel。
+  - 摘要：HTTP 200，标题「图片批量导入 | DcLili」。页面列出已有任务（gallery.zip，已发布）。390 与 1366 截图都能看到统计卡和任务表。没有新建导入，没有改 xedc_core。
+- [x] 快速发布
+  - 命令：GET `/admin/quick-gallery`。没有 POST 到 `/admin/quick-gallery/create` 或 upload。
+  - 摘要：HTTP 200，标题「快速发布图集 | DcLili」。390 截图有标题、人物、标签、栏目、选择照片和「上传并创建草稿」。没有上传，没有创建节点。没有改 xedc_quick。
+- [x] SEO / Site Audit
+  - 命令：GET `/admin/reports/audit` 与 `/admin/reports/site-audit`。没有访问 `/admin/reports/audit/run-all`，没有点「保存报告」或「发送报告」。
+  - 摘要：两页都是 HTTP 200，标题都是「审计 | DcLili」。SEO 页是已有结果列表。Site Audit 页按该模块原来的逻辑当场算出报告并显示，`site_audit_report` 行数仍是 5，没有新增报告实体。
+## 阶段 6 测试
+- [x] PHP / YAML / Twig 检查
+  - 命令：`php -l`；Yaml::parseFile；Twig parse；`node --check`。
+  - 摘要：全部通过。Twig 的 `t` 在独立解析器里需要补过滤器，Drupal 运行时自带该过滤器。
+- [x] 路由 / 容器 / 缓存重建
+  - 命令：`vendor/bin/drush cr`（success）；`drush status` bootstrap Successful；`drush php:eval` 以 uid 1 生成导航。
+  - 摘要：容器可用。uid 1 得到 7 组、22 个真实链接。缓存重建后 admin 仍是 gin，default 仍是 xedc。
+- [x] 桌面与手机检查
+  - 命令：Chrome 390/768/1366/1920 截图与行为脚本。
+  - 摘要：静态布局当时通过。本次又用 Chrome 打开真实后台：控制台、内容、编辑、导入、快速发布、Site Audit 在 390/768/1366 的 scrollWidth 等于 clientWidth。390 与 768 默认只显示内容，侧栏收起，顶栏有菜单按钮。没有在真实页面上点开抽屉。
+- [x] 权限检查
+  - 命令：匿名 `curl`；`drush php:eval` 分别切换 uid 1 与 uid 6。
+  - 摘要：匿名访问 `/admin/xedc`、`/admin/content`、`/admin/people`、`/admin/quick-gallery`、图片导入均为 403；首页和登录页 200。uid 6（content_editor）只看到内容、导入、快速发布、审核、管理首页和配置，看不到控制台、分类、会员、Audit、日志。没有用浏览器登录这个账号。
+- [x] 前台回归检查
+  - 命令：对比 `https://gitxx.xyz/` 与 `/bizhi/1` 的状态码、哈希和 CSS/JS 引用。
+  - 摘要：首页 200，sha256 与开始前相同 `22662c509501e3f42c79f69273c6487bcdac51b315536559e2d8d4283b9fcee8`。内容页 200，哈希变化只剩 `form_build_id`，样式引用一致，没有 xedc_admin 资源。
+## 收尾
+- [x] 第十五节验收逐条核对
+  - 摘要：写在 `XEDC_ADMIN_REPORT.md` 第 8 章。未在新主题下打开的功能一律写未验证。
+- [x] XEDC_ADMIN_REPORT.md 已生成
+  - 摘要：报告含第十八节 16 章，开头有给非技术人员的说明。
+- [x] git status 对比确认无原有修改被影响
+  - 命令：`git status --short`；`git diff --stat`。
+  - 摘要：仍是原来的 13 个修改文件，1575 insertions / 234 deletions，与开始前一致。新增未跟踪目录只有 `web/themes/custom/xedc_admin/` 以及原有的未跟踪文件和报告。没有改 config/sync。

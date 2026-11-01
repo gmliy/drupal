@@ -1,0 +1,69 @@
+server {
+    server_name gitxx.xyz www.gitxx.xyz;
+    root /var/www/drupal/web;
+    index index.php;
+    client_max_body_size 220m;
+    client_body_timeout 300s;
+
+    location = /favicon.ico { log_not_found off; access_log off; }
+    location = /robots.txt { allow all; log_not_found off; access_log off; }
+    location ~ \..*/.*\.php$ { return 403; }
+    location ~ ^/sites/.*/private/ { return 403; }
+    location ~ ^/sites/[^/]+/files/.*\.php$ { deny all; }
+    location ~* ^/.well-known/ { allow all; }
+    location ~ (^|/)\. { return 403; }
+
+    location / { try_files $uri /index.php?$query_string; }
+    location @rewrite { rewrite ^ /index.php; }
+    location ~ /vendor/.*\.php$ { deny all; return 404; }
+
+    location ~ '\.php$|^/update.php' {
+        fastcgi_split_path_info ^(.+?\.php)(|/.*)$;
+        try_files $fastcgi_script_name =404;
+        include fastcgi_params;
+        fastcgi_param HTTP_PROXY "";
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+        fastcgi_param QUERY_STRING $query_string;
+        fastcgi_intercept_errors on;
+        fastcgi_read_timeout 300s;
+        fastcgi_pass unix:/run/php/php8.5-fpm.sock;
+    }
+
+    # Images and fonts under public files and themes. css/js aggregates are not included.
+    location ~* ^/(sites/default/files|themes)/.+\.(avif|webp|jpe?g|png|svg|woff2?)$ {
+        expires 30d;
+        add_header Cache-Control "public";
+        try_files $uri @rewrite;
+        log_not_found off;
+    }
+
+    location ~ ^/sites/.*/files/styles/ { try_files $uri @rewrite; }
+    location ~ ^(/[a-z\-]+)?/system/files/ { try_files $uri /index.php?$query_string; }
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
+        try_files $uri @rewrite;
+        expires max;
+        log_not_found off;
+    }
+
+    listen [::]:443 ssl ipv6only=on; # managed by Certbot
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/gitxx.xyz/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/gitxx.xyz/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+}
+server {
+    if ($host = gitxx.xyz) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    listen [::]:80;
+    server_name gitxx.xyz www.gitxx.xyz;
+    return 404; # managed by Certbot
+
+
+}

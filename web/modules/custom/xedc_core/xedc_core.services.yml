@@ -34,3 +34,23 @@ services:
   xedc_core.task_access:
     class: Drupal\xedc_core\Access\TaskAccess
     arguments: ['@xedc_core.tasks', '@entity_type.manager']
+
+  xedc_core.netdata:
+    class: Drupal\xedc_core\Ops\NetdataClient
+    arguments: ['@http_client']
+
+  xedc_core.monitor:
+    class: Drupal\xedc_core\Ops\ServerMonitor
+    arguments: ['@xedc_core.netdata', '@cache.default', '@datetime.time', '@date.formatter', '@config.factory', '@logger.channel.xedc_core']
+
+  xedc_core.disk:
+    class: Drupal\xedc_core\Ops\DiskOverview
+    arguments: ['@cache.default', '@datetime.time']
+
+  xedc_core.file_scanner:
+    class: Drupal\xedc_core\Ops\FileScanner
+    arguments: ['@keyvalue', '@queue', '@lock', '@config.factory', '@file_system', '@database', '@datetime.time', '@logger.channel.xedc_core']
+
+  xedc_core.media_census:
+    class: Drupal\xedc_core\Ops\MediaCensus
+    arguments: ['@entity_type.manager', '@entity_field.manager', '@database', '@file_system', '@cache.default', '@datetime.time', '@config.factory', '@logger.channel.xedc_core']

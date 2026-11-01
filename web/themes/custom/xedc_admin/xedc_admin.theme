@@ -1,0 +1,77 @@
+<?php
+
+/**
+ * @file
+ * Layout and navigation for the XEDC administration theme.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Render\Markup;
+
+$xedc_admin_includes = glob(__DIR__ . '/includes/*.theme') ?: [];
+foreach ($xedc_admin_includes as $xedc_admin_include) {
+  require_once $xedc_admin_include;
+}
+
+/**
+ * Implements hook_preprocess_html().
+ */
+function xedc_admin_preprocess_html(array &$variables): void {
+  $variables['html_attributes']['class'][] = 'xedc-admin-active';
+  $variables['attributes']['class'][] = 'xedc-admin-active';
+}
+
+/**
+ * Implements hook_preprocess_page().
+ */
+function xedc_admin_preprocess_page(array &$variables): void {
+  $variables['#cache']['contexts'][] = 'user';
+  $variables['#cache']['contexts'][] = 'user.permissions';
+  $variables['#cache']['contexts'][] = 'session';
+  $variables['#cache']['contexts'][] = 'route';
+  $variables['#cache']['contexts'][] = 'url.query_args:type';
+  $variables['#cache']['contexts'][] = 'languages:language_interface';
+  $variables['#cache']['tags'][] = 'config:system.site';
+
+  $account = \Drupal::currentUser();
+  $name = $account->getDisplayName() ?: 'User';
+  $variables['xedc_admin_nav'] = _xedc_admin_navigation();
+  $variables['xedc_admin_system'] = _xedc_admin_system_navigation();
+  $variables['xedc_admin_user_name'] = $name;
+  $variables['xedc_admin_user_initial'] = mb_substr($name, 0, 1);
+  $variables['xedc_admin_user_url'] = \Drupal\Core\Url::fromRoute('entity.user.canonical', ['user' => $account->id()])->toString();
+  $variables['xedc_admin_logout_url'] = \Drupal\Core\Url::fromRoute('user.logout')->toString();
+  $variables['xedc_admin_front_url'] = \Drupal\Core\Url::fromRoute('<front>')->toString();
+  $variables['xedc_admin_brand_url'] = _xedc_admin_brand_url();
+  $variables['xedc_admin_site_name'] = (string) (\Drupal::config('system.site')->get('name') ?: 'XEDC');
+}
+
+/**
+ * Implements hook_page_attachments_alter().
+ *
+ * Themes cannot implement hook_page_attachments(). The early class has to be
+ * added here, or the phone drawer CSS never turns on.
+ */
+function xedc_admin_page_attachments_alter(array &$attachments): void {
+  $attachments['#cache']['contexts'][] = 'route';
+  $attachments['#attached']['html_head'][] = [
+    [
+      '#type' => 'html_tag',
+      '#tag' => 'script',
+      '#value' => Markup::create("(function(){document.documentElement.classList.add('xedc-admin-js');try{if(localStorage.getItem('xedcAdmin.sidebarCollapsed')==='1'){document.documentElement.classList.add('xedc-admin-collapsed');}}catch(e){}})();"),
+      '#attributes' => ['id' => 'xedc-admin-sidebar-state'],
+    ],
+    'xedc_admin_sidebar_state',
+  ];
+  if (\Drupal::routeMatch()->getRouteName() === 'xedc_admin_ui.dashboard') {
+    $attachments['#attached']['library'][] = 'xedc_admin/dashboard';
+  }
+}
+
+/**
+ * Implements hook_preprocess_breadcrumb().
+ */
+function xedc_admin_preprocess_breadcrumb(array &$variables): void {
+  $variables['#cache']['contexts'][] = 'route';
+}

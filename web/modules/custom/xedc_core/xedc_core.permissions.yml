@@ -11,3 +11,13 @@ publish xedc image imports:
   title: '发布已完成的图片导入'
   description: '把导入完成且校验通过的图片内容发布到网站。'
   restrict access: true
+
+access xedc server monitor:
+  title: '查看服务器监控'
+  description: '查看本机 Netdata 采集的 CPU、内存、磁盘、网络和服务资源。'
+  restrict access: true
+
+access xedc file statistics:
+  title: '查看服务器文件统计'
+  description: '查看固定目录的占用、媒体统计和只读异常报告。不能通过此权限删除文件。'
+  restrict access: true

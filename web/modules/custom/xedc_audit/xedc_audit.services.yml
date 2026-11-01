@@ -7,6 +7,15 @@ services:
       - '@plugin.manager.audit_analyzer'
       - '@logger.factory'
 
+  xedc_audit.site_exporter:
+    class: Drupal\xedc_audit\SiteAuditReportExporter
+    public: true
+    arguments:
+      - '@plugin.manager.site_audit_checklist'
+      - '@config.factory'
+      - '@renderer'
+      - '@logger.factory'
+
   xedc_audit.overview_subscriber:
     class: Drupal\xedc_audit\EventSubscriber\AuditOverviewSubscriber
     tags:

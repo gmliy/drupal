@@ -898,8 +898,8 @@ function _xedc_fit_dimensions(int $width, int $height, int $max): array {
  * Gallery items in field_images order.
  *
  * The cover is included only when that file is not already in field_images.
- * The visible image and lightbox use photo_gallery_1300. Sheet thumbs use
- * photo_gallery_650. Neither style crops.
+ * The visible image and lightbox use the stored file. Sheet thumbs use
+ * photo_gallery_650. The sheet style does not crop.
  */
 function _xedc_photo_gallery_items($node, array &$variables): array {
   $cache_key = $node->id() . ':' . $node->language()->getId();
@@ -912,10 +912,8 @@ function _xedc_photo_gallery_items($node, array &$variables): array {
     return $built[$cache_key]['items'];
   }
   $tags_before = $variables['#cache']['tags'] ?? [];
-  $full_style = \Drupal\image\Entity\ImageStyle::load('photo_gallery_1300');
   $thumb_style = \Drupal\image\Entity\ImageStyle::load('photo_gallery_650');
   $generator = \Drupal::service('file_url_generator');
-  $variables['#cache']['tags'][] = 'config:image.style.photo_gallery_1300';
   $variables['#cache']['tags'][] = 'config:image.style.photo_gallery_650';
   $variables['img_show_cover'] = FALSE;
 
@@ -941,14 +939,6 @@ function _xedc_photo_gallery_items($node, array &$variables): array {
     }
   }
   $files = $fids ? \Drupal\file\Entity\File::loadMultiple(array_values(array_unique($fids))) : [];
-  $webp_map = [];
-  if ($fids && \Drupal::moduleHandler()->moduleExists('xedc_core') && \Drupal::database()->schema()->tableExists('xedc_image_file')) {
-    $webp_map = \Drupal::database()->select('xedc_image_file', 'f')
-      ->fields('f', ['fid', 'webp'])
-      ->condition('fid', array_values(array_unique($fids)), 'IN')
-      ->execute()
-      ->fetchAllKeyed();
-  }
   $file_of = static function ($media) use ($files) {
     if (!$media instanceof \Drupal\media\MediaInterface) {
       return NULL;
@@ -960,22 +950,14 @@ function _xedc_photo_gallery_items($node, array &$variables): array {
     $file = $files[$fid];
     return $file instanceof \Drupal\file\FileInterface ? $file : NULL;
   };
-  $pack = function ($media) use ($file_of, $full_style, $thumb_style, $generator, &$variables, $webp_map) {
+  $pack = function ($media) use ($file_of, $thumb_style, $generator, &$variables) {
     $file = $file_of($media);
     if (!$file || !$media instanceof \Drupal\media\MediaInterface) {
       return NULL;
     }
     $uri = $file->getFileUri();
-    $delivery = (string) ($webp_map[$file->id()] ?? '');
-    $use_original = $delivery === 'animated' || $delivery === 'fallback' || !$full_style;
-    if ($use_original) {
-      $full_absolute = $generator->generateAbsoluteString($uri);
-      $thumb_absolute = $full_absolute;
-    }
-    else {
-      $full_absolute = $full_style->buildUrl($uri);
-      $thumb_absolute = $thumb_style ? $thumb_style->buildUrl($uri) : $full_absolute;
-    }
+    $full_absolute = $generator->generateAbsoluteString($uri);
+    $thumb_absolute = $thumb_style ? $thumb_style->buildUrl($uri) : $full_absolute;
     $scene = '';
     $source_w = 0;
     $source_h = 0;
@@ -987,13 +969,13 @@ function _xedc_photo_gallery_items($node, array &$variables): array {
         $source_h = (int) $image_item->height;
       }
     }
-    [$width, $height] = _xedc_fit_dimensions($source_w, $source_h, 1300);
-    [$thumb_w, $thumb_h] = _xedc_fit_dimensions($source_w, $source_h, 650);
+    $width = $source_w;
+    $height = $source_h;
     $full = $generator->transformRelative($full_absolute);
     $thumb = $generator->transformRelative($thumb_absolute);
     $variables['#cache']['tags'][] = 'media:' . $media->id();
     $variables['#cache']['tags'][] = 'file:' . $file->id();
-    $srcset = $thumb . ' ' . max(1, $thumb_w) . 'w, ' . $full . ' ' . max(1, $width) . 'w';
+    $srcset = '';
     return [
       'thumb' => $thumb,
       'full' => $full,

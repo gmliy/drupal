@@ -1,0 +1,22 @@
+uuid: 95f8fbea-e0ad-4880-b5e7-e5c7ab372d66
+langcode: zh-hans
+status: true
+dependencies:
+  module:
+    - system
+  theme:
+    - xedc_admin
+_core:
+  default_config_hash: HnXpcwSEa4VVGHscQUZ_4Lcy8Ov9SfUXDzU2_aDAGCQ
+id: xedc_admin_messages
+theme: xedc_admin
+region: content
+weight: -20
+provider: null
+plugin: system_messages_block
+settings:
+  id: system_messages_block
+  label: 状态消息
+  label_display: '0'
+  provider: system
+visibility: {  }

@@ -304,3 +304,27 @@ function xedc_core_cron(): void {
   \Drupal::service('xedc_core.processor')->recover();
   \Drupal::service('xedc_core.cleaner')->expire();
 }
+
+/**
+ * Implements hook_theme().
+ */
+function xedc_core_theme(): array {
+  return [
+    'xedc_core_monitor' => [
+      'variables' => [
+        'snapshot' => [],
+      ],
+      'template' => 'xedc-core-monitor',
+    ],
+    'xedc_core_files' => [
+      'variables' => [
+        'disk' => [],
+        'job' => [],
+        'report' => NULL,
+        'census' => [],
+        'form' => NULL,
+      ],
+      'template' => 'xedc-core-files',
+    ],
+  ];
+}

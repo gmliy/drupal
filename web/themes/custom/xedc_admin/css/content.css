@@ -1,0 +1,105 @@
+/**
+ * @file
+ * Drupal content, media, and editor surfaces inside the admin shell.
+ */
+
+.xedc-admin-content a {
+  color: var(--xedc-admin-primary);
+}
+
+.xedc-admin-content .button,
+.xedc-admin-content .xedc-admin-button,
+.xedc-admin-nav__link,
+.xedc-admin-header a.xedc-admin-header__quiet,
+.xedc-admin-menu a,
+.xedc-admin-breadcrumb a {
+  color: inherit;
+}
+
+.xedc-admin-content .button--primary,
+.xedc-admin-content .xedc-admin-button--primary {
+  color: var(--xedc-admin-primary-foreground);
+}
+
+.xedc-admin-active .view-empty,
+.xedc-admin-active .views-view-empty {
+  padding: 28px 16px;
+  border: 1px dashed var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-lg);
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-muted);
+  text-align: center;
+}
+
+.xedc-admin-active .views-form,
+.xedc-admin-active .view-filters,
+.xedc-admin-active .view-header,
+.xedc-admin-active .view-footer {
+  max-width: 100%;
+}
+
+.xedc-admin-active .node-form,
+.xedc-admin-active .layout-node-form {
+  max-width: 1100px;
+}
+
+.xedc-admin-active .vertical-tabs {
+  display: flex;
+  gap: 16px;
+  margin: 0 0 16px;
+  border: 0;
+}
+
+.xedc-admin-active .vertical-tabs__menu {
+  flex: 0 0 200px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xedc-admin-active .vertical-tabs__panes {
+  flex: 1;
+  min-width: 0;
+}
+
+.xedc-admin-active .ck.ck-editor,
+.xedc-admin-active .ck-editor {
+  max-width: 100%;
+}
+
+.xedc-admin-active .ck.ck-toolbar {
+  flex-wrap: wrap;
+  border-color: var(--xedc-admin-border);
+  background: #FAFAFA;
+}
+
+.xedc-admin-active .ck.ck-editor__main > .ck-editor__editable {
+  min-height: 220px;
+  border-color: var(--xedc-admin-border);
+}
+
+.xedc-admin-active .media-library-wrapper,
+.xedc-admin-active .media-library-widget {
+  max-width: 100%;
+}
+
+.xedc-admin-active .media-library-item {
+  border-radius: var(--xedc-admin-radius-md);
+}
+
+.xedc-admin-active .media-library-item__preview {
+  background: var(--xedc-admin-surface-secondary);
+}
+
+.xedc-admin-active #xq-app,
+.xedc-admin-active .xedc-import,
+.xedc-admin-active form.xedc-core-import {
+  max-width: 100%;
+}
+
+.xedc-admin-active .help,
+.xedc-admin-active .block-help {
+  margin-bottom: 12px;
+  color: var(--xedc-admin-muted);
+  font-size: 14px;
+}

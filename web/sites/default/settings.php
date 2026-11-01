@@ -927,3 +927,51 @@ $config['system.logging']['error_level'] = 'hide';
  * Private files for XEDC archive imports. This directory is outside the web root.
  */
 $settings['file_private_path'] = '/var/www/drupal/private';
+
+
+/**
+ * Redis cache (perf round 4).
+ *
+ * example.services.yml is intentionally not included: it also replaces
+ * lock, lock.persistent, and flood. Those stay on the core database
+ * backends. The cache tag checksum override lives in services.yml, which
+ * the container_yamls line above already loads.
+ * bootstrap, config, and discovery bins are not set here, so they stay
+ * on ChainedFast.
+ */
+if (!\Drupal\Core\Installer\InstallerKernel::installationAttempted() && extension_loaded('redis')) {
+  $settings['redis.connection']['interface'] = 'PhpRedis';
+  $settings['redis.connection']['host'] = '127.0.0.1';
+  $settings['redis.connection']['port'] = 6379;
+  $settings['cache']['default'] = 'cache.backend.redis';
+  $settings['cache_prefix'] = 'gitxx';
+  $settings['redis_compress_length'] = 100;
+  $settings['redis_ttl_offset'] = 3600;
+  $settings['redis_invalidate_all_as_delete'] = TRUE;
+  $settings['container_yamls'][] = $app_root . '/modules/contrib/redis/redis.services.yml';
+  $class_loader->addPsr4('Drupal\\redis\\', 'modules/contrib/redis/src');
+  $settings['bootstrap_container_definition'] = [
+    'parameters' => [],
+    'services' => [
+      'redis.factory' => [
+        'class' => 'Drupal\redis\ClientFactory',
+      ],
+      'cache.backend.redis' => [
+        'class' => 'Drupal\redis\Cache\CacheBackendFactory',
+        'arguments' => ['@redis.factory', '@cache_tags_provider.container', '@serialization.phpserialize'],
+      ],
+      'cache.container' => [
+        'class' => '\Drupal\redis\Cache\PhpRedis',
+        'factory' => ['@cache.backend.redis', 'get'],
+        'arguments' => ['container'],
+      ],
+      'cache_tags_provider.container' => [
+        'class' => 'Drupal\redis\Cache\RedisCacheTagsChecksum',
+        'arguments' => ['@redis.factory'],
+      ],
+      'serialization.phpserialize' => [
+        'class' => 'Drupal\Component\Serialization\PhpSerialize',
+      ],
+    ],
+  ];
+}

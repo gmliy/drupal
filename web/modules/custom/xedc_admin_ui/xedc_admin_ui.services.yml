@@ -1,0 +1,9 @@
+services:
+  xedc_admin_ui.dashboard_stats:
+    class: Drupal\xedc_admin_ui\DashboardStats
+    arguments:
+      - '@database'
+      - '@entity_type.manager'
+      - '@cache.default'
+      - '@language_manager'
+      - '@file_url_generator'

@@ -2,7 +2,7 @@ xedc_core.import_list:
   path: '/admin/content/image-imports'
   defaults:
     _form: '\Drupal\xedc_core\Form\ImportListForm'
-    _title: '图片批量发布'
+    _title: '图片批量导入'
   requirements:
     _permission: 'import photo archives+administer xedc image imports'
   options:
@@ -116,3 +116,41 @@ xedc_core.import_rollback:
     parameters:
       task:
         type: integer
+
+xedc_core.monitor:
+  path: '/admin/reports/xedc-monitor'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\MonitorController::page'
+    _title: '服务器监控'
+  requirements:
+    _permission: 'access xedc server monitor'
+  options:
+    _admin_route: TRUE
+
+xedc_core.monitor_data:
+  path: '/admin/reports/xedc-monitor/data'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\MonitorController::data'
+  requirements:
+    _permission: 'access xedc server monitor'
+  options:
+    _admin_route: TRUE
+
+xedc_core.files:
+  path: '/admin/reports/xedc-files'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileStatsController::page'
+    _title: '文件统计'
+  requirements:
+    _permission: 'access xedc file statistics'
+  options:
+    _admin_route: TRUE
+
+xedc_core.files_status:
+  path: '/admin/reports/xedc-files/status'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileStatsController::status'
+  requirements:
+    _permission: 'access xedc file statistics'
+  options:
+    _admin_route: TRUE

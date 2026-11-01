@@ -1,0 +1,65 @@
+<?php
+
+/**
+ * @file
+ * Design tokens and the admin dashboard for the Gin administration theme.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Asset\AttachedAssetsInterface;
+use Drupal\Core\Language\LanguageInterface;
+
+/**
+ * Implements hook_page_attachments().
+ */
+function xedc_admin_ui_page_attachments(array &$attachments): void {
+  $attachments['#cache']['contexts'][] = 'theme';
+  $attachments['#cache']['contexts'][] = 'route';
+
+  $active = \Drupal::theme()->getActiveTheme();
+  $bases = $active->getBaseThemeExtensions();
+  if ($active->getName() !== 'gin' && !isset($bases['gin'])) {
+    return;
+  }
+
+  $attachments['#attached']['library'][] = 'xedc_admin_ui/tokens';
+}
+
+/**
+ * Implements hook_theme().
+ */
+function xedc_admin_ui_theme(): array {
+  return [
+    'xedc_admin_dashboard' => [
+      'variables' => [
+        'account_name' => '',
+        'date_label' => '',
+        'includes_unpublished' => FALSE,
+        'content' => NULL,
+        'members' => NULL,
+        'queue' => NULL,
+        'recent' => NULL,
+        'operations' => [],
+        'health' => [],
+        'error' => FALSE,
+      ],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_css_alter().
+ */
+function xedc_admin_ui_css_alter(array &$css, AttachedAssetsInterface $assets, LanguageInterface $language): void {
+  foreach ($css as $key => $item) {
+    $path = $item['data'] ?? '';
+    if (!is_string($path)) {
+      continue;
+    }
+    $path = str_replace('\\', '/', $path);
+    if (str_ends_with($path, 'xedc_admin_ui/css/tokens.css')) {
+      $css[$key]['group'] = 210;
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{#
+/**
+ * @file
+ * Local tasks as a single scrolling tab row.
+ *
+ * The Radix starterkit template emits Bootstrap nav classes. This theme does
+ * not load Bootstrap, so those lists fall back to browser bullets.
+ */
+#}
+{% if primary %}
+  <h2 class="visually-hidden">{{ 'Primary tabs'|t }}</h2>
+  <ul class="xedc-admin-tabs">{{ primary }}</ul>
+{% endif %}
+{% if secondary %}
+  <h2 class="visually-hidden">{{ 'Secondary tabs'|t }}</h2>
+  <ul class="xedc-admin-tabs xedc-admin-tabs--secondary">{{ secondary }}</ul>
+{% endif %}

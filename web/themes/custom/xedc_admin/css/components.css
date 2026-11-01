@@ -1,0 +1,468 @@
+/**
+ * @file
+ * Shared administration components.
+ */
+
+.xedc-admin-card {
+  background: var(--xedc-admin-surface);
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-lg);
+  box-shadow: var(--xedc-admin-shadow);
+}
+
+.xedc-admin-stat__label {
+  margin: 0;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+}
+
+.xedc-admin-stat__value {
+  margin: 6px 0 0;
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.xedc-admin-stat__hint {
+  margin: 8px 0 0;
+  color: var(--xedc-admin-muted);
+  font-size: 12px;
+}
+
+.xedc-admin-button,
+.xedc-admin-active .button,
+.xedc-admin-active input.form-submit,
+.xedc-admin-active .action-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-sm);
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.xedc-admin-button:hover,
+.xedc-admin-active .button:hover,
+.xedc-admin-active .action-links a:hover {
+  background: var(--xedc-admin-surface-secondary);
+}
+
+.xedc-admin-button--primary,
+.xedc-admin-active .button--primary,
+.xedc-admin-active input.button--primary {
+  border-color: var(--xedc-admin-primary);
+  background: var(--xedc-admin-primary);
+  color: var(--xedc-admin-primary-foreground);
+}
+
+.xedc-admin-button--primary:hover,
+.xedc-admin-active .button--primary:hover,
+.xedc-admin-active input.button--primary:hover {
+  border-color: var(--xedc-admin-primary-hover);
+  background: var(--xedc-admin-primary-hover);
+  color: var(--xedc-admin-primary-foreground);
+}
+
+.xedc-admin-active .button--danger,
+.xedc-admin-active .button--danger:hover {
+  border-color: var(--xedc-admin-danger);
+  background: var(--xedc-admin-danger);
+  color: #fff;
+}
+
+.xedc-admin-button:focus-visible,
+.xedc-admin-active .button:focus-visible,
+.xedc-admin-icon-button:focus-visible,
+.xedc-admin-nav__link:focus-visible,
+.xedc-admin-active a:focus-visible,
+.xedc-admin-active button:focus-visible,
+.xedc-admin-active input:focus-visible,
+.xedc-admin-active select:focus-visible,
+.xedc-admin-active textarea:focus-visible {
+  outline: 2px solid var(--xedc-admin-primary);
+  outline-offset: 2px;
+}
+
+.xedc-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 1px 8px;
+  background: var(--xedc-admin-surface-secondary);
+  color: var(--xedc-admin-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.xedc-admin-badge--success {
+  background: #DCFCE7;
+  color: var(--xedc-admin-success);
+}
+
+.xedc-admin-badge--warning {
+  background: #FEF3C7;
+  color: var(--xedc-admin-warning);
+}
+
+.xedc-admin-badge--danger {
+  background: #FEE2E2;
+  color: var(--xedc-admin-danger);
+}
+
+.xedc-admin-empty {
+  margin: 0;
+  padding: 28px 12px;
+  color: var(--xedc-admin-muted);
+  text-align: center;
+}
+
+.xedc-admin-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  background: var(--xedc-admin-surface);
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-lg);
+}
+
+.xedc-admin-table-wrap > table,
+.xedc-admin-active table {
+  border-collapse: collapse;
+  background: var(--xedc-admin-surface);
+}
+
+.xedc-admin-table-wrap > table {
+  width: 100%;
+  min-width: 100%;
+}
+
+.xedc-admin-active th,
+.xedc-admin-active td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--xedc-admin-border);
+  text-align: left;
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+.xedc-admin-active th {
+  color: var(--xedc-admin-muted);
+  font-size: 12px;
+  font-weight: 600;
+  background: #FAFAFA;
+}
+
+.xedc-admin-active tr:last-child td {
+  border-bottom: 0;
+}
+
+.xedc-admin-breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+}
+
+.xedc-admin-breadcrumb li {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.xedc-admin-breadcrumb li + li::before {
+  content: "/";
+  margin: 0 6px;
+  color: var(--xedc-admin-border);
+}
+
+.xedc-admin-breadcrumb a {
+  color: var(--xedc-admin-muted);
+  text-decoration: none;
+}
+
+.xedc-admin-breadcrumb a:hover {
+  color: var(--xedc-admin-foreground);
+}
+
+.xedc-admin-pagehead h1,
+.xedc-admin-active .page-title {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.xedc-admin-dropdown {
+  position: relative;
+}
+
+.xedc-admin-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
+  min-height: 40px;
+  padding: 4px 8px 4px 4px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--xedc-admin-foreground);
+  cursor: pointer;
+}
+
+.xedc-admin-user:hover {
+  background: var(--xedc-admin-surface-secondary);
+}
+
+.xedc-admin-user__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: #EFF6FF;
+  color: var(--xedc-admin-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.xedc-admin-user__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.xedc-admin-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-md);
+  background: var(--xedc-admin-surface);
+  box-shadow: var(--xedc-admin-shadow);
+}
+
+.xedc-admin-menu[hidden] {
+  display: none;
+}
+
+.xedc-admin-menu a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--xedc-admin-radius-sm);
+  color: var(--xedc-admin-foreground);
+  text-decoration: none;
+}
+
+.xedc-admin-menu a:hover {
+  background: var(--xedc-admin-surface-secondary);
+}
+
+.xedc-admin-active .messages {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-md);
+  background: var(--xedc-admin-surface);
+  box-shadow: var(--xedc-admin-shadow);
+}
+
+.xedc-admin-active .messages--status {
+  border-color: #BBF7D0;
+  background: #F0FDF4;
+}
+
+.xedc-admin-active .messages--warning {
+  border-color: #FDE68A;
+  background: #FFFBEB;
+}
+
+.xedc-admin-active .messages--error {
+  border-color: #FECACA;
+  background: #FEF2F2;
+}
+
+.xedc-admin-active .ajax-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+}
+
+.xedc-admin-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--xedc-admin-muted);
+}
+
+.xedc-admin-loading__spinner,
+.xedc-admin-active .ajax-progress__throbber {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--xedc-admin-border);
+  border-top-color: var(--xedc-admin-primary);
+  border-radius: 50%;
+  background: transparent;
+  animation: xedc-admin-spin 0.7s linear infinite;
+}
+
+@keyframes xedc-admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.xedc-admin-active .ui-dialog {
+  font-family: var(--xedc-admin-font);
+  color: var(--xedc-admin-foreground);
+  border-radius: var(--xedc-admin-radius-lg);
+}
+
+.xedc-admin-active .ui-dialog .ui-dialog-titlebar {
+  border-bottom: 1px solid var(--xedc-admin-border);
+}
+
+.xedc-admin-active .ui-dialog .ui-dialog-buttonpane {
+  border-top: 1px solid var(--xedc-admin-border);
+}
+
+.xedc-admin-active .pager {
+  margin-top: 16px;
+}
+
+.xedc-admin-active .pager__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xedc-admin-active .pager__item a,
+.xedc-admin-active .pager__item.is-active a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-sm);
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
+  text-decoration: none;
+}
+
+.xedc-admin-active .pager__item.is-active a {
+  border-color: var(--xedc-admin-primary);
+  background: #EFF6FF;
+  color: var(--xedc-admin-primary);
+}
+
+.xedc-admin-active .tabs,
+.xedc-admin-active ul.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  border: 0;
+}
+
+.xedc-admin-active .tabs > li {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.xedc-admin-active .tabs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--xedc-admin-muted);
+  text-decoration: none;
+}
+
+.xedc-admin-active .tabs a.is-active,
+.xedc-admin-active .tabs li.is-active a {
+  background: #EFF6FF;
+  color: var(--xedc-admin-primary);
+}
+
+.xedc-admin-active .views-exposed-form,
+.xedc-admin-active .views-exposed-form .form--inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  overflow: visible;
+}
+
+.xedc-admin-active .views-exposed-form {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-lg);
+  background: var(--xedc-admin-surface);
+}
+
+.xedc-admin-active .views-exposed-form .form-item {
+  flex: 1 1 180px;
+  min-width: 0;
+  margin: 0;
+}
+
+.xedc-admin-active .views-exposed-form .form-actions {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 8px;
+  margin: 0;
+}
+
+.xedc-admin-active .dropbutton-wrapper {
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-sm);
+  background: var(--xedc-admin-surface);
+}
+
+.xedc-admin-active .dropbutton-widget {
+  background: transparent;
+}
+
+.xedc-admin-active .dropbutton .button,
+.xedc-admin-active .dropbutton input.form-submit {
+  width: auto;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+}

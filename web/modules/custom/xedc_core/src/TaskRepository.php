@@ -6,6 +6,7 @@ namespace Drupal\xedc_core;
 
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Database\Query\SelectInterface;
 use Drupal\Core\State\StateInterface;
 
 /**
@@ -295,13 +296,63 @@ class TaskRepository {
    * @return object[]
    *   Rows including node_title and user_name.
    */
-  public function list(string $filter, ?int $uid, int $limit = 50): array {
-    $query = $this->database->select('xedc_import_task', 't');
+  public function list(string $filter, ?int $uid, int $limit = 50, int $offset = 0, string $keyword = '', string $sort = 'new'): array {
+    $query = $this->selectList($filter, $uid, $keyword);
     $query->fields('t');
-    $query->leftJoin('node_field_data', 'n', 'n.nid = t.nid AND n.default_langcode = 1');
     $query->addField('n', 'title', 'node_title');
-    $query->leftJoin('users_field_data', 'u', 'u.uid = t.uid');
     $query->addField('u', 'name', 'user_name');
+    $query->orderBy('t.id', $sort === 'old' ? 'ASC' : 'DESC');
+    $query->range(max(0, $offset), max(1, $limit));
+    return $query->execute()->fetchAll();
+  }
+
+  /**
+   * Count of the same list query, without loading the rows.
+   */
+  public function countList(string $filter, ?int $uid, string $keyword = ''): int {
+    $query = $this->selectList($filter, $uid, $keyword);
+    return (int) $query->countQuery()->execute()->fetchField();
+  }
+
+  /**
+   * Real counts for the dashboard cards.
+   *
+   * @return array{all: int, processing: int, review: int, failed: int}
+   *   Counts visible to this account.
+   */
+  public function summary(?int $uid): array {
+    $counts = ['all' => 0, 'processing' => 0, 'review' => 0, 'failed' => 0];
+    $query = $this->database->select('xedc_import_task', 't');
+    $query->addField('t', 'status');
+    $query->addExpression('COUNT(*)', 'c');
+    if ($uid) {
+      $query->condition('t.uid', $uid);
+    }
+    $query->groupBy('t.status');
+    foreach ($query->execute() as $row) {
+      $status = (string) $row->status;
+      $count = (int) $row->c;
+      $counts['all'] += $count;
+      if (in_array($status, ImportStatus::processing(), TRUE)) {
+        $counts['processing'] += $count;
+      }
+      if (in_array($status, [ImportStatus::REVIEW, ImportStatus::COMPLETED], TRUE)) {
+        $counts['review'] += $count;
+      }
+      if (in_array($status, [ImportStatus::FAILED, ImportStatus::PARTIAL], TRUE)) {
+        $counts['failed'] += $count;
+      }
+    }
+    return $counts;
+  }
+
+  /**
+   * Shared filters for the task list and its count.
+   */
+  private function selectList(string $filter, ?int $uid, string $keyword): SelectInterface {
+    $query = $this->database->select('xedc_import_task', 't');
+    $query->leftJoin('node_field_data', 'n', 'n.nid = t.nid AND n.default_langcode = 1');
+    $query->leftJoin('users_field_data', 'u', 'u.uid = t.uid');
     if ($uid) {
       $query->condition('t.uid', $uid);
     }
@@ -309,9 +360,18 @@ class TaskRepository {
     if ($statuses) {
       $query->condition('t.status', $statuses, 'IN');
     }
-    $query->orderBy('t.id', 'DESC');
-    $query->range(0, $limit);
-    return $query->execute()->fetchAll();
+    $keyword = trim($keyword);
+    if ($keyword !== '') {
+      $like = '%' . $this->database->escapeLike($keyword) . '%';
+      $group = $query->orConditionGroup()
+        ->condition('n.title', $like, 'LIKE')
+        ->condition('t.archive_name', $like, 'LIKE');
+      if (preg_match('/^\d+$/', $keyword) === 1) {
+        $group->condition('t.id', (int) $keyword);
+      }
+      $query->condition($group);
+    }
+    return $query;
   }
 
   /**

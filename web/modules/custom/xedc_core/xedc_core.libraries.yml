@@ -7,3 +7,22 @@ admin:
   dependencies:
     - core/drupal
     - core/once
+
+dashboard:
+  css:
+    theme:
+      css/dashboard.css: {}
+  dependencies:
+    - core/drupal
+
+ops:
+  css:
+    theme:
+      css/ops.css: {}
+  js:
+    js/monitor.js: {}
+    js/files.js: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+    - core/once

@@ -1,7 +1,8 @@
 name: 'XEDC Audit Export'
 type: module
-description: '在审计概览页直接下载全部报告，并为 drush audit:run 增加 CSV 输出。报告只随响应发出，不写入磁盘。'
+description: '在审计概览页和 Site Audit 页直接下载全部报告，并为 drush audit:run 增加 CSV。报告只随响应发出，不写入磁盘。'
 package: XEDC
 core_version_requirement: ^11
 dependencies:
   - audit:audit
+  - site_audit:site_audit

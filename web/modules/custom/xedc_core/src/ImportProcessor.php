@@ -185,7 +185,31 @@ class ImportProcessor {
     if (!$this->archive->exists((string) $task->archive_uri)) {
       throw new ImportException('源压缩包已清理，无法重试。');
     }
-    $this->tasks->resetFailed($taskId);
+    $reset = \Drupal::database()->update('xedc_import_item')
+      ->fields(['status' => 'pending', 'error' => ''])
+      ->condition('task_id', $taskId)
+      ->condition('status', 'failed')
+      ->condition('attempts', 3, '<')
+      ->execute();
+    $exhausted = (int) \Drupal::database()->select('xedc_import_item', 'i')
+      ->condition('task_id', $taskId)
+      ->condition('status', 'failed')
+      ->condition('attempts', 3, '>=')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $pending = (int) \Drupal::database()->select('xedc_import_item', 'i')
+      ->condition('task_id', $taskId)
+      ->condition('status', 'pending')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    if ($this->tasks->itemCount($taskId) > 0 && (int) $reset < 1 && $pending < 1) {
+      throw new ImportException($exhausted > 0 ? '失败图片已达到重试次数上限。' : '没有可以重试的图片。');
+    }
+    if ($exhausted > 0) {
+      $this->tasks->log($taskId, 'warning', '有 ' . $exhausted . ' 张图片已达到重试上限，不再处理。');
+    }
     $this->tasks->update($taskId, [
       'status' => ImportStatus::QUEUED,
       'stage' => ImportStatus::QUEUED,
@@ -322,6 +346,9 @@ class ImportProcessor {
       try {
         $this->images->import($task, $item, $node);
       }
+      catch (ImportAbortException $e) {
+        throw $e;
+      }
       catch (ImportException $e) {
         $this->tasks->markItem((int) $item->id, [
           'status' => 'failed',
@@ -434,7 +461,7 @@ class ImportProcessor {
         'published_at' => time(),
         'published_uid' => (int) $task->uid,
       ]);
-      $this->tasks->log($taskId, 'info', '已更新已发布内容。图片 ' . $counts['success'] . ' 张，原图 ' . $counts['bytes'] . ' 字节。');
+      $this->tasks->log($taskId, 'info', '已更新已发布内容。图片 ' . $counts['success'] . ' 张，正式图片 ' . $counts['bytes'] . ' 字节。' . $this->reuseSummary($taskId));
       $this->cleaner->success($this->tasks->load($taskId));
       return;
     }
@@ -454,7 +481,7 @@ class ImportProcessor {
       'message' => '导入完成，等待审核',
       'error' => '',
     ]);
-    $this->tasks->log($taskId, 'info', '导入完成，进入待审核。图片 ' . $counts['success'] . ' 张，原图 ' . $counts['bytes'] . ' 字节。');
+    $this->tasks->log($taskId, 'info', '导入完成，进入待审核。图片 ' . $counts['success'] . ' 张，正式图片 ' . $counts['bytes'] . ' 字节。' . $this->reuseSummary($taskId));
     $this->cleaner->success($this->tasks->load($taskId));
   }
 
@@ -482,11 +509,22 @@ class ImportProcessor {
         }
       }
     }
-    $node->set('field_images', array_map(static fn(int $mid): array => ['target_id' => $mid], $mids));
     $cover = (int) $node->get('field_cover_image')->target_id;
+    $coverEntity = $cover ? $node->get('field_cover_image')->entity : NULL;
     $locked = $this->tasks->coverLocked((int) $node->id());
-    if (!$cover && !$locked && $mids) {
-      $node->set('field_cover_image', ['target_id' => $mids[random_int(0, count($mids) - 1)]]);
+    if ($locked && $coverEntity && !in_array($cover, $mids, TRUE)) {
+      $mids[] = $cover;
+    }
+    $node->set('field_images', array_map(static fn(int $mid): array => ['target_id' => $mid], $mids));
+    if ($coverEntity && in_array($cover, $mids, TRUE)) {
+      $node->set('field_cover_image', ['target_id' => $cover]);
+    }
+    elseif ($mids) {
+      $pick = (!$cover && !$locked) ? $mids[random_int(0, count($mids) - 1)] : $mids[0];
+      $node->set('field_cover_image', ['target_id' => $pick]);
+      if ($cover) {
+        $this->tasks->log((int) $task->id, 'warning', '封面不在图片列表中，已改用第一张成功图片。');
+      }
     }
     $node->xedc_import_internal = TRUE;
     $node->setNewRevision(TRUE);
@@ -520,25 +558,14 @@ class ImportProcessor {
       if (!in_array($mid, $attached, TRUE)) {
         throw new ImportException('成功导入的图片没有关联到内容。');
       }
-      $media = $this->entityTypeManager->getStorage('media')->load($mid);
-      if (!$media || !$media->hasField('field_media_image') || $media->get('field_media_image')->isEmpty()) {
-        throw new ImportException('图片媒体缺失。');
-      }
-      $alt = trim((string) $media->get('field_media_image')->alt);
-      if ($alt === '') {
-        throw new ImportException('图片 ALT 为空。');
-      }
-      $file = $media->get('field_media_image')->entity;
-      if (!$file || !is_file($this->fileSystemReal($file->getFileUri()))) {
-        throw new ImportException('原始图片文件缺失。');
-      }
-      $bytes += (int) $file->getSize();
+      $bytes += $this->assertStored($item);
     }
     if ($bytes !== (int) $task->bytes) {
-      throw new ImportException('原图总大小和文件不一致。');
+      throw new ImportException('正式图片总大小和文件不一致。');
     }
-    if ($node->get('field_cover_image')->isEmpty() || !$node->get('field_cover_image')->entity) {
-      throw new ImportException('封面无效。');
+    $cover = (int) $node->get('field_cover_image')->target_id;
+    if (!$cover || !$node->get('field_cover_image')->entity || !in_array($cover, $attached, TRUE)) {
+      throw new ImportException('封面无效或不在图片列表中。');
     }
   }
 
@@ -605,22 +632,83 @@ class ImportProcessor {
         throw new ImportException('图片发生重复关联。');
       }
       $seen[$mid] = TRUE;
-      $media = $this->entityTypeManager->getStorage('media')->load($mid);
-      if (!$media || !$media->hasField('field_media_image') || $media->get('field_media_image')->isEmpty()) {
-        throw new ImportException('图片媒体缺失。');
-      }
-      if (trim((string) $media->get('field_media_image')->alt) === '') {
-        throw new ImportException('图片 ALT 为空。');
-      }
-      $file = $media->get('field_media_image')->entity;
-      if (!$file || !is_file($this->fileSystemReal($file->getFileUri()))) {
-        throw new ImportException('原始图片文件缺失。');
-      }
-      $bytes += (int) $file->getSize();
+      $bytes += $this->assertStored($item);
     }
     if ($bytes !== $expectedBytes) {
-      throw new ImportException('原图总大小和文件不一致。');
+      throw new ImportException('正式图片总大小和文件不一致。');
     }
+  }
+
+  /**
+   * Confirms one successful item points at a readable official file.
+   */
+  private function assertStored(object $item): int {
+    $media = $this->entityTypeManager->getStorage('media')->load((int) $item->mid);
+    if (!$media || !$media->hasField('field_media_image') || $media->get('field_media_image')->isEmpty()) {
+      throw new ImportException('图片媒体缺失。');
+    }
+    if (trim((string) $media->get('field_media_image')->alt) === '') {
+      throw new ImportException('图片 ALT 为空。');
+    }
+    $file = $media->get('field_media_image')->entity;
+    $real = ($file && method_exists($file, 'getFileUri')) ? $this->fileSystemReal($file->getFileUri()) : '';
+    if (!$file || $real === '' || !is_file($real)) {
+      throw new ImportException('正式图片文件缺失。');
+    }
+    if (str_starts_with($file->getFileUri(), 'private://xedc-import/')) {
+      throw new ImportException('正式图片不应留在导入临时目录。');
+    }
+    $stored = hash_file('sha256', $real);
+    $row = \Drupal::database()->select('xedc_image_file', 'h')
+      ->fields('h', ['source_sha256', 'stored_sha256'])
+      ->condition('fid', (int) $file->id())
+      ->execute()
+      ->fetchObject();
+    if (!is_string($stored) || !$row || !preg_match('/^[a-f0-9]{64}$/', (string) $row->stored_sha256) || !hash_equals((string) $row->stored_sha256, $stored)) {
+      throw new ImportException('正式图片 SHA-256 和文件不一致。');
+    }
+    if (!preg_match('/^[a-f0-9]{64}$/', (string) $row->source_sha256)) {
+      throw new ImportException('原始图片 SHA-256 缺失。');
+    }
+    if (!preg_match('/^[a-f0-9]{64}$/', (string) ($item->source_sha256 ?? '')) || !preg_match('/^[a-f0-9]{64}$/', (string) ($item->stored_sha256 ?? ''))) {
+      throw new ImportException('导入记录缺少 SHA-256。');
+    }
+    if (!hash_equals((string) $item->stored_sha256, $stored)) {
+      throw new ImportException('导入记录的正式 SHA-256 和文件不一致。');
+    }
+    $temp = $this->fileSystemReal((string) ($item->temp_uri ?? ''));
+    if ($temp !== '' && is_file($temp)) {
+      $source = hash_file('sha256', $temp);
+      if (!is_string($source) || !hash_equals((string) $item->source_sha256, $source)) {
+        throw new ImportException('原始图片 SHA-256 和临时文件不一致。');
+      }
+    }
+    $size = (int) filesize($real);
+    if ($size < 1) {
+      throw new ImportException('正式图片大小异常。');
+    }
+    return $size;
+  }
+
+  /**
+   * One line describing reused and in-archive duplicate images.
+   */
+  private function reuseSummary(int $taskId): string {
+    $database = \Drupal::database();
+    $reused = (int) $database->select('xedc_import_item', 'i')
+      ->condition('task_id', $taskId)
+      ->condition('status', 'success')
+      ->condition('reused', 1)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $duplicates = (int) $database->select('xedc_import_item', 'i')
+      ->condition('task_id', $taskId)
+      ->condition('status', 'duplicate')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    return '复用已有图片 ' . $reused . ' 张，压缩包内重复 ' . $duplicates . ' 张。';
   }
 
   private function fail(int $taskId, string $message): void {

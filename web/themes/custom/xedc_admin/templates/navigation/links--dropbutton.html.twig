@@ -1,0 +1,32 @@
+{#
+/**
+ * @file
+ * Operations menu as a Drupal dropbutton.
+ *
+ * Core dropbutton.js collapses every item after the first. The Radix
+ * starterkit template renders a Bootstrap dropdown instead, and without
+ * Bootstrap CSS that menu stays open and stretches table rows.
+ */
+#}
+{% if links -%}
+  {%- if heading -%}
+    {%- if heading.level -%}
+      <{{ heading.level }}{{ heading.attributes }}>{{ heading.text }}</{{ heading.level }}>
+    {%- else -%}
+      <h2{{ heading.attributes }}>{{ heading.text }}</h2>
+    {%- endif -%}
+  {%- endif -%}
+  <ul{{ attributes.addClass('dropbutton') }}>
+    {%- for item in links -%}
+      <li{{ item.attributes }}>
+        {%- if item.link -%}
+          {{ item.link }}
+        {%- elseif item.text_attributes -%}
+          <span{{ item.text_attributes }}>{{ item.text }}</span>
+        {%- else -%}
+          {{ item.text }}
+        {%- endif -%}
+      </li>
+    {%- endfor -%}
+  </ul>
+{%- endif %}

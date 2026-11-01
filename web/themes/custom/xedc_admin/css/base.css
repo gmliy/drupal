@@ -1,0 +1,81 @@
+/**
+ * @file
+ * Design tokens and scoped defaults for the XEDC administration theme.
+ */
+
+html.xedc-admin-active {
+  --xedc-admin-background: #F8F9FB;
+  --xedc-admin-surface: #FFFFFF;
+  --xedc-admin-surface-secondary: #F4F4F5;
+  --xedc-admin-foreground: #18181B;
+  --xedc-admin-muted: #71717A;
+  --xedc-admin-border: #E4E4E7;
+  --xedc-admin-primary: #171717;
+  --xedc-admin-primary-hover: #262626;
+  --xedc-admin-primary-active: #404040;
+  --xedc-admin-primary-foreground: #FAFAFA;
+  --xedc-admin-accent-soft: #F5F5F5;
+  --xedc-admin-success: #16A34A;
+  --xedc-admin-warning: #D97706;
+  --xedc-admin-danger: #DC2626;
+  --xedc-admin-radius-sm: 4px;
+  --xedc-admin-radius-md: 6px;
+  --xedc-admin-radius-lg: 6px;
+  --xedc-admin-sidebar-width: 240px;
+  --xedc-admin-sidebar-collapsed: 72px;
+  --xedc-admin-header-height: 64px;
+  --xedc-admin-shadow: none;
+  --xedc-admin-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  /* Bridge so existing dashboard CSS can read the same palette without Gin. */
+  --gin-color-text: var(--xedc-admin-foreground);
+  --gin-color-text-light: var(--xedc-admin-muted);
+  --gin-color-title: var(--xedc-admin-foreground);
+  --gin-bg-layer: var(--xedc-admin-surface);
+  --gin-bg-layer2: var(--xedc-admin-surface-secondary);
+  --gin-bg-app: var(--xedc-admin-background);
+  --gin-border-color: var(--xedc-admin-border);
+  --gin-color-primary: var(--xedc-admin-primary);
+  --gin-color-primary-hover: var(--xedc-admin-primary-hover);
+}
+
+html.xedc-admin-active,
+body.xedc-admin-active {
+  background: var(--xedc-admin-background);
+  color: var(--xedc-admin-foreground);
+  font-family: var(--xedc-admin-font);
+}
+
+body.xedc-admin-active {
+  margin: 0;
+}
+
+.xedc-admin,
+.xedc-admin * {
+  box-sizing: border-box;
+}
+
+.xedc-admin-skip {
+  position: absolute;
+  left: 12px;
+  top: 8px;
+  z-index: 80;
+  padding: 8px 12px;
+  border-radius: var(--xedc-admin-radius-sm);
+  background: var(--xedc-admin-foreground);
+  color: #fff;
+  transform: translateY(-140%);
+}
+
+.xedc-admin-skip:focus {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xedc-admin *,
+  .xedc-admin *::before,
+  .xedc-admin *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}

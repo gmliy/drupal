@@ -76,6 +76,10 @@ function xedc_core_schema(): array {
       'error' => ['type' => 'text', 'not null' => FALSE],
       'alt' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
       'webp' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'source_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'stored_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'reused' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'attempts' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
     ],
     'primary key' => ['id'],
     'indexes' => [
@@ -116,8 +120,14 @@ function xedc_core_schema(): array {
       'animated' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'webp' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
       'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'source_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'stored_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
     ],
     'primary key' => ['fid'],
+    'indexes' => [
+      'source_sha256' => ['source_sha256'],
+      'stored_sha256' => ['stored_sha256'],
+    ],
   ];
 
   return [
@@ -179,4 +189,64 @@ function xedc_core_update_10001(): void {
     'default' => '',
   ];
   \Drupal::database()->schema()->changeField('xedc_import_item', 'temp_uri', 'temp_uri', $field);
+}
+
+/**
+ * Stores source and official SHA-256 fingerprints on files and import items.
+ */
+function xedc_core_update_10002(): void {
+  $schema = \Drupal::database()->schema();
+  $hash = [
+    'type' => 'varchar',
+    'length' => 64,
+    'not null' => TRUE,
+    'default' => '',
+  ];
+  $flag = [
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => TRUE,
+    'default' => 0,
+  ];
+  $add = static function (string $table, string $field, array $spec) use ($schema): void {
+    if (!$schema->fieldExists($table, $field)) {
+      $schema->addField($table, $field, $spec);
+    }
+  };
+  $add('xedc_image_file', 'source_sha256', $hash);
+  $add('xedc_image_file', 'stored_sha256', $hash);
+  $add('xedc_import_item', 'source_sha256', $hash);
+  $add('xedc_import_item', 'stored_sha256', $hash);
+  $add('xedc_import_item', 'reused', $flag);
+  $add('xedc_import_item', 'attempts', $flag);
+  foreach (['source_sha256', 'stored_sha256'] as $name) {
+    if (!$schema->indexExists('xedc_image_file', $name)) {
+      $schema->addIndex('xedc_image_file', $name, [$name], [
+        'fields' => [$name => $hash],
+      ]);
+    }
+  }
+}
+
+/**
+ * Stores local monitor and file-scan defaults.
+ */
+function xedc_core_update_10003(): void {
+  $config = \Drupal::configFactory()->getEditable('xedc_core.settings');
+  $defaults = [
+    'netdata_base_url' => 'http://127.0.0.1:19999',
+    'file_scan_batch' => 250,
+    'file_scan_seconds' => 6,
+    'file_large_bytes' => 104857600,
+    'file_huge_bytes' => 524288000,
+    'file_stale_days' => 180,
+    'file_top_files' => 100,
+    'file_top_dirs' => 50,
+  ];
+  foreach ($defaults as $key => $value) {
+    if ($config->get($key) === NULL) {
+      $config->set($key, $value);
+    }
+  }
+  $config->save(TRUE);
 }

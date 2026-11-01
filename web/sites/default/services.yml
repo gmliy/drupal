@@ -1,0 +1,8 @@
+# perf round 4: move only the cache tag checksum to Redis.
+# lock and flood are not defined here, so they stay on the core database backends.
+services:
+  cache_tags.invalidator.checksum:
+    class: Drupal\redis\Cache\RedisCacheTagsChecksum
+    arguments: ['@redis.factory']
+    tags:
+      - { name: cache_tags_invalidator }

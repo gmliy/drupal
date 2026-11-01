@@ -7,3 +7,13 @@ max_image_bytes: 52428800
 batch_size: 5
 time_budget: 25
 failed_retention_hours: 48
+webp_quality: 85
+temp_retention_hours: 24
+netdata_base_url: 'http://127.0.0.1:19999'
+file_scan_batch: 250
+file_scan_seconds: 6
+file_large_bytes: 104857600
+file_huge_bytes: 524288000
+file_stale_days: 180
+file_top_files: 100
+file_top_dirs: 50

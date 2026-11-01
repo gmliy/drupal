@@ -1,0 +1,16 @@
+{#
+/**
+ * @file
+ * One group on an administration index page.
+ */
+#}
+<section{{ attributes.addClass('xedc-admin-index-section') }}>
+  {% if block.title %}
+    <h2 class="xedc-admin-index-section__title">{{ block.title }}</h2>
+  {% endif %}
+  {% if block.content %}
+    {{ block.content }}
+  {% elseif block.description %}
+    <p class="xedc-admin-index-section__desc">{{ block.description }}</p>
+  {% endif %}
+</section>

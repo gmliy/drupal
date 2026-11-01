@@ -82,10 +82,11 @@ class AltManager {
       ->execute()
       ->fetchAllKeyed();
     $medias = $this->entityTypeManager->getStorage('media')->loadMultiple($mids);
+    $shared = $this->sharedMedia($mids, (int) $node->id());
     $total = count($mids);
     $updated = 0;
     foreach ($mids as $delta => $mid) {
-      if (($sources[$mid] ?? '') !== 'auto') {
+      if (($sources[$mid] ?? '') !== 'auto' || isset($shared[$mid])) {
         continue;
       }
       $media = $medias[$mid] ?? NULL;
@@ -100,6 +101,38 @@ class AltManager {
       $updated++;
     }
     return $updated;
+  }
+
+  /**
+   * Media already used by another photo, whose ALT must stay unchanged.
+   *
+   * @param int[] $mids
+   *   Media ids on the current node.
+   *
+   * @return array<int, true>
+   *   Shared media ids.
+   */
+  private function sharedMedia(array $mids, int $nid): array {
+    $shared = [];
+    $tables = [
+      'node__field_images' => 'field_images_target_id',
+      'node__field_cover_image' => 'field_cover_image_target_id',
+    ];
+    foreach ($tables as $table => $column) {
+      if (!$this->database->schema()->tableExists($table)) {
+        continue;
+      }
+      $ids = $this->database->select($table, 't')
+        ->fields('t', [$column])
+        ->condition($column, $mids, 'IN')
+        ->condition('entity_id', $nid, '<>')
+        ->execute()
+        ->fetchCol();
+      foreach ($ids as $id) {
+        $shared[(int) $id] = TRUE;
+      }
+    }
+    return $shared;
   }
 
 }

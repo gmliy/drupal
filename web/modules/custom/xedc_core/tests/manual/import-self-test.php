@@ -75,11 +75,27 @@ $cleanup = static function () use (&$nids, &$uids, &$canaries, $filesystem, $tas
     }
     $medias = $mids ? Media::loadMultiple(array_unique($mids)) : [];
     foreach ($medias as $media) {
+      $usedElsewhere = (int) $database->select('node__field_images', 'f')
+        ->condition('field_images_target_id', (int) $media->id())
+        ->condition('entity_id', $nids, 'NOT IN')
+        ->countQuery()
+        ->execute()
+        ->fetchField();
+      if ($usedElsewhere > 0) {
+        continue;
+      }
       $fid = $media->hasField('field_media_image') ? (int) $media->get('field_media_image')->target_id : 0;
       $file = $fid ? File::load($fid) : NULL;
       $media->delete();
       if ($file instanceof FileInterface) {
-        $file->delete();
+        $usedFile = (int) $database->select('media__field_media_image', 'm')
+          ->condition('field_media_image_target_id', $fid)
+          ->countQuery()
+          ->execute()
+          ->fetchField();
+        if ($usedFile < 1) {
+          $file->delete();
+        }
       }
     }
   }
@@ -116,7 +132,8 @@ $image = static function (string $path, string $kind): void {
     imagegif($im, $path);
   }
   else {
-    imagefill($im, 0, 0, imagecolorallocate($im, 180, 20, 20));
+    $seed = crc32($path);
+    imagefill($im, 0, 0, imagecolorallocate($im, ($seed >> 16) & 255, ($seed >> 8) & 255, $seed & 255));
     imagejpeg($im, $path, 90);
   }
   imagedestroy($im);
@@ -272,28 +289,23 @@ try {
           $renamed = FALSE;
         }
         $flag = \Drupal::database()->select('xedc_image_file', 'f')->fields('f')->condition('fid', $file->id())->execute()->fetchObject();
+        $storedReal = $filesystem->realpath($file->getFileUri());
         if ($flag && $flag->webp === 'animated') {
           $animatedOk = str_ends_with($file->getFilename(), '.gif');
-          $raw = file_get_contents($filesystem->realpath($file->getFileUri()));
-          $animatedOk = $animatedOk && substr_count($raw, "\x21\xF9\x04") > 1;
+          $raw = $storedReal ? file_get_contents($storedReal) : '';
+          $animatedOk = $animatedOk && substr_count((string) $raw, "\x21\xF9\x04") > 1;
         }
-        if ($flag && $flag->webp === 'ok' && str_ends_with(strtolower($file->getFilename()), '.png')) {
-          $style = ImageStyle::load('photo_gallery_1300');
-          $derivative = $filesystem->realpath($style->buildUri($file->getFileUri()));
-          $alphaOk = $derivative && is_file($derivative) && str_ends_with($derivative, '.webp');
-          if ($alphaOk) {
-            $png = imagecreatefromwebp($derivative);
-            $color = imagecolorsforindex($png, imagecolorat($png, 0, 0));
+        if ((string) $media->label() === 'transparent.png' && $storedReal) {
+          $alphaImage = str_ends_with(strtolower($file->getFilename()), '.webp') ? @imagecreatefromwebp($storedReal) : @imagecreatefrompng($storedReal);
+          if ($alphaImage) {
+            $color = imagecolorsforindex($alphaImage, imagecolorat($alphaImage, 0, 0));
             $alphaOk = ($color['alpha'] ?? 0) >= 100;
-            imagedestroy($png);
-            $webpOk = TRUE;
+            imagedestroy($alphaImage);
           }
         }
-        if ($flag && $flag->webp === 'ok' && !$webpOk) {
-          $style = ImageStyle::load('photo_gallery_1300');
-          $derivative = $filesystem->realpath($style->buildUri($file->getFileUri()));
-          $info = $derivative ? @getimagesize($derivative) : FALSE;
-          $webpOk = $info && ($info['mime'] ?? '') === 'image/webp';
+        if ($flag && in_array((string) $flag->webp, ['ok', 'fallback'], TRUE) && $storedReal && !$webpOk) {
+          $info = @getimagesize($storedReal);
+          $webpOk = $info && (($info['mime'] ?? '') === 'image/webp');
         }
       }
       $seq++;
@@ -306,15 +318,19 @@ try {
     $check('每张 ALT 不同', count($alts) === count(array_unique($alts)), implode(' | ', $alts));
     $check('原图总大小', (int) $task->bytes === $bytes && $bytes > 0, $task->bytes . ' vs ' . $bytes);
     $check('重命名保留原格式', $renamed, 'checked');
-    $check('前台 WebP 样式', $webpOk, $webpOk ? 'webp' : 'missing');
+    $check('正式图片为 WebP', $webpOk, $webpOk ? 'webp' : 'missing');
     $check('透明 PNG 保留', $alphaOk, $alphaOk ? 'alpha' : 'lost');
     $check('动画 GIF 保留', $animatedOk, $animatedOk ? 'gif' : 'lost');
-    $check('临时压缩包已清理', (string) $task->archive_uri === '', (string) $task->archive_uri);
+    $stylesKept = ImageStyle::load('photo_gallery_1300') && ImageStyle::load('photo_gallery_650') && ImageStyle::load('meitu_card_cover') && ImageStyle::load('images_450x800');
+    $check('原有图片样式仍在', (bool) $stylesKept, $stylesKept ? 'kept' : 'missing');
+    $archiveReal = $task->archive_uri ? $filesystem->realpath((string) $task->archive_uri) : FALSE;
+    $check('成功后进入保留期', (int) $task->cleanup_after > time() && $archiveReal && is_file($archiveReal), 'after=' . (int) $task->cleanup_after);
   }
 
   $partialZip = sys_get_temp_dir() . '/xedc-partial-' . getmypid() . '.zip';
+  $image($work . '/partial-ok.jpg', 'jpg');
   $zipTo($partialZip, [
-    'ok.jpg' => $work . '/1.jpg',
+    'ok.jpg' => $work . '/partial-ok.jpg',
     'bad.jpg' => $work . '/bad.jpg',
   ]);
   $placed = $stage('partial-' . getmypid() . '.zip', $partialZip);
@@ -353,9 +369,9 @@ try {
 
   $sevenDir = sys_get_temp_dir() . '/xedc-7z-' . getmypid();
   mkdir($sevenDir, 0775, TRUE);
-  copy($work . '/1.jpg', $sevenDir . '/1.jpg');
-  copy($work . '/10.jpg', $sevenDir . '/10.jpg');
-  copy($work . '/2.jpg', $sevenDir . '/2.jpg');
+  $image($sevenDir . '/1.jpg', 'jpg');
+  $image($sevenDir . '/10.jpg', 'jpg');
+  $image($sevenDir . '/2.jpg', 'jpg');
   $seven = sys_get_temp_dir() . '/xedc-ok-' . getmypid() . '.7z';
   $sevenTo($seven, $sevenDir, ['1.jpg', '10.jpg', '2.jpg']);
   $placed = $stage('ok-' . getmypid() . '.7z', $seven);
@@ -396,7 +412,8 @@ try {
     $check('改标题不改封面', $coverBefore === (int) Node::load($node->id())->get('field_cover_image')->target_id, (string) $coverBefore);
 
     $appendZip = sys_get_temp_dir() . '/xedc-append-' . getmypid() . '.zip';
-    $zipTo($appendZip, ['extra.jpg' => $work . '/2.jpg']);
+    $image($work . '/extra.jpg', 'jpg');
+    $zipTo($appendZip, ['extra.jpg' => $work . '/extra.jpg']);
     $placed = $stage('append-' . getmypid() . '.zip', $appendZip);
     $beforeCount = $node->get('field_images')->count();
     $appendId = $processor->start($node, [

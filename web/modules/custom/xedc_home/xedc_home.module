@@ -386,7 +386,7 @@ function _xedc_home_file_url($entity): string {
 /**
  * Implements hook_simple_sitemap_links_alter().
  *
- * Photo image:loc uses photo_gallery_1300, matching the detail page.
+ * Photo image:loc uses the stored file, matching the detail page.
  * Model terms use /models/{tid} instead of /taxonomy/term/{tid}.
  */
 function xedc_home_simple_sitemap_links_alter(array &$links, $sitemap): void {
@@ -487,12 +487,11 @@ function _xedc_home_models_sitemap_lastmod(): string {
 }
 
 /**
- * Gallery image URLs in the same order and style as the photo detail page.
+ * Gallery image URLs in the same order as the photo detail page.
  *
  * @return array<int, array<string, string>>
  */
 function _xedc_home_photo_sitemap_images(NodeInterface $node): array {
-  $style = \Drupal\image\Entity\ImageStyle::load('photo_gallery_1300');
   $generator = \Drupal::service('file_url_generator');
   $file_of = static function ($media) {
     if (!$media instanceof \Drupal\media\MediaInterface) {
@@ -502,7 +501,7 @@ function _xedc_home_photo_sitemap_images(NodeInterface $node): array {
     $file = $fid ? \Drupal\file\Entity\File::load($fid) : NULL;
     return $file instanceof \Drupal\file\FileInterface ? $file : NULL;
   };
-  $pack = static function ($media) use ($file_of, $style, $generator) {
+  $pack = static function ($media) use ($file_of, $generator) {
     if (!$media instanceof \Drupal\media\MediaInterface || !$media->access('view')) {
       return NULL;
     }
@@ -514,7 +513,7 @@ function _xedc_home_photo_sitemap_images(NodeInterface $node): array {
     if ($media->hasField('field_media_image') && !$media->get('field_media_image')->isEmpty()) {
       $scene = trim((string) $media->get('field_media_image')->first()->alt);
     }
-    $absolute = $style ? $style->buildUrl($file->getFileUri()) : $generator->generateAbsoluteString($file->getFileUri());
+    $absolute = $generator->generateAbsoluteString($file->getFileUri());
     return [
       'path' => $absolute,
       'alt' => $scene,

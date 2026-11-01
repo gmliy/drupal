@@ -1,0 +1,156 @@
+/**
+ * @file
+ * Form controls. Checkboxes, radios, and hidden fields keep their native size.
+ */
+
+.xedc-admin-active .form-item {
+  margin: 0 0 16px;
+}
+
+.xedc-admin-active .form-item__label,
+.xedc-admin-active .form-item > label {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.xedc-admin-active .form-type-checkbox > label,
+.xedc-admin-active .form-type-radio > label,
+.xedc-admin-active .form-item--checkbox label,
+.xedc-admin-active .js-form-type-checkbox label,
+.xedc-admin-active .js-form-type-radio label {
+  font-weight: 450;
+}
+
+.xedc-admin-active .description,
+.xedc-admin-active .form-item__description {
+  margin-top: 6px;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+}
+
+.xedc-admin-active input.form-text,
+.xedc-admin-active input.form-email,
+.xedc-admin-active input.form-url,
+.xedc-admin-active input.form-tel,
+.xedc-admin-active input.form-number,
+.xedc-admin-active input.form-search,
+.xedc-admin-active input.form-control:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]),
+.xedc-admin-active .form-textarea,
+.xedc-admin-active textarea.form-control,
+.xedc-admin-active .form-select,
+.xedc-admin-active select.form-control {
+  width: 100%;
+  max-width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-sm);
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
+  font: inherit;
+  font-size: 14px;
+}
+
+.xedc-admin-active .form-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.xedc-admin-active select[multiple],
+.xedc-admin-active select[size] {
+  height: auto;
+  min-height: 0;
+  max-height: 8.5rem;
+  overflow: auto;
+}
+
+.xedc-admin-active .ck.ck-editor,
+.xedc-admin-active .ck.ck-editor__top,
+.xedc-admin-active .ck.ck-editor__main,
+.xedc-admin-active .ck.ck-content {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.xedc-admin-active .ck.ck-editor {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.xedc-admin-active .ck.ck-toolbar,
+.xedc-admin-active .ck.ck-toolbar > .ck-toolbar__items {
+  flex-wrap: wrap !important;
+}
+
+.xedc-admin-active .media-library-widget,
+.xedc-admin-active .js-media-library-widget {
+  max-width: 100%;
+}
+
+.xedc-admin-active .media-library-widget .description,
+.xedc-admin-active .js-media-library-widget .description,
+.xedc-admin-active .media-library-item .description {
+  display: block;
+  clear: both;
+  margin-top: 8px;
+}
+
+.xedc-admin-active input[type="checkbox"],
+.xedc-admin-active input[type="radio"],
+.xedc-admin-active input[type="image"],
+.xedc-admin-active input[type="hidden"],
+.xedc-admin-active input[type="file"] {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+}
+
+.xedc-admin-active input[type="submit"],
+.xedc-admin-active input[type="button"],
+.xedc-admin-active button.button {
+  width: auto;
+  min-width: 6.5rem;
+  min-height: 40px;
+  padding: 8px 16px;
+  line-height: 1.25;
+}
+
+html.xedc-admin-active.js .js-hide {
+  display: none !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+
+.xedc-admin-active input[type="checkbox"],
+.xedc-admin-active input[type="radio"] {
+  accent-color: var(--xedc-admin-primary);
+}
+
+.xedc-admin-active .form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.xedc-admin-active details,
+.xedc-admin-active fieldset {
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-md);
+  background: var(--xedc-admin-surface);
+}
+
+.xedc-admin-active summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.xedc-admin-active .form-required::after {
+  content: " *";
+  color: var(--xedc-admin-danger);
+}

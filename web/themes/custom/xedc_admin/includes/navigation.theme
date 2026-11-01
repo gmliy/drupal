@@ -1,0 +1,310 @@
+<?php
+
+/**
+ * @file
+ * Permission-aware administration navigation.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Component\Render\MarkupInterface;
+use Drupal\Core\Render\Markup;
+use Drupal\Core\Url;
+
+/**
+ * Brand link: the dashboard when allowed, otherwise the Drupal admin index.
+ */
+function _xedc_admin_brand_url(): string {
+  foreach (['xedc_admin_ui.dashboard', 'system.admin'] as $route) {
+    try {
+      $url = Url::fromRoute($route);
+      if ($url->access(\Drupal::currentUser())) {
+        return $url->toString();
+      }
+    }
+    catch (\Throwable) {
+      continue;
+    }
+  }
+  return Url::fromRoute('<front>')->toString();
+}
+
+/**
+ * Navigation groups. Missing routes and forbidden links are omitted.
+ *
+ * @return list<array{label: string, items: list<array{title: string, url: string, icon: \Drupal\Component\Render\MarkupInterface, active: bool}>}>
+ *   Groups that contain at least one link.
+ */
+function _xedc_admin_navigation(): array {
+  return _xedc_admin_build_groups(_xedc_admin_navigation_definitions());
+}
+
+/**
+ * Bottom system links. Missing routes and forbidden links are omitted.
+ *
+ * @return list<array{title: string, url: string, icon: \Drupal\Component\Render\MarkupInterface, active: bool}>
+ *   Visible system links.
+ */
+function _xedc_admin_system_navigation(): array {
+  $items = [];
+  foreach (_xedc_admin_system_definitions() as $item) {
+    $link = _xedc_admin_link($item);
+    if ($link !== NULL) {
+      $items[] = $link;
+    }
+  }
+  return $items;
+}
+
+/**
+ * @param list<array<string, mixed>> $definitions
+ *   Group definitions.
+ *
+ * @return list<array{id: string, label: string, collapsible: bool, open: bool, items: list<array{title: string, url: string, icon: \Drupal\Component\Render\MarkupInterface, active: bool}>}>
+ *   Groups that contain at least one link.
+ */
+function _xedc_admin_build_groups(array $definitions): array {
+  $groups = [];
+  foreach ($definitions as $group) {
+    $items = [];
+    $open = empty($group['collapsible']);
+    foreach ($group['items'] as $item) {
+      $link = _xedc_admin_link($item);
+      if ($link === NULL) {
+        continue;
+      }
+      if ($link['active']) {
+        $open = TRUE;
+      }
+      $items[] = $link;
+    }
+    if ($items === []) {
+      continue;
+    }
+    $groups[] = [
+      'id' => (string) $group['id'],
+      'label' => (string) $group['label'],
+      'collapsible' => !empty($group['collapsible']),
+      'open' => $open,
+      'items' => $items,
+    ];
+  }
+  return $groups;
+}
+
+/**
+ * @return list<array{label: \Drupal\Core\StringTranslation\TranslatableMarkup, items: list<array<string, mixed>>}>
+ *   Route map. Titles are translated. Routes that do not exist are skipped.
+ */
+function _xedc_admin_navigation_definitions(): array {
+  return [
+    [
+      'id' => 'work',
+      'label' => t('工作台'),
+      'collapsible' => FALSE,
+      'items' => [
+        ['title' => t('XEDC 控制台'), 'route' => 'xedc_admin_ui.dashboard', 'icon' => 'grid', 'match' => 'dashboard'],
+      ],
+    ],
+    [
+      'id' => 'content',
+      'label' => t('内容管理'),
+      'collapsible' => TRUE,
+      'items' => [
+        ['title' => t('全部内容'), 'route' => 'view.content.page_1', 'icon' => 'files', 'match' => 'content'],
+        ['title' => t('美图'), 'route' => 'view.content.page_1', 'query' => ['type' => 'photo'], 'icon' => 'image', 'match' => 'bundle', 'bundle' => 'photo'],
+        ['title' => t('视频'), 'route' => 'view.content.page_1', 'query' => ['type' => 'video'], 'icon' => 'video', 'match' => 'bundle', 'bundle' => 'video'],
+        ['title' => t('文章'), 'route' => 'view.content.page_1', 'query' => ['type' => 'article'], 'icon' => 'article', 'match' => 'bundle', 'bundle' => 'article'],
+        ['title' => t('图片导入'), 'route' => 'xedc_core.import_list', 'icon' => 'upload', 'match' => 'prefix', 'prefix' => '/admin/content/image-imports'],
+        ['title' => t('快速发布'), 'route' => 'xedc_quick.page', 'icon' => 'bolt', 'match' => 'prefix', 'prefix' => '/admin/quick-gallery'],
+      ],
+    ],
+    [
+      'id' => 'organize',
+      'label' => t('内容组织'),
+      'collapsible' => TRUE,
+      'items' => [
+        ['title' => t('分类管理'), 'route' => 'entity.taxonomy_vocabulary.collection', 'icon' => 'folder', 'match' => 'taxonomy-index'],
+        ['title' => t('图片栏目'), 'route' => 'entity.taxonomy_vocabulary.overview_form', 'params' => ['taxonomy_vocabulary' => 'photo_category'], 'icon' => 'folder', 'match' => 'vocab', 'vocab' => 'photo_category'],
+        ['title' => t('视频栏目'), 'route' => 'entity.taxonomy_vocabulary.overview_form', 'params' => ['taxonomy_vocabulary' => 'video_category'], 'icon' => 'folder', 'match' => 'vocab', 'vocab' => 'video_category'],
+        ['title' => t('文章栏目'), 'route' => 'entity.taxonomy_vocabulary.overview_form', 'params' => ['taxonomy_vocabulary' => 'article_category'], 'icon' => 'folder', 'match' => 'vocab', 'vocab' => 'article_category'],
+        ['title' => t('标签管理'), 'route' => 'entity.taxonomy_vocabulary.overview_form', 'params' => ['taxonomy_vocabulary' => 'tags'], 'icon' => 'tag', 'match' => 'vocab', 'vocab' => 'tags'],
+        ['title' => t('人物管理'), 'route' => 'entity.taxonomy_vocabulary.overview_form', 'params' => ['taxonomy_vocabulary' => 'models'], 'icon' => 'users', 'match' => 'vocab', 'vocab' => 'models'],
+      ],
+    ],
+    [
+      'id' => 'review',
+      'label' => t('投稿审核'),
+      'collapsible' => TRUE,
+      'items' => [
+        ['title' => t('审核中心'), 'route' => 'view.moderated_content.moderated_content', 'icon' => 'shield', 'match' => 'prefix', 'prefix' => '/admin/content/moderated'],
+      ],
+    ],
+    [
+      'id' => 'members',
+      'label' => t('会员管理'),
+      'collapsible' => TRUE,
+      'items' => [
+        ['title' => t('会员列表'), 'route' => 'view.user_admin_people.page_1', 'icon' => 'users', 'match' => 'prefix', 'prefix' => '/admin/people'],
+      ],
+    ],
+    [
+      'id' => 'seo',
+      'label' => t('SEO 与网站健康'),
+      'collapsible' => TRUE,
+      'items' => [
+        ['title' => 'SEO Audit', 'route' => 'audit.reports', 'icon' => 'search', 'match' => 'prefix', 'prefix' => '/admin/reports/audit'],
+        ['title' => 'Site Audit', 'route' => 'site_audit.report', 'icon' => 'pulse', 'match' => 'prefix', 'prefix' => '/admin/reports/site-audit'],
+      ],
+    ],
+    [
+      'id' => 'ops',
+      'label' => t('运维中心'),
+      'collapsible' => TRUE,
+      'items' => [
+        ['title' => t('服务器监控'), 'route' => 'xedc_core.monitor', 'icon' => 'pulse', 'match' => 'prefix', 'prefix' => '/admin/reports/xedc-monitor'],
+        ['title' => t('文件统计'), 'route' => 'xedc_core.files', 'icon' => 'disk', 'match' => 'prefix', 'prefix' => '/admin/reports/xedc-files'],
+      ],
+    ],
+  ];
+}
+
+/**
+ * Links pinned to the bottom of the sidebar.
+ *
+ * @return list<array<string, mixed>>
+ *   Route map. Access is checked later, the same way as the main navigation.
+ */
+function _xedc_admin_system_definitions(): array {
+  return [
+    ['title' => t('扩展'), 'route' => 'system.modules_list', 'icon' => 'blocks', 'match' => 'prefix', 'prefix' => '/admin/modules'],
+    ['title' => t('外观'), 'route' => 'system.themes_page', 'icon' => 'swatch', 'match' => 'prefix', 'prefix' => '/admin/appearance'],
+    ['title' => t('配置'), 'route' => 'system.admin_config', 'icon' => 'settings', 'match' => 'prefix', 'prefix' => '/admin/config'],
+    ['title' => t('日志与报告'), 'route' => 'dblog.overview', 'icon' => 'list', 'match' => 'prefix', 'prefix' => '/admin/reports/dblog'],
+    ['title' => t('系统状态'), 'route' => 'system.status', 'icon' => 'pulse', 'match' => 'exact', 'path' => '/admin/reports/status'],
+    ['title' => t('Drupal 管理首页'), 'route' => 'system.admin', 'icon' => 'grid', 'match' => 'exact', 'path' => '/admin'],
+  ];
+}
+
+/**
+ * @param array<string, mixed> $item
+ *   Link definition.
+ *
+ * @return array{title: string, url: string, icon: \Drupal\Component\Render\MarkupInterface, active: bool}|null
+ *   A visible link, or NULL when the route or permission is missing.
+ */
+function _xedc_admin_link(array $item): ?array {
+  try {
+    $url = Url::fromRoute(
+      (string) $item['route'],
+      $item['params'] ?? [],
+      empty($item['query']) ? [] : ['query' => $item['query']],
+    );
+  }
+  catch (\Throwable) {
+    return NULL;
+  }
+  if (!$url->access(\Drupal::currentUser())) {
+    return NULL;
+  }
+  return [
+    'title' => (string) $item['title'],
+    'url' => $url->toString(),
+    'icon' => _xedc_admin_icon((string) $item['icon']),
+    'active' => _xedc_admin_link_active($item),
+  ];
+}
+
+/**
+ * @param array<string, mixed> $item
+ *   Link definition.
+ */
+function _xedc_admin_link_active(array $item): bool {
+  $path = \Drupal::routeMatch()->getRouteObject()?->getPath() ?? '';
+  $type = \Drupal::request()->query->get('type');
+  if (is_array($type)) {
+    $type = reset($type) ?: NULL;
+  }
+  if ($type === '') {
+    $type = NULL;
+  }
+  $bundle = _xedc_admin_current_bundle();
+  $vocab = _xedc_admin_current_vocab();
+  $match = (string) ($item['match'] ?? '');
+
+  return match ($match) {
+    'dashboard' => \Drupal::routeMatch()->getRouteName() === 'xedc_admin_ui.dashboard',
+    'content' => $path === '/admin/content' && $type === NULL && !in_array($bundle, ['photo', 'video', 'article'], TRUE),
+    'bundle' => ($path === '/admin/content' && $type === ($item['bundle'] ?? '')) || $bundle === ($item['bundle'] ?? ''),
+    'prefix' => isset($item['prefix']) && str_starts_with($path, (string) $item['prefix']),
+    'exact' => $path === ($item['path'] ?? ''),
+    'vocab' => $vocab === ($item['vocab'] ?? ''),
+    'taxonomy-index' => $path === '/admin/structure/taxonomy',
+    default => FALSE,
+  };
+}
+
+/**
+ * Bundle of the node being added or edited, when that route is active.
+ */
+function _xedc_admin_current_bundle(): ?string {
+  $match = \Drupal::routeMatch();
+  $node = $match->getParameter('node');
+  if (is_object($node) && method_exists($node, 'bundle')) {
+    return (string) $node->bundle();
+  }
+  $type = $match->getParameter('node_type');
+  if (is_object($type) && method_exists($type, 'id')) {
+    return (string) $type->id();
+  }
+  if (is_string($type) && $type !== '') {
+    return $type;
+  }
+  return NULL;
+}
+
+/**
+ * Vocabulary id on taxonomy administration routes.
+ */
+function _xedc_admin_current_vocab(): string {
+  $param = \Drupal::routeMatch()->getParameter('taxonomy_vocabulary');
+  if (is_object($param) && method_exists($param, 'id')) {
+    return (string) $param->id();
+  }
+  if (is_string($param)) {
+    return $param;
+  }
+  $path = \Drupal::routeMatch()->getRouteObject()?->getPath() ?? '';
+  if (preg_match('#/taxonomy/manage/([a-z0-9_]+)#', $path, $matches)) {
+    return $matches[1];
+  }
+  return '';
+}
+
+/**
+ * Original stroke icon. Paths are simple shapes, not a third-party icon set.
+ */
+function _xedc_admin_icon(string $name): MarkupInterface {
+  $shapes = [
+    'grid' => '<rect x="4" y="4" width="6.5" height="6.5" rx="1.2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.2"/>',
+    'files' => '<path d="M8 4.5h6.2L19 9.2V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 7 19V6A1.5 1.5 0 0 1 8.5 4.5H8z"/><path d="M14 4.8V9h4.2"/><path d="M5 8.5v10A1.5 1.5 0 0 0 6.5 20"/>',
+    'image' => '<rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.4"/><path d="M7 16.5l3.2-3.2 2.2 2.1 2.3-2.4L18 16.5"/>',
+    'video' => '<rect x="3.5" y="6" width="12" height="12" rx="2"/><path d="M15.5 10.5 20 8v8l-4.5-2.5z"/>',
+    'article' => '<rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4.5"/>',
+    'upload' => '<path d="M12 16V6"/><path d="M8.5 9.2 12 5.8l3.5 3.4"/><path d="M5 18.5h14"/>',
+    'bolt' => '<path d="M13 3.5 6.5 13H12l-1 7.5 6.5-9.5H12l1-7.5z"/>',
+    'folder' => '<path d="M3.5 8.2V18a1.5 1.5 0 0 0 1.5 1.5h14A1.5 1.5 0 0 0 20.5 18V9.2A1.5 1.5 0 0 0 19 7.7h-6.2L10.6 5.2H5A1.5 1.5 0 0 0 3.5 6.7v1.5z"/>',
+    'tag' => '<path d="M4.5 12.2V5.8A1.3 1.3 0 0 1 5.8 4.5h6.4L20 12.3 12.3 20z"/><circle cx="8.2" cy="8.2" r="1.1"/>',
+    'users' => '<circle cx="9" cy="9" r="2.4"/><circle cx="16" cy="9.5" r="2"/><path d="M4.8 18.2c.6-2.3 2.4-3.5 4.2-3.5s3.6 1.2 4.2 3.5"/><path d="M13.2 14.8c1.3-.5 2.6-.4 3.6.4 1 .8 1.6 1.8 1.9 3"/>',
+    'shield' => '<path d="M12 3.8 19 6.4v5.3c0 3.6-2.6 6.2-7 8.1-4.4-1.9-7-4.5-7-8.1V6.4z"/><path d="M9 12.1 11 14l4-4.2"/>',
+    'search' => '<circle cx="11" cy="11" r="5.2"/><path d="M15.2 15.2 20 20"/>',
+    'pulse' => '<path d="M3 12h4l2-5 3 10 2-5h7"/>',
+    'settings' => '<path d="M4 8h16M4 16h16"/><circle cx="9" cy="8" r="2.1"/><circle cx="15" cy="16" r="2.1"/>',
+    'list' => '<path d="M9 7h10M9 12h10M9 17h10"/><path d="M5 7h.1M5 12h.1M5 17h.1"/>',
+    'blocks' => '<rect x="4" y="4" width="7" height="7" rx="1.4"/><rect x="13" y="4" width="7" height="7" rx="1.4"/><rect x="4" y="13" width="7" height="7" rx="1.4"/><path d="M14.2 16.5h4.6M16.5 14.2v4.6"/>',
+    'swatch' => '<circle cx="8" cy="8.5" r="2.3"/><circle cx="16" cy="8.5" r="2.3"/><circle cx="8" cy="16" r="2.3"/><circle cx="16" cy="16" r="2.3"/>',
+    'disk' => '<ellipse cx="12" cy="7" rx="7" ry="3"/><path d="M5 7v10c0 1.7 3.1 3 7 3s7-1.3 7-3V7"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>',
+  ];
+  $shape = $shapes[$name] ?? $shapes['grid'];
+  return Markup::create('<svg class="xedc-admin-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $shape . '</svg>');
+}

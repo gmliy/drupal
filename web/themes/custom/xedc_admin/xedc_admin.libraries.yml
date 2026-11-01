@@ -1,0 +1,24 @@
+global:
+  css:
+    theme:
+      css/base.css: {}
+      css/layout.css: {}
+      css/components.css: {}
+      css/content.css: {}
+      css/forms.css: {}
+      css/responsive.css: {}
+      css/admin-ui.css: {}
+  js:
+    js/navigation.js: {}
+    js/admin.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+
+dashboard:
+  css:
+    theme:
+      css/dashboard.css: {}
+  dependencies:
+    - xedc_admin/global
+    - xedc_admin_ui/dashboard

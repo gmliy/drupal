@@ -1,0 +1,22 @@
+uuid: 4eac7b83-343f-4d82-b618-34700904a9fc
+langcode: zh-hans
+status: true
+dependencies:
+  module:
+    - help
+  theme:
+    - xedc_admin
+_core:
+  default_config_hash: bdkDlUGiVzfLJLKWnrCbmHjkute67FdznzBsGdB93Bg
+id: xedc_admin_help
+theme: xedc_admin
+region: header
+weight: 0
+provider: null
+plugin: help_block
+settings:
+  id: help_block
+  label: 帮助
+  label_display: '0'
+  provider: help
+visibility: {  }

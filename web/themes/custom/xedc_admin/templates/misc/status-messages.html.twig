@@ -1,0 +1,33 @@
+{#
+/**
+ * @file
+ * Status messages without a Bootstrap close button.
+ *
+ * The starterkit alert is dismissible by default. Its close control renders
+ * as an empty gray button when Bootstrap CSS is not loaded.
+ */
+#}
+<div data-drupal-messages>
+{% for type, messages in message_list %}
+  <div role="contentinfo" aria-label="{{ status_headings[type] }}"{{ attributes|without('role', 'aria-label').addClass(['messages', 'messages--' ~ type]) }}>
+    {% if type == 'error' %}
+      <div role="alert">
+    {% endif %}
+    {% if status_headings[type] %}
+      <h2 class="visually-hidden">{{ status_headings[type] }}</h2>
+    {% endif %}
+    {% if messages|length > 1 %}
+      <ul class="messages__list">
+        {% for message in messages %}
+          <li class="messages__item">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="messages__item">{{ messages|first }}</div>
+    {% endif %}
+    {% if type == 'error' %}
+      </div>
+    {% endif %}
+  </div>
+{% endfor %}
+</div>

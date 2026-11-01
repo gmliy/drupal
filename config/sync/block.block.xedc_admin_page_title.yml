@@ -1,0 +1,20 @@
+uuid: dac51507-8a64-453b-b243-96c89bfb13d6
+langcode: zh-hans
+status: true
+dependencies:
+  theme:
+    - xedc_admin
+_core:
+  default_config_hash: Zt75RaTpVQgHy2nDKIqwHsWviln-2Plelh4WWQwLXIo
+id: xedc_admin_page_title
+theme: xedc_admin
+region: header
+weight: -10
+provider: null
+plugin: page_title_block
+settings:
+  id: page_title_block
+  label: 页面标题
+  label_display: '0'
+  provider: core
+visibility: {  }

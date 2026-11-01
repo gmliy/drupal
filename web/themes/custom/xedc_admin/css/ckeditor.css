@@ -1,0 +1,12 @@
+/**
+ * @file
+ * Styles passed into the CKEditor 5 content frame. Layout rules stay out.
+ */
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  color: #18181B;
+  background: #FFFFFF;
+  font-size: 16px;
+  line-height: 1.65;
+}

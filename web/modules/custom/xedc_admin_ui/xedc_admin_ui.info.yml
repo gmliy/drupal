@@ -1,0 +1,5 @@
+name: 'XEDC Admin UI'
+type: module
+description: '为 Gin 后台覆盖浅色设计变量。仅在活动主题为 Gin 时加载。'
+package: XEDC
+core_version_requirement: ^11

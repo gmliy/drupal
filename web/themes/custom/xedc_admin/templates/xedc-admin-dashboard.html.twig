@@ -1,0 +1,177 @@
+{#
+/**
+ * @file
+ * Visual override of the XEDC dashboard. Data still comes from xedc_admin_ui.
+ */
+#}
+<div class="xedc-admin-dashboard">
+  <section class="xedc-admin-card xedc-admin-dashboard__card xedc-admin-dashboard__welcome">
+    <p class="xedc-admin-dashboard__hello">{{ '欢迎回来，@name'|t({'@name': account_name}) }}</p>
+    {% if date_label %}
+      <p class="xedc-admin-dashboard__date">{{ date_label }}</p>
+    {% endif %}
+  </section>
+
+  {% if error %}
+    <section class="xedc-admin-card xedc-admin-dashboard__card xedc-admin-dashboard__error" role="alert">
+      <h2>{{ '统计暂时无法加载'|t }}</h2>
+      <p>{{ '请稍后再打开控制台。快捷入口不受影响。'|t }}</p>
+    </section>
+  {% endif %}
+
+  {% if content %}
+    <section class="xedc-admin-dashboard__section">
+      <h2>{{ '概览'|t }}</h2>
+      <div class="xedc-admin-grid xedc-admin-grid--stats xedc-admin-dashboard__grid xedc-admin-dashboard__grid--core">
+        <article class="xedc-admin-card xedc-admin-stat xedc-admin-dashboard__card">
+          <p class="xedc-admin-stat__label xedc-admin-dashboard__label">{{ '内容总数'|t }}</p>
+          <p class="xedc-admin-stat__value xedc-admin-dashboard__value">{{ content.total }}</p>
+          <p class="xedc-admin-stat__hint xedc-admin-dashboard__hint">
+            {% if includes_unpublished %}
+              {{ '默认语言条目，含未发布'|t }}
+            {% else %}
+              {{ '仅统计已发布内容'|t }}
+            {% endif %}
+          </p>
+        </article>
+        <article class="xedc-admin-card xedc-admin-stat xedc-admin-dashboard__card">
+          <p class="xedc-admin-stat__label xedc-admin-dashboard__label">{{ '今日新增'|t }}</p>
+          <p class="xedc-admin-stat__value xedc-admin-dashboard__value">{{ content.today }}</p>
+          <p class="xedc-admin-stat__hint xedc-admin-dashboard__hint">{{ 'Asia/Shanghai 今日'|t }}</p>
+        </article>
+        {% if members is not null %}
+          <article class="xedc-admin-card xedc-admin-stat xedc-admin-dashboard__card">
+            <p class="xedc-admin-stat__label xedc-admin-dashboard__label">{{ '会员总数'|t }}</p>
+            <p class="xedc-admin-stat__value xedc-admin-dashboard__value">{{ members }}</p>
+            <p class="xedc-admin-stat__hint xedc-admin-dashboard__hint">{{ '已启用账号'|t }}</p>
+          </article>
+        {% endif %}
+        {% if queue %}
+          <article class="xedc-admin-card xedc-admin-stat xedc-admin-dashboard__card">
+            <p class="xedc-admin-stat__label xedc-admin-dashboard__label">{{ '审核队列'|t }}</p>
+            <p class="xedc-admin-stat__value xedc-admin-dashboard__value">{{ queue.total }}</p>
+            <p class="xedc-admin-stat__hint xedc-admin-dashboard__hint">{{ '不含已发布和已撤下'|t }}</p>
+          </article>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="xedc-admin-dashboard__section">
+      <h2>{{ '内容概览'|t }}</h2>
+      <div class="xedc-admin-grid xedc-admin-grid--types xedc-admin-dashboard__grid xedc-admin-dashboard__grid--types">
+        {% for type in content.types %}
+          <article class="xedc-admin-card xedc-admin-stat xedc-admin-dashboard__card">
+            <p class="xedc-admin-stat__label xedc-admin-dashboard__label">{{ type.label }}</p>
+            <p class="xedc-admin-stat__value xedc-admin-dashboard__value">{{ type.total }}</p>
+            <dl class="xedc-admin-dashboard__split">
+              <div>
+                <dt>{{ '今日新增'|t }}</dt>
+                <dd>{{ type.today }}</dd>
+              </div>
+              <div>
+                <dt>{{ '已发布'|t }}</dt>
+                <dd>{{ type.published }}</dd>
+              </div>
+            </dl>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if queue %}
+    <section class="xedc-admin-dashboard__section">
+      <h2>{{ '审核和草稿'|t }}</h2>
+      <div class="xedc-admin-grid xedc-admin-grid--pair xedc-admin-dashboard__grid xedc-admin-dashboard__grid--pair">
+        <article class="xedc-admin-card xedc-admin-stat xedc-admin-dashboard__card">
+          <p class="xedc-admin-stat__label xedc-admin-dashboard__label">{{ '待处理审核内容'|t }}</p>
+          <p class="xedc-admin-stat__value xedc-admin-dashboard__value">{{ queue.total }}</p>
+          <p class="xedc-admin-stat__hint xedc-admin-dashboard__hint">{{ '草稿、待审核、退回修改和已拒绝'|t }}</p>
+        </article>
+        <article class="xedc-admin-card xedc-admin-stat xedc-admin-dashboard__card">
+          <p class="xedc-admin-stat__label xedc-admin-dashboard__label">{{ '草稿'|t }}</p>
+          <p class="xedc-admin-stat__value xedc-admin-dashboard__value">{{ queue.drafts }}</p>
+          <p class="xedc-admin-stat__hint xedc-admin-dashboard__hint">{{ '已包含在待处理数量中，不能与队列相加'|t }}</p>
+        </article>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if recent is not null %}
+    <section class="xedc-admin-dashboard__section">
+      <h2>{{ '最近发布'|t }}</h2>
+      <div class="xedc-admin-card xedc-admin-dashboard__card">
+        {% if recent is empty %}
+          <p class="xedc-admin-empty xedc-admin-dashboard__empty">{{ '还没有已发布内容。'|t }}</p>
+        {% else %}
+          <ul class="xedc-admin-dashboard__list">
+            {% for item in recent %}
+              <li class="xedc-admin-dashboard__item">
+                {% if item.thumbnail %}
+                  <img class="xedc-admin-dashboard__thumb" src="{{ item.thumbnail }}" alt="">
+                {% else %}
+                  <span class="xedc-admin-dashboard__thumb xedc-admin-dashboard__thumb--empty" aria-hidden="true"></span>
+                {% endif %}
+                <div class="xedc-admin-dashboard__item-body">
+                  <p class="xedc-admin-dashboard__item-title">{{ item.title }}</p>
+                  <p class="xedc-admin-dashboard__meta">
+                    <span>{{ item.type_label }}</span>
+                    {% set badge = 'xedc-admin-badge' %}
+                    {% if '拒绝' in item.status_label or '退回' in item.status_label %}
+                      {% set badge = badge ~ ' xedc-admin-badge--danger' %}
+                    {% elseif '发布' in item.status_label %}
+                      {% set badge = badge ~ ' xedc-admin-badge--success' %}
+                    {% elseif '审核' in item.status_label or '草稿' in item.status_label %}
+                      {% set badge = badge ~ ' xedc-admin-badge--warning' %}
+                    {% endif %}
+                    <span class="{{ badge }}">{{ item.status_label }}</span>
+                    <span>{{ item.changed_label }}</span>
+                  </p>
+                </div>
+                <div class="xedc-admin-dashboard__item-links">
+                  {% if item.view_url %}
+                    <a class="xedc-admin-button xedc-admin-dashboard__link" href="{{ item.view_url }}">{{ '查看'|t }}</a>
+                  {% endif %}
+                  {% if item.edit_url %}
+                    <a class="xedc-admin-button xedc-admin-dashboard__link" href="{{ item.edit_url }}">{{ '编辑'|t }}</a>
+                  {% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="xedc-admin-dashboard__section">
+    <h2>{{ '快捷操作'|t }}</h2>
+    <div class="xedc-admin-card xedc-admin-dashboard__card">
+      {% if operations is empty %}
+        <p class="xedc-admin-empty xedc-admin-dashboard__empty">{{ '当前账号没有可用的快捷操作。'|t }}</p>
+      {% else %}
+        <div class="xedc-admin-dashboard__ops">
+          {% for link in operations %}
+            <a class="xedc-admin-button xedc-admin-button--primary xedc-admin-dashboard__op" href="{{ link.url }}">{{ link.label }}</a>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="xedc-admin-dashboard__section">
+    <h2>{{ '网站健康和 SEO'|t }}</h2>
+    <div class="xedc-admin-card xedc-admin-dashboard__card">
+      {% if health is empty %}
+        <p class="xedc-admin-empty xedc-admin-dashboard__empty">{{ '当前账号没有这些报告的访问权限。'|t }}</p>
+      {% else %}
+        <div class="xedc-admin-dashboard__ops">
+          {% for link in health %}
+            <a class="xedc-admin-button xedc-admin-dashboard__op" href="{{ link.url }}">{{ link.label }}</a>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <p class="xedc-admin-stat__hint xedc-admin-dashboard__hint">{{ '这里只提供入口，不会在控制台重新运行检查。'|t }}</p>
+    </div>
+  </section>
+</div>

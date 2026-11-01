@@ -1,0 +1,272 @@
+{#
+/**
+ * @file
+ * Disk, directory, media and anomaly report.
+ */
+#}
+<div class="xedc-ops" data-xedc-scan data-status="{{ job.status }}">
+  <header class="xedc-ops-head">
+    <div>
+      <p class="xedc-ops-kicker">运维中心</p>
+      <h2 class="xedc-ops-title">文件统计</h2>
+    </div>
+    <a class="xedc-ops-button" href="?refresh=1">刷新统计</a>
+  </header>
+
+  <section class="xedc-ops-panel">
+    <h3>扫描</h3>
+    <p class="xedc-ops-detail">只读取固定目录。不会删除、移动、改权限或改数据库记录。</p>
+    {{ form }}
+    <ul class="xedc-ops-metrics">
+      <li><span>状态</span><strong data-xedc-scan-label>{{ job.status_label }}</strong></li>
+      <li><span>阶段</span><strong>{{ job.phase_label }}</strong></li>
+      <li><span>已处理文件</span><strong data-xedc-scan-processed>{{ job.processed }}</strong></li>
+      <li><span>失败</span><strong>{{ job.failures }}</strong></li>
+      <li><span>无权限</span><strong>{{ job.denied }}</strong></li>
+      <li><span>耗时</span><strong>{{ job.elapsed }}</strong></li>
+      <li><span>开始</span><strong>{{ job.started }}</strong></li>
+      <li><span>最近更新</span><strong data-xedc-scan-updated>{{ job.updated }}</strong></li>
+    </ul>
+    {% if job.hash_total %}
+      <p class="xedc-ops-detail">SHA-256 {{ job.hash_done }} / {{ job.hash_total }}。只计算公开文件和私有文件里大小相同的文件。</p>
+    {% endif %}
+    {% if job.message %}<p class="xedc-ops-note" data-xedc-scan-message>{{ job.message }}</p>{% endif %}
+  </section>
+
+  <section aria-label="磁盘">
+    <h3 class="xedc-ops-section">磁盘</h3>
+    {% if disk.ok and disk.primary %}
+      <div class="xedc-ops-cards">
+        <article class="xedc-ops-card"><h3>总容量</h3><p class="xedc-ops-value">{{ disk.primary.total }}</p><p class="xedc-ops-detail">{{ disk.primary.mount }}</p></article>
+        <article class="xedc-ops-card"><h3>已使用</h3><p class="xedc-ops-value">{{ disk.primary.used }}</p><p class="xedc-ops-detail">{{ disk.primary.percent }}</p></article>
+        <article class="xedc-ops-card"><h3>剩余</h3><p class="xedc-ops-value">{{ disk.primary.available }}</p><p class="xedc-ops-detail">{{ disk.primary.type }}</p></article>
+      </div>
+    {% endif %}
+    {% if disk.error %}<p class="xedc-ops-note">{{ disk.error }}</p>{% endif %}
+    {% if disk.rows %}
+      <div class="xedc-ops-table-wrap">
+        <table class="xedc-ops-table">
+          <thead>
+            <tr><th>挂载点</th><th>文件系统</th><th>类型</th><th>总容量</th><th>已用</th><th>剩余</th><th>使用率</th></tr>
+          </thead>
+          <tbody>
+            {% for row in disk.rows %}
+              <tr>
+                <td>{{ row.mount }}</td>
+                <td>{{ row.device }}</td>
+                <td>{{ row.type }}</td>
+                <td>{{ row.total }}</td>
+                <td>{{ row.used }}</td>
+                <td>{{ row.available }}</td>
+                <td>{{ row.percent }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+
+  <section aria-label="目录">
+    <h3 class="xedc-ops-section">目录占用</h3>
+    <p class="xedc-ops-note">数字来自上次或当前扫描。未完成时是已统计的部分，不是估算。</p>
+    <div class="xedc-ops-table-wrap">
+      <table class="xedc-ops-table">
+        <thead>
+          <tr><th>目录</th><th>占用</th><th>文件</th><th>子目录</th><th>状态</th></tr>
+        </thead>
+        <tbody>
+          {% for row in job.roots %}
+            <tr>
+              <td>{{ row.path }}</td>
+              <td>{{ row.bytes }}</td>
+              <td>{{ row.files }}</td>
+              <td>{{ row.dirs }}</td>
+              <td>{{ row.status_label }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if census.ok %}
+    <section aria-label="媒体">
+      <h3 class="xedc-ops-section">Drupal 媒体</h3>
+      <p class="xedc-ops-note">文件实体按 MIME 区分。WebP 已包含在图片数量和体积里，不会再加一次。样式目录不计入原图。</p>
+      <div class="xedc-ops-cards">
+        <article class="xedc-ops-card"><h3>图片</h3><p class="xedc-ops-value">{{ census.images }}</p><p class="xedc-ops-detail">记录 {{ census.image_db }} · 磁盘 {{ census.image_disk }}</p></article>
+        <article class="xedc-ops-card"><h3>视频</h3><p class="xedc-ops-value">{{ census.videos }}</p><p class="xedc-ops-detail">记录 {{ census.video_db }} · 磁盘 {{ census.video_disk }}</p></article>
+        <article class="xedc-ops-card"><h3>WebP</h3><p class="xedc-ops-value">{{ census.webp }}</p><p class="xedc-ops-detail">{{ census.webp_db }}，属于图片</p></article>
+        <article class="xedc-ops-card"><h3>其他附件</h3><p class="xedc-ops-value">{{ census.other }}</p><p class="xedc-ops-detail">{{ census.other_db }}</p></article>
+      </div>
+      <ul class="xedc-ops-metrics">
+        <li><span>文件实体</span><strong>{{ census.entities }}</strong></li>
+        <li><span>永久文件</span><strong>{{ census.permanent }}</strong></li>
+        <li><span>临时文件</span><strong>{{ census.temporary }}</strong></li>
+        <li><span>物理文件还在</span><strong>{{ census.physical }}</strong></li>
+        <li><span>不同物理路径</span><strong>{{ census.distinct_paths }}</strong></li>
+        <li><span>被媒体引用</span><strong>{{ census.media_referenced }}</strong></li>
+        <li><span>被内容引用</span><strong>{{ census.content_referenced }}</strong></li>
+        <li><span>有使用记录</span><strong>{{ census.usage_recorded }}</strong></li>
+      </ul>
+      {% if census.fields %}
+        <p class="xedc-ops-detail">识别到的文件或媒体字段：{{ census.fields|join('、') }}</p>
+      {% endif %}
+    </section>
+  {% else %}
+    <div class="xedc-ops-alert" role="alert"><strong>媒体统计暂不可用</strong><p>{{ census.error }}</p></div>
+  {% endif %}
+
+  {% if report %}
+    <section aria-label="类型">
+      <h3 class="xedc-ops-section">文件类型</h3>
+      <p class="xedc-ops-note">只统计公开文件和私有文件里的原文件。样式、CSS 和 JS 聚合不计入，避免把缩略图当成原图。扩展名只用于分类，不代表文件真实类型或安全性。</p>
+      <p class="xedc-ops-detail">上次完成：{{ report.finished_label }} · 耗时 {{ report.elapsed }} · 文件 {{ report.processed }} · 失败 {{ report.failures }}</p>
+      {% if report.styles_files %}
+        <p class="xedc-ops-detail">样式目录另有 {{ report.styles_files }} 个文件，其中 WebP {{ report.styles_webp }} 个。目录占用见上方 styles 行。</p>
+      {% endif %}
+      <div class="xedc-ops-cards">
+        {% for group in report.groups %}
+          <article class="xedc-ops-card">
+            <h3>{{ group.label }}</h3>
+            <p class="xedc-ops-value">{{ group.count }}</p>
+            <p class="xedc-ops-detail">{{ group.bytes }} · 平均 {{ group.average }}</p>
+          </article>
+        {% endfor %}
+      </div>
+      {% if report.extensions %}
+        <div class="xedc-ops-table-wrap">
+          <table class="xedc-ops-table">
+            <thead><tr><th>扩展名</th><th>数量</th><th>占用</th><th>平均</th></tr></thead>
+            <tbody>
+              {% for row in report.extensions %}
+                <tr><td>{{ row.ext }}</td><td>{{ row.count }}</td><td>{{ row.bytes }}</td><td>{{ row.average }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </section>
+
+    <section aria-label="大文件">
+      <h3 class="xedc-ops-section">最大的文件和目录</h3>
+      <div class="xedc-ops-split">
+        <article class="xedc-ops-panel">
+          <h3>最大文件</h3>
+          {% if report.top_files %}
+            <ol class="xedc-ops-paths">
+              {% for row in report.top_files %}
+                <li><code>{{ row.path }}</code><span>{{ row.bytes }}</span></li>
+              {% endfor %}
+            </ol>
+          {% else %}
+            <p class="xedc-ops-note">暂无数据</p>
+          {% endif %}
+        </article>
+        <article class="xedc-ops-panel">
+          <h3>最大目录</h3>
+          {% if report.top_dirs %}
+            <ol class="xedc-ops-paths">
+              {% for row in report.top_dirs %}
+                <li><code>{{ row.path }}</code><span>{{ row.bytes }}</span></li>
+              {% endfor %}
+            </ol>
+          {% else %}
+            <p class="xedc-ops-note">暂无数据</p>
+          {% endif %}
+        </article>
+      </div>
+      <h3 class="xedc-ops-section">超过 100 MB</h3>
+      {% if report.large %}
+        <ul class="xedc-ops-paths">{% for row in report.large %}<li><code>{{ row.path }}</code><span>{{ row.bytes }}</span></li>{% endfor %}</ul>
+      {% else %}<p class="xedc-ops-note">没有超过 100 MB 的可读文件。</p>{% endif %}
+      <h3 class="xedc-ops-section">超过 500 MB</h3>
+      {% if report.huge %}
+        <ul class="xedc-ops-paths">{% for row in report.huge %}<li><code>{{ row.path }}</code><span>{{ row.bytes }}</span></li>{% endfor %}</ul>
+      {% else %}<p class="xedc-ops-note">没有超过 500 MB 的可读文件。</p>{% endif %}
+    </section>
+
+    <section aria-label="最近文件">
+      <h3 class="xedc-ops-section">最近修改</h3>
+      <p class="xedc-ops-note">修改时间用 mtime。下面的状态变更时间是 ctime，不是可靠的创建时间。</p>
+      <div class="xedc-ops-split">
+        <article class="xedc-ops-panel">
+          <h3>最近修改</h3>
+          <ul class="xedc-ops-paths">{% for row in report.recent_mtime %}<li><code>{{ row.path }}</code><span>{{ row.time }} · {{ row.bytes }}</span></li>{% else %}<li>暂无数据</li>{% endfor %}</ul>
+        </article>
+        <article class="xedc-ops-panel">
+          <h3>最近状态变更</h3>
+          <ul class="xedc-ops-paths">{% for row in report.recent_ctime %}<li><code>{{ row.path }}</code><span>{{ row.time }} · {{ row.bytes }}</span></li>{% else %}<li>暂无数据</li>{% endfor %}</ul>
+        </article>
+      </div>
+    </section>
+  {% else %}
+    <p class="xedc-ops-note">还没有完成过的扫描。目录占用、类型、大文件和重复文件会在扫描完成后出现。磁盘容量和媒体实体统计不需要等待扫描。</p>
+  {% endif %}
+
+  <section aria-label="异常">
+    <h3 class="xedc-ops-section">异常检查</h3>
+    <p class="xedc-ops-note">这里只报告，不删除、不移动、不清理缩略图，也不改数据库。没有引用不等于可以删除，因为修订版本、媒体、用户和其他模块都可能用到文件。</p>
+    {% if census.ok %}
+      <ul class="xedc-ops-metrics">
+        <li><span>记录在、文件不在</span><strong>{{ census.missing_count }}</strong></li>
+        <li><span>未发现引用</span><strong>{{ census.unreferenced_count }}</strong></li>
+        <li><span>样式尚未生成</span><strong>{{ census.styles.missing }}</strong></li>
+        <li><span>样式文件为空</span><strong>{{ census.styles.empty }}</strong></li>
+        <li><span>长期未修改</span><strong>{{ census.stale_count }}</strong></li>
+      </ul>
+      <p class="xedc-ops-detail">图片样式检查了 {{ census.styles.checked }} 个原图、{{ census.styles.styles }} 个样式。未找到衍生物通常只是还没被请求生成，不是生成失败。</p>
+      {% if census.styles.capped %}<p class="xedc-ops-note">原图超过 400 个，这次只检查了前 400 个。</p>{% endif %}
+      {% if census.missing %}
+        <h3 class="xedc-ops-section">缺失的物理文件</h3>
+        <ul class="xedc-ops-paths">{% for row in census.missing %}<li><code>{{ row.uri }}</code><span>fid {{ row.fid }} · {{ row.bytes }}</span></li>{% endfor %}</ul>
+      {% endif %}
+      {% if census.unreferenced %}
+        <h3 class="xedc-ops-section">未发现引用</h3>
+        <ul class="xedc-ops-paths">{% for row in census.unreferenced %}<li><code>{{ row.uri }}</code><span>fid {{ row.fid }} · {{ row.bytes }}</span></li>{% endfor %}</ul>
+      {% endif %}
+      {% if census.styles.samples %}
+        <h3 class="xedc-ops-section">样式抽查</h3>
+        <ul class="xedc-ops-paths">{% for row in census.styles.samples %}<li><code>{{ row.uri }}</code><span>{{ row.style }} · {{ row.state }}</span></li>{% endfor %}</ul>
+      {% endif %}
+      {% if census.large %}
+        <h3 class="xedc-ops-section">文件实体里的大文件</h3>
+        <ul class="xedc-ops-paths">{% for row in census.large %}<li><code>{{ row.uri }}</code><span>{{ row.bytes }}</span></li>{% endfor %}</ul>
+      {% endif %}
+      <h3 class="xedc-ops-section">超过 {{ census.stale_days }} 天未修改</h3>
+      {% if census.stale %}
+        <ul class="xedc-ops-paths">{% for row in census.stale %}<li><code>{{ row.uri }}</code><span>{{ row.changed }} · {{ row.bytes }}</span></li>{% endfor %}</ul>
+      {% else %}<p class="xedc-ops-note">没有符合条件的永久文件。</p>{% endif %}
+      <h3 class="xedc-ops-section">图片日志</h3>
+      <p class="xedc-ops-detail">最近 30 天 image 类型错误 {{ census.watchdog.count }} 条。没有日志不能证明样式都生成成功。</p>
+      {% if census.watchdog.rows %}
+        <ul class="xedc-ops-paths">{% for row in census.watchdog.rows %}<li><span>{{ row.time }}</span><span>{{ row.message }}</span></li>{% endfor %}</ul>
+      {% endif %}
+    {% endif %}
+
+    {% if report %}
+      <h3 class="xedc-ops-section">磁盘上没有文件实体的文件</h3>
+      {% if not report.managed_ok %}
+        <p class="xedc-ops-note">扫描时没有读到文件实体列表，这项没有比较。</p>
+      {% elseif report.unmanaged_count == 0 %}
+        <p class="xedc-ops-note">公开文件和私有文件里，除样式、CSS、JS 和 .htaccess 外，没有发现缺少文件实体的文件。</p>
+      {% else %}
+        <p class="xedc-ops-detail">共 {{ report.unmanaged_count }} 个。下面最多列出 80 个。这不是删除建议。</p>
+        <ul class="xedc-ops-paths">{% for row in report.unmanaged %}<li><code>{{ row.path }}</code><span>{{ row.bytes }}</span></li>{% endfor %}</ul>
+      {% endif %}
+      <h3 class="xedc-ops-section">重复文件</h3>
+      <p class="xedc-ops-note">先按大小分组，只对同大小的文件计算 SHA-256。文件名相同或大小相同本身不算重复。</p>
+      {% if report.duplicates %}
+        {% for group in report.duplicates %}
+          <article class="xedc-ops-panel">
+            <p class="xedc-ops-detail">{{ group.count }} 个文件 · {{ group.bytes }} · {{ group.hash }}</p>
+            <ul class="xedc-ops-paths">{% for path in group.paths %}<li><code>{{ path }}</code></li>{% endfor %}</ul>
+          </article>
+        {% endfor %}
+      {% else %}
+        <p class="xedc-ops-note">没有发现内容相同的文件。</p>
+      {% endif %}
+    {% endif %}
+  </section>
+</div>

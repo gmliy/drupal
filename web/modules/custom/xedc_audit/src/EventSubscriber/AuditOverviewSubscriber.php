@@ -9,7 +9,7 @@ use Symfony\Component\HttpKernel\Event\ViewEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
- * Adds download buttons to the audit overview.
+ * Adds download buttons to the audit overview pages.
  */
 class AuditOverviewSubscriber implements EventSubscriberInterface {
 
@@ -25,20 +25,37 @@ class AuditOverviewSubscriber implements EventSubscriberInterface {
   }
 
   /**
-   * Inserts JSON and CSV download links into the overview actions.
+   * Inserts JSON and CSV download links into both audit overviews.
    */
   public function onView(ViewEvent $event): void {
     if (!$event->isMainRequest()) {
       return;
     }
-    if ($event->getRequest()->attributes->get('_route') !== 'audit.reports') {
-      return;
-    }
 
+    $route = $event->getRequest()->attributes->get('_route');
     $result = $event->getControllerResult();
     if (!is_array($result)) {
       return;
     }
+
+    if ($route === 'audit.reports') {
+      $this->addAuditDownloads($result);
+      $event->setControllerResult($result);
+      return;
+    }
+    if ($route === 'site_audit.report') {
+      $this->addSiteAuditDownloads($result);
+      $event->setControllerResult($result);
+    }
+  }
+
+  /**
+   * Adds the buttons to the existing Audit overview actions.
+   *
+   * @param array<string, mixed> $result
+   *   The overview render array.
+   */
+  protected function addAuditDownloads(array &$result): void {
     if (!isset($result['actions']) || !is_array($result['actions'])) {
       $result['actions'] = [
         '#type' => 'container',
@@ -46,26 +63,43 @@ class AuditOverviewSubscriber implements EventSubscriberInterface {
         '#weight' => -10,
       ];
     }
+    $result['actions']['download_json'] = $this->downloadLink('xedc_audit.download', 'json');
+    $result['actions']['download_csv'] = $this->downloadLink('xedc_audit.download', 'csv');
+  }
 
-    $result['actions']['download_json'] = $this->downloadLink('json', $this->t('下载全部报告（JSON）'));
-    $result['actions']['download_csv'] = $this->downloadLink('csv', $this->t('下载全部报告（CSV）'));
-    $event->setControllerResult($result);
+  /**
+   * Adds the buttons above the Site Audit report.
+   *
+   * @param array<string, mixed> $result
+   *   The report render array.
+   */
+  protected function addSiteAuditDownloads(array &$result): void {
+    $result['xedc_audit_downloads'] = [
+      '#type' => 'container',
+      '#weight' => -100,
+      '#attributes' => [
+        'class' => ['xedc-audit-downloads'],
+        'style' => 'display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;margin:0 0 1rem;',
+      ],
+      'download_json' => $this->downloadLink('xedc_audit.site_download', 'json'),
+      'download_csv' => $this->downloadLink('xedc_audit.site_download', 'csv'),
+    ];
   }
 
   /**
    * Builds one CSRF-protected download link.
    *
-   * @param \Drupal\Core\StringTranslation\TranslatableMarkup|string $title
-   *   The link text.
-   *
    * @return array<string, mixed>
    *   The link render array.
    */
-  protected function downloadLink(string $format, $title): array {
+  protected function downloadLink(string $route, string $format): array {
+    $title = $format === 'csv'
+      ? $this->t('下载全部报告（CSV）')
+      : $this->t('下载全部报告（JSON）');
     return [
       '#type' => 'link',
       '#title' => $title,
-      '#url' => Url::fromRoute('xedc_audit.download', ['format' => $format]),
+      '#url' => Url::fromRoute($route, ['format' => $format]),
       '#attributes' => [
         'class' => ['button'],
       ],

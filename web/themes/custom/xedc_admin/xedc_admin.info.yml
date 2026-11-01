@@ -1,0 +1,24 @@
+name: 'XEDC Admin'
+type: theme
+base theme: radix
+description: 'Independent administration theme for XEDC. Inherits Radix 6 and uses a namespaced layout so the public xedc theme is left untouched.'
+core_version_requirement: ^11
+engine: twig
+
+regions:
+  navbar_branding: 'Navbar branding'
+  navbar_left: 'Navbar left'
+  navbar_right: 'Navbar right'
+  breadcrumb: Breadcrumb
+  header: Header
+  content: Content
+  footer: Footer
+  page_bottom: 'Page bottom'
+
+libraries:
+  - xedc_admin/global
+
+ckeditor5-stylesheets:
+  - css/ckeditor.css
+
+version: 1.0.0

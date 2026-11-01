@@ -10,3 +10,16 @@ xedc_audit.download:
   options:
     _admin_route: TRUE
     no_cache: TRUE
+
+xedc_audit.site_download:
+  path: '/admin/reports/site-audit/download/{format}'
+  defaults:
+    _controller: '\Drupal\xedc_audit\Controller\AuditDownloadController::downloadSite'
+    _title: 'Download site audit report'
+  requirements:
+    _permission: 'administer site configuration'
+    _csrf_token: 'TRUE'
+    format: 'json|csv'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE

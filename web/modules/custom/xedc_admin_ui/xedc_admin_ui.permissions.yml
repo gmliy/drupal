@@ -1,0 +1,4 @@
+access xedc admin dashboard:
+  title: '查看 XEDC 控制台'
+  description: '查看后台控制台。各统计卡片和入口仍按各自权限单独显示。'
+  restrict access: TRUE

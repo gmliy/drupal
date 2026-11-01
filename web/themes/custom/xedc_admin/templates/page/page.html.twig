@@ -1,0 +1,105 @@
+{#
+/**
+ * @file
+ * Administration shell for xedc_admin.
+ *
+ * Regions follow the Radix parent theme, plus a breadcrumb region used by the
+ * top bar. Business pages render in page.content.
+ */
+#}
+<div class="xedc-admin" data-xedc-admin>
+  <aside class="xedc-admin-sidebar" id="xedc-admin-sidebar" data-xedc-admin-sidebar>
+    <div class="xedc-admin-brand">
+      <a class="xedc-admin-brand__link" href="{{ xedc_admin_brand_url }}">
+        <span class="xedc-admin-brand__mark" aria-hidden="true">X</span>
+        <span class="xedc-admin-brand__text">{{ xedc_admin_site_name }}</span>
+      </a>
+      <button type="button" class="xedc-admin-icon-button xedc-admin-collapse" data-xedc-admin-collapse aria-pressed="false" aria-label="{{ '折叠侧栏'|t }}">
+        <svg class="xedc-admin-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M15 6 9 12l6 6"/><path d="M5 5v14"/></svg>
+      </button>
+    </div>
+    <nav class="xedc-admin-nav" aria-label="{{ '后台导航'|t }}">
+      {% for group in xedc_admin_nav|default([]) %}
+        <div class="xedc-admin-nav__group{% if group.collapsible %} is-collapsible{% endif %}"{% if group.collapsible %} data-xedc-nav-group="{{ group.id }}" data-xedc-nav-open="{{ group.open ? '1' : '0' }}"{% endif %}>
+          {% if group.collapsible %}
+            <button type="button" class="xedc-admin-nav__toggle" data-xedc-nav-toggle aria-expanded="{{ group.open ? 'true' : 'false' }}" aria-controls="xedc-nav-{{ group.id }}">
+              <span class="xedc-admin-nav__group-label">{{ group.label }}</span>
+              <svg class="xedc-admin-nav__chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          {% else %}
+            <div class="xedc-admin-nav__group-label">{{ group.label }}</div>
+          {% endif %}
+          <ul class="xedc-admin-nav__list" id="xedc-nav-{{ group.id }}"{% if group.collapsible %} data-xedc-nav-list{% if not group.open %} hidden{% endif %}{% endif %}>
+            {% for item in group['items'] %}
+              <li>
+                <a class="xedc-admin-nav__link{{ item.active ? ' is-active' : '' }}" href="{{ item.url }}" title="{{ item.title }}"{% if item.active %} aria-current="page"{% endif %}>
+                  {{ item.icon }}
+                  <span class="xedc-admin-nav__label">{{ item.title }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    </nav>
+    {% if xedc_admin_system|default([]) %}
+      <nav class="xedc-admin-system" aria-label="{{ '系统'|t }}">
+        <div class="xedc-admin-system__label">{{ '系统'|t }}</div>
+        <ul class="xedc-admin-nav__list">
+          {% for item in xedc_admin_system %}
+            <li>
+              <a class="xedc-admin-nav__link{{ item.active ? ' is-active' : '' }}" href="{{ item.url }}" title="{{ item.title }}"{% if item.active %} aria-current="page"{% endif %}>
+                {{ item.icon }}
+                <span class="xedc-admin-nav__label">{{ item.title }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </nav>
+    {% endif %}
+    {% if page.navbar_branding or page.navbar_left or page.navbar_right %}
+      <div class="xedc-admin-sidebar__extra">
+        {{ page.navbar_branding }}
+        {{ page.navbar_left }}
+        {{ page.navbar_right }}
+      </div>
+    {% endif %}
+  </aside>
+
+  <div class="xedc-admin-overlay" data-xedc-admin-overlay hidden></div>
+
+  <div class="xedc-admin-shell" data-xedc-admin-shell>
+    <a class="xedc-admin-skip" href="#main-content">{{ '跳到主要内容'|t }}</a>
+    <header class="xedc-admin-header">
+      <button type="button" class="xedc-admin-icon-button xedc-admin-drawer" data-xedc-admin-drawer aria-expanded="false" aria-controls="xedc-admin-sidebar" aria-label="{{ '打开导航'|t }}">
+        <svg class="xedc-admin-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div class="xedc-admin-header__crumb">
+        {{ page.breadcrumb }}
+      </div>
+      <div class="xedc-admin-header__spacer"></div>
+      <a class="xedc-admin-header__quiet" href="{{ xedc_admin_front_url }}">{{ '查看网站'|t }}</a>
+      <div class="xedc-admin-dropdown" data-xedc-admin-dropdown>
+        <button type="button" class="xedc-admin-user" data-xedc-admin-dropdown-button aria-expanded="false" aria-haspopup="menu" aria-label="{{ '账户菜单'|t }}">
+          <span class="xedc-admin-user__avatar" aria-hidden="true">{{ xedc_admin_user_initial }}</span>
+          <span class="xedc-admin-user__name">{{ xedc_admin_user_name }}</span>
+        </button>
+        <div class="xedc-admin-menu" data-xedc-admin-dropdown-menu role="menu" hidden>
+          <a role="menuitem" href="{{ xedc_admin_user_url }}">{{ '我的账户'|t }}</a>
+          <a role="menuitem" href="{{ xedc_admin_logout_url }}">{{ '退出登录'|t }}</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content" class="xedc-admin-content" tabindex="-1">
+      <div class="xedc-admin-pagehead">
+        {{ page.header }}
+      </div>
+      {{ page.content }}
+      {% if page.footer %}
+        <div class="xedc-admin-footer">{{ page.footer }}</div>
+      {% endif %}
+    </main>
+  </div>
+</div>
+{{ page.page_bottom }}

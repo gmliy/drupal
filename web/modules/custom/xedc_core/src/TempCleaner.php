@@ -25,16 +25,17 @@ class TempCleaner {
   ) {}
 
   /**
-   * Deletes the archive and extract tree after a successful import.
+   * Keeps the archive for the retention window after a successful import.
    */
   public function success(object $task): void {
-    $this->deleteTaskTree($task);
+    $hours = (int) $this->configFactory->get('xedc_core.settings')->get('temp_retention_hours');
+    if ($hours < 1) {
+      $hours = 24;
+    }
     $this->tasks->update((int) $task->id, [
-      'archive_uri' => '',
-      'work_uri' => '',
-      'cleanup_after' => 0,
+      'cleanup_after' => time() + ($hours * 3600),
     ]);
-    $this->tasks->log((int) $task->id, 'info', '已清理临时压缩包和解压目录。正式图片已保留。');
+    $this->tasks->log((int) $task->id, 'info', '导入已通过校验。临时压缩包和解压原图保留 ' . $hours . ' 小时，正式图片已保留。');
   }
 
   /**
@@ -57,22 +58,56 @@ class TempCleaner {
    * Cron deletion of expired failed archives.
    */
   public function expire(): void {
-    foreach ($this->tasks->expired(time()) as $task) {
-      try {
-        $this->deleteTaskTree($task);
-        $this->tasks->update((int) $task->id, [
-          'archive_uri' => '',
-          'work_uri' => '',
-          'cleanup_after' => 0,
-        ]);
-        $this->tasks->log((int) $task->id, 'info', '已按保留期限清理临时文件。');
+    $now = time();
+    $seen = [];
+    foreach ($this->tasks->expired($now) as $task) {
+      $seen[(int) $task->id] = TRUE;
+      $this->expireOne($task);
+    }
+    $ready = \Drupal::database()->select('xedc_import_task', 't')
+      ->fields('t')
+      ->condition('cleanup_after', 0, '>')
+      ->condition('cleanup_after', $now, '<')
+      ->condition('status', [ImportStatus::REVIEW, ImportStatus::PUBLISHED, ImportStatus::COMPLETED], 'IN')
+      ->range(0, 20)
+      ->execute()
+      ->fetchAll();
+    foreach ($ready as $task) {
+      if (isset($seen[(int) $task->id])) {
+        continue;
       }
-      catch (\Throwable $e) {
-        $this->logger->error('清理任务 @id 失败：@message', [
-          '@id' => $task->id,
-          '@message' => $e->getMessage(),
-        ]);
-      }
+      $this->expireOne($task);
+    }
+  }
+
+  /**
+   * Deletes one task's private archive when it is idle and past retention.
+   */
+  private function expireOne(object $task): void {
+    $status = (string) $task->status;
+    if (in_array($status, array_merge([ImportStatus::QUEUED], ImportStatus::processing()), TRUE)) {
+      return;
+    }
+    $id = (int) $task->id;
+    if (!\Drupal::service('lock')->lockMayBeAvailable('xedc_import:' . $id)) {
+      $this->tasks->log($id, 'warning', '任务仍有处理锁，本次跳过临时文件清理。');
+      return;
+    }
+    try {
+      $this->deleteTaskTree($task);
+      $this->tasks->update($id, [
+        'archive_uri' => '',
+        'work_uri' => '',
+        'cleanup_after' => 0,
+      ]);
+      $this->tasks->log($id, 'info', '已按保留期限清理临时文件。正式图片已保留。');
+    }
+    catch (\Throwable $e) {
+      $this->logger->error('清理任务 @id 失败：@message', [
+        '@id' => $id,
+        '@message' => $e->getMessage(),
+      ]);
+      $this->tasks->log($id, 'error', '清理临时文件失败，将在下次计划任务重试：' . $e->getMessage());
     }
   }
 
@@ -82,6 +117,9 @@ class TempCleaner {
   public function manual(object $task): void {
     if (in_array((string) $task->status, array_merge([ImportStatus::QUEUED], ImportStatus::processing()), TRUE)) {
       throw new ImportException('任务仍在处理，不能清理临时文件。');
+    }
+    if (!\Drupal::service('lock')->lockMayBeAvailable('xedc_import:' . (int) $task->id)) {
+      throw new ImportException('任务仍有处理锁，不能清理临时文件。');
     }
     $this->deleteTaskTree($task);
     $this->tasks->update((int) $task->id, [
@@ -121,11 +159,19 @@ class TempCleaner {
     );
     foreach ($iterator as $file) {
       $path = $file->getPathname();
+      if (is_link($path)) {
+        $parent = realpath(dirname($path));
+        if (!is_string($parent) || !str_starts_with($parent, $expected)) {
+          throw new ImportException('拒绝删除任务目录以外的文件。');
+        }
+        unlink($path);
+        continue;
+      }
       $resolved = realpath($path) ?: $path;
       if (!str_starts_with($resolved, $expected . DIRECTORY_SEPARATOR) && $resolved !== $expected) {
         throw new ImportException('拒绝删除任务目录以外的文件。');
       }
-      if ($file->isLink() || $file->isFile()) {
+      if ($file->isFile()) {
         unlink($path);
       }
       else {

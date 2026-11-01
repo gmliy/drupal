@@ -1,0 +1,6 @@
+xedc_admin_ui.dashboard:
+  title: '控制台'
+  description: '内容、审核和发布概览。'
+  route_name: xedc_admin_ui.dashboard
+  parent: system.admin_content
+  weight: -20

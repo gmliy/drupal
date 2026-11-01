@@ -1,0 +1,21 @@
+{#
+/**
+ * @file
+ * Administration index items as cards.
+ *
+ * Each item keeps the link Drupal already built. The description sits under
+ * the title instead of a browser definition list.
+ */
+#}
+{% if content %}
+  <div class="xedc-admin-index-grid">
+    {% for item in content %}
+      <article class="xedc-admin-index-card">
+        <h3 class="xedc-admin-index-card__title">{{ item.link }}</h3>
+        {% if item.description %}
+          <p class="xedc-admin-index-card__desc">{{ item.description }}</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+{% endif %}
