@@ -30,6 +30,7 @@ dependencies:
     - scheduler
     - system
     - taxonomy
+    - xedc_core
 _core:
   default_config_hash: og55Zu0F-q-X8zG0Ohrls49zws6IrmmosZS-30Es8vw
 id: content_editor
@@ -49,6 +50,7 @@ permissions:
   - 'administer nodes'
   - 'administer pathauto'
   - 'administer url aliases'
+  - 'administer xedc image imports'
   - administer_mailsystem
   - 'bulk delete aliases'
   - 'bulk update aliases'
@@ -82,7 +84,9 @@ permissions:
   - 'edit terms in tags'
   - 'execute xedc_moderation_set_state node'
   - 'ignore 404 requests'
+  - 'import photo archives'
   - 'notify of path changes'
+  - 'publish xedc image imports'
   - 'revert all revisions'
   - 'schedule publishing of nodes'
   - 'translate editable entities'

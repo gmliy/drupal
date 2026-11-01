@@ -20,6 +20,7 @@ dependencies:
     - node
     - search
     - system
+    - xedc_core
 _core:
   default_config_hash: wkW7P5A53YhGmsgamrmTbfwpZrqdnPYiJdoAZQtdmJg
 id: authenticated
@@ -46,6 +47,7 @@ permissions:
   - 'edit own photo content'
   - 'edit own video content'
   - 'edit own video media'
+  - 'import photo archives'
   - 'opt-in or out of matomo tracking'
   - 'post comments'
   - 'search content'

@@ -1,0 +1,31 @@
+xedc_core.settings:
+  type: config_object
+  label: 'XEDC image import settings'
+  mapping:
+    max_archive_bytes:
+      type: integer
+      label: 'Maximum archive size'
+    max_uncompressed_bytes:
+      type: integer
+      label: 'Maximum uncompressed size'
+    max_files:
+      type: integer
+      label: 'Maximum file count'
+    max_depth:
+      type: integer
+      label: 'Maximum directory depth'
+    max_pixels:
+      type: integer
+      label: 'Maximum image pixels'
+    max_image_bytes:
+      type: integer
+      label: 'Maximum image bytes'
+    batch_size:
+      type: integer
+      label: 'Images per batch'
+    time_budget:
+      type: integer
+      label: 'Worker time budget'
+    failed_retention_hours:
+      type: integer
+      label: 'Failed archive retention'

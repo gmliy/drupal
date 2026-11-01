@@ -1,0 +1,306 @@
+<?php
+
+/**
+ * @file
+ * ZIP/7Z import on the existing photo content form.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Link;
+use Drupal\Core\Url;
+use Drupal\media\MediaInterface;
+use Drupal\node\NodeInterface;
+use Drupal\xedc_core\ImportStatus;
+
+/**
+ * Stores the archive selection for the duration of one form submission.
+ *
+ * @param array<string, mixed>|null $value
+ *   Payload to store when $op is set.
+ */
+function xedc_core_import_payload(string $op = 'get', ?array $value = NULL): ?array {
+  $store = &drupal_static(__FUNCTION__);
+  if ($op === 'set') {
+    $store = $value;
+    return $store;
+  }
+  if ($op === 'take') {
+    $taken = $store;
+    $store = NULL;
+    return $taken;
+  }
+  return $store;
+}
+
+/**
+ * Implements hook_form_node_form_alter().
+ */
+function xedc_core_form_node_form_alter(array &$form, FormStateInterface $form_state, string $form_id): void {
+  $form_object = $form_state->getFormObject();
+  if (!method_exists($form_object, 'getEntity')) {
+    return;
+  }
+  $node = $form_object->getEntity();
+  if (!$node instanceof NodeInterface || $node->bundle() !== 'photo') {
+    return;
+  }
+  $account = \Drupal::currentUser();
+  if (!$account->hasPermission('import photo archives') && !$account->hasPermission('administer xedc image imports')) {
+    return;
+  }
+  $archive = \Drupal::service('xedc_core.archive');
+  $form['xedc_import'] = [
+    '#type' => 'details',
+    '#title' => t('ZIP / 7Z 批量导入'),
+    '#open' => TRUE,
+    '#tree' => TRUE,
+    '#weight' => 8,
+    '#attributes' => ['class' => ['xedc-import']],
+    '#attached' => ['library' => ['xedc_core/admin']],
+  ];
+  $form['xedc_import']['help'] = [
+    '#markup' => '<p>' . t('这里导入压缩包。上方的图片集仍然可以单张上传。导入完成前，新建内容保持草稿，不会出现在前台。') . '</p>',
+  ];
+  if (!$archive->privateReady()) {
+    $form['xedc_import']['missing'] = [
+      '#markup' => '<p>' . t('未配置私有文件目录，暂时不能上传压缩包。请设置 file_private_path 后执行 drush cr。') . '</p>',
+    ];
+    return;
+  }
+  if (!$archive->sevenZipBinary()) {
+    $form['xedc_import']['sevenzip'] = [
+      '#markup' => '<p>' . t('服务器没有 7z，目前只能导入 ZIP。安装：sudo apt-get install 7zip') . '</p>',
+    ];
+  }
+  $limit = (int) \Drupal::config('xedc_core.settings')->get('max_archive_bytes') ?: 209715200;
+  $form['xedc_import']['archive'] = [
+    '#type' => 'managed_file',
+    '#title' => t('上传 ZIP 或 7Z'),
+    '#upload_location' => 'private://xedc-import/inbox',
+    '#upload_validators' => [
+      'FileExtension' => ['extensions' => 'zip 7z'],
+      'FileSizeLimit' => ['fileLimit' => $limit],
+    ],
+    '#description' => t('只接受 ZIP 和 7Z。系统会检查文件头，不只看扩展名。'),
+  ];
+  if ($account->hasPermission('administer xedc image imports')) {
+    $options = $archive->inboxOptions();
+    if ($options) {
+      $form['xedc_import']['server'] = [
+        '#type' => 'select',
+        '#title' => t('或选择服务器压缩包'),
+        '#options' => $options,
+        '#empty_option' => t('- 不选择 -'),
+        '#description' => t('只能选择私有目录 inbox 里的 ZIP/7Z，不能浏览其他目录。'),
+      ];
+    }
+  }
+  if (!$node->isNew() && $node->hasField('field_images') && !$node->get('field_images')->isEmpty()) {
+    $form['xedc_import']['mode'] = [
+      '#type' => 'radios',
+      '#title' => t('导入方式'),
+      '#options' => [
+        'append' => t('追加到现有图片后面'),
+        'replace' => t('全部成功后替换现有图片'),
+      ],
+      '#default_value' => 'append',
+    ];
+  }
+  if ($node->id()) {
+    $existing = \Drupal::service('xedc_core.tasks')->forNode((int) $node->id());
+    if ($existing) {
+      $rows = [];
+      foreach ($existing as $task) {
+        $rows[] = [
+          ['data' => Link::createFromRoute('#' . $task->id, 'xedc_core.import_detail', ['task' => $task->id])->toRenderable()],
+          ImportStatus::label((string) $task->status),
+          (int) $task->progress . '%',
+          (string) $task->archive_name,
+        ];
+      }
+      $form['xedc_import']['tasks'] = [
+        '#type' => 'table',
+        '#header' => [t('任务'), t('状态'), t('进度'), t('压缩包')],
+        '#rows' => $rows,
+        '#caption' => t('已有导入任务'),
+      ];
+      $active = NULL;
+      foreach ($existing as $task) {
+        if (!ImportStatus::isTerminal((string) $task->status)) {
+          $active = $task;
+          break;
+        }
+      }
+      if ($active) {
+        $url = Url::fromRoute('xedc_core.import_progress', ['task' => (int) $active->id])->toString();
+        $form['xedc_import']['live'] = [
+          '#type' => 'container',
+          '#attributes' => ['data-xedc-progress-url' => $url],
+          'label' => [
+            '#type' => 'html_tag',
+            '#tag' => 'p',
+            '#attributes' => ['data-xedc-progress-label' => '1'],
+            '#value' => ImportStatus::label((string) $active->status) . ' ' . (int) $active->progress . '%',
+          ],
+          'bar' => [
+            '#markup' => '<div class="xedc-import__bar"><span data-xedc-progress-fill="1" style="width:' . (int) $active->progress . '%"></span></div>',
+          ],
+        ];
+      }
+    }
+  }
+  $form['#validate'][] = 'xedc_core_photo_import_validate';
+}
+
+/**
+ * Validates the archive selection without blocking a plain photo save.
+ */
+function xedc_core_photo_import_validate(array &$form, FormStateInterface $form_state): void {
+  $trigger = $form_state->getTriggeringElement();
+  $name = (string) ($trigger['#name'] ?? '');
+  if (str_ends_with($name, '_upload_button') || str_ends_with($name, '_remove_button')) {
+    return;
+  }
+  $import = $form_state->getValue('xedc_import');
+  if (!is_array($import)) {
+    return;
+  }
+  $fids = array_values(array_filter(array_map('intval', (array) ($import['archive'] ?? []))));
+  $server = trim((string) ($import['server'] ?? ''));
+  if (!$fids && $server === '') {
+    return;
+  }
+  if ($fids && $server !== '') {
+    $form_state->setErrorByName('xedc_import][archive', t('请只选择一种压缩包来源。'));
+    return;
+  }
+  $node = $form_state->getFormObject()->getEntity();
+  if ($node instanceof NodeInterface && $node->id() && \Drupal::service('xedc_core.tasks')->hasActive((int) $node->id())) {
+    $form_state->setErrorByName('xedc_import][archive', t('该内容已有正在处理的导入任务。'));
+    return;
+  }
+  xedc_core_import_payload('set', [
+    'is_new' => $node instanceof NodeInterface && $node->isNew(),
+    'nid' => $node instanceof NodeInterface ? (int) $node->id() : 0,
+    'mode' => (string) ($import['mode'] ?? 'append'),
+    'fid' => $fids[0] ?? 0,
+    'server' => $server,
+  ]);
+}
+
+/**
+ * Runs after other modules so a new archive import stays a draft.
+ *
+ * Staff saves otherwise publish new photo nodes immediately.
+ */
+function xedc_core_module_implements_alter(array &$implementations, string $hook): void {
+  if ($hook === 'node_presave' && isset($implementations['xedc_core'])) {
+    $implementation = $implementations['xedc_core'];
+    unset($implementations['xedc_core']);
+    $implementations['xedc_core'] = $implementation;
+  }
+}
+
+/**
+ * Implements hook_node_presave().
+ */
+function xedc_core_node_presave(NodeInterface $node): void {
+  if ($node->bundle() !== 'photo') {
+    return;
+  }
+  if (!empty($node->xedc_import_internal)) {
+    return;
+  }
+  if (xedc_core_import_payload()) {
+    if ($node->hasField('moderation_state')) {
+      $node->set('moderation_state', 'draft');
+    }
+    $node->setUnpublished();
+  }
+  elseif ($node->id() && \Drupal::service('xedc_core.tasks')->blocksPublish((int) $node->id())) {
+    $was_published = $node->original instanceof NodeInterface && $node->original->isPublished();
+    $publishing = $node->isPublished() || ($node->hasField('moderation_state') && $node->get('moderation_state')->value === 'published');
+    if ($publishing && !$was_published) {
+      if ($node->hasField('moderation_state')) {
+        $node->set('moderation_state', 'draft');
+      }
+      $node->setUnpublished();
+      \Drupal::messenger()->addWarning(t('导入尚未完成或未通过校验，内容已保持为草稿。'));
+    }
+  }
+  if ($node->id() && $node->original instanceof NodeInterface && $node->hasField('field_cover_image')) {
+    $old = (int) $node->original->get('field_cover_image')->target_id;
+    $new = (int) $node->get('field_cover_image')->target_id;
+    if ($new && $new !== $old) {
+      \Drupal::service('xedc_core.tasks')->lockCover((int) $node->id());
+    }
+  }
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function xedc_core_node_insert(NodeInterface $node): void {
+  xedc_core_import_after_save($node);
+}
+
+/**
+ * Implements hook_node_update().
+ */
+function xedc_core_node_update(NodeInterface $node): void {
+  if ($node->bundle() === 'photo' && empty($node->xedc_import_internal) && $node->original instanceof NodeInterface) {
+    if ($node->original->label() !== $node->label()) {
+      \Drupal::service('xedc_core.alt')->refresh($node);
+    }
+    if ($node->isPublished() && !$node->original->isPublished()) {
+      \Drupal::service('xedc_core.tasks')->markNodePublished((int) $node->id(), (int) \Drupal::currentUser()->id());
+    }
+  }
+  xedc_core_import_after_save($node);
+}
+
+/**
+ * Starts the queued import after the photo node exists.
+ */
+function xedc_core_import_after_save(NodeInterface $node): void {
+  if ($node->bundle() !== 'photo') {
+    return;
+  }
+  $payload = xedc_core_import_payload('take');
+  if (!$payload) {
+    return;
+  }
+  if (!empty($payload['nid']) && (int) $payload['nid'] !== (int) $node->id()) {
+    return;
+  }
+  try {
+    $id = \Drupal::service('xedc_core.processor')->start($node, $payload);
+    \Drupal::messenger()->addStatus(t('已创建导入任务 #@id。处理在后台继续，完成前不会公开新内容。', ['@id' => $id]));
+  }
+  catch (\Throwable $e) {
+    \Drupal::messenger()->addError($e->getMessage());
+  }
+}
+
+/**
+ * Implements hook_media_presave().
+ */
+function xedc_core_media_presave(MediaInterface $media): void {
+  if ($media->bundle() !== 'image' || !empty($media->xedc_import_internal) || !$media->id()) {
+    return;
+  }
+  if (!$media->hasField('field_media_image') || $media->get('field_media_image')->isEmpty()) {
+    return;
+  }
+  \Drupal::service('xedc_core.alt')->markManualIfEdited((int) $media->id(), (string) $media->get('field_media_image')->alt);
+}
+
+/**
+ * Implements hook_cron().
+ */
+function xedc_core_cron(): void {
+  \Drupal::service('xedc_core.processor')->recover();
+  \Drupal::service('xedc_core.cleaner')->expire();
+}

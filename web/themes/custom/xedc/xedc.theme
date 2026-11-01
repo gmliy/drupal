@@ -941,6 +941,14 @@ function _xedc_photo_gallery_items($node, array &$variables): array {
     }
   }
   $files = $fids ? \Drupal\file\Entity\File::loadMultiple(array_values(array_unique($fids))) : [];
+  $webp_map = [];
+  if ($fids && \Drupal::moduleHandler()->moduleExists('xedc_core') && \Drupal::database()->schema()->tableExists('xedc_image_file')) {
+    $webp_map = \Drupal::database()->select('xedc_image_file', 'f')
+      ->fields('f', ['fid', 'webp'])
+      ->condition('fid', array_values(array_unique($fids)), 'IN')
+      ->execute()
+      ->fetchAllKeyed();
+  }
   $file_of = static function ($media) use ($files) {
     if (!$media instanceof \Drupal\media\MediaInterface) {
       return NULL;
@@ -952,14 +960,22 @@ function _xedc_photo_gallery_items($node, array &$variables): array {
     $file = $files[$fid];
     return $file instanceof \Drupal\file\FileInterface ? $file : NULL;
   };
-  $pack = function ($media) use ($file_of, $full_style, $thumb_style, $generator, &$variables) {
+  $pack = function ($media) use ($file_of, $full_style, $thumb_style, $generator, &$variables, $webp_map) {
     $file = $file_of($media);
     if (!$file || !$media instanceof \Drupal\media\MediaInterface) {
       return NULL;
     }
     $uri = $file->getFileUri();
-    $full_absolute = $full_style ? $full_style->buildUrl($uri) : $generator->generateAbsoluteString($uri);
-    $thumb_absolute = $thumb_style ? $thumb_style->buildUrl($uri) : $full_absolute;
+    $delivery = (string) ($webp_map[$file->id()] ?? '');
+    $use_original = $delivery === 'animated' || $delivery === 'fallback' || !$full_style;
+    if ($use_original) {
+      $full_absolute = $generator->generateAbsoluteString($uri);
+      $thumb_absolute = $full_absolute;
+    }
+    else {
+      $full_absolute = $full_style->buildUrl($uri);
+      $thumb_absolute = $thumb_style ? $thumb_style->buildUrl($uri) : $full_absolute;
+    }
     $scene = '';
     $source_w = 0;
     $source_h = 0;
@@ -1034,11 +1050,12 @@ function _xedc_photo_gallery_items($node, array &$variables): array {
   $title = trim((string) $node->label());
   foreach ($items as $index => &$item) {
     $scene = trim((string) ($item['scene'] ?? ''));
-    $alt = (string) t('@title - 图@index', ['@title' => $title, '@index' => $index + 1]);
     if ($scene !== '') {
-      $alt .= ' - ' . $scene;
+      $item['alt'] = $scene;
     }
-    $item['alt'] = $alt;
+    else {
+      $item['alt'] = (string) t('@title - 图@index', ['@title' => $title, '@index' => $index + 1]);
+    }
   }
   unset($item);
   $built[$cache_key] = [

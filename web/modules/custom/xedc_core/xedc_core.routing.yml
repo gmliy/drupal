@@ -1,0 +1,118 @@
+xedc_core.import_list:
+  path: '/admin/content/image-imports'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\ImportListForm'
+    _title: '图片批量发布'
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+  options:
+    _admin_route: TRUE
+
+xedc_core.import_detail:
+  path: '/admin/content/image-imports/{task}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\ImportController::detail'
+    _title: '导入任务'
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\TaskAccess::view'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.import_progress:
+  path: '/admin/content/image-imports/{task}/progress'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\ImportController::progress'
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\TaskAccess::view'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.import_publish:
+  path: '/admin/content/image-imports/{task}/publish'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\TaskActionForm'
+    _title: '发布图片'
+    op: publish
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\TaskAccess::publish'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.import_retry:
+  path: '/admin/content/image-imports/{task}/retry'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\TaskActionForm'
+    _title: '重试导入'
+    op: retry
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\TaskAccess::view'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.import_cancel:
+  path: '/admin/content/image-imports/{task}/cancel'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\TaskActionForm'
+    _title: '取消导入'
+    op: cancel
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\TaskAccess::view'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.import_cleanup:
+  path: '/admin/content/image-imports/{task}/cleanup'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\TaskActionForm'
+    _title: '清理临时文件'
+    op: cleanup
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\TaskAccess::view'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.import_reroll:
+  path: '/admin/content/image-imports/{task}/reroll-cover'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\TaskActionForm'
+    _title: '重新随机封面'
+    op: reroll
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\TaskAccess::view'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.import_rollback:
+  path: '/admin/content/image-imports/{task}/rollback'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\TaskActionForm'
+    _title: '回滚替换'
+    op: rollback
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\TaskAccess::view'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer

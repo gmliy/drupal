@@ -1,0 +1,9 @@
+admin:
+  css:
+    component:
+      css/admin.css: {}
+  js:
+    js/progress.js: {}
+  dependencies:
+    - core/drupal
+    - core/once

@@ -1,0 +1,13 @@
+name: 'XEDC Core'
+type: module
+description: '图片 ZIP/7Z 批量导入、后台处理、审核与批量发布。'
+package: XEDC
+core_version_requirement: ^11
+dependencies:
+  - drupal:node
+  - drupal:media
+  - drupal:file
+  - drupal:image
+  - drupal:taxonomy
+  - drupal:content_moderation
+  - drupal:user

@@ -1,0 +1,36 @@
+services:
+  logger.channel.xedc_core:
+    parent: logger.channel_base
+    arguments: ['xedc_core']
+
+  xedc_core.tasks:
+    class: Drupal\xedc_core\TaskRepository
+    arguments: ['@database', '@state', '@datetime.time']
+
+  xedc_core.alt:
+    class: Drupal\xedc_core\AltManager
+    arguments: ['@database', '@entity_type.manager']
+
+  xedc_core.archive:
+    class: Drupal\xedc_core\ArchiveManager
+    arguments: ['@file_system', '@stream_wrapper_manager', '@file.usage', '@config.factory', '@current_user']
+
+  xedc_core.cleaner:
+    class: Drupal\xedc_core\TempCleaner
+    arguments: ['@file_system', '@file.usage', '@xedc_core.tasks', '@config.factory', '@logger.channel.xedc_core']
+
+  xedc_core.images:
+    class: Drupal\xedc_core\ImagePipeline
+    arguments: ['@file_system', '@config.factory', '@xedc_core.alt', '@xedc_core.tasks', '@logger.channel.xedc_core']
+
+  xedc_core.publisher:
+    class: Drupal\xedc_core\Publisher
+    arguments: ['@xedc_core.tasks', '@entity_type.manager', '@content_moderation.moderation_information', '@database', '@xedc_core.alt']
+
+  xedc_core.processor:
+    class: Drupal\xedc_core\ImportProcessor
+    arguments: ['@xedc_core.tasks', '@xedc_core.archive', '@xedc_core.images', '@xedc_core.alt', '@xedc_core.cleaner', '@lock', '@queue', '@config.factory', '@entity_type.manager', '@account_switcher', '@logger.channel.xedc_core']
+
+  xedc_core.task_access:
+    class: Drupal\xedc_core\Access\TaskAccess
+    arguments: ['@xedc_core.tasks', '@entity_type.manager']

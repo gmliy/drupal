@@ -1,0 +1,182 @@
+<?php
+
+/**
+ * @file
+ * Schema and install tasks for image import.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\File\FileSystemInterface;
+use Drupal\user\Entity\Role;
+
+/**
+ * Implements hook_schema().
+ */
+function xedc_core_schema(): array {
+  $task = [
+    'description' => 'ZIP/7Z image import tasks for photo nodes.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'nid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'mode' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'create'],
+      'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'queued'],
+      'stage' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'queued'],
+      'archive_name' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'archive_uri' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'archive_fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'archive_format' => ['type' => 'varchar', 'length' => 8, 'not null' => TRUE, 'default' => ''],
+      'source' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'upload'],
+      'work_uri' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'total' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'processed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'success_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'failed_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'skipped_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'progress' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'message' => ['type' => 'text', 'not null' => FALSE],
+      'error' => ['type' => 'text', 'not null' => FALSE],
+      'snapshot' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'replaced' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'cleanup_after' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'published_uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'published_at' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'status' => ['status'],
+      'nid' => ['nid'],
+      'uid' => ['uid'],
+      'cleanup' => ['cleanup_after'],
+    ],
+  ];
+
+  $item = [
+    'description' => 'One image discovered inside an import archive.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'task_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'weight' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'original_name' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'relative_path' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'temp_uri' => ['type' => 'varchar', 'length' => 2048, 'not null' => TRUE, 'default' => ''],
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'mid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'width' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'height' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'mime' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'extension' => ['type' => 'varchar', 'length' => 8, 'not null' => TRUE, 'default' => ''],
+      'animated' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'pending'],
+      'error' => ['type' => 'text', 'not null' => FALSE],
+      'alt' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'webp' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'task_status' => ['task_id', 'status'],
+      'mid' => ['mid'],
+    ],
+  ];
+
+  $log = [
+    'description' => 'Import task log lines.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'task_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'level' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'info'],
+      'message' => ['type' => 'text', 'not null' => TRUE],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'task' => ['task_id'],
+    ],
+  ];
+
+  $alt = [
+    'description' => 'Whether a media image alt was generated or edited.',
+    'fields' => [
+      'mid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'source' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'auto'],
+      'alt' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+    ],
+    'primary key' => ['mid'],
+  ];
+
+  $file = [
+    'description' => 'Original-byte and WebP delivery flags for imported files.',
+    'fields' => [
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'animated' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'webp' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['fid'],
+  ];
+
+  return [
+    'xedc_import_task' => $task,
+    'xedc_import_item' => $item,
+    'xedc_import_log' => $log,
+    'xedc_image_alt' => $alt,
+    'xedc_image_file' => $file,
+  ];
+}
+
+/**
+ * Implements hook_install().
+ */
+function xedc_core_install(): void {
+  $filesystem = \Drupal::service('file_system');
+  foreach (['private://xedc-import/inbox', 'private://xedc-import/tasks'] as $directory) {
+    try {
+      $filesystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
+    }
+    catch (\Throwable $e) {
+      \Drupal::logger('xedc_core')->error('无法创建私有导入目录 @dir：@message', [
+        '@dir' => $directory,
+        '@message' => $e->getMessage(),
+      ]);
+    }
+  }
+
+  $grants = [
+    'content_editor' => [
+      'administer xedc image imports',
+      'import photo archives',
+      'publish xedc image imports',
+    ],
+    'authenticated' => [
+      'import photo archives',
+    ],
+  ];
+  foreach ($grants as $rid => $permissions) {
+    $role = Role::load($rid);
+    if (!$role) {
+      continue;
+    }
+    foreach ($permissions as $permission) {
+      $role->grantPermission($permission);
+    }
+    $role->save();
+  }
+}
+
+/**
+ * Allows nested and non-ASCII archive paths to be stored.
+ */
+function xedc_core_update_10001(): void {
+  $field = [
+    'type' => 'varchar',
+    'length' => 2048,
+    'not null' => TRUE,
+    'default' => '',
+  ];
+  \Drupal::database()->schema()->changeField('xedc_import_item', 'temp_uri', 'temp_uri', $field);
+}

@@ -1,0 +1,11 @@
+_core:
+  default_config_hash: a7n5pPaylyCcz0nVKJu2iBm5paRQPUr0nFvU3d4Bots
+max_archive_bytes: 209715200
+max_uncompressed_bytes: 1073741824
+max_files: 2000
+max_depth: 8
+max_pixels: 40000000
+max_image_bytes: 52428800
+batch_size: 5
+time_budget: 25
+failed_retention_hours: 48

@@ -1,0 +1,13 @@
+administer xedc image imports:
+  title: '管理全部图片导入任务'
+  description: '查看、重试、取消、清理和发布所有图片导入任务，并选择服务器上的压缩包。'
+  restrict access: true
+
+import photo archives:
+  title: '为自己的图片内容导入压缩包'
+  description: '在自己有权编辑的图片内容上上传 ZIP 或 7Z。'
+
+publish xedc image imports:
+  title: '发布已完成的图片导入'
+  description: '把导入完成且校验通过的图片内容发布到网站。'
+  restrict access: true

@@ -116,6 +116,7 @@ module:
   xa_views: 0
   xedc_audit: 0
   xedc_auto_translate: 0
+  xedc_core: 0
   xedc_home: 0
   xedc_member: 0
   xedc_models: 0

@@ -922,3 +922,8 @@ $settings['trusted_host_patterns'] = [
   '^www\.gitxx\.xyz$',
 ];
 $config['system.logging']['error_level'] = 'hide';
+
+/**
+ * Private files for XEDC archive imports. This directory is outside the web root.
+ */
+$settings['file_private_path'] = '/var/www/drupal/private';

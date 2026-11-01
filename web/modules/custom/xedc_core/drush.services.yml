@@ -1,0 +1,6 @@
+services:
+  xedc_core.commands:
+    class: Drupal\xedc_core\Drush\Commands\ImportCommands
+    arguments: ['@xedc_core.processor', '@xedc_core.cleaner', '@queue', '@plugin.manager.queue_worker']
+    tags:
+      - { name: drush.command }
