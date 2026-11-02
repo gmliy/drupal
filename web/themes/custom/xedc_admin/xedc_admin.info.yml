@@ -18,6 +18,12 @@ regions:
 libraries:
   - xedc_admin/global
 
+libraries-extend:
+  core/drupal.dialog:
+    - xedc_admin/dialog
+  ckeditor5/internal.drupal.ckeditor5:
+    - xedc_admin/editor
+
 ckeditor5-stylesheets:
   - css/ckeditor.css
 

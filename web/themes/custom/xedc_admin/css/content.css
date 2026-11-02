@@ -4,19 +4,25 @@
  */
 
 .xedc-admin-content a {
-  color: var(--xedc-admin-primary);
+  color: var(--xedc-admin-link);
 }
 
 .xedc-admin-content .button,
 .xedc-admin-content .xedc-admin-button,
 .xedc-admin-nav__link,
+html.xedc-admin-active a.xedc-admin-header__logo,
+html.xedc-admin-active a.xedc-admin-brand__link,
 .xedc-admin-header a.xedc-admin-header__quiet,
 .xedc-admin-menu a,
-.xedc-admin-breadcrumb a {
+.xedc-admin-breadcrumb a,
+.xedc-admin-content .xedc-admin-index-row,
+.xedc-admin-content .xedc-admin-index-row__title {
   color: inherit;
 }
 
 .xedc-admin-content .button--primary,
+.xedc-admin-content a.button-action,
+.xedc-admin-content .xedc-admin-action a,
 .xedc-admin-content .xedc-admin-button--primary {
   color: var(--xedc-admin-primary-foreground);
 }
@@ -70,7 +76,7 @@
 .xedc-admin-active .ck.ck-toolbar {
   flex-wrap: wrap;
   border-color: var(--xedc-admin-border);
-  background: #FAFAFA;
+  background: var(--xedc-admin-surface-secondary);
 }
 
 .xedc-admin-active .ck.ck-editor__main > .ck-editor__editable {
@@ -95,6 +101,25 @@
 .xedc-admin-active .xedc-import,
 .xedc-admin-active form.xedc-core-import {
   max-width: 100%;
+}
+
+html.xedc-admin-active .xq-btn.xq-primary,
+html.xedc-admin-active .xedc-import-dashboard a.xedc-import-dashboard__primary,
+html.xedc-admin-active form.xedc-import-dashboard input.form-submit.xedc-import-dashboard__primary-button {
+  min-height: 40px;
+  border-color: var(--xedc-admin-primary) !important;
+  border-radius: var(--xedc-admin-radius-md);
+  background: var(--xedc-admin-primary) !important;
+  color: var(--xedc-admin-primary-foreground) !important;
+  font-weight: 600;
+}
+
+html.xedc-admin-active .xq-btn.xq-primary:hover,
+html.xedc-admin-active .xedc-import-dashboard a.xedc-import-dashboard__primary:hover,
+html.xedc-admin-active form.xedc-import-dashboard input.form-submit.xedc-import-dashboard__primary-button:hover {
+  border-color: var(--xedc-admin-primary-hover) !important;
+  background: var(--xedc-admin-primary-hover) !important;
+  color: var(--xedc-admin-primary-foreground) !important;
 }
 
 .xedc-admin-active .help,

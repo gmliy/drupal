@@ -13,7 +13,7 @@
 .xedc-admin-dashboard__section h2 {
   margin: 0 0 12px;
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .xedc-admin-dashboard__welcome {
@@ -28,7 +28,7 @@
 .xedc-admin-dashboard__hello {
   margin: 0;
   font-size: 20px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .xedc-admin-dashboard__date {
@@ -62,7 +62,7 @@
 
 .xedc-admin-dashboard__split dd {
   margin: 2px 0 0;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .xedc-admin-dashboard__list {
@@ -100,7 +100,7 @@
 
 .xedc-admin-dashboard__item-title {
   margin: 0;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .xedc-admin-dashboard__meta {

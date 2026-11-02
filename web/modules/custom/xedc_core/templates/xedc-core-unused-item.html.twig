@@ -1,0 +1,39 @@
+<div class="xedc-ops">
+  <header class="xedc-ops-head">
+    <div>
+      <p class="xedc-ops-kicker">文件 {{ file.fid }}</p>
+      <h2 class="xedc-ops-title">{{ file.filename }}</h2>
+    </div>
+    <a class="xedc-ops-button" href="{{ path('xedc_core.files_unused') }}">返回列表</a>
+  </header>
+  <ul class="xedc-ops-metrics">
+    <li><span>URI</span><strong>{{ file.uri }}</strong></li>
+    <li><span>路径</span><strong>{{ file.path }}</strong></li>
+    <li><span>大小</span><strong>{{ file.bytes }}</strong></li>
+    <li><span>MIME</span><strong>{{ file.mime }}</strong></li>
+    <li><span>创建</span><strong>{{ file.created }}</strong></li>
+    <li><span>修改</span><strong>{{ file.changed }}</strong></li>
+    <li><span>分类</span><strong>{{ file.category }}</strong></li>
+    <li><span>状态</span><strong>{{ file.status }}</strong></li>
+    <li><span>风险</span><strong>{{ file.risk }}</strong></li>
+    <li><span>SHA-256</span><strong>{{ file.hash ?: '暂无数据' }}</strong></li>
+  </ul>
+  <p class="xedc-ops-note">{{ file.reason }}</p>
+  {% if references %}
+    <div class="xedc-ops-table-wrap">
+      <table class="xedc-ops-table">
+        <thead><tr><th>来源</th><th>实体</th><th>修订</th><th>语言</th><th>字段</th><th>判断</th><th>迁移</th><th>说明</th></tr></thead>
+        <tbody>
+          {% for ref in references %}
+            <tr>
+              <td>{{ ref.source }}</td><td>{{ ref.entity }}</td><td>{{ ref.revision }}</td><td>{{ ref.langcode }}</td>
+              <td>{{ ref.field }}</td><td>{{ ref.confidence }}</td><td>{{ ref.migratable }}</td><td>{{ ref.reason }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="xedc-ops-note">这一批没有保存到引用明细。</p>
+  {% endif %}
+</div>

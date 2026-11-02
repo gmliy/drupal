@@ -1,0 +1,14 @@
+{#
+/**
+ * @file
+ * Administration index in one column so group spacing stays even.
+ */
+#}
+<div class="xedc-admin-index">
+  {{ system_compact_link }}
+  {% for container in containers %}
+    {% for block in container.blocks %}
+      {{ block }}
+    {% endfor %}
+  {% endfor %}
+</div>

@@ -303,6 +303,7 @@ function xedc_core_media_presave(MediaInterface $media): void {
 function xedc_core_cron(): void {
   \Drupal::service('xedc_core.processor')->recover();
   \Drupal::service('xedc_core.cleaner')->expire();
+  \Drupal::service('xedc_core.file_analysis')->cron();
 }
 
 /**
@@ -323,8 +324,74 @@ function xedc_core_theme(): array {
         'report' => NULL,
         'census' => [],
         'form' => NULL,
+        'analysis' => [],
+        'analysis_form' => NULL,
       ],
       'template' => 'xedc-core-files',
+    ],
+    'xedc_core_duplicates' => [
+      'variables' => [
+        'rows' => [],
+        'filters' => [],
+        'batch' => [],
+        'pager' => [],
+        'empty' => TRUE,
+      ],
+      'template' => 'xedc-core-duplicates',
+    ],
+    'xedc_core_duplicate' => [
+      'variables' => [
+        'group' => [],
+        'members' => [],
+        'form' => NULL,
+      ],
+      'template' => 'xedc-core-duplicate',
+    ],
+    'xedc_core_unused' => [
+      'variables' => [
+        'rows' => [],
+        'filters' => [],
+        'batch' => [],
+        'pager' => [],
+        'form' => NULL,
+        'empty' => TRUE,
+      ],
+      'template' => 'xedc-core-unused',
+    ],
+    'xedc_core_unused_item' => [
+      'variables' => [
+        'file' => [],
+        'references' => [],
+      ],
+      'template' => 'xedc-core-unused-item',
+    ],
+    'xedc_core_cleanup_tasks' => [
+      'variables' => [
+        'rows' => [],
+        'filters' => [],
+        'pager' => [],
+        'empty' => TRUE,
+      ],
+      'template' => 'xedc-core-cleanup-tasks',
+    ],
+    'xedc_core_cleanup_task' => [
+      'variables' => [
+        'task' => [],
+        'items' => [],
+        'forms' => [],
+        'links' => [],
+      ],
+      'template' => 'xedc-core-cleanup-task',
+    ],
+    'xedc_core_cleanup_log' => [
+      'variables' => [
+        'rows' => [],
+        'filters' => [],
+        'pager' => [],
+        'detail' => NULL,
+        'empty' => TRUE,
+      ],
+      'template' => 'xedc-core-cleanup-log',
     ],
   ];
 }

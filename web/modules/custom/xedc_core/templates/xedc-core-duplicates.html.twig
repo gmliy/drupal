@@ -1,0 +1,59 @@
+<div class="xedc-ops">
+  <header class="xedc-ops-head">
+    <div>
+      <p class="xedc-ops-kicker">运维中心</p>
+      <h2 class="xedc-ops-title">重复文件</h2>
+    </div>
+  </header>
+  <p class="xedc-ops-note">同一组只在 SHA-256 完全相同时成立。理论可释放空间按物理 inode 计算，保留一份后的其余占用，不是已经释放的空间。</p>
+  {% if batch.empty %}
+    <p class="xedc-ops-note">还没有完成的分析批次。{% if batch.message %}当前状态：{{ batch.message }}{% endif %}</p>
+  {% else %}
+    <p class="xedc-ops-detail">批次 #{{ batch.id }}，完成于 {{ batch.finished }}。{% if batch.running == 'running' %}新的分析还在进行，此页不混入未完成批次。{% endif %}</p>
+    <form class="xedc-ops-filters" method="get">
+      <input type="search" name="q" value="{{ filters.q }}" placeholder="文件名、URI 或哈希">
+      <select name="family">
+        <option value="">全部类型</option>
+        <option value="image" {% if filters.family == 'image' %}selected{% endif %}>图片</option>
+        <option value="video" {% if filters.family == 'video' %}selected{% endif %}>视频</option>
+        <option value="other" {% if filters.family == 'other' %}selected{% endif %}>其他</option>
+      </select>
+      <select name="sort">
+        <option value="reclaimable_bytes">按理论可释放空间</option>
+        <option value="total_bytes" {% if filters.sort == 'total_bytes' %}selected{% endif %}>按总大小</option>
+        <option value="file_count" {% if filters.sort == 'file_count' %}selected{% endif %}>按数量</option>
+      </select>
+      <button class="xedc-ops-button" type="submit">筛选</button>
+    </form>
+    {% if empty %}
+      <p class="xedc-ops-note">这一批没有符合条件的重复文件。</p>
+    {% else %}
+      <div class="xedc-ops-table-wrap">
+        <table class="xedc-ops-table">
+          <thead>
+            <tr><th>组</th><th>数量</th><th>总大小</th><th>理论可释放</th><th>类型</th><th>风险</th><th>引用</th><th>SHA-256</th></tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td><a href="{{ row.url }}">#{{ row.id }}</a></td>
+                <td>{{ row.count }}</td>
+                <td>{{ row.bytes }}</td>
+                <td>{{ row.reclaimable }}</td>
+                <td>{{ row.family }}</td>
+                <td><span class="xedc-ops-badge{% if row.risk == '高' %} is-high{% endif %}">{{ row.risk }}</span></td>
+                <td>{{ row.status }}</td>
+                <td><code>{{ row.hash }}</code></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="xedc-ops-pager">
+        {% if pager.prev %}<a class="xedc-ops-button" href="{{ pager.prev }}">上一页</a>{% endif %}
+        <span>{{ pager.page }} / {{ pager.pages }}，共 {{ pager.total }}</span>
+        {% if pager.next %}<a class="xedc-ops-button" href="{{ pager.next }}">下一页</a>{% endif %}
+      </div>
+    {% endif %}
+  {% endif %}
+</div>

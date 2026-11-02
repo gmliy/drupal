@@ -80,6 +80,7 @@ module:
   redirect_domain: 0
   redis: 0
   responsive_image: 0
+  s3fs: 0
   scheduler: 0
   schema_article: 0
   schema_image_object: 0
@@ -116,6 +117,7 @@ module:
   workspaces: 0
   workspaces_ui: 0
   xa_views: 0
+  xedc_admin_nav: 0
   xedc_admin_ui: 0
   xedc_audit: 0
   xedc_auto_translate: 0

@@ -1,0 +1,55 @@
+/**
+ * @file
+ * CKEditor 5 toolbar in dark mode. The editing surface stays light.
+ */
+
+html.xedc-admin-active[data-theme="dark"] .ck.ck-reset,
+html.xedc-admin-active[data-theme="dark"] .ck.ck-toolbar,
+html.xedc-admin-active[data-theme="dark"] .ck.ck-dropdown__panel,
+html.xedc-admin-active[data-theme="dark"] .ck.ck-list,
+html.xedc-admin-active[data-theme="dark"] .ck.ck-balloon-panel {
+  --ck-color-base-background: #27272A;
+  --ck-color-base-foreground: #E4E4E7;
+  --ck-color-base-border: #3F3F46;
+  --ck-color-toolbar-background: #27272A;
+  --ck-color-toolbar-border: #3F3F46;
+  --ck-color-text: #E4E4E7;
+  --ck-color-button-default-background: transparent;
+  --ck-color-button-default-hover-background: #3F3F46;
+  --ck-color-button-default-active-background: #3F3F46;
+  --ck-color-button-on-background: #3F3F46;
+  --ck-color-button-on-hover-background: #52525B;
+  --ck-color-button-on-color: #E4E4E7;
+  --ck-color-button-default-color: #E4E4E7;
+  --ck-color-list-background: #202024;
+  --ck-color-list-button-hover-background: #3F3F46;
+  --ck-color-panel-background: #202024;
+  --ck-color-panel-border: #3F3F46;
+  --ck-color-input-background: #202024;
+  --ck-color-input-border: #3F3F46;
+  --ck-color-input-text: #E4E4E7;
+  --ck-color-dropdown-panel-background: #202024;
+  --ck-color-dropdown-panel-border: #3F3F46;
+  color: #E4E4E7;
+}
+
+html.xedc-admin-active[data-theme="dark"] .ck.ck-toolbar {
+  background: #27272A;
+  border-color: #3F3F46;
+}
+
+html.xedc-admin-active[data-theme="dark"] .ck.ck-button .ck-button__label,
+html.xedc-admin-active[data-theme="dark"] .ck.ck-button {
+  color: #E4E4E7;
+}
+
+html.xedc-admin-active[data-theme="dark"] .ck.ck-editor__main > .ck-editor__editable,
+html.xedc-admin-active[data-theme="dark"] .ck.ck-editor__editable.ck-focused,
+html.xedc-admin-active[data-theme="dark"] .ck.ck-content {
+  --ck-color-base-background: #FFFFFF;
+  --ck-color-base-text: #27272A;
+  --ck-color-text: #27272A;
+  background: #FFFFFF;
+  color: #27272A;
+  border-color: #3F3F46;
+}

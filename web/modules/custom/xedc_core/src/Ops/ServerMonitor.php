@@ -127,18 +127,20 @@ class ServerMonitor {
     $iowait = $cpu['iowait'] ?? NULL;
     $memory = $this->memorySummary($ram, $available);
     $disk = $this->diskSummary($space);
-    $rx = $this->kilobitsToBytes($net['InOctets'] ?? NULL);
-    $tx = $this->kilobitsToBytes($net['OutOctets'] ?? NULL);
+    $rx = $this->kilobitsToBytes($net['received'] ?? $net['InOctets'] ?? NULL);
+    $tx = $this->kilobitsToBytes($net['sent'] ?? $net['OutOctets'] ?? NULL);
     $sampled = $this->dateFormatter->format($this->time->getRequestTime(), 'custom', 'Y-m-d H:i:s');
 
     $services = [
       $this->service('Nginx', 'app.nginx_cpu_utilization', 'app.nginx_mem_usage', [
+        $this->metric('进程数', 'app.nginx_processes', 'processes', '个'),
         $this->unavailableMetric('活动连接', '未开启 Nginx stub_status。本次没有修改站点配置，所以没有连接数。'),
-        $this->unavailableMetric('请求速率', '未采集 Nginx 请求指标。进程 CPU 和内存不能代替请求量。'),
+        $this->unavailableMetric('请求速率', '未采集 Nginx 请求指标。进程数不能代替请求量。'),
       ]),
       $this->service('PHP-FPM', 'app.phpfpm_cpu_utilization', 'app.phpfpm_mem_usage', [
-        $this->unavailableMetric('空闲进程', '未开启 PHP-FPM status 页面，进程池数量暂不可用。'),
-        $this->unavailableMetric('活动进程', '未开启 PHP-FPM status 页面，不能用 CPU 占用代替活动进程数。'),
+        $this->metric('进程数', 'app.phpfpm_processes', 'processes', '个'),
+        $this->unavailableMetric('空闲进程', '未开启 PHP-FPM status 页面，空闲和活动进程数暂不可用。'),
+        $this->unavailableMetric('活动进程', '进程数是进程总数，不是正在处理请求的进程数。'),
       ]),
       $this->service('MariaDB', 'app.mariadb_cpu_utilization', 'app.mariadb_mem_usage', [
         $this->metric('活动连接', 'mysql_local.connections_active', 'active', '个'),
@@ -335,10 +337,26 @@ class ServerMonitor {
    *   Chronological rows with null samples removed.
    */
   private function series(string $chart, int $after, int $points): array {
+    $response = $this->fetchChart($chart, $after, $points);
+    if ($response['rows'] === [] && $response['first_entry'] > 0 && $after < 0) {
+      $response = $this->fetchChart($chart, $response['first_entry'], min($points, 60));
+      $response['partial'] = TRUE;
+      if ($response['notice'] === '') {
+        $response['notice'] = '该指标最早的采样是 ' . $this->dateFormatter->format($response['first_entry'], 'custom', 'Y-m-d H:i') . '。';
+      }
+    }
+    return $response;
+  }
+
+  /**
+   * @return array{rows: list<array{time: int, values: array<string, float|null>}>, partial: bool, notice: string, first_entry: int}
+   *   One Netdata data response.
+   */
+  private function fetchChart(string $chart, int $after, int $points): array {
     $response = $this->client->get($this->baseUrl(), '/api/v1/data', [
       'chart' => $chart,
       'after' => $after,
-      'points' => $points,
+      'points' => max(1, $points),
       'group' => 'average',
       'format' => 'json',
       'options' => 'jsonwrap',
@@ -348,6 +366,7 @@ class ServerMonitor {
         'rows' => [],
         'partial' => TRUE,
         'notice' => $response['error'],
+        'first_entry' => 0,
       ];
     }
     $payload = $response['data'];
@@ -379,15 +398,20 @@ class ServerMonitor {
       }
     }
     $rows = array_reverse($rows);
-    $requestedStart = $this->time->getRequestTime() + $after;
     $oldest = $rows[0]['time'] ?? 0;
     $firstEntry = (int) ($payload['first_entry'] ?? 0);
-    $partial = $rows === [] || ($oldest > 0 && $oldest > $requestedStart + (int) (abs($after) * 0.1));
+    $requestedStart = $after > 0 ? $after : $this->time->getRequestTime() + $after;
+    $partial = $rows === [] || ($oldest > 0 && $oldest > $requestedStart + 120);
     $notice = '';
     if ($partial && $firstEntry > 0) {
       $notice = '该指标最早的采样是 ' . $this->dateFormatter->format($firstEntry, 'custom', 'Y-m-d H:i') . '。';
     }
-    return ['rows' => $rows, 'partial' => $partial, 'notice' => $notice];
+    return [
+      'rows' => $rows,
+      'partial' => $partial,
+      'notice' => $notice,
+      'first_entry' => $firstEntry,
+    ];
   }
 
   /**
@@ -552,8 +576,10 @@ class ServerMonitor {
    *   Disk throughput and IOPS.
    */
   private function ioSummary(?array $io, array $charts): array {
-    $read = isset($io['in']) ? OpsFormat::rate($io['in'] * 1024) : '暂无数据';
-    $write = isset($io['out']) ? OpsFormat::rate($io['out'] * 1024) : '暂无数据';
+    $readRate = $io['reads'] ?? $io['in'] ?? NULL;
+    $writeRate = $io['writes'] ?? $io['out'] ?? NULL;
+    $read = is_numeric($readRate) ? OpsFormat::rate(abs((float) $readRate) * 1024) : '暂无数据';
+    $write = is_numeric($writeRate) ? OpsFormat::rate(abs((float) $writeRate) * 1024) : '暂无数据';
     $iops = '暂无数据';
     foreach ($charts as $id => $chart) {
       if (($chart['context'] ?? '') !== 'disk.ops') {
@@ -566,7 +592,7 @@ class ServerMonitor {
       $sum = 0.0;
       $seen = FALSE;
       foreach ($ops as $value) {
-        $sum += $value;
+        $sum += abs($value);
         $seen = TRUE;
       }
       if ($seen) {
@@ -872,8 +898,8 @@ class ServerMonitor {
   private function networkChart(array $net): array {
     $points = [];
     foreach ($net['rows'] as $row) {
-      $rx = $this->kilobitsToBytes($row['values']['InOctets'] ?? NULL);
-      $tx = $this->kilobitsToBytes($row['values']['OutOctets'] ?? NULL);
+      $rx = $this->kilobitsToBytes($row['values']['received'] ?? $row['values']['InOctets'] ?? NULL);
+      $tx = $this->kilobitsToBytes($row['values']['sent'] ?? $row['values']['OutOctets'] ?? NULL);
       if ($rx === NULL && $tx === NULL) {
         continue;
       }
@@ -916,10 +942,11 @@ class ServerMonitor {
   }
 
   private function kilobitsToBytes(int|float|null $kilobits): ?float {
-    if ($kilobits === NULL || !is_finite((float) $kilobits) || $kilobits < 0) {
+    if ($kilobits === NULL || !is_finite((float) $kilobits)) {
       return NULL;
     }
-    return ((float) $kilobits) * 1000 / 8;
+    // Netdata stores outbound bandwidth as a negative number.
+    return abs((float) $kilobits) * 1000 / 8;
   }
 
   private function mib(int|float|null $value): ?float {

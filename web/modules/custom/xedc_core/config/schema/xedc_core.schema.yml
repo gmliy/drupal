@@ -53,3 +53,24 @@ xedc_core.settings:
     file_top_dirs:
       type: integer
       label: 'Top directory count'
+    file_analysis_auto:
+      type: integer
+      label: 'Automatic read-only file analysis'
+    file_analysis_interval:
+      type: integer
+      label: 'Seconds between automatic analysis runs'
+    file_analysis_batch:
+      type: integer
+      label: 'Files per analysis batch'
+    file_analysis_seconds:
+      type: integer
+      label: 'Seconds per analysis batch'
+    file_analysis_suggest:
+      type: integer
+      label: 'Create unconfirmed cleanup suggestions'
+    file_hash_max_bytes:
+      type: integer
+      label: 'Maximum bytes hashed in one file'
+    file_quarantine_days:
+      type: integer
+      label: 'Days a quarantined file must be kept'

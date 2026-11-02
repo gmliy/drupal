@@ -81,7 +81,7 @@ class FileScanner {
       $job = $this->freshJob();
       $job['status'] = 'running';
       $job['phase'] = 'walk';
-      $job['started'] = $this->time->getRequestTime();
+      $job['started'] = $this->time->getCurrentTime();
       $job['updated'] = $job['started'];
       $job['message'] = '正在统计目录。';
       $this->prepareQueue($job);
@@ -106,7 +106,7 @@ class FileScanner {
       }
       $job['status'] = 'paused';
       $job['message'] = '扫描已暂停，已统计的结果还在。';
-      $job['updated'] = $this->time->getRequestTime();
+      $job['updated'] = $this->time->getCurrentTime();
       $this->saveJob($job);
       return 'paused';
     }
@@ -126,7 +126,7 @@ class FileScanner {
       }
       $job['status'] = 'running';
       $job['message'] = '继续扫描。';
-      $job['updated'] = $this->time->getRequestTime();
+      $job['updated'] = $this->time->getCurrentTime();
       $this->saveJob($job);
       $this->ensureQueued();
       return 'resumed';
@@ -164,7 +164,8 @@ class FileScanner {
         $this->complete($job);
       }
       $job['elapsed_ms'] += (int) round((microtime(TRUE) - $started) * 1000);
-      $job['updated'] = $this->time->getRequestTime();
+      $job['updated'] = $this->time->getCurrentTime();
+      $this->applyWallClock($job);
       $this->saveJob($job);
       return $job['status'] === 'running' ? 'more' : (string) $job['status'];
     }
@@ -173,7 +174,7 @@ class FileScanner {
       $job = $this->loadJob();
       $job['status'] = 'error';
       $job['message'] = '扫描中断：' . $exception->getMessage();
-      $job['updated'] = $this->time->getRequestTime();
+      $job['updated'] = $this->time->getCurrentTime();
       $this->saveJob($job);
       return 'error';
     }
@@ -245,6 +246,7 @@ class FileScanner {
         if (!$this->canList($next)) {
           $job['denied']++;
           $job['failures']++;
+          $this->markDenied($job, $next);
           continue;
         }
         $names = @scandir($next);
@@ -258,7 +260,7 @@ class FileScanner {
         $job['current_names'] = array_values(array_diff($names, ['.', '..']));
         $job['dirs']++;
         if (is_array($stat)) {
-          $this->addDirectoryInode($job, $next, (int) $stat['size']);
+          $this->addDirectoryInode($job, $next);
         }
       }
       $dir = (string) $job['current_dir'];
@@ -308,6 +310,12 @@ class FileScanner {
    *   lstat result.
    */
   private function accountFile(array &$job, string $path, array $stat): void {
+    $inode = ((int) ($stat['dev'] ?? 0)) . ':' . ((int) ($stat['ino'] ?? 0));
+    if (isset($job['inodes'][$inode])) {
+      $job['links']++;
+      return;
+    }
+    $job['inodes'][$inode] = 1;
     $size = (int) $stat['size'];
     $mtime = (int) $stat['mtime'];
     $ctime = (int) $stat['ctime'];
@@ -383,7 +391,7 @@ class FileScanner {
       if (isset($job['dir_direct'][$path]) || isset($job['dir_children'][$path])) {
         $root['bytes'] = $this->rollup($path, $job, $memo);
       }
-      $root['status'] = 'ok';
+      $root['status'] = !empty($root['denied_children']) ? 'limited' : 'ok';
     }
     unset($root);
     $totals = [];
@@ -420,7 +428,7 @@ class FileScanner {
     $job['hash_queue'] = $queue;
     $job['hash_total'] = count($queue);
     $job['hash_done'] = 0;
-    unset($job['size_groups'], $job['size_first'], $job['dir_direct'], $job['dir_children'], $job['visited'], $job['current_dir'], $job['current_names']);
+    unset($job['size_groups'], $job['size_first'], $job['dir_direct'], $job['dir_children'], $job['visited'], $job['current_dir'], $job['current_names'], $job['inodes']);
     if ($queue === []) {
       $job['phase'] = 'done';
       $job['message'] = '目录统计完成。没有需要计算哈希的同大小文件。';
@@ -435,6 +443,9 @@ class FileScanner {
    *   Mutable job.
    */
   private function hash(array &$job, float $deadline): void {
+    if (!isset($job['hash_skipped']) || !is_array($job['hash_skipped'])) {
+      $job['hash_skipped'] = [];
+    }
     $hashed = 0;
     while (!empty($job['hash_queue']) && microtime(TRUE) < $deadline && $hashed < 8) {
       $item = array_pop($job['hash_queue']);
@@ -443,13 +454,12 @@ class FileScanner {
       }
       $path = (string) $item['path'];
       $bytes = (int) $item['bytes'];
-      if ($bytes > 20000000) {
-        $hashed += 8;
-      }
-      else {
-        $hashed++;
-      }
+      $hashed++;
       $job['hash_done']++;
+      if ($bytes > 33554432) {
+        $job['hash_skipped'][] = ['path' => $path, 'bytes' => $bytes];
+        continue;
+      }
       if (!$this->canRead($path)) {
         $job['failures']++;
         continue;
@@ -522,7 +532,8 @@ class FileScanner {
    */
   private function complete(array &$job): void {
     $job['status'] = 'done';
-    $job['finished'] = $this->time->getRequestTime();
+    $job['finished'] = $this->time->getCurrentTime();
+    $this->applyWallClock($job);
     $job['message'] = '扫描完成。';
     $report = [
       'finished' => $job['finished'],
@@ -547,6 +558,7 @@ class FileScanner {
       'styles_webp' => (int) $job['styles_webp'],
       'unmanaged' => $this->decorateFiles($job['unmanaged']),
       'unmanaged_count' => (int) $job['unmanaged_count'],
+      'hash_skipped' => $this->decorateFiles($job['hash_skipped'] ?? []),
       'duplicates' => $this->decorateDuplicates($job['duplicates']),
     ];
     foreach ($job['roots'] as $id => $root) {
@@ -639,9 +651,11 @@ class FileScanner {
       'hash_done' => 0,
       'hash_total' => 0,
       'hashes' => [],
+      'hash_skipped' => [],
       'duplicates' => [],
       'dir_direct' => [],
       'dir_children' => [],
+      'inodes' => [],
       'limits' => [
         'batch' => $batch >= 50 && $batch <= 500 ? $batch : 250,
         'seconds' => $seconds >= 3 && $seconds <= 8 ? $seconds : 6,
@@ -777,6 +791,7 @@ class FileScanner {
       'pending' => '等待扫描',
       'partial' => '扫描中',
       'ok' => '已完成',
+      'limited' => '部分无权限',
       'denied' => '权限不足',
       'missing' => '目录不存在',
     ];
@@ -785,9 +800,9 @@ class FileScanner {
       'path' => (string) ($root['path'] ?? $fallback),
       'status' => $status,
       'status_label' => $labels[$status] ?? $status,
-      'bytes' => is_numeric($bytes) && !in_array($status, ['denied', 'missing', 'idle'], TRUE) ? OpsFormat::bytes((float) $bytes) : '暂无数据',
-      'files' => is_numeric($root['files'] ?? NULL) && !in_array($status, ['denied', 'missing', 'idle'], TRUE) ? (string) (int) $root['files'] : '暂无数据',
-      'dirs' => is_numeric($root['dirs'] ?? NULL) && !in_array($status, ['denied', 'missing', 'idle'], TRUE) ? (string) (int) $root['dirs'] : '暂无数据',
+      'bytes' => is_numeric($bytes) && in_array($status, ['partial', 'ok', 'limited'], TRUE) ? OpsFormat::bytes((float) $bytes) : '暂无数据',
+      'files' => is_numeric($root['files'] ?? NULL) && in_array($status, ['partial', 'ok', 'limited'], TRUE) ? (string) (int) $root['files'] : '暂无数据',
+      'dirs' => is_numeric($root['dirs'] ?? NULL) && in_array($status, ['partial', 'ok', 'limited'], TRUE) ? (string) (int) $root['dirs'] : '暂无数据',
     ];
   }
 
@@ -795,14 +810,58 @@ class FileScanner {
    * @param array<string, mixed> $job
    *   Job.
    */
-  private function addDirectoryInode(array &$job, string $path, int $size): void {
-    $job['dir_direct'][$path] = ($job['dir_direct'][$path] ?? 0) + $size;
+  /**
+   * Uses the clock, not the frozen request time, so a long CLI scan records its real duration.
+   *
+   * @param array<string, mixed> $job
+   *   Mutable job.
+   */
+  private function applyWallClock(array &$job): void {
+    $end = (int) ($job['finished'] ?? 0);
+    if ($end <= 0) {
+      $end = (int) ($job['updated'] ?? 0);
+    }
+    $start = (int) ($job['started'] ?? 0);
+    if ($start <= 0 || $end < $start) {
+      return;
+    }
+    $wall = ($end - $start) * 1000;
+    if ($wall > (int) $job['elapsed_ms']) {
+      $job['elapsed_ms'] = $wall;
+    }
+  }
+
+  /**
+   * @param array<string, mixed> $job
+   *   Mutable job.
+   */
+  private function markDenied(array &$job, string $path): void {
+    foreach ($job['roots'] as &$root) {
+      if (empty($root['countable'])) {
+        continue;
+      }
+      $rootPath = (string) ($root['path'] ?? '');
+      if ($rootPath !== '' && ($path === $rootPath || str_starts_with($path, $rootPath . '/'))) {
+        $root['denied_children'] = (int) ($root['denied_children'] ?? 0) + 1;
+      }
+    }
+    unset($root);
+  }
+
+  /**
+   * @param array<string, mixed> $job
+   *   Job.
+   */
+  private function addDirectoryInode(array &$job, string $path): void {
+    if (!isset($job['dir_direct'][$path])) {
+      $job['dir_direct'][$path] = 0;
+    }
     foreach ($job['roots'] as &$root) {
       if (empty($root['countable'])) {
         continue;
       }
       $rootPath = (string) $root['path'];
-      if ($path === $rootPath || str_starts_with($path, $rootPath . '/')) {
+      if ($path !== $rootPath && str_starts_with($path, $rootPath . '/')) {
         $root['dirs'] = (int) $root['dirs'] + 1;
         if ($root['status'] === 'pending') {
           $root['status'] = 'partial';

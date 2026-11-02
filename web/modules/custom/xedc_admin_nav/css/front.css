@@ -1,0 +1,122 @@
+/**
+ * @file
+ * Public-theme launcher. Rules stay under .xedc-admin--front or .xedc-front-nav__button.
+ */
+
+.xedc-admin.xedc-admin--front {
+  min-height: 0;
+  background: none;
+  color: var(--xedc-admin-foreground);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  --xedc-admin-surface: #FFFFFF;
+  --xedc-admin-surface-secondary: #F4F4F5;
+  --xedc-admin-foreground: #27272A;
+  --xedc-admin-secondary: #52525B;
+  --xedc-admin-muted: #71717A;
+  --xedc-admin-border: #E4E4E7;
+  --xedc-admin-hover: #F4F4F5;
+  --xedc-admin-overlay: rgba(39, 39, 42, 0.4);
+  --xedc-admin-focus: #2563EB;
+  --xedc-admin-header-height: 56px;
+}
+
+.xedc-admin--front[data-theme="dark"] {
+  color-scheme: dark;
+  --xedc-admin-surface: #202024;
+  --xedc-admin-surface-secondary: #27272A;
+  --xedc-admin-foreground: #E4E4E7;
+  --xedc-admin-secondary: #A1A1AA;
+  --xedc-admin-muted: #A1A1AA;
+  --xedc-admin-border: #3F3F46;
+  --xedc-admin-hover: #27272A;
+  --xedc-admin-overlay: rgba(0, 0, 0, 0.55);
+  --xedc-admin-focus: #93C5FD;
+}
+
+.xedc-admin--front,
+.xedc-admin--front * {
+  box-sizing: border-box;
+}
+
+.xedc-front-nav__button {
+  position: fixed;
+  z-index: 1040;
+  top: 68px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(39, 39, 42, 0.16);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  color: #27272A;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.xedc-admin--front.is-nav-open .xedc-front-nav__button {
+  visibility: hidden;
+}
+
+.xedc-admin--front .xedc-admin-overlay {
+  z-index: 1100;
+}
+
+.xedc-admin--front .xedc-admin-drawer {
+  z-index: 1200;
+}
+
+.xedc-admin--front[data-input="keyboard"] :focus-visible {
+  outline: 2px solid var(--xedc-admin-focus);
+  outline-offset: 2px;
+}
+
+.xedc-front-tasks {
+  margin: 0 0 16px;
+}
+
+.xedc-front-tasks .nav,
+.xedc-front-tasks ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  list-style: none;
+}
+
+.xedc-front-tasks a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid #E4E4E7;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #27272A;
+  font-size: 14px;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.xedc-front-tasks a.is-active,
+.xedc-front-tasks a.active {
+  background: #F4F4F5;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xedc-admin--front,
+  .xedc-admin--front * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -65,7 +65,14 @@
   box-shadow: var(--xedc-admin-shadow);
 }
 
-/* Administration index: /admin, /admin/structure, /admin/config, /admin/reports. */
+/* Administration index: one column of grouped lists. */
+.xedc-admin-index {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 880px;
+}
+
 .xedc-admin-active .admin,
 .xedc-admin-active .admin .left,
 .xedc-admin-active .admin .right,
@@ -73,11 +80,9 @@
 .xedc-admin-active .layout-column--half,
 .xedc-admin-active .layout-column--quarter,
 .xedc-admin-active .layout-column--three-quarter {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  float: none;
-  width: 100%;
+  display: block;
+  float: none !important;
+  width: 100% !important;
   max-width: 100%;
   margin: 0;
   padding: 0;
@@ -95,108 +100,118 @@
   background: transparent;
 }
 
+.xedc-admin-index > .xedc-admin-index-section + .xedc-admin-index-section,
+.xedc-admin-active .layout-column .xedc-admin-index-section + .xedc-admin-index-section,
+.xedc-admin-active .admin .xedc-admin-index-section + .xedc-admin-index-section,
+.xedc-admin-active .layout-column + .layout-column {
+  margin-top: 32px;
+}
+
 .xedc-admin-index-section__title,
 .xedc-admin-active .panel__title {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: var(--xedc-admin-foreground);
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: 0.02em;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
-.xedc-admin-index-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-.xedc-admin-index-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  padding: 16px;
+.xedc-admin-index-list {
+  overflow: hidden;
   border: 1px solid var(--xedc-admin-border);
   border-radius: var(--xedc-admin-radius-lg);
   background: var(--xedc-admin-surface);
-  box-shadow: var(--xedc-admin-shadow);
 }
 
-.xedc-admin-index-card:hover {
-  border-color: #D4D4D8;
-}
-
-.xedc-admin-index-card__title {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 650;
-  line-height: 1.35;
-}
-
-.xedc-admin-content .xedc-admin-index-card__title a {
+.xedc-admin-index-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--xedc-admin-border);
+  background: var(--xedc-admin-surface);
   color: var(--xedc-admin-foreground);
   text-decoration: none;
 }
 
-.xedc-admin-active .admin dl.list-group {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin: 0;
-}
-
-.xedc-admin-active .admin dl.list-group > .list-group__link {
-  margin: 0;
-  padding: 16px;
-  border: 1px solid var(--xedc-admin-border);
-  border-radius: var(--xedc-admin-radius-lg);
-  background: var(--xedc-admin-surface);
-  box-shadow: var(--xedc-admin-shadow);
-}
-
-.xedc-admin-active .admin dl.list-group > .list-group__description {
-  margin: -4px 0 0;
-  padding: 0 16px 16px;
-  border: 1px solid var(--xedc-admin-border);
+.xedc-admin-index-list > .xedc-admin-index-row:first-child {
   border-top: 0;
-  border-radius: 0 0 var(--xedc-admin-radius-lg) var(--xedc-admin-radius-lg);
-  background: var(--xedc-admin-surface);
-  color: var(--xedc-admin-muted);
-  font-size: 13px;
 }
 
-.xedc-admin-active .admin dl.list-group > .list-group__link:has(+ .list-group__description) {
-  padding-bottom: 6px;
-  border-bottom: 0;
-  border-radius: var(--xedc-admin-radius-lg) var(--xedc-admin-radius-lg) 0 0;
-  box-shadow: none;
+.xedc-admin-index-row:hover,
+.xedc-admin-index-row:active {
+  background: var(--xedc-admin-hover);
+  color: var(--xedc-admin-foreground);
 }
 
-.xedc-admin-content .xedc-admin-index-card__title a:hover {
-  color: var(--xedc-admin-primary);
+.xedc-admin-index-row__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.xedc-admin-index-card__desc,
+.xedc-admin-index-row__title {
+  color: var(--xedc-admin-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.xedc-admin-index-row__desc,
 .xedc-admin-index-section__desc {
   margin: 0;
   color: var(--xedc-admin-muted);
   font-size: 13px;
-  line-height: 1.5;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.xedc-admin-index-row__arrow {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--xedc-admin-muted);
 }
 
 .xedc-admin-active .compact-link {
-  margin: 0 0 12px;
+  margin: 0 0 16px;
+}
+
+.xedc-admin-content .compact-link a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-sm);
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-secondary);
   font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.xedc-admin-content .compact-link a:hover {
+  background: var(--xedc-admin-hover);
+  color: var(--xedc-admin-foreground);
 }
 
 /* Tables stay in one scrolling card. Columns keep their text. */
-.xedc-admin-table-wrap {
+.xedc-admin-table-wrap,
+.xedc-admin-active .views-list-section {
   display: flow-root;
+  position: relative;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  border-radius: var(--xedc-admin-radius-lg);
 }
 
 .xedc-admin-active .xedc-admin-content > *,
@@ -221,12 +236,9 @@
 }
 
 /* Prose columns wrap inside a cap so the rest of the row can scroll. */
-.xedc-admin-active .xedc-admin-content td.views-field-title,
-.xedc-admin-active .xedc-admin-content td.views-field-description {
+.xedc-admin-active .xedc-admin-content td.views-field-title {
   white-space: normal;
-  min-width: 8rem;
-  max-width: 12rem;
-  overflow-wrap: anywhere;
+  min-width: 140px;
 }
 
 .xedc-admin-active .xedc-admin-content td.views-field-message,
@@ -267,32 +279,93 @@
   max-width: 5.5rem;
 }
 
-/* Vocabulary list is only three visible columns. Fit them on a phone. */
-.xedc-admin-active #taxonomy-overview-vocabularies .xedc-admin-table-wrap > table {
-  width: 100%;
-  min-width: 0;
-  table-layout: fixed;
+html.xedc-admin-active .views-field-title,
+html.xedc-admin-active .views-field-name,
+html.xedc-admin-active .views-ui-view-name,
+html.xedc-admin-active th.views-field-title,
+html.xedc-admin-active td.views-field-title {
+  min-width: 140px;
 }
 
-.xedc-admin-active #taxonomy-overview-vocabularies th:nth-child(1),
-.xedc-admin-active #taxonomy-overview-vocabularies td:nth-child(1) {
-  width: 32%;
+html.xedc-admin-active .views-ui-view-machine-name,
+html.xedc-admin-active .views-field-machine-name,
+html.xedc-admin-active .machine-name {
+  min-width: 160px;
   white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
 }
 
-.xedc-admin-active #taxonomy-overview-vocabularies th:nth-child(2),
-.xedc-admin-active #taxonomy-overview-vocabularies td:nth-child(2) {
-  width: auto;
-  min-width: 0;
-  max-width: none;
+html.xedc-admin-active .views-field-description,
+html.xedc-admin-active .views-ui-view-description,
+html.xedc-admin-active .views-ui-description {
+  min-width: 220px;
+  max-width: 360px;
   white-space: normal;
-  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 
-.xedc-admin-active #taxonomy-overview-vocabularies th:last-child,
-.xedc-admin-active #taxonomy-overview-vocabularies td:last-child {
-  width: 7.4rem;
+html.xedc-admin-active td.views-field-description,
+html.xedc-admin-active td.views-ui-view-description,
+html.xedc-admin-active td.views-ui-description {
+  display: table-cell;
+  overflow: hidden;
+}
+
+html.xedc-admin-active .xedc-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+}
+
+.xedc-admin-table-wrap.has-more-x,
+.xedc-admin-active .views-list-section.has-more-x {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+
+html.xedc-admin-active td:has(.dropbutton-wrapper),
+html.xedc-admin-active .views-ui-view-operations {
+  min-width: 120px;
+}
+
+html.xedc-admin-active .views-exposed-form input.form-text,
+html.xedc-admin-active .views-exposed-form input.form-search,
+html.xedc-admin-active input.form-search,
+html.xedc-admin-active .system-modules-filter input {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+html.xedc-admin-active input::placeholder,
+html.xedc-admin-active textarea::placeholder {
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 1023px) {
+  html.xedc-admin-active .xedc-admin-table-wrap > table,
+  html.xedc-admin-active .views-listing-table,
+  html.xedc-admin-active table.responsive-enabled,
+  html.xedc-admin-active #blocks,
+  html.xedc-admin-active #menu-overview {
+    width: max-content !important;
+    min-width: 640px !important;
+  }
+
+  html.xedc-admin-active th.priority-low,
+  html.xedc-admin-active td.priority-low,
+  html.xedc-admin-active th.priority-medium,
+  html.xedc-admin-active td.priority-medium {
+    display: table-cell !important;
+  }
+
+  html.xedc-admin-active .tableresponsive-toggle,
+  html.xedc-admin-active .tableresponsive-toggle-columns {
+    display: none !important;
+  }
 }
 
 .xedc-admin-active .ck-content th,
@@ -312,17 +385,13 @@
   display: table-cell;
 }
 
-.xedc-admin-active td:has(.dropbutton-wrapper) {
-  position: sticky;
-  right: 0;
-  z-index: 1;
-  width: 1%;
-  background: var(--xedc-admin-surface);
-  box-shadow: -8px 0 8px -8px rgba(24, 24, 27, 0.12);
-}
-
+.xedc-admin-active td:has(.dropbutton-wrapper),
+html.xedc-admin-active td:has(.dropbutton-wrapper.open),
 .xedc-admin-active tr:hover td:has(.dropbutton-wrapper) {
-  background: #FAFAFA;
+  position: static;
+  z-index: auto;
+  background: var(--xedc-admin-surface);
+  box-shadow: none;
 }
 
 .xedc-admin-active td .form-select,
@@ -339,91 +408,307 @@
   margin: 0;
 }
 
-/* Dropbutton. Core hides the extra actions; this only sets size and alignment. */
+/* Operations menu. The closed control stays in the cell. The open list is moved to body. */
+html.xedc-admin-active.js .dropbutton-wrapper,
 html.xedc-admin-active.js td .dropbutton-multiple,
 html.xedc-admin-active.js .dropbutton-multiple {
-  max-width: none;
-  margin: 0;
-  padding: 0;
+  display: inline-flex;
+  position: static;
+  width: auto !important;
+  max-width: none !important;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0;
+  background: transparent;
+  vertical-align: middle;
 }
 
+html.xedc-admin-active.js .dropbutton-widget,
 html.xedc-admin-active.js td .dropbutton-widget,
-html.xedc-admin-active.js .dropbutton-widget {
-  position: relative;
+html.xedc-admin-active.js td .dropbutton-multiple .dropbutton-widget {
+  position: static !important;
+  display: inline-flex;
+  width: auto;
+  margin: 0;
+  padding: 0 !important;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html.xedc-admin-active.js .dropbutton-widget > ul.dropbutton,
+html.xedc-admin-active.js .xedc-admin-ops-face {
   display: inline-flex;
   align-items: stretch;
+  height: 32px;
+  margin: 0;
   padding: 0;
+  overflow: visible;
+  list-style: none;
   border: 1px solid var(--xedc-admin-border);
-  border-radius: var(--xedc-admin-radius-sm);
+  border-radius: 8px;
   background: var(--xedc-admin-surface);
+  box-shadow: none;
 }
 
-html.xedc-admin-active.js .dropbutton-multiple .dropbutton-widget {
-  padding-right: 2em;
+html.xedc-admin-active.js .dropbutton-widget > ul.dropbutton > li,
+html.xedc-admin-active.js .xedc-admin-ops-face > li {
+  display: flex;
+  margin: 0;
+  list-style: none;
 }
 
-.xedc-admin-active .dropbutton {
+html.xedc-admin-active.js .dropbutton-widget > ul.dropbutton > .secondary-action {
+  display: none;
+}
+
+html.xedc-admin-active.js .dropbutton-widget > ul.dropbutton > .dropbutton-action > a,
+html.xedc-admin-active.js .dropbutton-widget > ul.dropbutton > .dropbutton-action > button,
+html.xedc-admin-active.js .xedc-admin-ops-face > .dropbutton-action > a,
+html.xedc-admin-active.js .xedc-admin-ops-face > .dropbutton-action > button {
   display: flex;
   align-items: center;
+  height: 100%;
+  min-height: 0 !important;
   margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.xedc-admin-active .dropbutton li {
-  margin: 0;
-  list-style: none;
-}
-
-.xedc-admin-content .dropbutton a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 4px 10px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--xedc-admin-foreground);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
   text-decoration: none;
   white-space: nowrap;
 }
 
-.xedc-admin-content .dropbutton a:hover {
-  background: var(--xedc-admin-surface-secondary);
+html.xedc-admin-active.js .dropbutton-widget > ul.dropbutton > .dropbutton-action > a:hover,
+html.xedc-admin-active.js .xedc-admin-ops-face > .dropbutton-action > a:hover {
+  background: var(--xedc-admin-hover);
+  color: var(--xedc-admin-foreground);
 }
 
-.xedc-admin-active .dropbutton-toggle {
-  width: 2em;
-}
-
-.xedc-admin-active .dropbutton-toggle button {
-  min-height: 32px;
-  padding: 0;
-  background: transparent;
-}
-
-.xedc-admin-active .dropbutton-arrow {
-  border-top-color: var(--xedc-admin-muted);
-}
-
-.xedc-admin-active .dropbutton-multiple.open {
-  z-index: 5;
-}
-
-.xedc-admin-active .dropbutton-multiple.open .secondary-action {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
+html.xedc-admin-active.js .dropbutton-toggle {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
   left: auto;
-  z-index: 6;
-  min-width: 10rem;
-  border: 1px solid var(--xedc-admin-border);
-  border-radius: var(--xedc-admin-radius-md);
-  background: var(--xedc-admin-surface);
-  box-shadow: 0 8px 24px rgba(24, 24, 27, 0.08);
+  display: flex;
+  width: 32px;
+  text-indent: 0;
+  border-left: 1px solid var(--xedc-admin-border);
 }
 
-.xedc-admin-active .dropbutton-multiple.open .secondary-action a {
+html.xedc-admin-active.js .dropbutton-toggle button {
   display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-indent: 0;
+}
+
+html.xedc-admin-active.js .dropbutton-arrow,
+html.xedc-admin-active.js .dropbutton-multiple.open .dropbutton-arrow {
+  position: static;
+  top: auto;
+  right: auto;
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  background-color: var(--xedc-admin-muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6.2 8 10.2 12 6.2' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6.2 8 10.2 12 6.2' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
+}
+
+html.xedc-admin-ops-lock,
+html.xedc-admin-ops-lock body {
+  overflow: hidden;
+}
+
+html.xedc-admin-ops-lock body {
+  position: fixed;
+  width: 100%;
+}
+
+.xedc-admin-float {
+  position: static;
+}
+
+.xedc-admin-ops-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 299;
+  background: rgba(24, 24, 27, 0.5);
+}
+
+.xedc-admin-ops.is-popover {
+  position: fixed;
+  z-index: 300;
+  min-width: 180px;
+  overflow: auto;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: 8px;
+  background: var(--xedc-admin-surface);
+  box-shadow: 0 8px 24px rgba(24, 24, 27, 0.12);
+}
+
+.xedc-admin-ops.is-popover .dropbutton {
+  display: block;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+}
+
+.xedc-admin-ops.is-popover .dropbutton li {
+  margin: 0;
+  list-style: none;
+}
+
+.xedc-admin-ops.is-popover .dropbutton a,
+.xedc-admin-ops.is-popover .dropbutton button,
+.xedc-admin-ops.is-popover .dropbutton input {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--xedc-admin-foreground);
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 1.3;
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.xedc-admin-ops.is-popover .dropbutton a:hover,
+.xedc-admin-ops.is-popover .dropbutton button:hover {
+  background: var(--xedc-admin-hover);
+  color: var(--xedc-admin-foreground);
+}
+
+.xedc-admin-ops.is-sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 300;
+  max-height: min(78dvh, 560px);
+  overflow: auto;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-radius: 12px 12px 0 0;
+  background: var(--xedc-admin-surface);
+  box-shadow: 0 -8px 24px rgba(24, 24, 27, 0.12);
+}
+
+.xedc-admin-ops-handle {
+  width: 36px;
+  height: 4px;
+  margin: 8px auto 4px;
+  border-radius: 999px;
+  background: var(--xedc-admin-border);
+}
+
+.xedc-admin-ops-title {
+  padding: 4px 16px 8px;
+  color: var(--xedc-admin-foreground);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.xedc-admin-ops.is-sheet .dropbutton {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xedc-admin-ops.is-sheet .dropbutton li {
+  margin: 0;
+  list-style: none;
+}
+
+.xedc-admin-ops.is-sheet .dropbutton a,
+.xedc-admin-ops.is-sheet .dropbutton button,
+.xedc-admin-ops.is-sheet .dropbutton input,
+.xedc-admin-ops-cancel {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--xedc-admin-foreground);
+  font-size: 15px;
+  font-weight: 450;
+  line-height: 1.3;
+  text-align: left;
+  text-decoration: none;
+}
+
+.xedc-admin-ops.is-sheet .dropbutton a.is-danger,
+.xedc-admin-ops.is-sheet .dropbutton button.is-danger,
+.xedc-admin-ops.is-popover .dropbutton a.is-danger,
+.xedc-admin-ops.is-popover .dropbutton button.is-danger {
+  color: var(--xedc-admin-danger);
+}
+
+.xedc-admin-ops.is-sheet .dropbutton a.is-danger-first,
+.xedc-admin-ops.is-sheet .dropbutton button.is-danger-first {
+  box-shadow: inset 0 1px 0 var(--xedc-admin-border);
+  margin-top: 6px;
+}
+
+.xedc-admin-ops-cancel {
+  border-top: 1px solid var(--xedc-admin-border) !important;
+  font-weight: 600;
+}
+
+@media (max-width: 1023px) {
+  html.xedc-admin-active.js .dropbutton-widget > ul.dropbutton,
+  html.xedc-admin-active.js .xedc-admin-ops-face {
+    height: 44px;
+  }
+
+  html.xedc-admin-active.js .dropbutton-toggle {
+    width: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .xedc-admin-ops.is-sheet {
+    animation: xedc-admin-ops-in 180ms ease;
+  }
+}
+
+@keyframes xedc-admin-ops-in {
+  from {
+    transform: translateY(16px);
+  }
 }
 
 /* Leftover Bootstrap dropdowns stay closed until toggled. */
@@ -596,7 +881,7 @@ html.xedc-admin-active .system-modules td.checkbox {
 .xedc-admin-active .system-modules > details > summary,
 .xedc-admin-active details.system-modules-details > summary {
   padding: 12px 14px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 /* Package details are the outer ones. Inner description details stay borderless. */
@@ -679,7 +964,6 @@ html.xedc-admin-active .system-modules td.checkbox {
 .xedc-admin-active .xedc-admin-content details > summary > * {
   min-width: 0;
 }
-}
 
 .xedc-admin-active .xedc-admin-content details > summary::before {
   content: "";
@@ -717,12 +1001,24 @@ html.xedc-admin-active .system-modules td.checkbox {
   content: "";
 }
 
+.xedc-admin-actions,
 .xedc-admin-active .action-links,
+.xedc-admin-active .local-actions,
 .xedc-admin-active .block-local-actions-block ul:not(.contextual-links) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.xedc-admin-action,
+.xedc-admin-active .action-links > li,
+.xedc-admin-active .local-actions > li,
+.xedc-admin-active .block-local-actions-block li {
+  display: inline-flex;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -746,12 +1042,17 @@ html.xedc-admin-active .system-modules td.checkbox {
 }
 
 .xedc-admin-pagehead li::marker,
+.xedc-admin-action::marker,
 .xedc-admin-active .action-links li::marker,
+.xedc-admin-active .local-actions li::marker,
 .xedc-admin-active .block-local-actions-block li::marker {
   content: none;
+  font-size: 0;
 }
 
 .xedc-admin-content .action-links a,
+.xedc-admin-content .xedc-admin-action a,
+.xedc-admin-content a.button-action,
 .xedc-admin-content a.btn-primary {
   display: inline-flex;
   align-items: center;
@@ -761,7 +1062,7 @@ html.xedc-admin-active .system-modules td.checkbox {
   border: 1px solid var(--xedc-admin-primary);
   border-radius: var(--xedc-admin-radius-sm);
   background: var(--xedc-admin-primary);
-  color: #fff;
+  color: var(--xedc-admin-primary-foreground);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.2;
@@ -769,10 +1070,12 @@ html.xedc-admin-active .system-modules td.checkbox {
 }
 
 .xedc-admin-content .action-links a:hover,
+.xedc-admin-content .xedc-admin-action a:hover,
+.xedc-admin-content a.button-action:hover,
 .xedc-admin-content a.btn-primary:hover {
   border-color: var(--xedc-admin-primary-hover);
   background: var(--xedc-admin-primary-hover);
-  color: #fff;
+  color: var(--xedc-admin-primary-foreground);
 }
 
 .xedc-admin-active .vertical-tabs__menu {
@@ -799,20 +1102,8 @@ html.xedc-admin-active .system-modules td.checkbox {
 .xedc-admin-content .vertical-tabs__menu .is-selected a,
 .xedc-admin-content .vertical-tabs__menu .selected a,
 .xedc-admin-content .vertical-tabs__menu a.is-active {
-  background: #EFF6FF;
-  color: var(--xedc-admin-primary);
-}
-
-@media (min-width: 720px) {
-  .xedc-admin-index-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1200px) {
-  .xedc-admin-index-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  background: var(--xedc-admin-hover);
+  color: var(--xedc-admin-foreground);
 }
 
 @media (max-width: 767px) {
@@ -937,4 +1228,93 @@ html.xedc-admin-active .system-modules td.checkbox {
 .xedc-admin-active .field-multiple-table img {
   max-width: 96px;
   height: auto;
+}
+
+/* Views UI ships a pale yellow row. Use the same gray as the rest of the admin. */
+html.xedc-admin-active .views-ui-display-tab-bucket .views-display-setting:nth-of-type(even),
+html.xedc-admin-active .views-ui-dialog .views-override:not(:empty),
+html.xedc-admin-active .views-ui-rearrange-filter-form .even td {
+  background-color: var(--xedc-admin-surface-secondary);
+  color: var(--xedc-admin-foreground);
+}
+
+html.xedc-admin-active .views-ui-display-tab-bucket .views-display-setting {
+  color: var(--xedc-admin-secondary);
+  font-size: 13px;
+}
+
+/* Views listing is not a core table, so it is not inside the scroll card. */
+.xedc-admin-active .views-list-section {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.xedc-admin-active .views-listing-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.xedc-admin-active .views-listing-table th,
+.xedc-admin-active .views-listing-table td {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.xedc-admin-active .views-listing-table .views-ui-view-description,
+.xedc-admin-active .views-listing-table .views-ui-description {
+  white-space: normal;
+  max-width: 14rem;
+  overflow-wrap: anywhere;
+}
+
+/* Block layout is a .table, which is forced to 100% and then clips the last button. */
+.xedc-admin-active #blocks {
+  width: max-content !important;
+  min-width: 100% !important;
+}
+
+.xedc-admin-active #blocks th,
+.xedc-admin-active #blocks td,
+.xedc-admin-active #menu-overview th,
+.xedc-admin-active #menu-overview td {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+/* The region select was wider than its cell and slid under the next button. */
+html.xedc-admin-active #blocks td:has(select) {
+  min-width: 9.25rem;
+  width: 9.25rem;
+  padding-right: 6px;
+  padding-left: 6px;
+}
+
+html.xedc-admin-active #blocks td:has(.dropbutton-wrapper) {
+  min-width: 5.5rem;
+}
+
+.xedc-admin-active #blocks td.block {
+  min-width: 140px;
+  white-space: normal;
+}
+
+.xedc-admin-active #blocks td .form-select,
+.xedc-admin-active #blocks td select {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  box-sizing: border-box;
+  font-size: 13px;
+}
+
+.xedc-admin-active #menu-overview {
+  width: max-content !important;
+  min-width: 100% !important;
+}
+
+.xedc-admin-active #menu-overview td.menu-link-content,
+.xedc-admin-active #menu-overview .description {
+  white-space: normal;
+  max-width: 14rem;
+  overflow-wrap: anywhere;
 }

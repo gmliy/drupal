@@ -1,21 +1,21 @@
 {#
 /**
  * @file
- * Administration index items as cards.
- *
- * Each item keeps the link Drupal already built. The description sits under
- * the title instead of a browser definition list.
+ * One administration index group, as a single list instead of cards.
  */
 #}
 {% if content %}
-  <div class="xedc-admin-index-grid">
+  <div class="xedc-admin-index-list">
     {% for item in content %}
-      <article class="xedc-admin-index-card">
-        <h3 class="xedc-admin-index-card__title">{{ item.link }}</h3>
-        {% if item.description %}
-          <p class="xedc-admin-index-card__desc">{{ item.description }}</p>
-        {% endif %}
-      </article>
+      <a class="xedc-admin-index-row" href="{{ item.href|default(item.url) }}">
+        <span class="xedc-admin-index-row__body">
+          <span class="xedc-admin-index-row__title">{{ item.title }}</span>
+          {% if item.description %}
+            <span class="xedc-admin-index-row__desc">{{ item.description }}</span>
+          {% endif %}
+        </span>
+        <svg class="xedc-admin-index-row__arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
     {% endfor %}
   </div>
 {% endif %}

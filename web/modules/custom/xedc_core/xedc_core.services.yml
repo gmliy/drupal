@@ -54,3 +54,39 @@ services:
   xedc_core.media_census:
     class: Drupal\xedc_core\Ops\MediaCensus
     arguments: ['@entity_type.manager', '@entity_field.manager', '@database', '@file_system', '@cache.default', '@datetime.time', '@config.factory', '@logger.channel.xedc_core']
+
+  xedc_core.file_path_guard:
+    class: Drupal\xedc_core\Ops\Cleanup\FilePathGuard
+    arguments: ['@file_system']
+
+  xedc_core.cleanup_repository:
+    class: Drupal\xedc_core\Ops\Cleanup\CleanupRepository
+    arguments: ['@database', '@datetime.time']
+
+  xedc_core.duplicate_scanner:
+    class: Drupal\xedc_core\Ops\Cleanup\DuplicateFileScanner
+    arguments: ['@database', '@file_system', '@xedc_core.cleanup_repository', '@xedc_core.file_path_guard']
+
+  xedc_core.reference_analyzer:
+    class: Drupal\xedc_core\Ops\Cleanup\FileReferenceAnalyzer
+    arguments: ['@entity_type.manager', '@entity_field.manager', '@database', '@file_system', '@xedc_core.cleanup_repository', '@xedc_core.file_path_guard']
+
+  xedc_core.unused_scanner:
+    class: Drupal\xedc_core\Ops\Cleanup\UnusedFileScanner
+    arguments: ['@database', '@file_system', '@entity_type.manager', '@xedc_core.cleanup_repository', '@xedc_core.file_path_guard']
+
+  xedc_core.reference_merger:
+    class: Drupal\xedc_core\Ops\Cleanup\FileReferenceMerger
+    arguments: ['@entity_type.manager', '@file.usage', '@xedc_core.reference_analyzer', '@xedc_core.cleanup_repository', '@state']
+
+  xedc_core.quarantine_manager:
+    class: Drupal\xedc_core\Ops\Cleanup\FileQuarantineManager
+    arguments: ['@entity_type.manager', '@file_system', '@xedc_core.file_path_guard', '@xedc_core.reference_analyzer', '@xedc_core.cleanup_repository', '@config.factory', '@datetime.time']
+
+  xedc_core.cleanup_manager:
+    class: Drupal\xedc_core\Ops\Cleanup\FileCleanupManager
+    arguments: ['@xedc_core.cleanup_repository', '@xedc_core.reference_analyzer', '@xedc_core.reference_merger', '@xedc_core.quarantine_manager', '@xedc_core.file_path_guard', '@entity_type.manager', '@file_system', '@config.factory', '@lock', '@queue', '@datetime.time']
+
+  xedc_core.file_analysis:
+    class: Drupal\xedc_core\Ops\Cleanup\FileAnalysisRunner
+    arguments: ['@xedc_core.duplicate_scanner', '@xedc_core.reference_analyzer', '@xedc_core.unused_scanner', '@xedc_core.cleanup_manager', '@xedc_core.cleanup_repository', '@database', '@config.factory', '@lock', '@queue', '@state', '@datetime.time', '@logger.channel.xedc_core']

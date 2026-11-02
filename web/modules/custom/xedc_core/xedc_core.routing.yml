@@ -154,3 +154,160 @@ xedc_core.files_status:
     _permission: 'access xedc file statistics'
   options:
     _admin_route: TRUE
+
+xedc_core.files_analysis_status:
+  path: '/admin/reports/xedc-files/analysis-status'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileCleanupController::status'
+  requirements:
+    _permission: 'access xedc file statistics'
+  options:
+    _admin_route: TRUE
+
+xedc_core.files_duplicates:
+  path: '/admin/reports/xedc-files/duplicates'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileCleanupController::duplicates'
+    _title: '重复文件'
+  requirements:
+    _permission: 'view xedc duplicate files'
+  options:
+    _admin_route: TRUE
+
+xedc_core.files_duplicate:
+  path: '/admin/reports/xedc-files/duplicates/{group}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileCleanupController::duplicate'
+    _title: '重复文件组'
+  requirements:
+    _permission: 'view xedc duplicate files'
+  options:
+    _admin_route: TRUE
+    parameters:
+      group:
+        type: integer
+
+xedc_core.files_unused:
+  path: '/admin/reports/xedc-files/unused'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileCleanupController::unused'
+    _title: '未引用文件'
+  requirements:
+    _permission: 'view xedc unused files'
+  options:
+    _admin_route: TRUE
+
+xedc_core.files_unused_item:
+  path: '/admin/reports/xedc-files/unused/{fid}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileCleanupController::unusedItem'
+    _title: '文件引用'
+  requirements:
+    _permission: 'view xedc unused files'
+  options:
+    _admin_route: TRUE
+    parameters:
+      fid:
+        type: integer
+
+xedc_core.files_tasks:
+  path: '/admin/reports/xedc-files/tasks'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileCleanupController::tasks'
+    _title: '清理任务'
+  requirements:
+    _permission: 'review xedc cleanup plans'
+  options:
+    _admin_route: TRUE
+
+xedc_core.files_task:
+  path: '/admin/reports/xedc-files/tasks/{task}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileCleanupController::task'
+    _title: '清理任务'
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\CleanupAccess::review'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.files_task_cancel:
+  path: '/admin/reports/xedc-files/tasks/{task}/cancel'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\CleanupTaskForm'
+    _title: '取消清理任务'
+    op: cancel
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\CleanupAccess::review'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.files_task_continue:
+  path: '/admin/reports/xedc-files/tasks/{task}/continue'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\CleanupTaskForm'
+    _title: '继续清理任务'
+    op: continue
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\CleanupAccess::confirm'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.files_task_purge:
+  path: '/admin/reports/xedc-files/tasks/{task}/purge'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\CleanupTaskForm'
+    _title: '永久清理方案'
+    op: purge_plan
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\CleanupAccess::purge'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.files_task_restore:
+  path: '/admin/reports/xedc-files/tasks/{task}/restore'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\CleanupTaskForm'
+    _title: '恢复方案'
+    op: restore_plan
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\CleanupAccess::restore'
+  options:
+    _admin_route: TRUE
+    parameters:
+      task:
+        type: integer
+
+xedc_core.files_logs:
+  path: '/admin/reports/xedc-files/logs'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileCleanupController::logs'
+    _title: '清理日志'
+  requirements:
+    _permission: 'view xedc cleanup logs'
+  options:
+    _admin_route: TRUE
+
+xedc_core.files_log_item:
+  path: '/admin/reports/xedc-files/logs/{log}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileCleanupController::logItem'
+    _title: '日志详情'
+  requirements:
+    _permission: 'view xedc cleanup logs'
+  options:
+    _admin_route: TRUE
+    parameters:
+      log:
+        type: integer

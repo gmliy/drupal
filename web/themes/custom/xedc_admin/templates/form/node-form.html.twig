@@ -1,0 +1,104 @@
+{#
+/**
+ * @file
+ * Node add and edit form.
+ *
+ * Each child is printed once. Anything not placed above falls through to
+ * "更多选项". Grouped elements stay inside their parent (advanced, footer,
+ * scheduler) so #parents and #group are unchanged.
+ */
+#}
+<div class="xedc-node" data-xedc-bundle="{{ xedc_bundle }}">
+  <div class="xedc-node__scroll">
+  <div class="xedc-node__main">
+    {% if xedc_bundle == 'article' %}
+      <div class="xedc-node__title">{{ form.title }}</div>
+      {{ form.field_cover }}
+      {{ form.field_summary }}
+      <div class="xedc-node__body">{{ form.field_body }}</div>
+      <section class="xedc-card">
+        <h2 class="xedc-card__title">{{ '分类与标签'|t }}</h2>
+        {{ form.field_categories }}
+        {{ form.field_tags }}
+      </section>
+      <section class="xedc-card">
+        <h2 class="xedc-card__title">{{ '来源'|t }}</h2>
+        {{ form.field_source }}
+        {{ form.field_source_url }}
+      </section>
+    {% elseif xedc_bundle == 'video' %}
+      <div class="xedc-node__title">{{ form.title }}</div>
+      {{ form.field_video_cover }}
+      <section class="xedc-card">
+        <h2 class="xedc-card__title">{{ '视频来源'|t }}</h2>
+        {{ form.field_video_file }}
+        {{ form.field_video_url }}
+      </section>
+      {{ form.field_duration }}
+      <div class="xedc-node__body">{{ form.field_body }}</div>
+      <section class="xedc-card">
+        <h2 class="xedc-card__title">{{ '分类与标签'|t }}</h2>
+        {{ form.field_categories }}
+        {{ form.field_tags }}
+      </section>
+    {% elseif xedc_bundle == 'photo' %}
+      <div class="xedc-node__title">{{ form.title }}</div>
+      {{ form.field_cover_image }}
+      {{ form.field_images }}
+      {{ form.xedc_import }}
+      {{ form.field_summary }}
+      <section class="xedc-card">
+        <h2 class="xedc-card__title">{{ '分类与标签'|t }}</h2>
+        {{ form.field_categories }}
+        {{ form.field_model }}
+        {{ form.field_tags }}
+      </section>
+      <section class="xedc-card">
+        <h2 class="xedc-card__title">{{ '展示选项'|t }}</h2>
+        {{ form.field_featured }}
+        {{ form.field_slideshow }}
+      </section>
+    {% else %}
+      <div class="xedc-node__title">{{ form.title }}</div>
+      <div class="xedc-node__body">{{ form.field_body }}</div>
+    {% endif %}
+
+    {% if xedc_leftover %}
+      <details class="xedc-fold">
+        <summary>{{ '更多选项'|t }}</summary>
+        <div class="xedc-fold__body">
+          {% for key in xedc_leftover %}
+            {{ attribute(form, key) }}
+          {% endfor %}
+        </div>
+      </details>
+    {% endif %}
+  </div>
+    <div class="xedc-node__settings">
+      {% if xedc_scheduler_key %}
+        {{ attribute(form, xedc_scheduler_key) }}
+      {% endif %}
+      {{ form.advanced }}
+      {% if form.langcode %}
+        <details class="xedc-fold">
+          <summary>{{ '语言'|t }}</summary>
+          <div class="xedc-fold__body">{{ form.langcode }}</div>
+        </details>
+      {% endif %}
+    </div>
+  </div>
+  <aside class="xedc-node__side">
+    <div class="xedc-publish">
+      <h2 class="xedc-publish__title">{{ '发布'|t }}</h2>
+      {{ form.footer }}
+      <div class="xedc-node__actions">{{ form.actions }}</div>
+    </div>
+  </aside>
+</div>
+<div hidden>
+  {{ form.form_build_id }}
+  {{ form.form_token }}
+  {{ form.form_id }}
+  {{ form.changed }}
+  <input type="hidden" name="advanced__active_tab" data-drupal-selector="edit-advanced-active-tab" class="vertical-tabs__active-tab" value="">
+</div>

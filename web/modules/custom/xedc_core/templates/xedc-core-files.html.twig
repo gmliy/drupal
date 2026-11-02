@@ -13,6 +13,48 @@
     <a class="xedc-ops-button" href="?refresh=1">刷新统计</a>
   </header>
 
+  <nav class="xedc-ops-subnav" aria-label="文件管理">
+    <a href="{{ path('xedc_core.files') }}">统计</a>
+    {% if analysis.links.duplicates %}<a href="{{ path('xedc_core.files_duplicates') }}">重复文件</a>{% endif %}
+    {% if analysis.links.unused %}<a href="{{ path('xedc_core.files_unused') }}">未引用文件</a>{% endif %}
+    {% if analysis.links.tasks %}<a href="{{ path('xedc_core.files_tasks') }}">清理任务</a>{% endif %}
+    {% if analysis.links.logs %}<a href="{{ path('xedc_core.files_logs') }}">日志</a>{% endif %}
+  </nav>
+
+  <section aria-label="概览">
+    <h3 class="xedc-ops-section">概览</h3>
+    {% if disk.ok and disk.primary %}
+      <div class="xedc-ops-cards">
+        <article class="xedc-ops-card"><h3>磁盘总容量</h3><p class="xedc-ops-value">{{ disk.primary.total }}</p><p class="xedc-ops-detail">{{ disk.primary.mount }}</p></article>
+        <article class="xedc-ops-card"><h3>磁盘已用</h3><p class="xedc-ops-value">{{ disk.primary.used }}</p><p class="xedc-ops-detail">使用率 {{ disk.primary.percent }}</p></article>
+        <article class="xedc-ops-card"><h3>磁盘剩余</h3><p class="xedc-ops-value">{{ disk.primary.available }}</p><p class="xedc-ops-detail">{{ disk.primary.type }}</p></article>
+        <article class="xedc-ops-card"><h3>使用率</h3><p class="xedc-ops-value">{{ disk.primary.percent }}</p></article>
+      </div>
+    {% else %}
+      <p class="xedc-ops-note">磁盘容量暂无数据。</p>
+    {% endif %}
+    {% if analysis.has_batch %}
+      <div class="xedc-ops-cards">
+        <article class="xedc-ops-card"><h3>Drupal 文件</h3><p class="xedc-ops-value">{{ analysis.managed_files }}</p><p class="xedc-ops-detail">记录容量 {{ analysis.managed_bytes }}</p></article>
+        <article class="xedc-ops-card"><h3>重复组</h3><p class="xedc-ops-value">{{ analysis.duplicate_groups }}</p><p class="xedc-ops-detail">理论可释放 {{ analysis.reclaimable }}，不是已释放空间</p></article>
+        <article class="xedc-ops-card"><h3>确认未引用</h3><p class="xedc-ops-value">{{ analysis.unused_count }}</p><p class="xedc-ops-detail">待审核 {{ analysis.unused_bytes }}</p></article>
+        <article class="xedc-ops-card"><h3>分析批次</h3><p class="xedc-ops-value">#{{ analysis.finished_batch }}</p><p class="xedc-ops-detail">状态 {{ analysis.status }}</p></article>
+      </div>
+    {% else %}
+      <p class="xedc-ops-note">还没有完成的引用分析。重复文件和未引用文件不会显示估算数字。</p>
+    {% endif %}
+  </section>
+
+  <section class="xedc-ops-panel">
+    <h3>引用分析</h3>
+    <p class="xedc-ops-detail">自动分析只生成待审核方案。合并、隔离和永久清理都必须单独确认。</p>
+    {{ analysis_form }}
+    {% if analysis.message %}<p class="xedc-ops-note">{{ analysis.message }}</p>{% endif %}
+    {% if analysis.total %}
+      <p class="xedc-ops-detail">本批已处理 {{ analysis.processed }} / {{ analysis.total }}，失败 {{ analysis.failures }}。</p>
+    {% endif %}
+  </section>
+
   <section class="xedc-ops-panel">
     <h3>扫描</h3>
     <p class="xedc-ops-detail">只读取固定目录。不会删除、移动、改权限或改数据库记录。</p>
@@ -23,7 +65,7 @@
       <li><span>已处理文件</span><strong data-xedc-scan-processed>{{ job.processed }}</strong></li>
       <li><span>失败</span><strong>{{ job.failures }}</strong></li>
       <li><span>无权限</span><strong>{{ job.denied }}</strong></li>
-      <li><span>耗时</span><strong>{{ job.elapsed }}</strong></li>
+      <li><span>扫描耗时</span><strong>{{ job.elapsed }}</strong></li>
       <li><span>开始</span><strong>{{ job.started }}</strong></li>
       <li><span>最近更新</span><strong data-xedc-scan-updated>{{ job.updated }}</strong></li>
     </ul>
@@ -136,7 +178,7 @@
         {% endfor %}
       </div>
       {% if report.extensions %}
-        <div class="xedc-ops-table-wrap">
+        <div class="xedc-ops-table-wrap" data-xedc-pageable>
           <table class="xedc-ops-table">
             <thead><tr><th>扩展名</th><th>数量</th><th>占用</th><th>平均</th></tr></thead>
             <tbody>
@@ -256,7 +298,10 @@
         <ul class="xedc-ops-paths">{% for row in report.unmanaged %}<li><code>{{ row.path }}</code><span>{{ row.bytes }}</span></li>{% endfor %}</ul>
       {% endif %}
       <h3 class="xedc-ops-section">重复文件</h3>
-      <p class="xedc-ops-note">先按大小分组，只对同大小的文件计算 SHA-256。文件名相同或大小相同本身不算重复。</p>
+      <p class="xedc-ops-note">先按大小分组，只对同大小的文件计算 SHA-256。文件名相同或大小相同本身不算重复。超过 32 MB 的文件不在网页请求里计算哈希。</p>
+      {% if report.hash_skipped %}
+        <p class="xedc-ops-detail">有 {{ report.hash_skipped|length }} 个同大小文件超过 32 MB，没有计算哈希，也不记为重复。</p>
+      {% endif %}
       {% if report.duplicates %}
         {% for group in report.duplicates %}
           <article class="xedc-ops-panel">

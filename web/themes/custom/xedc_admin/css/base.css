@@ -1,32 +1,49 @@
 /**
  * @file
- * Design tokens and scoped defaults for the XEDC administration theme.
+ * Design tokens. Light is the default. Dark is html[data-theme="dark"].
+ *
+ * Blue is reserved for links and the keyboard focus ring.
+ * Status colors are reserved for status.
  */
 
 html.xedc-admin-active {
-  --xedc-admin-background: #F8F9FB;
+  color-scheme: light;
+  --xedc-admin-background: #F7F7F8;
   --xedc-admin-surface: #FFFFFF;
   --xedc-admin-surface-secondary: #F4F4F5;
-  --xedc-admin-foreground: #18181B;
+  --xedc-admin-foreground: #27272A;
+  --xedc-admin-secondary: #52525B;
   --xedc-admin-muted: #71717A;
   --xedc-admin-border: #E4E4E7;
-  --xedc-admin-primary: #171717;
-  --xedc-admin-primary-hover: #262626;
-  --xedc-admin-primary-active: #404040;
+  --xedc-admin-primary: #3F3F46;
+  --xedc-admin-primary-hover: #27272A;
+  --xedc-admin-primary-active: #27272A;
   --xedc-admin-primary-foreground: #FAFAFA;
-  --xedc-admin-accent-soft: #F5F5F5;
+  --xedc-admin-link: #2563EB;
+  --xedc-admin-focus: #2563EB;
   --xedc-admin-success: #16A34A;
   --xedc-admin-warning: #D97706;
   --xedc-admin-danger: #DC2626;
-  --xedc-admin-radius-sm: 4px;
-  --xedc-admin-radius-md: 6px;
-  --xedc-admin-radius-lg: 6px;
+  --xedc-admin-success-bg: #F0FDF4;
+  --xedc-admin-success-border: #BBF7D0;
+  --xedc-admin-warning-bg: #FFFBEB;
+  --xedc-admin-warning-border: #FDE68A;
+  --xedc-admin-danger-bg: #FEF2F2;
+  --xedc-admin-danger-border: #FECACA;
+  --xedc-admin-badge-success-bg: #DCFCE7;
+  --xedc-admin-badge-warning-bg: #FEF3C7;
+  --xedc-admin-badge-danger-bg: #FEE2E2;
+  --xedc-admin-table-head: #F4F4F5;
+  --xedc-admin-hover: #F4F4F5;
+  --xedc-admin-radius-sm: 6px;
+  --xedc-admin-radius-md: 8px;
+  --xedc-admin-radius-lg: 12px;
   --xedc-admin-sidebar-width: 240px;
   --xedc-admin-sidebar-collapsed: 72px;
-  --xedc-admin-header-height: 64px;
-  --xedc-admin-shadow: none;
+  --xedc-admin-header-height: 56px;
+  --xedc-admin-shadow: 0 1px 2px rgba(39, 39, 42, 0.06);
+  --xedc-admin-overlay: rgba(39, 39, 42, 0.4);
   --xedc-admin-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-  /* Bridge so existing dashboard CSS can read the same palette without Gin. */
   --gin-color-text: var(--xedc-admin-foreground);
   --gin-color-text-light: var(--xedc-admin-muted);
   --gin-color-title: var(--xedc-admin-foreground);
@@ -38,11 +55,69 @@ html.xedc-admin-active {
   --gin-color-primary-hover: var(--xedc-admin-primary-hover);
 }
 
+html.xedc-admin-active[data-theme="dark"] {
+  color-scheme: dark;
+  --xedc-admin-background: #18181B;
+  --xedc-admin-surface: #202024;
+  --xedc-admin-surface-secondary: #27272A;
+  --xedc-admin-foreground: #E4E4E7;
+  --xedc-admin-secondary: #A1A1AA;
+  --xedc-admin-muted: #A1A1AA;
+  --xedc-admin-border: #3F3F46;
+  --xedc-admin-primary: #E4E4E7;
+  --xedc-admin-primary-hover: #F4F4F5;
+  --xedc-admin-primary-active: #FFFFFF;
+  --xedc-admin-primary-foreground: #27272A;
+  --xedc-admin-link: #93C5FD;
+  --xedc-admin-focus: #93C5FD;
+  --xedc-admin-success: #4ADE80;
+  --xedc-admin-warning: #FBBF24;
+  --xedc-admin-danger: #F87171;
+  --xedc-admin-success-bg: #14291C;
+  --xedc-admin-success-border: #166534;
+  --xedc-admin-warning-bg: #2A2111;
+  --xedc-admin-warning-border: #92400E;
+  --xedc-admin-danger-bg: #2C1517;
+  --xedc-admin-danger-border: #991B1B;
+  --xedc-admin-badge-success-bg: #14291C;
+  --xedc-admin-badge-warning-bg: #2A2111;
+  --xedc-admin-badge-danger-bg: #2C1517;
+  --xedc-admin-table-head: #27272A;
+  --xedc-admin-hover: #27272A;
+  --xedc-admin-shadow: none;
+  --xedc-admin-overlay: rgba(24, 24, 27, 0.62);
+}
+
+html.xedc-admin-active,
+html.xedc-admin-active * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.xedc-admin-active :focus,
+html.xedc-admin-active :focus-visible {
+  outline: none;
+}
+
+html.xedc-admin-active[data-input="keyboard"] :focus-visible {
+  outline: 2px solid var(--xedc-admin-focus);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+html.xedc-admin-active button::-moz-focus-inner,
+html.xedc-admin-active input::-moz-focus-inner {
+  border: 0;
+  padding: 0;
+}
+
 html.xedc-admin-active,
 body.xedc-admin-active {
   background: var(--xedc-admin-background);
   color: var(--xedc-admin-foreground);
   font-family: var(--xedc-admin-font);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 body.xedc-admin-active {
@@ -54,6 +129,28 @@ body.xedc-admin-active {
   box-sizing: border-box;
 }
 
+.xedc-admin-active h1,
+.xedc-admin-pagehead h1,
+.xedc-admin-active .page-title {
+  margin: 0 0 8px;
+  color: var(--xedc-admin-foreground);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.xedc-admin-active h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.xedc-admin-active h3,
+.xedc-admin-active h4 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .xedc-admin-skip {
   position: absolute;
   left: 12px;
@@ -61,13 +158,21 @@ body.xedc-admin-active {
   z-index: 80;
   padding: 8px 12px;
   border-radius: var(--xedc-admin-radius-sm);
-  background: var(--xedc-admin-foreground);
-  color: #fff;
+  background: var(--xedc-admin-primary);
+  color: var(--xedc-admin-primary-foreground);
   transform: translateY(-140%);
 }
 
-.xedc-admin-skip:focus {
+.xedc-admin-skip:focus,
+.xedc-admin-skip:focus-visible {
   transform: none;
+}
+
+@media (max-width: 767px) {
+  html.xedc-admin-active,
+  body.xedc-admin-active {
+    font-size: 15px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

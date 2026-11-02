@@ -25,3 +25,31 @@ xedc_core.files:
   route_name: xedc_core.files
   parent: xedc_core.ops
   weight: 1
+
+xedc_core.files_duplicates:
+  title: '重复文件'
+  description: '查看内容相同的文件。'
+  route_name: xedc_core.files_duplicates
+  parent: xedc_core.ops
+  weight: 2
+
+xedc_core.files_unused:
+  title: '未引用文件'
+  description: '查看引用分析分类。'
+  route_name: xedc_core.files_unused
+  parent: xedc_core.ops
+  weight: 3
+
+xedc_core.files_tasks:
+  title: '清理任务'
+  description: '审核和确认清理方案。'
+  route_name: xedc_core.files_tasks
+  parent: xedc_core.ops
+  weight: 4
+
+xedc_core.files_logs:
+  title: '清理日志'
+  description: '查看文件清理操作记录。'
+  route_name: xedc_core.files_logs
+  parent: xedc_core.ops
+  weight: 5

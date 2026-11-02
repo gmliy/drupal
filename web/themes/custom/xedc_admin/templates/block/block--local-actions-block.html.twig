@@ -1,0 +1,12 @@
+{% extends "block.html.twig" %}
+{#
+/**
+ * @file
+ * Local actions without a browser list marker.
+ */
+#}
+{% block content %}
+  {% if content %}
+    <div class="xedc-admin-actions">{{ content }}</div>
+  {% endif %}
+{% endblock %}

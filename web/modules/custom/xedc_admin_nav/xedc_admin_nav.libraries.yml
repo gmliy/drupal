@@ -1,0 +1,6 @@
+front:
+  css:
+    theme:
+      css/front.css: {}
+  dependencies:
+    - xedc_admin/drawer

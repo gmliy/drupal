@@ -1,0 +1,169 @@
+/**
+ * @file
+ * Progress bars and AJAX loading. Scoped to the admin theme.
+ */
+
+html.xedc-admin-active .progress[data-drupal-progress] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 12px 0;
+  color: var(--xedc-admin-foreground);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+html.xedc-admin-active .xedc-admin-content .progress[data-drupal-progress] {
+  max-width: 480px;
+  margin: 64px auto;
+  padding: 24px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-lg);
+  background: var(--xedc-admin-surface);
+  box-shadow: var(--xedc-admin-shadow);
+}
+
+html.xedc-admin-active form .progress[data-drupal-progress] {
+  max-width: none;
+  margin: 8px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html.xedc-admin-active .progress__label {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+html.xedc-admin-active .progress__track {
+  grid-column: 1;
+  height: 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: var(--xedc-admin-surface-secondary);
+}
+
+html.xedc-admin-active .progress__bar {
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  background-color: var(--xedc-admin-primary);
+  background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  transition: width 240ms ease;
+  animation: xedc-admin-progress-flow 1.4s ease-in-out infinite;
+}
+
+html.xedc-admin-active .progress__bar:not([style*="width"]) {
+  width: 35%;
+}
+
+html.xedc-admin-active .progress__percentage {
+  grid-column: 2;
+  margin: 0;
+  color: var(--xedc-admin-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+html.xedc-admin-active .progress__description {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+html.xedc-admin-active .ajax-progress:not(.ajax-progress-fullscreen) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+}
+
+html.xedc-admin-active .ajax-progress-throbber .throbber {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 2px solid var(--xedc-admin-border);
+  border-top-color: var(--xedc-admin-primary);
+  border-radius: 50%;
+  background: none;
+  animation: xedc-admin-spin 0.7s linear infinite;
+}
+
+html.xedc-admin-active .ajax-progress-throbber .message {
+  padding: 0;
+  font-size: 13px;
+}
+
+html.xedc-admin-active .ajax-progress-fullscreen {
+  position: fixed;
+  z-index: 1261;
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  opacity: 1;
+  border-radius: 0;
+  background: rgba(39, 39, 42, 0.28);
+  background-image: none;
+}
+
+html.xedc-admin-active[data-theme="dark"] .ajax-progress-fullscreen {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+html.xedc-admin-active .ajax-progress-fullscreen::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border: 2px solid var(--xedc-admin-border);
+  border-top-color: var(--xedc-admin-primary);
+  border-radius: 50%;
+  background: var(--xedc-admin-surface);
+  box-shadow: 0 0 0 8px var(--xedc-admin-surface);
+  animation: xedc-admin-spin 0.7s linear infinite;
+}
+
+html.xedc-admin-active .media-library-widget .ajax-progress,
+html.xedc-admin-active .views-exposed-form .ajax-progress,
+html.xedc-admin-active .view .ajax-progress {
+  margin-inline-start: 8px;
+}
+
+@keyframes xedc-admin-progress-flow {
+  from {
+    background-position: -40% 0;
+  }
+
+  to {
+    background-position: 140% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.xedc-admin-active .progress__bar,
+  html.xedc-admin-active .ajax-progress-throbber .throbber,
+  html.xedc-admin-active .ajax-progress-fullscreen::before {
+    animation: none;
+    transition: none;
+  }
+}

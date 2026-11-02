@@ -15,6 +15,9 @@ final class OpsFormat {
     if ($bytes === NULL || !is_finite((float) $bytes) || $bytes < 0) {
       return '暂无数据';
     }
+    if ((float) $bytes === 0.0) {
+      return '0 B';
+    }
     return (string) ByteSizeMarkup::create((int) round($bytes));
   }
 

@@ -19,7 +19,7 @@
 .xedc-admin-stat__value {
   margin: 6px 0 0;
   font-size: 28px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.15;
 }
@@ -82,16 +82,16 @@
   color: #fff;
 }
 
-.xedc-admin-button:focus-visible,
-.xedc-admin-active .button:focus-visible,
-.xedc-admin-icon-button:focus-visible,
-.xedc-admin-nav__link:focus-visible,
-.xedc-admin-active a:focus-visible,
-.xedc-admin-active button:focus-visible,
-.xedc-admin-active input:focus-visible,
-.xedc-admin-active select:focus-visible,
-.xedc-admin-active textarea:focus-visible {
-  outline: 2px solid var(--xedc-admin-primary);
+html.xedc-admin-active[data-input="keyboard"] .xedc-admin-button:focus-visible,
+html.xedc-admin-active[data-input="keyboard"] .button:focus-visible,
+html.xedc-admin-active[data-input="keyboard"] .xedc-admin-icon-button:focus-visible,
+html.xedc-admin-active[data-input="keyboard"] .xedc-admin-nav__link:focus-visible,
+html.xedc-admin-active[data-input="keyboard"] a:focus-visible,
+html.xedc-admin-active[data-input="keyboard"] button:focus-visible,
+html.xedc-admin-active[data-input="keyboard"] input:focus-visible,
+html.xedc-admin-active[data-input="keyboard"] select:focus-visible,
+html.xedc-admin-active[data-input="keyboard"] textarea:focus-visible {
+  outline: 2px solid var(--xedc-admin-focus);
   outline-offset: 2px;
 }
 
@@ -108,17 +108,17 @@
 }
 
 .xedc-admin-badge--success {
-  background: #DCFCE7;
+  background: var(--xedc-admin-badge-success-bg);
   color: var(--xedc-admin-success);
 }
 
 .xedc-admin-badge--warning {
-  background: #FEF3C7;
+  background: var(--xedc-admin-badge-warning-bg);
   color: var(--xedc-admin-warning);
 }
 
 .xedc-admin-badge--danger {
-  background: #FEE2E2;
+  background: var(--xedc-admin-badge-danger-bg);
   color: var(--xedc-admin-danger);
 }
 
@@ -133,6 +133,8 @@
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   background: var(--xedc-admin-surface);
   border: 1px solid var(--xedc-admin-border);
   border-radius: var(--xedc-admin-radius-lg);
@@ -162,7 +164,7 @@
   color: var(--xedc-admin-muted);
   font-size: 12px;
   font-weight: 600;
-  background: #FAFAFA;
+  background: var(--xedc-admin-table-head);
 }
 
 .xedc-admin-active tr:last-child td {
@@ -171,19 +173,27 @@
 
 .xedc-admin-breadcrumb ol {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0;
   margin: 0;
   padding: 0;
+  overflow: hidden;
   list-style: none;
   color: var(--xedc-admin-muted);
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .xedc-admin-breadcrumb li {
   display: inline-flex;
   align-items: center;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xedc-admin-breadcrumb li:last-child {
+  flex-shrink: 0;
 }
 
 .xedc-admin-breadcrumb li + li::before {
@@ -193,8 +203,12 @@
 }
 
 .xedc-admin-breadcrumb a {
+  min-width: 0;
+  overflow: hidden;
   color: var(--xedc-admin-muted);
   text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .xedc-admin-breadcrumb a:hover {
@@ -204,10 +218,10 @@
 .xedc-admin-pagehead h1,
 .xedc-admin-active .page-title {
   margin: 0 0 8px;
-  font-size: 24px;
-  font-weight: 650;
+  font-size: 22px;
+  font-weight: 600;
   letter-spacing: -0.02em;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .xedc-admin-dropdown {
@@ -239,10 +253,10 @@
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  background: #EFF6FF;
-  color: var(--xedc-admin-primary);
+  background: var(--xedc-admin-hover);
+  color: var(--xedc-admin-foreground);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .xedc-admin-user__name {
@@ -256,7 +270,7 @@
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  z-index: 50;
+  z-index: 300;
   min-width: 180px;
   padding: 6px;
   border: 1px solid var(--xedc-admin-border);
@@ -267,6 +281,13 @@
 
 .xedc-admin-menu[hidden] {
   display: none;
+}
+
+.xedc-admin-menu__name {
+  padding: 8px 10px 6px;
+  color: var(--xedc-admin-foreground);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .xedc-admin-menu a {
@@ -291,18 +312,21 @@
 }
 
 .xedc-admin-active .messages--status {
-  border-color: #BBF7D0;
-  background: #F0FDF4;
+  border-color: var(--xedc-admin-success-border);
+  background: var(--xedc-admin-success-bg);
+  color: var(--xedc-admin-foreground);
 }
 
 .xedc-admin-active .messages--warning {
-  border-color: #FDE68A;
-  background: #FFFBEB;
+  border-color: var(--xedc-admin-warning-border);
+  background: var(--xedc-admin-warning-bg);
+  color: var(--xedc-admin-foreground);
 }
 
 .xedc-admin-active .messages--error {
-  border-color: #FECACA;
-  background: #FEF2F2;
+  border-color: var(--xedc-admin-danger-border);
+  background: var(--xedc-admin-danger-bg);
+  color: var(--xedc-admin-foreground);
 }
 
 .xedc-admin-active .ajax-progress {
@@ -380,9 +404,9 @@
 }
 
 .xedc-admin-active .pager__item.is-active a {
-  border-color: var(--xedc-admin-primary);
-  background: #EFF6FF;
-  color: var(--xedc-admin-primary);
+  border-color: var(--xedc-admin-border);
+  background: var(--xedc-admin-hover);
+  color: var(--xedc-admin-foreground);
 }
 
 .xedc-admin-active .tabs,
@@ -415,8 +439,8 @@
 
 .xedc-admin-active .tabs a.is-active,
 .xedc-admin-active .tabs li.is-active a {
-  background: #EFF6FF;
-  color: var(--xedc-admin-primary);
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
 }
 
 .xedc-admin-active .views-exposed-form,
@@ -450,9 +474,8 @@
 }
 
 .xedc-admin-active .dropbutton-wrapper {
-  border: 1px solid var(--xedc-admin-border);
-  border-radius: var(--xedc-admin-radius-sm);
-  background: var(--xedc-admin-surface);
+  border: 0;
+  background: transparent;
 }
 
 .xedc-admin-active .dropbutton-widget {
@@ -465,4 +488,15 @@
   min-height: 32px;
   border: 0;
   background: transparent;
+}
+
+@media (max-width: 1023px) {
+  .xedc-admin-button,
+  .xedc-admin-active .button,
+  .xedc-admin-active input.form-submit,
+  .xedc-admin-active .action-links a,
+  .xedc-admin-active .dropbutton .button,
+  .xedc-admin-active .dropbutton input.form-submit {
+    min-height: 44px;
+  }
 }

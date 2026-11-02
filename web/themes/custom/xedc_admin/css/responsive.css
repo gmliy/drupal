@@ -15,12 +15,26 @@
   }
 
   .xedc-admin-user__name,
-  .xedc-admin-header__quiet {
+  .xedc-admin-header__quiet-text {
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
+  }
+
+  .xedc-admin-header__quiet {
+    width: 36px;
+    padding: 0;
+  }
+
+  .xedc-admin-breadcrumb li:not(:nth-last-child(-n + 2)) {
+    display: none;
+  }
+
+  .xedc-admin-breadcrumb ol > li:nth-last-child(2)::before {
+    content: none;
+    margin: 0;
   }
 
   .xedc-admin-pagehead h1,
@@ -52,7 +66,7 @@
   }
 
   .xedc-admin-stat__value {
-    font-size: 24px;
+    font-size: 22px;
   }
 }
 

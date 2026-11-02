@@ -1,0 +1,43 @@
+{#
+/**
+ * @file
+ * HTML shell. The theme script is the first thing in head so a saved
+ * dark theme is applied before CSS, without a light flash.
+ */
+#}
+{%
+  set body_classes = [
+    root_path ? 'path-' ~ root_path|clean_class : 'path-frontpage',
+    language ? 'language--' ~ language|clean_class,
+  ]|merge(body_utility_classes ?: [])
+%}
+<!DOCTYPE html>
+<html{{ html_attributes }}>
+  <head>
+    <script>
+      (function () {
+        var root = document.documentElement;
+        root.classList.add('xedc-admin-js');
+        try {
+          if (localStorage.getItem('xedcAdmin.theme') === 'dark') {
+            root.setAttribute('data-theme', 'dark');
+          }
+        }
+        catch (e) {}
+      })();
+    </script>
+    <head-placeholder token="{{ placeholder_token }}">
+    <title>{{ head_title|safe_join(' | ') }}</title>
+    <css-placeholder token="{{ placeholder_token }}">
+    <js-placeholder token="{{ placeholder_token }}">
+  </head>
+  <body{{ attributes.addClass(body_classes) }}>
+    <a href="#main-content" class="visually-hidden focusable">
+      {{ 'Skip to main content'|t }}
+    </a>
+    {{ page_top }}
+    {{ page }}
+    {{ page_bottom }}
+    <js-bottom-placeholder token="{{ placeholder_token }}">
+  </body>
+</html>

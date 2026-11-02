@@ -1,26 +1,174 @@
 # XEDC 后台主题报告
 
+第七轮还没做完。清单在 `XEDC_ADMIN_ROUND7.md`，截图在 `/root/xedc-admin-round7/`。已经看过的是：表格里的「编辑 ▾」改成独立浮层（手机是从底部滑上来的面板，删除是红字），手机上的表格可以左右滑，机读名称不再被编辑按钮压住。弹窗、进度条、添加内容页和全站扫描还没做。下面仍是第六轮及更早的说明。
+
 ## 给非技术人员的总结
 
-后台仍用新皮肤 `xedc_admin`，没有换回 Gin。左侧改成三截：上面是站点名，中间是常用菜单，下面是「系统」。手机上把抽屉拉开后，不用再往下滚，就能看到并点到「扩展」。扩展、外观、配置、日志、系统状态、Drupal 管理首页都固定在抽屉最下面。
+后台还是新皮肤，没有换回 Gin。
 
-中间的菜单按组收起。第一次打开时，只展开你当前所在的那一组，「工作台」一直露在外面。收起或展开会记在这台浏览器里，刷新后还在。
+用管理员打开网站首页时，左边那条带 Drupal 水滴和绿色按钮的旧菜单已经拿掉。首页恢复成原来的全宽。左上方多了一个小圆按钮，点开后是和后台一样的抽屉菜单。没登录的访客看不到这个按钮，首页和改之前是同一份页面。
 
-管理首页、结构、配置不再是一长串裸链接。每一项是一张卡片，卡片上有标题和说明。手机一列，宽屏两到三列。
+后台的进度条做成了白卡片：灰色细轨道、深色填充、百分比在右边。深色背景下也能看清。这次没有真的去跑「运行所有审核」，因为那个动作会写审核结果，所以进度条是在控制台页面上临时放了一条来看样式。
 
-这次是用真实账号打开后台后看的页面。没有保存、没有新建、没有删除内容。
+又看了一批后台页。视图编辑里原来发黄的行改成了浅灰。手机上的区块布局能看全区域名称和「配置」。管理员在前台打开一篇内容时，标题上面有查看、编辑这些标签。
 
-还不够好的地方：配置页顶部仍有 Drupal 自己的红色状态提示，以及「隐藏描述」；日志页的消息右边仍要在表格里横滑；Site Audit 的标题和网址仍粘在一起，那是模块自己的文字；分类表右上角的「显示行的权重」仍贴着表格边。媒体库弹窗没有打开，因为抽查的文章封面已经选满，没有去删图片。侧栏收成细条时，鼠标停在底部图标上会出现文字，这几个字会压到旁边卡片的一角。
+还不够好的地方：手机首页上，小圆按钮会压住第一张大图的角。进度条的流动动画没法在一张静止截图里证明。编辑器、媒体库、权限大表和深色桌面还没逐页看完。
 
-想暂时换回原来的 Gin，在服务器上执行：
+想暂时换回原来的 Gin，并卸掉首页这个新按钮，在服务器上执行：
 
 ```
 cd /var/www/drupal
+vendor/bin/drush pmu xedc_admin_nav -y
 vendor/bin/drush config:set system.theme admin gin -y
 vendor/bin/drush cr
 ```
 
-看完如果还要新皮肤，把上面命令里的 `gin` 改成 `xedc_admin` 再执行一次。
+看完如果还要新皮肤，把 `gin` 改成 `xedc_admin`，再执行 `vendor/bin/drush en xedc_admin_nav -y` 和 `vendor/bin/drush cr`。
+
+这一轮的清单在 `XEDC_ADMIN_ROUND6.md`，截图在 `/root/xedc-admin-round6/`。再往下是更早几轮的记录。
+
+## 第六轮：前台菜单和进度条
+
+新模块 `xedc_admin_nav` 已启用。数据库备份在 `/var/backups/xedc_before_admin_nav_20261101_230614.sql.gz`。收尾时 `system.theme` 的 admin 仍是 `xedc_admin`。没有改前台主题 `web/themes/custom/xedc/`，也没有改其他旧模块。
+
+### 前台菜单
+
+首页那条侧栏来自核心模块 `navigation` 的 `hook_page_top()`。能看到它的人是拥有 `access navigation` 的用户：超级管理员，以及内容编辑角色。匿名和普通会员没有这条权限。前台主题没有输出它。
+
+模块在前台主题 `xedc` 上拿掉 `page_top` 里的 `navigation` 和 `top_bar`，再渲染后台同一份菜单。菜单函数仍是 `web/themes/custom/xedc_admin/includes/navigation.theme` 里的 `_xedc_admin_navigation()`，没有复制一份菜单树。
+
+涉及文件：
+
+- `web/modules/custom/xedc_admin_nav/xedc_admin_nav.info.yml`
+- `web/modules/custom/xedc_admin_nav/xedc_admin_nav.libraries.yml`
+- `web/modules/custom/xedc_admin_nav/src/Hook/FrontNavHooks.php`
+- `web/modules/custom/xedc_admin_nav/templates/xedc-admin-nav-front.html.twig`
+- `web/modules/custom/xedc_admin_nav/css/front.css`
+- `web/themes/custom/xedc_admin/xedc_admin.libraries.yml`（新增 `drawer` 库，只含抽屉样式和 `navigation.js`）
+- `web/themes/custom/xedc_admin/css/layout.css`（前台外壳不再被当成整页，深色箭头在抽屉自己的深色标记下也生效）
+- `web/themes/custom/xedc_admin/js/navigation.js`（前台不把输入方式写到整页 `html` 上；抽屉打开时锁住主内容）
+
+前台只加载 `xedc_admin/drawer` 和 `xedc_admin_nav/front`。匿名首页启用前后字节数相同。
+
+前台主题没有本地任务区块，标签页原先只出现在被拿掉的顶栏里。模块在内容区最前面补上同一组标签，样式在 `front.css` 的 `.xedc-front-tasks`。没有 `access navigation` 的访客不会得到这块。
+
+### 进度条和加载动画
+
+样式文件：`web/themes/custom/xedc_admin/css/progress.css`，挂在后台主题全局库上。包含 `.progress` 各部分、`.ajax-progress-throbber`、`.ajax-progress-fullscreen`，以及减弱动效。真实批处理页没打开，原因和夹具截图写在第六轮清单里。
+
+### 这轮顺手改的后台样式
+
+- 手机有面包屑时隐藏顶栏站名。
+- 手机输入框字号 16px，避免聚焦时页面被放大。
+- 表单标签字重 500。
+- 手机主按钮最小高度 44px。人员页上第一个按钮量到仍是 40px，还没对上控件。
+- 视图编辑的隔行底色不再用核心那条米黄，改成浅灰。
+- 视图列表的机器名称放进卡片内部横滑，不再被裁成几个字母。
+- 手机区块布局里，区域下拉和「配置」排在同一屏里。
+
+### 仍未解决
+
+- 手机首页圆按钮压住首图左上角。
+- 进度条动画、上传进度、Media Library 的加载提示没有真实操作截图。
+- 深色和多数桌面宽度还没逐张看。编辑器、媒体库、权限表没开始。
+- 人员页有一个按钮量到 40px，样式写的是最小 44px。
+
+### 需要你手动检查
+
+这些都会保存数据，我没有点。
+
+1. 打开一篇已有内容的编辑页，改一个字，点保存。看是否保存成功，顶栏和侧边标签是否还在。
+2. 在编辑页上传一张图片，看进度条是否出现，传完能否在正文里看到。
+3. 点「添加媒体」，在弹窗里搜一张图，选中，插入，再保存内容。
+4. 在内容列表勾两篇，选一个批量动作，但先不要确认执行。只看下拉和确认框是否完整、手机上是否点得到。
+5. 在人员页改一个角色的权限，点保存，再打开看勾选是否还在。
+6. 扩展页不要真的安装或卸载。只展开一个模块，看复选框和说明是否被裁切。
+7. 站点审核里的「运行所有审核」会重跑并可能写入报告。需要的话你自己点一次，看进度是否是白卡片而不是一行裸百分比。
+8. 用没有管理权限的账号打开首页，确认没有小圆按钮，页面和退出登录时一样。
+
+## 第五轮：网站配置的二、三级
+
+只改了 `web/themes/custom/xedc_admin/`。收尾时 `system.theme` 的 admin 仍是 `xedc_admin`。
+
+### 数据来源
+
+「网站配置」不再写死链接。主题用 Drupal 菜单树读取管理菜单 `admin` 里 `system.admin_config` 下面的链接，也就是 `/admin/config` 上的那些分组和它们的配置页。参数是：以该链接为根、不包含根自己、只取启用的链接、相对深度最多 2。这样只出现分组和分组下的配置页，第四级及更深的链接不加载，那些页面自己有标签页。
+
+访问检查用菜单树的 `checkAccess` 处理器。没有权限的链接不显示；一个分组在过滤之后如果没有可见子项，整组不显示。排序用 `generateIndexAndSort`。上一轮已经从配置索引里隐藏 `site_audit_report_entity.settings_form`（`/admin/config/system/site-audit-report-entity`），所以这里用同一条规则把它排除。系统分组的截图里是 SMTP、网站基本设置、邮件系统、统计、马托莫分析、Cron，没有「现场审核报告实体」。
+
+「马托莫分析」会出现在「系统」下面。它是配置菜单里真实的设置页，不是上一轮拒绝加入站点管理的分析报表。
+
+面板顶部的「全部配置」指向 `/admin/config`。只有正好停在这个地址时，这一行才算当前页。地址在 `/admin/config` 下面任何地方时，一级的「网站配置」都高亮。打开面板时，当前页所在的分组自动展开，当前页高亮。已在 `/admin/config/people/accounts` 上看过：抽屉关闭后重新打开，「人员」是展开的，「帐户设置」是高亮的。
+
+### 缓存
+
+读菜单时把每条链接和每次访问检查结果上的缓存元数据收进页面。另外固定加上菜单标签 `config:system.menu.admin`，以及缓存上下文 `user.permissions`、`route`、`languages:language_interface`。这些在 `hook_preprocess_page()` 里合并进页面的 `#cache`，不绕过 Drupal 缓存，也不在 Twig 里查数据库。权限不同的用户不会共用同一份菜单。快捷方式仍用原来的用户上下文和快捷方式集标签。
+
+### 截图
+
+目录 `/root/xedc-admin-round5/`。看过的图和没通过的项写在 `XEDC_ADMIN_ROUND5.md`。手机抽屉宽 232，一级箭头距文字 10 像素、宽 14 像素、颜色 `#A1A1AA`。二级文字距面板左缘 46 像素，和一级文字对齐；标题和返回箭头距左缘 20 像素，和一级图标对齐。三级再往右 12 像素。「SMTP(邮件传输)认证支持」在手机上折成两行，没有被截断。
+
+### 仍然不满意
+
+电脑上「网站配置」面板最高是窗口高度减去顶栏（测到 `max-height: 744px`）。子项最多的「媒体」展开后面板高 733 像素，内容没有超出，滚动位置仍是 0，背景页面也没有被带动。所以「面板内部滚动」没有截图能证明它真的滚过，清单里不标完成。手机抽屉在展开「系统」后内容高 856、可视 664，滚了 160 像素，顶部返回和关闭留在原地，背后的页面没有动。
+
+手机打开账户设置时，本地任务那一排标签在 390 像素宽里显示不全。文档本身的横向滚动宽度和可视宽度相同，没有整页横滑。这不是这次菜单改出来的，这轮没有改标签样式。
+
+没有用真机 iPhone。配置页红色状态提示和 Site Audit 标题粘连没有重测。
+
+## 第四轮菜单
+
+只改了 `web/themes/custom/xedc_admin/`。收尾时 `system.theme` 的 admin 仍是 `xedc_admin`。不存在或当前用户打不开的入口不会显示。快捷方式只读取当前用户的快捷方式集，缓存带上用户上下文和该快捷方式集的缓存标签。
+
+| 名称 | 路由 | 路径 | 权限 |
+| --- | --- | --- | --- |
+| 控制台 | `xedc_admin_ui.dashboard` | `/admin/xedc` | `access xedc admin dashboard` |
+| 快捷方式 | 当前用户的快捷方式集；没有条目时直接去 `entity.shortcut_set.customize_form` | 各快捷方式自己的地址；管理页 `/admin/config/user-interface/shortcut/manage/{set}/customize` | 每条快捷方式用它自己的访问检查。管理链接要能更新这个快捷方式集（`customize shortcut links` 或 `administer shortcuts`）。既没有快捷方式又不能管理时，整项不显示 |
+| 内容管理 → 内容列表 | `system.admin_content` | `/admin/content` | `access content overview` |
+| 内容管理 → 创建内容 | `entity.node.add_page` | `/node/add` | 可以创建任意内容类型 |
+| 内容管理 → 图片导入 | `xedc_core.import_list` | `/admin/content/image-imports` | `import photo archives` 或 `administer xedc image imports` |
+| 内容管理 → 快速发布 | `xedc_quick.page` | `/admin/quick-gallery` | `administer nodes` |
+| 内容分类 → 分类管理 | `entity.taxonomy_vocabulary.collection` | `/admin/structure/taxonomy` | `administer taxonomy` 或 `access taxonomy overview` |
+| 内容分类 → 图片栏目、视频栏目、文章栏目、标签管理、人物管理 | `entity.taxonomy_vocabulary.overview_form` | `/admin/structure/taxonomy/manage/{词汇}` | 该词汇的分类访问检查。词汇不存在或无权则不显示 |
+| 用户管理 → 会员管理 | `view.user_admin_people.page_1` | `/admin/people` | `administer users` |
+| 用户管理 → 内容审核 | `view.moderated_content.moderated_content` | `/admin/content/moderated` | `view any unpublished content` |
+| 站点管理 → 系统状态 | `system.status` | `/admin/reports/status` | `administer site configuration` |
+| 站点管理 → 服务器监控 | `xedc_core.monitor` | `/admin/reports/xedc-monitor` | `access xedc server monitor` |
+| 站点管理 → 文件统计 | `xedc_core.files` | `/admin/reports/xedc-files` | `access xedc file statistics` |
+| 站点管理 → SEO Audit | `audit.reports` | `/admin/reports/audit` | `view audit results` |
+| 站点管理 → Site Audit | `site_audit.report` | `/admin/reports/site-audit` | `administer site configuration` |
+| 站点管理 → 日志与报告 | `dblog.overview` | `/admin/reports/dblog` | `access site reports` |
+| 扩展 | `system.modules_list` | `/admin/modules` | `administer modules` |
+| 结构 | `system.admin_structure` | `/admin/structure` | `access administration pages`。分类页仍算「内容分类」，不算这里 |
+| 外观 | `system.themes_page` | `/admin/appearance` | `administer themes` |
+| 网站配置 | `system.admin_config` | `/admin/config` | `access administration pages` |
+| 管理中心 | `system.admin` | `/admin` | `access administration pages` |
+
+没有做成菜单的项：Matomo 分析。原来的运维中心没有这一页。全站只有 Matomo 的跟踪代码设置页 `matomo.admin_settings_form`（`/admin/config/system/matomo`，权限 `administer matomo`）。配置索引里它显示为「马托莫分析」，那是设置，不是分析报表，所以没有放进抽屉。
+
+### 旧名称到新名称
+
+| 原来 | 现在 |
+| --- | --- |
+| XEDC 控制台 | 控制台 |
+| 全部内容 | 内容列表 |
+| 美图、视频、文章 | 从菜单删除，页面还在 |
+| 图片导入、快速发布 | 仍在内容管理里 |
+| 内容组织及其子项 | 内容分类，子项保留 |
+| 投稿审核 / 审核中心 | 用户管理里的内容审核 |
+| 会员管理 / 会员列表 | 用户管理里的会员管理 |
+| SEO 与网站健康 | 组删除。SEO Audit、Site Audit 改到站点管理 |
+| 运维中心 | 组删除。服务器监控、文件统计改到站点管理 |
+| 扩展、外观 | 仍是一级，名称不变 |
+| 配置 | 网站配置 |
+| 系统状态、日志与报告 | 改到站点管理 |
+| Drupal 管理首页 | 管理中心 |
+
+### 现场审核报告实体
+
+模块 `site_audit_report_entity`，路由 `site_audit_report_entity.settings_form`，表单 `SettingsForm`。唯一的输入框叫「示例」，写进配置 `site_audit_report_entity.settings` 的 `example`。除了这个表单自己，没有代码读取它。审计报告是实体 `site_audit_report`，列表在 `/admin/reports/site-audit/reports`，这次没动。
+
+因为没有人读这个值，而且它不影响报告的生成、查看和保存，所以只在主题里把这一条从 `/admin/config` 的索引中滤掉。网址 `/admin/config/system/site-audit-report-entity` 仍能打开。配置页系统分组的截图里已经没有这项。Site Audit 页面和原来的 5 条报告都还在。
 
 ---
 

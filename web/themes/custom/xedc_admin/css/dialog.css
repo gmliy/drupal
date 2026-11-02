@@ -1,0 +1,76 @@
+/**
+ * @file
+ * Dialogs, including the media library. Loaded with core/drupal.dialog
+ * so it follows the Radix dialog stylesheet.
+ */
+
+html.xedc-admin-active .ui-dialog {
+  color: var(--xedc-admin-foreground);
+  background: var(--xedc-admin-surface);
+  border-color: var(--xedc-admin-border);
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar,
+html.xedc-admin-active .ui-dialog .ui-dialog-content,
+html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane,
+html.xedc-admin-active .ui-widget-content {
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
+  border-color: var(--xedc-admin-border);
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-title {
+  color: var(--xedc-admin-foreground);
+  font-weight: 600;
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close {
+  color: var(--xedc-admin-foreground);
+  opacity: 1;
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane .button,
+html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane button {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-md);
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane .button--primary {
+  border-color: var(--xedc-admin-primary);
+  background: var(--xedc-admin-primary);
+  color: var(--xedc-admin-primary-foreground);
+}
+
+html.xedc-admin-active .media-library-wrapper,
+html.xedc-admin-active .media-library-content,
+html.xedc-admin-active .media-library-views-form,
+html.xedc-admin-active .media-library-item,
+html.xedc-admin-active .media-library-item__preview {
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
+}
+
+html.xedc-admin-active .media-library-item {
+  border-color: var(--xedc-admin-border);
+}
+
+html.xedc-admin-active .media-library-item__preview {
+  background: var(--xedc-admin-surface-secondary);
+}
+
+html.xedc-admin-active .media-library-item--grid.is-hover,
+html.xedc-admin-active .media-library-item--grid.checked,
+html.xedc-admin-active .media-library-item--grid.is-focus {
+  background: var(--xedc-admin-hover);
+}
+
+html.xedc-admin-active .ui-dialog .views-exposed-form,
+html.xedc-admin-active .media-library-views-form .views-exposed-form {
+  background: var(--xedc-admin-surface);
+  border-color: var(--xedc-admin-border);
+  color: var(--xedc-admin-foreground);
+}

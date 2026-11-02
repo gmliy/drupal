@@ -1,0 +1,101 @@
+{#
+/**
+ * @file
+ * Public-theme launcher and drawer. Markup matches xedc_admin page.html.twig.
+ */
+#}
+<div class="xedc-admin xedc-admin--front" data-xedc-admin data-xedc-front-nav>
+  <script>
+    try {
+      if (localStorage.getItem('xedcAdmin.theme') === 'dark') {
+        document.currentScript.parentElement.setAttribute('data-theme', 'dark');
+      }
+    }
+    catch (e) {}
+  </script>
+  <button type="button" class="xedc-front-nav__button" data-xedc-admin-drawer aria-expanded="false" aria-controls="xedc-admin-sidebar" aria-label="{{ '打开导航'|t }}">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <div class="xedc-admin-overlay" data-xedc-admin-overlay hidden></div>
+  <div class="xedc-admin-drawer" id="xedc-admin-sidebar" data-xedc-admin-sidebar aria-hidden="true">
+    <div class="xedc-admin-drawer__track" data-xedc-nav-track>
+      <section class="xedc-admin-drawer__pane" data-xedc-nav-pane="root" data-xedc-nav-scroll>
+        <div class="xedc-admin-drawer__head">
+          <a class="xedc-admin-brand__link" href="{{ brand_url }}">
+            <span class="xedc-admin-brand__text">{{ site_name }}</span>
+          </a>
+          <button type="button" class="xedc-admin-icon-button" data-xedc-admin-close aria-label="{{ '关闭导航'|t }}">
+            <svg class="xedc-admin-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </div>
+        <nav class="xedc-admin-nav" aria-label="{{ '后台导航'|t }}">
+          <ul class="xedc-admin-nav__list" data-xedc-nav-list>
+            {% for item in nav|default([]) %}
+              <li>
+                {% if item.children %}
+                  <button type="button" class="xedc-admin-nav__link{{ item.active ? ' is-active' : '' }}" data-xedc-nav-parent="{{ item.id }}" aria-expanded="false" aria-controls="xedc-nav-{{ item.id }}">
+                    {{ item.icon }}
+                    <span class="xedc-admin-nav__label">{{ item.title }}</span>
+                    <svg class="xedc-admin-nav__chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6"/></svg>
+                  </button>
+                {% else %}
+                  <a class="xedc-admin-nav__link{{ item.active ? ' is-active' : '' }}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>
+                    {{ item.icon }}
+                    <span class="xedc-admin-nav__label">{{ item.title }}</span>
+                  </a>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </nav>
+      </section>
+      {% for item in nav|default([]) %}
+        {% if item.children %}
+          <section class="xedc-admin-drawer__pane" id="xedc-nav-{{ item.id }}" data-xedc-nav-pane="{{ item.id }}" data-xedc-nav-scroll hidden>
+            <div class="xedc-admin-drawer__head">
+              <button type="button" class="xedc-admin-nav__back" data-xedc-nav-back>
+                <svg class="xedc-admin-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 6 9 12l6 6"/></svg>
+                <span>{{ '返回'|t }}</span>
+              </button>
+              <button type="button" class="xedc-admin-icon-button" data-xedc-admin-close aria-label="{{ '关闭导航'|t }}">
+                <svg class="xedc-admin-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg>
+              </button>
+            </div>
+            <div class="xedc-admin-flyout__title">{{ item.title }}</div>
+            <ul class="xedc-admin-nav__list" data-xedc-nav-list>
+              {% for child in item.children %}
+                {% if child.children %}
+                  <li class="xedc-admin-nav__acc{{ child.open ? ' is-open' : '' }}{{ child.active ? ' is-active' : '' }}">
+                    <button type="button" class="xedc-admin-nav__link xedc-admin-nav__group{{ child.active ? ' is-active' : '' }}" data-xedc-nav-group aria-expanded="{{ child.open ? 'true' : 'false' }}">
+                      <span class="xedc-admin-nav__label">{{ child.title }}</span>
+                      <svg class="xedc-admin-nav__chevron xedc-admin-nav__chevron--down" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <div class="xedc-admin-nav__sub"{% if not child.open %} inert{% endif %}>
+                      <div class="xedc-admin-nav__sub-inner">
+                        <ul class="xedc-admin-nav__list">
+                          {% for grand in child.children %}
+                            <li>
+                              <a class="xedc-admin-nav__link xedc-admin-nav__sublink{{ grand.active ? ' is-active' : '' }}" href="{{ grand.url }}"{% if grand.active %} aria-current="page"{% endif %}>
+                                <span class="xedc-admin-nav__label">{{ grand.title }}</span>
+                              </a>
+                            </li>
+                          {% endfor %}
+                        </ul>
+                      </div>
+                    </div>
+                  </li>
+                {% else %}
+                  <li class="{{ child.manage ? 'xedc-admin-nav__manage' : '' }}">
+                    <a class="xedc-admin-nav__link{{ child.active ? ' is-active' : '' }}" href="{{ child.url }}"{% if child.active %} aria-current="page"{% endif %}>
+                      <span class="xedc-admin-nav__label">{{ child.title }}</span>
+                    </a>
+                  </li>
+                {% endif %}
+              {% endfor %}
+            </ul>
+          </section>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>

@@ -1,0 +1,94 @@
+<div class="xedc-ops">
+  <header class="xedc-ops-head">
+    <div>
+      <p class="xedc-ops-kicker">任务 #{{ task.id }} · 批次 #{{ task.batch_id }}</p>
+      <h2 class="xedc-ops-title">{{ task.type }}</h2>
+    </div>
+    <a class="xedc-ops-button" href="{{ path('xedc_core.files_tasks') }}">返回</a>
+  </header>
+  <div class="xedc-ops-alert" role="status">
+    <strong>{{ task.status }}</strong>
+    <p>危险操作只对这一项任务生效。内容变化后，原来的确认会失效。</p>
+    {% if task.error %}<p>{{ task.error }}</p>{% endif %}
+  </div>
+  <ul class="xedc-ops-metrics">
+    <li><span>创建</span><strong>{{ task.created }}</strong></li>
+    <li><span>确认时间</span><strong>{{ task.confirmed }}</strong></li>
+    <li><span>确认人</span><strong>{% if task.confirmed_uid %}UID {{ task.confirmed_uid }}{% else %}尚未确认{% endif %}</strong></li>
+    {% if task.reclaimable %}<li><span>理论可释放</span><strong>{{ task.reclaimable }}</strong></li>{% endif %}
+  </ul>
+  {% if task.keep %}
+    <article class="xedc-ops-panel">
+      <h3>保留文件</h3>
+      <p class="xedc-ops-detail">{{ task.keep.fid }} · {{ task.keep.filename }} · {{ task.keep.uri }} · {{ task.keep.bytes }} 字节</p>
+    </article>
+  {% endif %}
+  {% if task.drops %}
+    <h3 class="xedc-ops-section">待迁移文件</h3>
+    <ul class="xedc-ops-paths">
+      {% for drop in task.drops %}
+        <li><code>{{ drop.fid }} · {{ drop.uri }}</code><span>{{ drop.bytes }} 字节</span></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if task.migrations %}
+    <h3 class="xedc-ops-section">准备迁移的引用</h3>
+    <div class="xedc-ops-table-wrap">
+      <table class="xedc-ops-table">
+        <thead><tr><th>实体</th><th>修订</th><th>语言</th><th>字段</th><th>原文件</th></tr></thead>
+        <tbody>
+          {% for ref in task.migrations %}
+            <tr><td>{{ ref.entity_type }}:{{ ref.entity_id }}</td><td>{{ ref.revision_id }}</td><td>{{ ref.langcode }}</td><td>{{ ref.field_name }}</td><td>{{ ref.fid }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+  {% if task.blocked %}
+    <div class="xedc-ops-alert" role="alert">
+      <strong>以下引用不能自动迁移，此方案不能执行</strong>
+      <ul class="xedc-ops-paths">
+        {% for ref in task.blocked %}
+          <li><code>{{ ref.entity_type }} {{ ref.field_name }}</code><span>{{ ref.reason }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+  {% if items %}
+    <h3 class="xedc-ops-section">文件清单</h3>
+    <div class="xedc-ops-table-wrap">
+      <table class="xedc-ops-table">
+        <thead><tr><th>文件</th><th>URI</th><th>大小</th><th>SHA-256</th><th>状态</th><th>错误</th></tr></thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td>{{ item.fid }}</td><td><code>{{ item.uri }}</code></td><td>{{ item.bytes }}</td><td><code>{{ item.hash }}</code></td><td>{{ item.status }}</td><td>{{ item.error }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+  {% if task.rejected %}
+    <p class="xedc-ops-note">未纳入方案：{{ task.rejected|join('；') }}</p>
+  {% endif %}
+  {% if forms.confirm %}
+    <section class="xedc-ops-panel">
+      <h3>再次确认</h3>
+      <p class="xedc-ops-detail">确认后才会排队执行。永久删除不可恢复；隔离可以在保留期内恢复。</p>
+      {{ forms.confirm }}
+    </section>
+  {% endif %}
+  {% if forms.cancel %}
+    <p>{{ forms.cancel }}</p>
+  {% endif %}
+  {% if links.continue %}
+    <p><a class="xedc-ops-button" href="{{ links.continue }}">继续剩余文件</a></p>
+  {% endif %}
+  {% if links.restore %}
+    <p><a class="xedc-ops-button" href="{{ links.restore }}">生成恢复方案</a></p>
+  {% endif %}
+  {% if links.purge %}
+    <p><a class="xedc-ops-danger xedc-ops-button" href="{{ links.purge }}">生成永久清理方案</a></p>
+  {% endif %}
+</div>

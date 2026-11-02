@@ -301,6 +301,65 @@
   margin: 6px 0 0;
 }
 
+.xedc-ops-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.xedc-ops-subnav a,
+.xedc-ops-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+
+.xedc-ops-subnav a {
+  border: 1px solid var(--ops-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  text-decoration: none;
+  color: var(--ops-text);
+  background: var(--ops-surface);
+}
+
+.xedc-ops-filters input,
+.xedc-ops-filters select {
+  font: inherit;
+  padding: 8px;
+  border: 1px solid var(--ops-border);
+  border-radius: 6px;
+  background: var(--ops-surface);
+  color: var(--ops-text);
+}
+
+.xedc-ops-danger,
+.xedc-ops-form .xedc-ops-danger {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.xedc-ops-pager {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.xedc-ops-badge {
+  display: inline-block;
+  border-radius: 99px;
+  padding: 2px 8px;
+  background: #f4f4f5;
+  font-size: 12px;
+}
+
+.xedc-ops-badge.is-high {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 .xedc-ops-plot.is-loading {
   opacity: 0.55;
 }

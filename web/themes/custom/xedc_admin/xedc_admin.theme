@@ -7,6 +7,8 @@
 
 declare(strict_types=1);
 
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Element;
 use Drupal\Core\Render\Markup;
 
 $xedc_admin_includes = glob(__DIR__ . '/includes/*.theme') ?: [];
@@ -37,7 +39,10 @@ function xedc_admin_preprocess_page(array &$variables): void {
   $account = \Drupal::currentUser();
   $name = $account->getDisplayName() ?: 'User';
   $variables['xedc_admin_nav'] = _xedc_admin_navigation();
-  $variables['xedc_admin_system'] = _xedc_admin_system_navigation();
+  $shortcut_cache = _xedc_admin_shortcut_cache();
+  $nav_cache = _xedc_admin_navigation_cache();
+  $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $shortcut_cache['tags'], $nav_cache['tags']);
+  $variables['#cache']['contexts'] = \Drupal\Core\Cache\Cache::mergeContexts($variables['#cache']['contexts'] ?? [], $shortcut_cache['contexts'], $nav_cache['contexts']);
   $variables['xedc_admin_user_name'] = $name;
   $variables['xedc_admin_user_initial'] = mb_substr($name, 0, 1);
   $variables['xedc_admin_user_url'] = \Drupal\Core\Url::fromRoute('entity.user.canonical', ['user' => $account->id()])->toString();
@@ -59,7 +64,7 @@ function xedc_admin_page_attachments_alter(array &$attachments): void {
     [
       '#type' => 'html_tag',
       '#tag' => 'script',
-      '#value' => Markup::create("(function(){document.documentElement.classList.add('xedc-admin-js');try{if(localStorage.getItem('xedcAdmin.sidebarCollapsed')==='1'){document.documentElement.classList.add('xedc-admin-collapsed');}}catch(e){}})();"),
+      '#value' => Markup::create("(function(){var r=document.documentElement;r.classList.add('xedc-admin-js');try{if(localStorage.getItem('xedcAdmin.theme')==='dark'){r.setAttribute('data-theme','dark');}}catch(e){}})();"),
       '#attributes' => ['id' => 'xedc-admin-sidebar-state'],
     ],
     'xedc_admin_sidebar_state',
@@ -74,4 +79,152 @@ function xedc_admin_page_attachments_alter(array &$attachments): void {
  */
 function xedc_admin_preprocess_breadcrumb(array &$variables): void {
   $variables['#cache']['contexts'][] = 'route';
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for admin_block_content.
+ */
+function xedc_admin_preprocess_admin_block_content(array &$variables): void {
+  if (empty($variables['content']) || !is_array($variables['content'])) {
+    return;
+  }
+  foreach ($variables['content'] as $key => $item) {
+    if (!is_array($item) || !isset($item['url']) || !is_object($item['url']) || !method_exists($item['url'], 'toString')) {
+      continue;
+    }
+    $href = $item['url']->toString();
+    $variables['content'][$key]['href'] = $href;
+    // The Site Audit Report Entity "Example" settings form is a scaffold page.
+    // Nothing reads site_audit_report_entity.settings:example. Hide that one
+    // link from the config index. The route, the form, and saved audit
+    // reports stay in place and the URL still opens if typed in.
+    $route_name = method_exists($item['url'], 'getRouteName') ? (string) $item['url']->getRouteName() : '';
+    if ($route_name === 'site_audit_report_entity.settings_form' || str_contains($href, '/admin/config/system/site-audit-report-entity')) {
+      unset($variables['content'][$key]);
+    }
+  }
+}
+
+/**
+ * Implements hook_theme().
+ *
+ * Node forms already ask for the node_form theme hook. Register it so the
+ * template can place each child once. #parents and #group stay untouched.
+ */
+function xedc_admin_theme($existing, $type, $theme, $path): array {
+  return [
+    'node_form' => [
+      'render element' => 'form',
+      'path' => $path . '/templates/form',
+      'template' => 'node-form',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter() for node forms.
+ *
+ * Presentation only: turn the vertical-tabs shell into a container so each
+ * details can collapse on its own, and mark the panels that start closed.
+ */
+function xedc_admin_form_node_form_alter(array &$form, FormStateInterface $form_state, string $form_id): void {
+  $form['#attributes']['class'][] = 'xedc-node-form';
+
+  if (($form['advanced']['#type'] ?? '') === 'vertical_tabs') {
+    $form['advanced']['#type'] = 'container';
+    $form['advanced']['#attributes']['class'][] = 'xedc-node-settings';
+  }
+
+  foreach (['meta', 'menu', 'author', 'options', 'revision_information', 'simple_sitemap'] as $key) {
+    if (($form[$key]['#type'] ?? '') === 'details') {
+      $form[$key]['#open'] = FALSE;
+      $form[$key]['#attributes']['class'][] = 'xedc-fold';
+    }
+  }
+
+  if (($form['path']['widget'][0]['#type'] ?? '') === 'details') {
+    $form['path']['widget'][0]['#attributes']['class'][] = 'xedc-fold';
+    $alias = $form['path']['widget'][0]['alias']['#default_value'] ?? '';
+    if ($alias === '' || $alias === NULL) {
+      $form['path']['widget'][0]['#open'] = FALSE;
+    }
+  }
+
+  if (($form['field_comment']['widget'][0]['#type'] ?? '') === 'details') {
+    $form['field_comment']['widget'][0]['#attributes']['class'][] = 'xedc-fold';
+  }
+
+  foreach (Element::children($form) as $key) {
+    if (!is_string($key) || !str_starts_with($key, 'scheduler_settings') || ($form[$key]['#type'] ?? '') !== 'details') {
+      continue;
+    }
+    $form[$key]['#attributes']['class'][] = 'xedc-fold';
+    $form[$key]['#attributes']['class'][] = 'xedc-scheduler';
+    $scheduled = $form['publish_on']['widget'][0]['value']['#default_value'] ?? NULL;
+    $form[$key]['#open'] = !empty($scheduled);
+  }
+
+  if (isset($form['xedc_import']) && is_array($form['xedc_import'])) {
+    $form['xedc_import']['#attributes']['class'][] = 'xedc-fold';
+    if (empty($form['xedc_import']['tasks']) && empty($form['xedc_import']['live'])) {
+      $form['xedc_import']['#open'] = FALSE;
+    }
+  }
+
+  foreach (['status', 'field_show_cover', 'field_featured', 'field_slideshow'] as $key) {
+    if (isset($form[$key]) && is_array($form[$key])) {
+      $form[$key]['#attributes']['class'][] = 'xedc-switch';
+    }
+  }
+  foreach (['promote', 'sticky'] as $key) {
+    if (isset($form['options'][$key]) && is_array($form['options'][$key])) {
+      $form['options'][$key]['#wrapper_attributes']['class'][] = 'xedc-switch';
+    }
+  }
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for node_form.
+ */
+function xedc_admin_preprocess_node_form(array &$variables): void {
+  $form = $variables['form'];
+  $form_id = (string) ($form['#form_id'] ?? '');
+  $bundle = 'default';
+  if (preg_match('/^node_(.+)_form$/', $form_id, $matches)) {
+    $bundle = $matches[1];
+  }
+  $variables['xedc_bundle'] = $bundle;
+
+  $scheduler = '';
+  foreach (Element::children($form) as $key) {
+    if (is_string($key) && str_starts_with($key, 'scheduler_settings')) {
+      $scheduler = $key;
+      break;
+    }
+  }
+  $variables['xedc_scheduler_key'] = $scheduler;
+
+  $main = match ($bundle) {
+    'article' => ['title', 'field_cover', 'field_summary', 'field_body', 'field_categories', 'field_tags', 'field_source', 'field_source_url'],
+    'video' => ['title', 'field_video_cover', 'field_video_file', 'field_video_url', 'field_duration', 'field_body', 'field_categories', 'field_tags'],
+    'photo' => ['title', 'field_cover_image', 'field_images', 'xedc_import', 'field_summary', 'field_categories', 'field_model', 'field_tags', 'field_featured', 'field_slideshow'],
+    default => ['title', 'field_body'],
+  };
+  $structural = [
+    'advanced', 'footer', 'actions', 'langcode', 'path', 'field_comment',
+    'meta', 'menu', 'author', 'options', 'revision_information', 'revision', 'revision_log',
+    'created', 'uid', 'moderation_state', 'status', 'simple_sitemap', 'simple_sitemap_index_now',
+    'publish_on', 'unpublish_on', 'changed', 'form_build_id', 'form_token', 'form_id',
+  ];
+  if ($scheduler !== '') {
+    $structural[] = $scheduler;
+  }
+  $skip = array_flip(array_merge($main, $structural));
+  $leftover = [];
+  foreach (Element::children($form) as $key) {
+    if (!isset($skip[$key])) {
+      $leftover[] = $key;
+    }
+  }
+  $variables['xedc_leftover'] = $leftover;
 }

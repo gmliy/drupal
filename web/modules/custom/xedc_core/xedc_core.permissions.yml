@@ -21,3 +21,48 @@ access xedc file statistics:
   title: '查看服务器文件统计'
   description: '查看固定目录的占用、媒体统计和只读异常报告。不能通过此权限删除文件。'
   restrict access: true
+
+view xedc duplicate files:
+  title: '查看重复文件'
+  description: '查看 SHA-256 重复文件分组和引用分析。不能通过此权限合并或删除文件。'
+  restrict access: true
+
+view xedc unused files:
+  title: '查看未引用文件'
+  description: '查看文件引用分类。未知引用不会被显示成可以删除。'
+  restrict access: true
+
+create xedc cleanup plans:
+  title: '创建文件清理方案'
+  description: '根据扫描结果创建待审核方案。不能通过此权限执行合并、隔离或删除。'
+  restrict access: true
+
+review xedc cleanup plans:
+  title: '审核文件清理方案'
+  description: '查看清理方案和其中的文件清单。'
+  restrict access: true
+
+confirm xedc reference merge:
+  title: '确认引用合并'
+  description: '确认把重复文件的已识别引用迁移到保留文件。不会因此删除物理文件。'
+  restrict access: true
+
+confirm xedc file quarantine:
+  title: '确认文件隔离'
+  description: '确认把已经审核的文件移入私有隔离目录。'
+  restrict access: true
+
+confirm xedc file purge:
+  title: '确认永久清理'
+  description: '在隔离保留期之后再次确认，永久删除隔离文件。'
+  restrict access: true
+
+restore xedc quarantined files:
+  title: '恢复隔离文件'
+  description: '把隔离文件恢复到原来的位置。不会覆盖已存在的其他文件。'
+  restrict access: true
+
+view xedc cleanup logs:
+  title: '查看文件清理日志'
+  description: '查看清理操作记录。不能通过此权限修改日志。'
+  restrict access: true

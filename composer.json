@@ -31,6 +31,7 @@
         "drupal/radix": "^6.0",
         "drupal/redirect": "1.x-dev@dev",
         "drupal/redis": "^1.11",
+        "drupal/s3fs": "^3.12",
         "drupal/scheduler": "^2.3",
         "drupal/schema_metatag": "^3.0",
         "drupal/simple_sitemap": "^4.2",

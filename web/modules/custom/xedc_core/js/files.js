@@ -53,4 +53,56 @@
       });
     },
   };
+
+  Drupal.behaviors.xedcFileTables = {
+    attach(context) {
+      once('xedc-pageable', '[data-xedc-pageable]', context).forEach(function (wrap) {
+        const table = wrap.querySelector('table');
+        if (!table) {
+          return;
+        }
+        const body = table.querySelector('tbody');
+        if (!body) {
+          return;
+        }
+        const rows = Array.from(body.querySelectorAll('tr'));
+        if (rows.length <= 15) {
+          return;
+        }
+        const size = 15;
+        let page = 0;
+        const bar = document.createElement('div');
+        bar.className = 'xedc-ops-pager';
+        const label = document.createElement('span');
+        const prev = document.createElement('button');
+        const next = document.createElement('button');
+        prev.type = 'button';
+        next.type = 'button';
+        prev.textContent = '上一页';
+        next.textContent = '下一页';
+        prev.className = 'xedc-ops-button';
+        next.className = 'xedc-ops-button';
+        function paint() {
+          const pages = Math.ceil(rows.length / size);
+          rows.forEach(function (row, index) {
+            row.hidden = index < page * size || index >= (page + 1) * size;
+          });
+          label.textContent = (page + 1) + ' / ' + pages;
+          prev.disabled = page === 0;
+          next.disabled = page + 1 >= pages;
+        }
+        prev.addEventListener('click', function () {
+          page = Math.max(0, page - 1);
+          paint();
+        });
+        next.addEventListener('click', function () {
+          page += 1;
+          paint();
+        });
+        bar.append(prev, label, next);
+        wrap.before(bar);
+        paint();
+      });
+    },
+  };
 })(Drupal, drupalSettings, once);

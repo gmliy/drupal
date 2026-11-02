@@ -1,0 +1,14 @@
+{#
+/**
+ * @file
+ * Module administration index in one column.
+ */
+#}
+<div class="xedc-admin-index">
+  {{ system_compact_link }}
+  {% for position, blocks in containers %}
+    {% for block in blocks %}
+      {{ block }}
+    {% endfor %}
+  {% endfor %}
+</div>

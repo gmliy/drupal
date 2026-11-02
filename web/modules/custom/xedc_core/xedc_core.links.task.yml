@@ -1,0 +1,29 @@
+xedc_core.files_tab:
+  route_name: xedc_core.files
+  title: '统计'
+  base_route: xedc_core.files
+  weight: 0
+
+xedc_core.files_duplicates_tab:
+  route_name: xedc_core.files_duplicates
+  title: '重复文件'
+  base_route: xedc_core.files
+  weight: 1
+
+xedc_core.files_unused_tab:
+  route_name: xedc_core.files_unused
+  title: '未引用文件'
+  base_route: xedc_core.files
+  weight: 2
+
+xedc_core.files_tasks_tab:
+  route_name: xedc_core.files_tasks
+  title: '清理任务'
+  base_route: xedc_core.files
+  weight: 3
+
+xedc_core.files_logs_tab:
+  route_name: xedc_core.files_logs
+  title: '日志'
+  base_route: xedc_core.files
+  weight: 4

@@ -1,0 +1,88 @@
+<div class="xedc-ops">
+  <header class="xedc-ops-head">
+    <div>
+      <p class="xedc-ops-kicker">运维中心</p>
+      <h2 class="xedc-ops-title">文件引用分类</h2>
+    </div>
+  </header>
+  <p class="xedc-ops-note">确认未引用、引用关系未知、物理文件缺失、数据库记录缺失、缓存和受保护文件是不同类别。未知不会被当成可以删除。</p>
+  {% if batch.empty %}
+    <p class="xedc-ops-note">还没有完成的分析批次。</p>
+  {% else %}
+    <p class="xedc-ops-detail">批次 #{{ batch.id }}，完成于 {{ batch.finished }}。</p>
+    <form class="xedc-ops-filters" method="get">
+      <input type="search" name="q" value="{{ filters.q }}" placeholder="文件名或 URI">
+      <select name="category">
+        {% for value, label in {
+          'confirmed_unused': '确认未引用',
+          'unknown': '引用关系未知',
+          'referenced': '有引用',
+          'missing_physical': '物理文件缺失',
+          'missing_entity': '数据库记录缺失',
+          'cache': '缓存或可重建',
+          'protected': '受保护',
+          'temporary': '临时文件',
+          'all': '全部分类'
+        } %}
+          <option value="{{ value }}" {% if filters.category == value or (value == 'confirmed_unused' and filters.category == '') %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select name="family">
+        <option value="">全部类型</option>
+        <option value="image" {% if filters.family == 'image' %}selected{% endif %}>图片</option>
+        <option value="video" {% if filters.family == 'video' %}selected{% endif %}>视频</option>
+        <option value="other" {% if filters.family == 'other' %}selected{% endif %}>附件</option>
+      </select>
+      <select name="risk">
+        <option value="">全部风险</option>
+        <option value="high" {% if filters.risk == 'high' %}selected{% endif %}>高</option>
+        <option value="medium" {% if filters.risk == 'medium' %}selected{% endif %}>中</option>
+        <option value="low" {% if filters.risk == 'low' %}selected{% endif %}>低</option>
+      </select>
+      <select name="sort">
+        <option value="bytes">按容量</option>
+        <option value="changed" {% if filters.sort == 'changed' %}selected{% endif %}>按修改时间</option>
+        <option value="fid" {% if filters.sort == 'fid' %}selected{% endif %}>按文件 ID</option>
+      </select>
+      <button class="xedc-ops-button" type="submit">筛选</button>
+    </form>
+    {% if empty %}
+      <p class="xedc-ops-note">没有符合条件的文件。</p>
+    {% else %}
+      <div class="xedc-ops-table-wrap">
+        <table class="xedc-ops-table">
+          <thead>
+            <tr><th>文件</th><th>URI</th><th>大小</th><th>修改</th><th>引用</th><th>状态</th><th>风险</th><th>分类</th><th>原因</th></tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td>{% if row.url %}<a href="{{ row.url }}">{{ row.fid }} · {{ row.filename }}</a>{% else %}{{ row.filename }}{% endif %}</td>
+                <td><code>{{ row.uri ?: row.path }}</code></td>
+                <td>{{ row.bytes }}</td>
+                <td>{{ row.changed }}</td>
+                <td>{{ row.refs }}</td>
+                <td>{{ row.status }}</td>
+                <td>{{ row.risk }}</td>
+                <td>{{ row.category }}</td>
+                <td>{{ row.reason }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="xedc-ops-pager">
+        {% if pager.prev %}<a class="xedc-ops-button" href="{{ pager.prev }}">上一页</a>{% endif %}
+        <span>{{ pager.page }} / {{ pager.pages }}，共 {{ pager.total }}</span>
+        {% if pager.next %}<a class="xedc-ops-button" href="{{ pager.next }}">下一页</a>{% endif %}
+      </div>
+    {% endif %}
+    {% if form %}
+      <section class="xedc-ops-panel">
+        <h3>生成隔离方案</h3>
+        <p class="xedc-ops-detail">只有本页中“确认未引用”的文件可以勾选。提交后仍需再次确认才会移动文件。</p>
+        {{ form }}
+      </section>
+    {% endif %}
+  {% endif %}
+</div>

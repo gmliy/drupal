@@ -130,12 +130,242 @@ function xedc_core_schema(): array {
     ],
   ];
 
+  $batch = [
+    'description' => 'One read-only duplicate and reference analysis batch.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'running'],
+      'phase' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'enumerate'],
+      'cursor_fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'processed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'total' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'failures' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'message' => ['type' => 'text', 'not null' => FALSE],
+      'state' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'summary' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'finished' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'status' => ['status'],
+    ],
+  ];
+  $work = [
+    'description' => 'Files considered by one analysis batch.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'batch_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'path_key' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'uri' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'path' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'filename' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'mime' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'mtime' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'inode' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'phase' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'pending'],
+      'kind' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'message' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'batch_path' => ['batch_id', 'path_key'],
+    ],
+    'indexes' => [
+      'batch_phase' => ['batch_id', 'phase'],
+      'batch_bytes' => ['batch_id', 'bytes'],
+      'batch_fid' => ['batch_id', 'fid'],
+    ],
+  ];
+  $group = [
+    'description' => 'SHA-256 duplicate groups for one batch.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'batch_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'file_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'total_bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'reclaimable_bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'inode_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'mime_family' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'other'],
+      'risk' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'high'],
+      'ref_status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'pending'],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'batch' => ['batch_id'],
+      'sha256' => ['sha256'],
+    ],
+  ];
+  $member = [
+    'description' => 'One file inside a duplicate group.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'group_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'batch_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'path_key' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'uri' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'path' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'filename' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'mime' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'mtime' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'inode' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'has_entity' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'media_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'ref_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'ref_status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'pending'],
+      'risk' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'high'],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'group_id' => ['group_id'],
+      'batch_fid' => ['batch_id', 'fid'],
+    ],
+  ];
+  $ref = [
+    'description' => 'Identified file references for one analysis batch.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'batch_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'entity_type' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'entity_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'revision_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'langcode' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'field_name' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'delta' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'bundle' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'source' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'confidence' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'unknown'],
+      'migratable' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'reason' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'batch_fid' => ['batch_id', 'fid'],
+    ],
+  ];
+  $finding = [
+    'description' => 'Per-file reference classification for one batch.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'batch_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'path_key' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'uri' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'path' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'filename' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'mime' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'category' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'unknown'],
+      'reason' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'ref_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'ref_status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'unknown'],
+      'risk' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'high'],
+      'origin' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'managed'],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'batch_path' => ['batch_id', 'path_key'],
+    ],
+    'indexes' => [
+      'batch_category' => ['batch_id', 'category'],
+      'batch_fid' => ['batch_id', 'fid'],
+    ],
+  ];
+  $cleanupTask = [
+    'description' => 'Confirmed-by-hand file cleanup tasks. Automatic scans never execute these.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'task_type' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'pending_review'],
+      'batch_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'parent_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'plan_hash' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'confirmed_hash' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'confirmed_uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'confirmed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'payload' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'result' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'error' => ['type' => 'text', 'not null' => FALSE],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'status' => ['status'],
+      'task_type' => ['task_type'],
+      'parent_id' => ['parent_id'],
+    ],
+  ];
+  $cleanupItem = [
+    'description' => 'One file inside a cleanup task.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'task_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'uri' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'path' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'role' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'pending'],
+      'quarantine_uri' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'meta' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'error' => ['type' => 'text', 'not null' => FALSE],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'task_id' => ['task_id'],
+    ],
+  ];
+  $cleanupLog = [
+    'description' => 'Append-only cleanup audit log.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'task_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'op' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'success' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'error' => ['type' => 'text', 'not null' => FALSE],
+      'detail' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'task_id' => ['task_id'],
+      'created' => ['created'],
+      'op' => ['op'],
+    ],
+  ];
+
   return [
     'xedc_import_task' => $task,
     'xedc_import_item' => $item,
     'xedc_import_log' => $log,
     'xedc_image_alt' => $alt,
     'xedc_image_file' => $file,
+    'xedc_file_batch' => $batch,
+    'xedc_file_hash_work' => $work,
+    'xedc_file_dup_group' => $group,
+    'xedc_file_dup_member' => $member,
+    'xedc_file_ref' => $ref,
+    'xedc_file_finding' => $finding,
+    'xedc_file_cleanup_task' => $cleanupTask,
+    'xedc_file_cleanup_item' => $cleanupItem,
+    'xedc_file_cleanup_log' => $cleanupLog,
   ];
 }
 
@@ -248,5 +478,51 @@ function xedc_core_update_10003(): void {
       $config->set($key, $value);
     }
   }
-  $config->save(TRUE);
+  $config->save();
+}
+
+/**
+ * Adds file analysis tables and cleanup defaults. Does not scan or delete.
+ */
+function xedc_core_update_10004(): void {
+  $schema = \Drupal::database()->schema();
+  $spec = xedc_core_schema();
+  foreach ([
+    'xedc_file_batch',
+    'xedc_file_hash_work',
+    'xedc_file_dup_group',
+    'xedc_file_dup_member',
+    'xedc_file_ref',
+    'xedc_file_finding',
+    'xedc_file_cleanup_task',
+    'xedc_file_cleanup_item',
+    'xedc_file_cleanup_log',
+  ] as $table) {
+    if (!$schema->tableExists($table)) {
+      $schema->createTable($table, $spec[$table]);
+    }
+  }
+  $config = \Drupal::configFactory()->getEditable('xedc_core.settings');
+  $defaults = [
+    'file_analysis_auto' => 1,
+    'file_analysis_interval' => 86400,
+    'file_analysis_batch' => 40,
+    'file_analysis_seconds' => 4,
+    'file_analysis_suggest' => 1,
+    'file_hash_max_bytes' => 67108864,
+    'file_quarantine_days' => 14,
+  ];
+  foreach ($defaults as $key => $value) {
+    if ($config->get($key) === NULL) {
+      $config->set($key, $value);
+    }
+  }
+  $config->save();
+  try {
+    $directory = 'private://xedc-quarantine';
+    \Drupal::service('file_system')->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
+  }
+  catch (\Throwable $e) {
+    \Drupal::logger('xedc_core')->error('无法创建隔离目录：@message', ['@message' => $e->getMessage()]);
+  }
 }

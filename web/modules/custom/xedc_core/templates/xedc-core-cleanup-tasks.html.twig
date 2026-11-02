@@ -1,0 +1,57 @@
+<div class="xedc-ops">
+  <header class="xedc-ops-head">
+    <div>
+      <p class="xedc-ops-kicker">运维中心</p>
+      <h2 class="xedc-ops-title">清理任务</h2>
+    </div>
+  </header>
+  <form class="xedc-ops-filters" method="get">
+    <select name="task_type">
+      <option value="">全部类型</option>
+      <option value="merge" {% if filters.task_type == 'merge' %}selected{% endif %}>引用迁移</option>
+      <option value="quarantine" {% if filters.task_type == 'quarantine' %}selected{% endif %}>隔离</option>
+      <option value="restore" {% if filters.task_type == 'restore' %}selected{% endif %}>恢复</option>
+      <option value="purge" {% if filters.task_type == 'purge' %}selected{% endif %}>永久清理</option>
+    </select>
+    <select name="status">
+      <option value="">全部状态</option>
+      {% for value, label in {
+        'pending_review': '待审核',
+        'queued': '排队中',
+        'running': '执行中',
+        'success': '执行成功',
+        'partial': '部分成功',
+        'failed': '执行失败',
+        'cancelled': '已取消'
+      } %}
+        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="xedc-ops-button" type="submit">筛选</button>
+  </form>
+  {% if empty %}
+    <p class="xedc-ops-note">还没有清理任务。</p>
+  {% else %}
+    <div class="xedc-ops-table-wrap">
+      <table class="xedc-ops-table">
+        <thead><tr><th>任务</th><th>类型</th><th>状态</th><th>创建</th><th>更新</th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td><a href="{{ row.url }}">#{{ row.id }}</a></td>
+              <td>{{ row.type }}</td>
+              <td>{{ row.status }}</td>
+              <td>{{ row.created }}</td>
+              <td>{{ row.changed }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="xedc-ops-pager">
+      {% if pager.prev %}<a class="xedc-ops-button" href="{{ pager.prev }}">上一页</a>{% endif %}
+      <span>{{ pager.page }} / {{ pager.pages }}，共 {{ pager.total }}</span>
+      {% if pager.next %}<a class="xedc-ops-button" href="{{ pager.next }}">下一页</a>{% endif %}
+    </div>
+  {% endif %}
+</div>

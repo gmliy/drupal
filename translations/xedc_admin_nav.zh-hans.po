@@ -1,0 +1,24 @@
+# zh-hans translation of DcLili
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2026-11-02 07:06+0800\n"
+"PO-Revision-Date: 2026-11-02 07:06+0800\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid ""
+"On the public theme, replaces the core Navigation bar with the "
+"xedc_admin drawer."
+msgstr ""
+"在“公共”主题下，将核心导航栏替换为 xedc_admin "
+"抽屉式菜单。"
+
+msgid "XEDC Admin Nav"
+msgstr "XEDC Admin Nav"
+

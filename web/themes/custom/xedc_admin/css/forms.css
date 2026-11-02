@@ -12,7 +12,7 @@
   display: inline-block;
   margin-bottom: 6px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .xedc-admin-active .form-type-checkbox > label,
@@ -42,11 +42,12 @@
 .xedc-admin-active .form-select,
 .xedc-admin-active select.form-control {
   width: 100%;
+  min-width: 0;
   max-width: 100%;
-  min-height: 38px;
-  padding: 8px 10px;
+  min-height: 40px;
+  padding: 8px 12px;
   border: 1px solid var(--xedc-admin-border);
-  border-radius: var(--xedc-admin-radius-sm);
+  border-radius: var(--xedc-admin-radius-md);
   background: var(--xedc-admin-surface);
   color: var(--xedc-admin-foreground);
   font: inherit;
@@ -109,12 +110,24 @@
 
 .xedc-admin-active input[type="submit"],
 .xedc-admin-active input[type="button"],
-.xedc-admin-active button.button {
+.xedc-admin-active button.button,
+.xedc-admin-active .form-actions .button,
+.xedc-admin-active .form-actions a.button {
   width: auto;
-  min-width: 6.5rem;
+  min-width: 0;
   min-height: 40px;
-  padding: 8px 16px;
-  line-height: 1.25;
+  padding: 10px 16px;
+  border-radius: var(--xedc-admin-radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.xedc-admin-active .form-actions .button:not(.button--primary):not(.button--danger),
+.xedc-admin-active .form-actions input.form-submit:not(.button--primary) {
+  border: 1px solid var(--xedc-admin-border);
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
 }
 
 html.xedc-admin-active.js .js-hide {
@@ -126,7 +139,11 @@ html.xedc-admin-active.js .js-hide {
 
 .xedc-admin-active input[type="checkbox"],
 .xedc-admin-active input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  margin: 0 6px 0 0;
   accent-color: var(--xedc-admin-primary);
+  vertical-align: middle;
 }
 
 .xedc-admin-active .form-actions {
@@ -153,4 +170,29 @@ html.xedc-admin-active.js .js-hide {
 .xedc-admin-active .form-required::after {
   content: " *";
   color: var(--xedc-admin-danger);
+}
+
+@media (max-width: 1023px) {
+  .xedc-admin-active input.form-text,
+  .xedc-admin-active input.form-email,
+  .xedc-admin-active input.form-url,
+  .xedc-admin-active input.form-tel,
+  .xedc-admin-active input.form-number,
+  .xedc-admin-active input.form-search,
+  .xedc-admin-active input.form-control:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]),
+  .xedc-admin-active .form-textarea,
+  .xedc-admin-active textarea.form-control,
+  .xedc-admin-active .form-select,
+  .xedc-admin-active select.form-control {
+    font-size: 16px;
+  }
+
+  .xedc-admin-active .form-type-checkbox,
+  .xedc-admin-active .form-type-radio,
+  .xedc-admin-active .js-form-type-checkbox,
+  .xedc-admin-active .js-form-type-radio {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }

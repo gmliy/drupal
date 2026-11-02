@@ -1,35 +1,16 @@
 /**
  * @file
- * Sidebar collapse and the phone drawer.
+ * Drawer navigation: desktop flyout, phone drill-down, focus, scroll lock.
  */
 (function (Drupal, once) {
   'use strict';
 
-  const COLLAPSE_KEY = 'xedcAdmin.sidebarCollapsed';
-  const GROUP_KEY = 'xedcAdmin.navGroups';
+  const desktopQuery = '(min-width: 1024px)';
   let lockedScrollY = 0;
+  let touchLock = null;
 
-  function readGroups() {
-    try {
-      const raw = window.localStorage.getItem(GROUP_KEY);
-      if (!raw) {
-        return null;
-      }
-      const parsed = JSON.parse(raw);
-      return parsed && typeof parsed === 'object' ? parsed : null;
-    }
-    catch (error) {
-      return null;
-    }
-  }
-
-  function writeGroups(value) {
-    try {
-      window.localStorage.setItem(GROUP_KEY, JSON.stringify(value));
-    }
-    catch (error) {
-      // Private browsing can reject storage. The open state still applies.
-    }
+  function isDesktop() {
+    return window.matchMedia(desktopQuery).matches;
   }
 
   function lockPageScroll(lock) {
@@ -40,130 +21,335 @@
       }
       lockedScrollY = window.scrollY || root.scrollTop || 0;
       root.classList.add('xedc-admin-scroll-lock');
+      document.body.style.position = 'fixed';
       document.body.style.top = '-' + lockedScrollY + 'px';
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
+      touchLock = function (event) {
+        const scroller = event.target.closest('[data-xedc-nav-scroll]');
+        if (scroller && scroller.scrollHeight > scroller.clientHeight + 1) {
+          const atTop = scroller.scrollTop <= 0;
+          const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1;
+          const touch = event.touches && event.touches[0];
+          if (touch && scroller._xedcLastY != null) {
+            const goingDown = touch.clientY > scroller._xedcLastY;
+            if ((atTop && goingDown) || (atBottom && !goingDown)) {
+              event.preventDefault();
+            }
+          }
+          return;
+        }
+        event.preventDefault();
+      };
+      document.addEventListener('touchmove', touchLock, { passive: false });
       return;
     }
     if (!root.classList.contains('xedc-admin-scroll-lock')) {
       return;
     }
     root.classList.remove('xedc-admin-scroll-lock');
+    document.body.style.position = '';
     document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    if (touchLock) {
+      document.removeEventListener('touchmove', touchLock);
+      touchLock = null;
+    }
     window.scrollTo(0, lockedScrollY);
   }
 
-  function isShown(element) {
-    return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
-  }
+  Drupal.behaviors.xedcAdminInputMode = {
+    attach(context) {
+      once('xedc-admin-input', 'html', context).forEach((root) => {
+        const target = root.classList.contains('xedc-admin-active')
+          ? root
+          : document.querySelector('[data-xedc-front-nav]');
+        if (!target) {
+          return;
+        }
+        const setMode = (mode) => target.setAttribute('data-input', mode);
+        root.addEventListener('pointerdown', () => setMode('pointer'), true);
+        root.addEventListener('keydown', (event) => {
+          const key = event.key;
+          if (key === 'Tab' || key === 'Enter' || key === ' ' || key.indexOf('Arrow') === 0 || key === 'Escape') {
+            setMode('keyboard');
+          }
+        }, true);
+      });
+    },
+  };
 
   Drupal.behaviors.xedcAdminNavigation = {
     attach(context) {
       once('xedc-admin-navigation', '[data-xedc-admin]', context).forEach((root) => {
-        const sidebar = root.querySelector('[data-xedc-admin-sidebar]');
+        const drawer = root.querySelector('[data-xedc-admin-sidebar]');
         const overlay = root.querySelector('[data-xedc-admin-overlay]');
         const shell = root.querySelector('[data-xedc-admin-shell]');
-        const drawerButton = root.querySelector('[data-xedc-admin-drawer]');
-        const collapseButton = root.querySelector('[data-xedc-admin-collapse]');
-        const mobile = window.matchMedia('(max-width: 991px)');
-        let returnFocus = null;
+        const opener = root.querySelector('[data-xedc-admin-drawer]');
+        const closer = root.querySelector('[data-xedc-admin-close]');
+        if (!drawer || !opener) {
+          return;
+        }
 
-        const focusable = () => {
-          if (!sidebar) {
-            return [];
+        let open = false;
+        const stack = ['root'];
+
+        const pane = (id) => drawer.querySelector('[data-xedc-nav-pane="' + id + '"]');
+        const parents = () => Array.from(drawer.querySelectorAll('[data-xedc-nav-parent]'));
+
+        function focusables() {
+          const sections = [];
+          if (isDesktop()) {
+            sections.push(pane('root'));
+            if (stack.length > 1) {
+              sections.push(pane(stack[stack.length - 1]));
+            }
           }
-          return Array.from(sidebar.querySelectorAll('a[href], button:not([disabled])')).filter(isShown);
-        };
+          else {
+            sections.push(pane(stack[stack.length - 1]));
+          }
+          const nodes = [];
+          sections.forEach((section) => {
+            if (!section || section.hidden) {
+              return;
+            }
+            nodes.push(...Array.from(section.querySelectorAll('a[href], button:not([disabled])')));
+          });
+          return nodes.filter((element) => !element.closest('[hidden], [inert]'));
+        }
 
-        function setCollapsed(collapsed) {
-          root.classList.toggle('is-collapsed', collapsed);
-          document.documentElement.classList.toggle('xedc-admin-collapsed', collapsed);
-          if (collapseButton) {
-            collapseButton.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
-            collapseButton.setAttribute('aria-label', collapsed ? '展开侧栏' : '折叠侧栏');
+        function focusWithoutRing(element) {
+          if (!element) {
+            return;
+          }
+          document.documentElement.setAttribute('data-input', 'pointer');
+          element.focus({ preventScroll: true });
+        }
+
+        function showChild(id, record) {
+          parents().forEach((button) => {
+            const selected = id !== 'root' && button.getAttribute('data-xedc-nav-parent') === id;
+            button.setAttribute('aria-expanded', selected ? 'true' : 'false');
+          });
+          drawer.querySelectorAll('[data-xedc-nav-pane]').forEach((section) => {
+            const name = section.getAttribute('data-xedc-nav-pane');
+            section.hidden = name !== 'root' && name !== id;
+          });
+          drawer.classList.toggle('is-drilled', id !== 'root' && !isDesktop());
+          if (id === 'root') {
+            stack.splice(0, stack.length, 'root');
+            return;
+          }
+          if (record === false) {
+            return;
+          }
+          if (isDesktop()) {
+            stack.splice(0, stack.length, 'root', id);
+            return;
+          }
+          if (stack[stack.length - 1] !== id) {
+            stack.push(id);
           }
         }
 
-        function setDrawer(open) {
-          const active = open && mobile.matches;
-          root.classList.toggle('is-drawer-open', active);
-          if (drawerButton) {
-            drawerButton.setAttribute('aria-expanded', active ? 'true' : 'false');
-            drawerButton.setAttribute('aria-label', active ? '关闭导航' : '打开导航');
+        function setOpen(next) {
+          open = next;
+          root.classList.toggle('is-nav-open', open);
+          drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+          drawer.inert = !open;
+          if (isDesktop()) {
+            drawer.removeAttribute('aria-modal');
           }
+          else if (open) {
+            drawer.setAttribute('aria-modal', 'true');
+          }
+          else {
+            drawer.removeAttribute('aria-modal');
+          }
+          opener.setAttribute('aria-expanded', open ? 'true' : 'false');
+          opener.setAttribute('aria-label', open ? '关闭导航' : '打开导航');
           if (overlay) {
-            overlay.hidden = !active;
+            overlay.hidden = !open;
           }
-          if (sidebar) {
-            sidebar.inert = mobile.matches && !active;
+          const pageLock = shell || document.querySelector('.dialog-off-canvas-main-canvas');
+          if (pageLock && pageLock !== root && !drawer.contains(pageLock)) {
+            pageLock.inert = open;
           }
-          if (shell) {
-            shell.inert = active;
-          }
-          lockPageScroll(active);
-          if (active) {
-            const items = focusable();
-            if (items.length) {
-              items[0].focus();
-            }
+          lockPageScroll(open);
+          if (!open) {
+            showChild('root');
           }
         }
 
-        try {
-          setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === '1');
-        }
-        catch (error) {
-          setCollapsed(document.documentElement.classList.contains('xedc-admin-collapsed'));
-        }
-        setDrawer(false);
-
-        if (drawerButton) {
-          drawerButton.addEventListener('click', () => {
-            const willOpen = !root.classList.contains('is-drawer-open');
-            if (willOpen) {
-              returnFocus = drawerButton;
-            }
-            setDrawer(willOpen);
-            if (!willOpen && returnFocus) {
-              returnFocus.focus();
-            }
-          });
+        function openNav() {
+          setOpen(true);
+          const items = focusables();
+          const first = items.find((element) => element.hasAttribute('data-xedc-nav-parent') || element.matches('a.xedc-admin-nav__link'));
+          if (document.documentElement.getAttribute('data-input') === 'keyboard' && first) {
+            first.focus({ preventScroll: true });
+          }
         }
 
+        function closeNav() {
+          setOpen(false);
+          focusWithoutRing(opener);
+        }
+
+        function openParent(id, fromKeyboard) {
+          if (!open) {
+            setOpen(true);
+          }
+          showChild(id);
+          if (!fromKeyboard) {
+            return;
+          }
+          const child = pane(id);
+          const target = child && (isDesktop()
+            ? child.querySelector('a[href]')
+            : child.querySelector('[data-xedc-nav-back], a[href]'));
+          if (target) {
+            target.focus({ preventScroll: true });
+          }
+        }
+
+        function back() {
+          if (stack.length <= 1) {
+            showChild('root', false);
+            return;
+          }
+          const closed = stack.pop();
+          showChild(stack[stack.length - 1], false);
+          const button = drawer.querySelector('[data-xedc-nav-parent="' + closed + '"]');
+          if (document.documentElement.getAttribute('data-input') === 'keyboard' && button) {
+            button.focus({ preventScroll: true });
+          }
+        }
+
+        drawer.inert = true;
+
+        opener.addEventListener('click', () => {
+          if (open) {
+            closeNav();
+          }
+          else {
+            openNav();
+          }
+        });
+        if (closer) {
+          closer.addEventListener('click', closeNav);
+        }
         if (overlay) {
-          overlay.addEventListener('click', () => {
-            setDrawer(false);
-            if (returnFocus) {
-              returnFocus.focus();
-            }
-          });
+          overlay.addEventListener('click', closeNav);
         }
 
-        if (collapseButton) {
-          collapseButton.addEventListener('click', () => {
-            const next = !root.classList.contains('is-collapsed');
-            setCollapsed(next);
-            try {
-              window.localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0');
+        parents().forEach((button) => {
+          button.addEventListener('click', () => {
+            const id = button.getAttribute('data-xedc-nav-parent');
+            const already = button.getAttribute('aria-expanded') === 'true';
+            if (already && isDesktop()) {
+              showChild('root');
+              return;
             }
-            catch (error) {
-              // Private browsing can reject storage. The class still applies.
-            }
+            openParent(id, document.documentElement.getAttribute('data-input') === 'keyboard');
           });
+        });
+
+        function setGroup(button, open) {
+          const row = button.closest('.xedc-admin-nav__acc');
+          const sub = row ? row.querySelector('.xedc-admin-nav__sub') : null;
+          button.setAttribute('aria-expanded', open ? 'true' : 'false');
+          if (row) {
+            row.classList.toggle('is-open', open);
+          }
+          if (sub) {
+            sub.inert = !open;
+          }
         }
+
+        drawer.addEventListener('click', (event) => {
+          if (event.target.closest('[data-xedc-admin-close]')) {
+            event.preventDefault();
+            closeNav();
+            return;
+          }
+          const group = event.target.closest('[data-xedc-nav-group]');
+          if (group) {
+            event.preventDefault();
+            const paneNode = group.closest('[data-xedc-nav-pane]');
+            const willOpen = group.getAttribute('aria-expanded') !== 'true';
+            paneNode.querySelectorAll('[data-xedc-nav-group]').forEach((button) => {
+              setGroup(button, willOpen && button === group);
+            });
+            return;
+          }
+          const backButton = event.target.closest('[data-xedc-nav-back]');
+          if (backButton) {
+            event.preventDefault();
+            back();
+          }
+        });
+
+        drawer.addEventListener('touchstart', (event) => {
+          const scroller = event.target.closest('[data-xedc-nav-scroll]');
+          if (scroller && event.touches[0]) {
+            scroller._xedcLastY = event.touches[0].clientY;
+          }
+        }, { passive: true });
+        drawer.addEventListener('touchmove', (event) => {
+          const scroller = event.target.closest('[data-xedc-nav-scroll]');
+          if (scroller && event.touches[0]) {
+            scroller._xedcLastY = event.touches[0].clientY;
+          }
+        }, { passive: true });
+
+        document.addEventListener('keydown', (event) => {
+          if (!open || event.key !== 'Escape') {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          closeNav();
+        }, true);
 
         root.addEventListener('keydown', (event) => {
-          if (event.key === 'Escape' && root.classList.contains('is-drawer-open')) {
-            event.stopPropagation();
-            setDrawer(false);
-            if (returnFocus) {
-              returnFocus.focus();
+          if (!open || event.key === 'Escape') {
+            return;
+          }
+          const activePane = document.activeElement && document.activeElement.closest('[data-xedc-nav-pane]');
+          const items = activePane
+            ? Array.from(activePane.querySelectorAll('a[href], button:not([disabled])')).filter((element) => !element.closest('[hidden], [inert]'))
+            : focusables();
+          const index = items.indexOf(document.activeElement);
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            if (!items.length) {
+              return;
+            }
+            event.preventDefault();
+            const next = event.key === 'ArrowDown'
+              ? items[(index + 1 + items.length) % items.length]
+              : items[(index - 1 + items.length) % items.length];
+            next.focus({ preventScroll: true });
+            return;
+          }
+          if (event.key === 'ArrowRight') {
+            const parent = document.activeElement && document.activeElement.closest('[data-xedc-nav-parent]');
+            if (parent) {
+              event.preventDefault();
+              openParent(parent.getAttribute('data-xedc-nav-parent'), true);
             }
             return;
           }
-          if (event.key !== 'Tab' || !root.classList.contains('is-drawer-open')) {
+          if (event.key === 'ArrowLeft') {
+            if (stack.length > 1 || drawer.querySelector('[data-xedc-nav-parent][aria-expanded="true"]')) {
+              event.preventDefault();
+              back();
+            }
             return;
           }
-          const items = focusable();
-          if (!items.length) {
+          if (event.key !== 'Tab' || !items.length) {
             return;
           }
           const first = items[0];
@@ -178,50 +364,15 @@
           }
         });
 
+        const desktop = window.matchMedia(desktopQuery);
         const onViewport = () => {
-          setDrawer(false);
-        };
-        if (typeof mobile.addEventListener === 'function') {
-          mobile.addEventListener('change', onViewport);
-        }
-        else if (typeof mobile.addListener === 'function') {
-          mobile.addListener(onViewport);
-        }
-      });
-    },
-  };
-
-  Drupal.behaviors.xedcAdminNavGroups = {
-    attach(context) {
-      const stored = readGroups() || {};
-      once('xedc-admin-nav-group', '[data-xedc-nav-group]', context).forEach((group) => {
-        const id = group.getAttribute('data-xedc-nav-group');
-        const button = group.querySelector('[data-xedc-nav-toggle]');
-        const list = group.querySelector('[data-xedc-nav-list]');
-        if (!id || !button || !list) {
-          return;
-        }
-        let open = group.getAttribute('data-xedc-nav-open') === '1';
-        if (Object.prototype.hasOwnProperty.call(stored, id)) {
-          open = stored[id] === true;
-        }
-
-        const apply = (next, save) => {
-          list.hidden = !next;
-          button.setAttribute('aria-expanded', next ? 'true' : 'false');
-          group.setAttribute('data-xedc-nav-open', next ? '1' : '0');
-          if (!save) {
-            return;
+          if (open) {
+            closeNav();
           }
-          const current = readGroups() || {};
-          current[id] = next;
-          writeGroups(current);
         };
-
-        apply(open, false);
-        button.addEventListener('click', () => {
-          apply(button.getAttribute('aria-expanded') !== 'true', true);
-        });
+        if (typeof desktop.addEventListener === 'function') {
+          desktop.addEventListener('change', onViewport);
+        }
       });
     },
   };

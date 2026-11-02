@@ -1,0 +1,7 @@
+name: 'XEDC Admin Nav'
+type: module
+description: 'On the public theme, replaces the core Navigation bar with the xedc_admin drawer.'
+package: XEDC
+core_version_requirement: ^11
+dependencies:
+  - drupal:navigation
