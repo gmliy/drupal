@@ -351,6 +351,61 @@ function xedc_core_schema(): array {
     ],
   ];
 
+  $variant = [
+    'description' => 'WebP and AVIF copies recorded for a managed file. The original file is not replaced.',
+    'fields' => [
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'variant' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'uri' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'mime' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'message' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+    ],
+    'primary key' => ['fid', 'variant'],
+  ];
+  $downloadLog = [
+    'description' => 'Member download decisions. A row does not grant access by itself.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'tier' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'result' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'uid_created' => ['uid', 'created'],
+      'fid' => ['fid'],
+    ],
+  ];
+  $migrationItem = [
+    'description' => 'Inventory and copy status for one storage migration task. File URIs are not rewritten here.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'task_id' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'source_uri' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'scheme' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'kind' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'object_key' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'remote_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'pending'],
+      'message' => ['type' => 'text', 'not null' => FALSE],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'task_status' => ['task_id', 'status'],
+      'fid' => ['fid'],
+    ],
+  ];
+
   return [
     'xedc_import_task' => $task,
     'xedc_import_item' => $item,
@@ -366,7 +421,11 @@ function xedc_core_schema(): array {
     'xedc_file_cleanup_task' => $cleanupTask,
     'xedc_file_cleanup_item' => $cleanupItem,
     'xedc_file_cleanup_log' => $cleanupLog,
-  ];
+    'xedc_storage_variant' => $variant,
+    'xedc_storage_download_log' => $downloadLog,
+    'xedc_storage_migration_item' => $migrationItem,
+  ] + \Drupal\xedc_core\Engagement\EngagementSchema::tables()
+    + \Drupal\xedc_core\Ops\Traffic\TrafficSchema::tables();
 }
 
 /**
@@ -374,7 +433,7 @@ function xedc_core_schema(): array {
  */
 function xedc_core_install(): void {
   $filesystem = \Drupal::service('file_system');
-  foreach (['private://xedc-import/inbox', 'private://xedc-import/tasks'] as $directory) {
+  foreach (['private://xedc-import/inbox', 'private://xedc-import/tasks', 'private://xedc-downloads', 'private://xedc-zips', 'private://xedc-download-tmp'] as $directory) {
     try {
       $filesystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
     }
@@ -525,4 +584,139 @@ function xedc_core_update_10004(): void {
   catch (\Throwable $e) {
     \Drupal::logger('xedc_core')->error('无法创建隔离目录：@message', ['@message' => $e->getMessage()]);
   }
+}
+
+/**
+ * Installs non-secret object storage defaults. Does not enable remote storage.
+ */
+function xedc_core_update_10005(): string {
+  $config = \Drupal::configFactory()->getEditable('xedc_core.storage');
+  if (!$config->isNew() && is_array($config->get('policy'))) {
+    return '对象存储配置已存在，未覆盖。';
+  }
+  $config->setData(\Drupal\xedc_core\Ops\Storage\StorageConfig::defaults());
+  $config->save();
+  return '已写入对象存储默认配置。远程存储保持关闭。';
+}
+
+/**
+ * Adds VIP, likes, shares, download history and the download resource entity.
+ */
+function xedc_core_update_10006(): string {
+  $schema = \Drupal::database()->schema();
+  foreach (\Drupal\xedc_core\Engagement\EngagementSchema::tables() as $name => $table) {
+    if (!$schema->tableExists($name)) {
+      $schema->createTable($name, $table);
+    }
+  }
+  if (!Role::load('vip')) {
+    Role::create([
+      'id' => 'vip',
+      'label' => 'VIP 会员',
+      'is_admin' => FALSE,
+      'permissions' => [],
+    ])->save();
+  }
+  \Drupal::entityTypeManager()->clearCachedDefinitions();
+  if (!$schema->tableExists('xedc_download')) {
+    $definition = \Drupal::entityTypeManager()->getDefinition('xedc_download');
+    \Drupal::entityDefinitionUpdateManager()->installEntityType($definition);
+  }
+  $filesystem = \Drupal::service('file_system');
+  foreach (['private://xedc-downloads', 'private://xedc-zips', 'private://xedc-download-tmp'] as $directory) {
+    $filesystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
+  }
+  return '已安装会员互动、VIP 和下载资源数据结构。';
+}
+
+/**
+ * Adds object-storage bookkeeping tables. Does not copy or delete files.
+ */
+function xedc_core_update_10007(): string {
+  $schema = \Drupal::database()->schema();
+  $spec = xedc_core_schema();
+  $created = [];
+  foreach (['xedc_storage_variant', 'xedc_storage_download_log', 'xedc_storage_migration_item'] as $table) {
+    if (!$schema->tableExists($table)) {
+      $schema->createTable($table, $spec[$table]);
+      $created[] = $table;
+    }
+  }
+  return $created === [] ? '对象存储记录表已存在，未改动。' : '已创建：' . implode('、', $created) . '。没有复制或删除文件。';
+}
+
+/**
+ * Adds like status, download detail and ZIP job state. Does not delete rows.
+ */
+function xedc_core_update_10008(): string {
+  $schema = \Drupal::database()->schema();
+  $database = \Drupal::database();
+  if ($schema->tableExists('xedc_like') && !$schema->fieldExists('xedc_like', 'status')) {
+    $schema->addField('xedc_like', 'status', [
+      'type' => 'int',
+      'size' => 'tiny',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+      'default' => 1,
+    ]);
+  }
+  if ($schema->tableExists('xedc_like') && !$schema->fieldExists('xedc_like', 'changed')) {
+    $schema->addField('xedc_like', 'changed', [
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+      'default' => 0,
+    ]);
+    $database->update('xedc_like')->expression('changed', 'created')->execute();
+  }
+  foreach ([
+    'source' => 16,
+    'tier' => 16,
+    'delivery' => 16,
+    'detail' => 255,
+  ] as $field => $length) {
+    if ($schema->tableExists('xedc_download_log') && !$schema->fieldExists('xedc_download_log', $field)) {
+      $schema->addField('xedc_download_log', $field, [
+        'type' => 'varchar',
+        'length' => $length,
+        'not null' => TRUE,
+        'default' => '',
+      ]);
+    }
+  }
+  $tables = \Drupal\xedc_core\Engagement\EngagementSchema::tables();
+  if (!$schema->tableExists('xedc_zip_job')) {
+    $schema->createTable('xedc_zip_job', $tables['xedc_zip_job']);
+  }
+  $filesystem = \Drupal::service('file_system');
+  foreach (['private://xedc-downloads', 'private://xedc-zips', 'private://xedc-download-tmp'] as $directory) {
+    $filesystem->prepareDirectory($directory, \Drupal\Core\File\FileSystemInterface::CREATE_DIRECTORY | \Drupal\Core\File\FileSystemInterface::MODIFY_PERMISSIONS);
+    $real = $filesystem->realpath($directory);
+    if (is_string($real)) {
+      @chmod($real, 0775);
+      if (function_exists('posix_getpwnam')) {
+        $user = posix_getpwnam('www-data');
+        if (is_array($user) && function_exists('posix_geteuid') && posix_geteuid() === 0) {
+          @chown($real, (string) $user['name']);
+          @chgrp($real, (string) $user['name']);
+        }
+      }
+    }
+  }
+  return '已补充点赞状态、下载明细和 ZIP 任务记录。原有记录已保留。';
+}
+
+/**
+ * Adds physical NIC traffic snapshots and daily totals.
+ */
+function xedc_core_update_10009(): string {
+  $schema = \Drupal::database()->schema();
+  $created = [];
+  foreach (\Drupal\xedc_core\Ops\Traffic\TrafficSchema::tables() as $name => $table) {
+    if (!$schema->tableExists($name)) {
+      $schema->createTable($name, $table);
+      $created[] = $name;
+    }
+  }
+  return $created === [] ? '网络流量统计表已存在，未改动。' : '已创建：' . implode('、', $created) . '。';
 }

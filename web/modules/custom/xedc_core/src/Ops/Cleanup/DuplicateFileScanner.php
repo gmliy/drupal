@@ -43,16 +43,21 @@ class DuplicateFileScanner {
       $fid = (int) $row['fid'];
       $uri = (string) $row['uri'];
       $kind = $this->guard->kindForUri($uri);
-      $real = $this->fileSystem->realpath($uri);
+      $real = $this->guard->realpathIfLocal($uri);
       $info = is_string($real) ? $this->guard->describe($real) : NULL;
       if ($info !== NULL && $kind === 'content') {
         $kind = $this->guard->containedKind($info['path']);
       }
       $phase = 'pending';
       $message = '';
-      if ($info === NULL) {
+      if ($kind === 'remote') {
         $phase = 'skipped';
-        $message = is_string($real) ? '文件不是可读取的普通文件，或路径超出允许范围。' : '物理文件不存在。';
+        $message = '对象存储文件不参与本地重复比较，也不记为丢失。';
+      }
+      elseif ($info === NULL) {
+        $phase = 'skipped';
+        $exists = is_string($real) && (is_file($real) || is_link($real));
+        $message = $exists ? '文件不是可读取的普通文件，或路径超出允许范围。' : '物理文件不存在。';
         $batch['failures']++;
       }
       elseif ($kind !== 'content') {

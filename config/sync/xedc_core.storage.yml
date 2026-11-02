@@ -1,0 +1,54 @@
+active_profile: silly
+presign_ttl: 120
+multipart_cleanup: 0
+profiles:
+  -
+    id: silly
+    label: 'Cloudflare R2'
+    provider: cloudflare_r2
+    region: auto
+    endpoint: 'https://409b0f32d01cbb14237646ecda9bf3e8.r2.cloudflarestorage.com/'
+    bucket: dclili
+    path_style: true
+    public_base_url: 'https://cdn.gitxx.xyz'
+    cdn_base_url: ''
+    public_folder: s3fs-public
+    private_folder: s3fs-private
+    root_folder: ''
+    cache_control: 'public, max-age=31536000, immutable'
+    disable_version_sync: true
+    upload_as_private: true
+    access_key_env: STORAGE_ACCESS_KEY
+    secret_key_env: STORAGE_SECRET_KEY
+    bucket_env: STORAGE_BUCKET
+    access_key_id: xedc_storage_silly_access
+    secret_key_id: xedc_storage_silly_secret
+    notes: ''
+policy:
+  cover_image: public
+  thumbnail: public
+  original_image: inherit
+  video_poster: public
+  video_file: private
+  zip_archive: private
+  vip_download: private
+  article_attachment: inherit
+  temporary: local
+cdn:
+  enabled: false
+  https_only: true
+  image_domain: ''
+  media_domain: ''
+  base_url: ''
+  cache_control: 'public, max-age=31536000, immutable'
+  browser_cache: 'public, max-age=31536000, immutable'
+  purge_mode: manual
+pricing:
+  currency: USD
+  storage_price_per_gb_month: 0.0
+  download_price_per_gb: 0.0
+  request_price_per_thousand: 0.0
+  free_storage_gb: 10.0
+  free_download_gb: 0.0
+  free_requests: 0
+  other_monthly: 0.0

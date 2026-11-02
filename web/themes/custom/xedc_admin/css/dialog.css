@@ -30,13 +30,23 @@ html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close {
 }
 
 html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane .button,
-html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane button {
-  min-height: 40px;
-  padding: 8px 16px;
+html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane button,
+html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane input.form-submit {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 14px;
   border: 1px solid var(--xedc-admin-border);
   border-radius: var(--xedc-admin-radius-md);
   background: var(--xedc-admin-surface);
   color: var(--xedc-admin-foreground);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 34px;
 }
 
 html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane .button--primary {
@@ -73,4 +83,750 @@ html.xedc-admin-active .media-library-views-form .views-exposed-form {
   background: var(--xedc-admin-surface);
   border-color: var(--xedc-admin-border);
   color: var(--xedc-admin-foreground);
+}
+
+/* Dialog shell. jQuery UI writes width and position inline, so these win. */
+html.xedc-admin-active:has(.ui-dialog),
+html.xedc-admin-active:has(.ui-dialog) body {
+  overflow: hidden !important;
+}
+
+html.xedc-admin-active .ui-widget-overlay {
+  background: rgba(24, 24, 27, 0.5) !important;
+  opacity: 1 !important;
+  z-index: 390 !important;
+}
+
+html.xedc-admin-active:has(.ui-dialog) .xedc-admin-ops-overlay {
+  display: none;
+}
+
+html.xedc-admin-active .ui-dialog:not(.ui-dialog-off-canvas) {
+  position: fixed !important;
+  z-index: 400 !important;
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  display: flex !important;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(720px, calc(100vw - 24px)) !important;
+  height: auto !important;
+  max-height: calc(100dvh - 32px) !important;
+  margin: 0 !important;
+  overflow: hidden;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: 12px;
+  background: var(--xedc-admin-surface);
+  box-shadow: 0 16px 40px rgba(24, 24, 27, 0.16);
+  transform: translate(-50%, -50%) !important;
+}
+
+html.xedc-admin-active .ui-dialog.ui-dialog-off-canvas {
+  z-index: 400 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+  display: flex !important;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 24px)) !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+  overflow: hidden;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: 12px 0 0 12px;
+  transform: none !important;
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 48px;
+  margin: 0;
+  padding: 8px 48px 8px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--xedc-admin-border);
+  border-radius: 0;
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-title {
+  float: none;
+  width: auto;
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close,
+html.xedc-admin-active .ui-dialog-off-canvas .ui-dialog-titlebar-close {
+  position: absolute !important;
+  top: 50% !important;
+  right: 8px !important;
+  left: auto !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  text-indent: 0 !important;
+  transform: translateY(-50%);
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close .ui-button-icon,
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close .ui-icon,
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close .ui-button-icon-space {
+  display: none !important;
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  background-color: var(--xedc-admin-foreground);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4l8 8M12 4L4 12' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4l8 8M12 4L4 12' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close:hover {
+  background: var(--xedc-admin-hover);
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto !important;
+  max-height: none !important;
+  overflow: auto !important;
+  padding: 16px;
+  border: 0;
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane {
+  flex: none;
+  margin: 0;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+  border: 0;
+  border-top: 1px solid var(--xedc-admin-border);
+  border-radius: 0;
+  background: var(--xedc-admin-surface);
+}
+
+html.xedc-admin-active .ui-dialog .ui-dialog-buttonset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  float: none;
+  width: 100%;
+}
+
+html.xedc-admin-active .ui-dialog .media-library-widget-modal .ui-dialog-buttonpane,
+html.xedc-admin-active .media-library-widget-modal .ui-dialog-buttonpane {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+html.xedc-admin-active .media-library-selected-count,
+html.xedc-admin-active .js-media-library-selected-count {
+  float: none;
+  margin: 0;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+}
+
+/* Views JS and body-scroll-lock expect .scroll to be the scroller.
+   A forced overflow:visible made the list as tall as its content, so the
+   dialog clipped it and wheel or touch events had nothing to scroll. */
+html.xedc-admin-active .views-ui-dialog:not(.ui-dialog-off-canvas) {
+  width: min(920px, calc(100vw - 24px)) !important;
+}
+
+html.xedc-admin-active .views-ui-dialog .ui-dialog-content:has(.scroll) {
+  display: flex !important;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+
+html.xedc-admin-active .views-ui-dialog .ui-dialog-content > form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+html.xedc-admin-active .views-ui-dialog .views-override,
+html.xedc-admin-active .views-ui-dialog .views-filterable-options-controls {
+  flex: none;
+}
+
+html.xedc-admin-active .views-ui-dialog .scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  height: auto !important;
+  max-height: none !important;
+  overflow: auto !important;
+  overscroll-behavior: contain;
+  padding: 0;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* Views "add handler" dialog: stacked filters, compact rows. */
+html.xedc-admin-active .views-ui-dialog .ui-dialog-content {
+  padding: 0;
+}
+
+html.xedc-admin-active .views-ui-dialog .views-override {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--xedc-admin-border);
+  background: var(--xedc-admin-surface);
+}
+
+html.xedc-admin-active .views-ui-dialog .views-filterable-options-controls {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  width: 100% !important;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+html.xedc-admin-active .views-ui-dialog .views-override .form-item,
+html.xedc-admin-active .views-ui-dialog .views-filterable-options-controls .form-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  float: none !important;
+  width: 100% !important;
+  max-width: 100%;
+  margin: 0 !important;
+}
+
+html.xedc-admin-active .views-ui-dialog .views-override input,
+html.xedc-admin-active .views-ui-dialog .views-override select,
+html.xedc-admin-active .views-ui-dialog .views-filterable-options-controls input,
+html.xedc-admin-active .views-ui-dialog .views-filterable-options-controls select {
+  display: block;
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 12px;
+  line-height: 36px;
+}
+
+html.xedc-admin-active .views-ui-dialog .views-filterable-options {
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+
+html.xedc-admin-active .views-ui-dialog .views-filterable-options table,
+html.xedc-admin-active .views-ui-dialog .views-filterable-options tbody,
+html.xedc-admin-active .views-ui-dialog .views-filterable-options tr,
+html.xedc-admin-active .views-ui-dialog .views-filterable-options td,
+html.xedc-admin-active .views-ui-dialog .views-filterable-options th {
+  display: block;
+  width: auto;
+  border: 0;
+  background: transparent;
+}
+
+html.xedc-admin-active .views-ui-dialog .views-filterable-options thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+html.xedc-admin-active .views-ui-dialog tr.filterable-option {
+  display: grid !important;
+  grid-template-columns: 20px minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: start;
+  min-height: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--xedc-admin-border);
+  background: var(--xedc-admin-surface) !important;
+}
+
+html.xedc-admin-active .views-ui-dialog tr.filterable-option:hover {
+  background: var(--xedc-admin-hover) !important;
+}
+
+html.xedc-admin-active .views-ui-dialog tr.filterable-option:has(input:checked) {
+  background: var(--xedc-admin-surface-secondary) !important;
+}
+
+html.xedc-admin-active .views-ui-dialog tr.filterable-option td:first-child {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  width: 20px;
+  height: 20px;
+}
+
+html.xedc-admin-active .views-ui-dialog tr.filterable-option .form-check,
+html.xedc-admin-active .views-ui-dialog tr.filterable-option .js-form-type-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+html.xedc-admin-active .views-ui-dialog tr.filterable-option .form-check-input,
+html.xedc-admin-active .views-ui-dialog tr.filterable-option input[type="checkbox"] {
+  float: none;
+  position: static;
+  margin: 0;
+}
+
+html.xedc-admin-active .views-ui-dialog tr.filterable-option td.title {
+  grid-column: 2;
+  grid-row: 1;
+  padding: 0;
+  color: var(--xedc-admin-foreground);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  writing-mode: horizontal-tb;
+}
+
+html.xedc-admin-active .views-ui-dialog tr.filterable-option td.description {
+  grid-column: 2;
+  grid-row: 2;
+  padding: 0;
+  color: var(--xedc-admin-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+html.xedc-admin-active .views-ui-dialog tr.filterable-option td:nth-child(3) {
+  display: none;
+}
+
+html.xedc-admin-active .views-ui-dialog .views-add-form-selected {
+  margin: 0;
+  padding: 8px 16px;
+  background: transparent;
+}
+
+/* Token browser: one compact row, description under the name. */
+html.xedc-admin-active .ui-dialog .token-tree {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+html.xedc-admin-active .ui-dialog .token-tree caption,
+html.xedc-admin-active .ui-dialog .token-tree thead {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 8px;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  writing-mode: horizontal-tb;
+}
+
+html.xedc-admin-active .ui-dialog .token-tree thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+html.xedc-admin-active .ui-dialog .token-tree,
+html.xedc-admin-active .ui-dialog .token-tree tbody,
+html.xedc-admin-active .ui-dialog .token-tree tr {
+  display: block;
+  width: 100%;
+}
+
+html.xedc-admin-active .ui-dialog .token-tree tr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  align-items: center;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--xedc-admin-border);
+  background: transparent !important;
+  color: var(--xedc-admin-foreground);
+}
+
+html.xedc-admin-active .ui-dialog .token-tree td {
+  display: block;
+  width: auto !important;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent !important;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+html.xedc-admin-active .ui-dialog .token-tree td:first-child {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+html.xedc-admin-active .ui-dialog .token-tree td.token-key {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--xedc-admin-surface-secondary) !important;
+  color: var(--xedc-admin-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+html.xedc-admin-active .ui-dialog .token-tree td.token-key a {
+  color: inherit;
+  text-decoration: none;
+}
+
+html.xedc-admin-active .ui-dialog .token-tree td:nth-child(3),
+html.xedc-admin-active .ui-dialog .token-tree td:nth-child(4) {
+  grid-column: 1 / -1;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+@media (max-width: 639px) {
+  html.xedc-admin-active .ui-dialog .token-tree tr {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html.xedc-admin-active .ui-dialog .token-tree td.token-key {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  html.xedc-admin-active .ui-dialog .token-tree td:nth-child(3) {
+    grid-row: 3;
+  }
+}
+
+html.xedc-admin-active .ui-dialog table.treetable span.indenter {
+  width: 16px;
+  margin: 0;
+}
+
+html.xedc-admin-active .ui-dialog table.treetable span.indenter a {
+  width: 16px;
+  height: 16px;
+  background: none !important;
+  vertical-align: middle;
+}
+
+html.xedc-admin-active .ui-dialog table.treetable tr.collapsed span.indenter a::before,
+html.xedc-admin-active .ui-dialog table.treetable tr.expanded span.indenter a::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-top: 2px;
+  border-right: 1.5px solid var(--xedc-admin-foreground);
+  border-bottom: 1.5px solid var(--xedc-admin-foreground);
+}
+
+html.xedc-admin-active .ui-dialog table.treetable tr.collapsed span.indenter a::before {
+  transform: rotate(-45deg);
+}
+
+html.xedc-admin-active .ui-dialog table.treetable tr.expanded span.indenter a::before {
+  transform: rotate(45deg);
+}
+
+html.xedc-admin-active .ui-dialog table.treetable span {
+  padding-left: 0;
+}
+
+html.xedc-admin-active .ui-dialog table.treetable tr.branch,
+html.xedc-admin-active .ui-dialog table.treetable tr.selected {
+  background: transparent !important;
+  color: var(--xedc-admin-foreground);
+}
+
+/* Style-option tables are wrapped for horizontal admin lists. Inside a dialog
+   they should use the dialog width and wrap, so the last columns stay visible. */
+html.xedc-admin-active .ui-dialog .xedc-admin-table-wrap {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+html.xedc-admin-active .ui-dialog .xedc-admin-table-wrap > table {
+  width: 100%;
+  min-width: 0;
+}
+
+html.xedc-admin-active .ui-dialog th,
+html.xedc-admin-active .ui-dialog td {
+  white-space: normal;
+}
+
+html.xedc-admin-active .ui-dialog td .form-select,
+html.xedc-admin-active .ui-dialog td select,
+html.xedc-admin-active .ui-dialog td .form-text,
+html.xedc-admin-active .ui-dialog td input.form-text {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+html.xedc-admin-active .ui-dialog select[multiple],
+html.xedc-admin-active .ui-dialog select[size] {
+  max-height: min(280px, 40dvh);
+}
+
+/* Autocomplete menus are ported to body so the dialog scroller does not clip them.
+   460 sits above the dialog (400) and its overlay (390), under the progress layer. */
+html.xedc-admin-active .ui-autocomplete {
+  z-index: 460;
+  max-height: min(280px, 40dvh);
+  overflow: auto;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: 8px;
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
+  box-shadow: 0 8px 24px rgba(24, 24, 27, 0.12);
+}
+
+html.xedc-admin-active .ui-autocomplete .ui-menu-item-wrapper,
+html.xedc-admin-active .ui-autocomplete a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--xedc-admin-foreground);
+  text-decoration: none;
+}
+
+html.xedc-admin-active .ui-autocomplete .ui-state-active,
+html.xedc-admin-active .ui-autocomplete .ui-menu-item-wrapper.ui-state-active {
+  margin: 0;
+  border: 0;
+  background: var(--xedc-admin-hover);
+  color: var(--xedc-admin-foreground);
+}
+
+html.xedc-admin-active .views-ui-dialog .views-override .form-item > label,
+html.xedc-admin-active .views-ui-dialog .views-filterable-options-controls label {
+  margin: 0;
+  color: var(--xedc-admin-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+html.xedc-admin-active .views-ui-dialog .scroll:not(:has(.views-filterable-options)) {
+  padding: 16px 20px 8px;
+}
+
+html.xedc-admin-active .ui-dialog .form-item {
+  margin: 0 0 16px;
+}
+
+html.xedc-admin-active .ui-dialog .form-item > label,
+html.xedc-admin-active .ui-dialog .form-item__label {
+  display: block;
+  margin: 0 0 6px;
+  color: var(--xedc-admin-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+html.xedc-admin-active .ui-dialog .description,
+html.xedc-admin-active .ui-dialog .form-item__description {
+  margin-top: 6px;
+  color: var(--xedc-admin-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+html.xedc-admin-active .ui-dialog input.form-text,
+html.xedc-admin-active .ui-dialog input.form-email,
+html.xedc-admin-active .ui-dialog input.form-number,
+html.xedc-admin-active .ui-dialog input.form-search,
+html.xedc-admin-active .ui-dialog input.form-autocomplete,
+html.xedc-admin-active .ui-dialog select.form-select,
+html.xedc-admin-active .ui-dialog .form-select {
+  box-sizing: border-box;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 14px;
+  line-height: 36px;
+}
+
+html.xedc-admin-active .ui-dialog textarea,
+html.xedc-admin-active .ui-dialog .form-textarea {
+  height: auto;
+  min-height: 88px;
+  padding: 8px 12px;
+  line-height: 1.5;
+}
+
+html.xedc-admin-active .ui-dialog td select,
+html.xedc-admin-active .ui-dialog td .form-select {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  font-size: 13px;
+  line-height: 30px;
+}
+
+html.xedc-admin-active .ui-dialog .js-form-type-checkbox:not(.form-no-label),
+html.xedc-admin-active .ui-dialog .js-form-type-radio:not(.form-no-label),
+html.xedc-admin-active .ui-dialog .form-type-checkbox:not(.form-no-label),
+html.xedc-admin-active .ui-dialog .form-type-radio:not(.form-no-label) {
+  align-items: center;
+  min-height: 28px;
+  margin-bottom: 8px;
+}
+
+html.xedc-admin-active .ui-dialog details,
+html.xedc-admin-active .ui-dialog fieldset {
+  box-sizing: border-box;
+  margin: 0 0 12px;
+  padding: 0 0 4px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: 10px;
+  background: transparent;
+}
+
+html.xedc-admin-active .ui-dialog details > summary {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  color: var(--xedc-admin-foreground);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  list-style: none;
+  cursor: pointer;
+}
+
+html.xedc-admin-active .ui-dialog details > summary::-webkit-details-marker {
+  display: none;
+}
+
+html.xedc-admin-active .ui-dialog details > summary::marker {
+  content: "";
+}
+
+html.xedc-admin-active .ui-dialog details > summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 0 4px 5px;
+  border-color: transparent transparent transparent var(--xedc-admin-muted);
+}
+
+html.xedc-admin-active .ui-dialog details[open] > summary::before {
+  border-width: 5px 4px 0;
+  border-color: var(--xedc-admin-muted) transparent transparent;
+}
+
+html.xedc-admin-active .ui-dialog details .details-wrapper,
+html.xedc-admin-active .ui-dialog fieldset .fieldset-wrapper {
+  padding: 4px 14px 8px;
+}
+
+@media (max-width: 639px) {
+  html.xedc-admin-active .ui-dialog .ui-dialog-titlebar {
+    min-height: 52px;
+    padding-right: 56px;
+  }
+
+  html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close,
+  html.xedc-admin-active .ui-dialog-off-canvas .ui-dialog-titlebar-close {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px;
+  }
+
+  html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane .button,
+  html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane button,
+  html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane input.form-submit {
+    height: 44px;
+    min-height: 44px;
+    line-height: 42px;
+  }
 }

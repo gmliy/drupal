@@ -92,8 +92,9 @@ class FileStatsController extends ControllerBase {
       'managed_bytes' => array_key_exists('managed_bytes', $done) ? OpsFormat::bytes((int) $done['managed_bytes']) : '',
       'duplicate_groups' => array_key_exists('duplicate_groups', $done) ? (string) $done['duplicate_groups'] : '',
       'reclaimable' => array_key_exists('reclaimable_bytes', $done) ? OpsFormat::bytes((int) $done['reclaimable_bytes']) : '',
-      'unused_count' => $unused ? (string) $unused['count'] : '',
-      'unused_bytes' => $unused ? OpsFormat::bytes((int) $unused['bytes']) : '',
+      'unused_count' => $unused ? (string) $unused['count'] : ((int) ($summary['finished_batch'] ?? 0) > 0 ? '0' : ''),
+      'unused_bytes' => $unused ? OpsFormat::bytes((int) $unused['bytes']) : ((int) ($summary['finished_batch'] ?? 0) > 0 ? OpsFormat::bytes(0) : ''),
+      'unknown_count' => isset($findings['unknown']['count']) ? (string) $findings['unknown']['count'] : ((int) ($summary['finished_batch'] ?? 0) > 0 ? '0' : ''),
       'links' => [
         'duplicates' => $account->hasPermission('view xedc duplicate files'),
         'unused' => $account->hasPermission('view xedc unused files'),

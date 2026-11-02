@@ -1,0 +1,40 @@
+<header class="xm-head">
+  <div>
+    <h1 class="xm-title">{{ '我的下载'|t }}</h1>
+    <p class="xm-sub">{{ '共 @count 条授权记录'|t({'@count': total}) }}</p>
+  </div>
+</header>
+<p class="xm-sub">{{ '这里记录的是服务器已经授权的下载请求，不代表浏览器已经收完整个文件。'|t }}</p>
+{% if rows %}
+  <div class="xm-table-wrap">
+    <table class="xm-table">
+      <thead>
+        <tr>
+          <th>{{ '内容'|t }}</th>
+          <th>{{ '类型'|t }}</th>
+          <th>{{ '资源'|t }}</th>
+          <th>{{ '格式'|t }}</th>
+          <th>{{ '大小'|t }}</th>
+          <th>{{ '时间'|t }}</th>
+          <th>{{ '状态'|t }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{% if row.cover %}<img class="xm-dl-cover" src="{{ row.cover }}" alt="" width="48" height="48" loading="lazy">{% endif %}{% if row.url %}<a href="{{ row.url }}">{{ row.content }}</a>{% else %}{{ row.content }}{% endif %}</td>
+            <td>{{ row.bundle }}</td>
+            <td>{{ row.title }}</td>
+            <td>{{ row.extension }}</td>
+            <td>{{ row.bytes }}</td>
+            <td>{{ row.time }}</td>
+            <td>{{ row.status }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pager %}<div class="xm-pager">{{ pager }}</div>{% endif %}
+{% else %}
+  <div class="xm-empty"><strong>{{ '还没有下载记录。'|t }}</strong></div>
+{% endif %}

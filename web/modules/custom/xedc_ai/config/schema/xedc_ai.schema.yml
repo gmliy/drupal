@@ -1,0 +1,108 @@
+xedc_ai.settings:
+  type: config_object
+  label: 'XEDC AI settings'
+  mapping:
+    default_model_id:
+      type: integer
+      label: 'Default model'
+    fallback_model_id:
+      type: integer
+      label: 'Fallback model'
+    model_content_review:
+      type: integer
+      label: 'Text review model'
+    model_quality:
+      type: integer
+      label: 'Quality model'
+    model_seo:
+      type: integer
+      label: 'SEO model'
+    model_translation:
+      type: integer
+      label: 'Translation model'
+    model_general:
+      type: integer
+      label: 'General text model'
+    timeout:
+      type: integer
+      label: 'Timeout seconds'
+    max_tokens:
+      type: integer
+      label: 'Maximum output tokens'
+    temperature:
+      type: string
+      label: 'Temperature'
+    auto_review_article:
+      type: boolean
+      label: 'Automatic article review'
+    auto_review_photo:
+      type: boolean
+      label: 'Automatic photo text review'
+    auto_review_video:
+      type: boolean
+      label: 'Automatic video text review'
+    auto_review_submission:
+      type: boolean
+      label: 'Automatic member submission review'
+    deep_analysis:
+      type: boolean
+      label: 'Allow manual deep analysis'
+    retry_limit:
+      type: integer
+      label: 'Automatic retries'
+    max_concurrent:
+      type: integer
+      label: 'Maximum concurrent tasks'
+    daily_budget:
+      type: string
+      label: 'Daily budget in CNY'
+    monthly_budget:
+      type: string
+      label: 'Monthly budget in CNY'
+    budget_action:
+      type: string
+      label: 'Budget action'
+    allow_manual_over_budget:
+      type: boolean
+      label: 'Allow a permitted manual call over budget'
+    allow_unpriced_manual:
+      type: boolean
+      label: 'Allow manual calls when the model price is unknown'
+    unpriced_daily_tokens:
+      type: integer
+      label: 'Daily token cap for unpriced models'
+    rule_version:
+      type: integer
+      label: 'Review rule version'
+    retention_days:
+      type: integer
+      label: 'Days to keep reviews and usage'
+
+xedc_ai.rules:
+  type: config_object
+  label: 'XEDC AI local rules'
+  mapping:
+    min_title:
+      type: integer
+      label: 'Minimum title length'
+    max_title:
+      type: integer
+      label: 'Maximum title length'
+    min_article_body:
+      type: integer
+      label: 'Minimum article body length'
+    max_tags:
+      type: integer
+      label: 'Maximum tag count'
+    min_image_edge:
+      type: integer
+      label: 'Minimum image edge'
+    max_video_seconds:
+      type: integer
+      label: 'Maximum video seconds'
+    phash_distance:
+      type: integer
+      label: 'Perceptual hash distance'
+    max_hash_bytes:
+      type: integer
+      label: 'Maximum bytes to hash'

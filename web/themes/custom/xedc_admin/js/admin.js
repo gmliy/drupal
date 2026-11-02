@@ -553,12 +553,74 @@
     },
   };
 
+  Drupal.behaviors.xedcAdminDialogAutocomplete = {
+    attach(context) {
+      const jq = window.jQuery;
+      if (!jq || !jq.fn || !jq.fn.autocomplete) {
+        return;
+      }
+      once('xedc-dialog-autocomplete', '.ui-dialog input.form-autocomplete, .xedc-node input.form-autocomplete', context).forEach((element) => {
+        const apply = () => {
+          if (!jq(element).data('ui-autocomplete')) {
+            return false;
+          }
+          jq(element).autocomplete('option', 'appendTo', document.body);
+          return true;
+        };
+        if (!apply()) {
+          window.setTimeout(apply, 0);
+        }
+      });
+    },
+  };
+
+  Drupal.behaviors.xedcAdminDialogClose = {
+    attach(context) {
+      const fix = (button) => {
+        if (!button || button.dataset.xedcClose === '1') {
+          return;
+        }
+        button.dataset.xedcClose = '1';
+        button.setAttribute('aria-label', '关闭');
+        button.setAttribute('title', '关闭');
+      };
+      once('xedc-dialog-close-watch', 'html', context).forEach(() => {
+        document.querySelectorAll('.ui-dialog-titlebar-close').forEach(fix);
+        const observer = new MutationObserver(() => {
+          document.querySelectorAll('.ui-dialog-titlebar-close').forEach(fix);
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+      });
+    },
+  };
+
   Drupal.behaviors.xedcNodeRemoveLabel = {
     attach(context) {
       once('xedc-node-remove', '.xedc-node .field-multiple-table input[type="submit"]', context).forEach((button) => {
         if (!button.getAttribute('aria-label')) {
           button.setAttribute('aria-label', button.value || '移除');
         }
+      });
+    },
+  };
+
+  Drupal.behaviors.xedcAdminProgress = {
+    attach(context) {
+      once('xedc-progress', '.progress-wrapper', context).forEach((wrapper) => {
+        const bar = wrapper.querySelector('.progress-bar');
+        const label = wrapper.querySelector('.progress__label');
+        if (!bar || !label || wrapper.querySelector('.xedc-progress-pct')) {
+          return;
+        }
+        const pct = document.createElement('span');
+        pct.className = 'xedc-progress-pct';
+        label.after(pct);
+        const sync = () => {
+          pct.textContent = (bar.textContent || '').replace(/\s+/g, ' ').trim();
+        };
+        sync();
+        const observer = new MutationObserver(sync);
+        observer.observe(bar, { childList: true, characterData: true, subtree: true });
       });
     },
   };

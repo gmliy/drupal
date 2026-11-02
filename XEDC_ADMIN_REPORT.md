@@ -1,5 +1,213 @@
 # XEDC 后台主题报告
 
+## 第十轮补充：封面溢出、字段标签、结构菜单
+
+只改了 `web/themes/custom/xedc_admin/`。没有改字段配置、内容类型、数据库、前台主题、自定义模块和 `config/sync`。没有提交内容表单，没有新建或删除内容。样式稳定后执行了 `drush cr`。
+
+截图目录：`/root/xedc-admin-round10/ui-before/`、`/root/xedc-admin-round10/ui-after/`。手机是 Chromium 模拟（390×664、hasTouch、isMobile、Safari UA），不是真实 WebKit。
+
+### 1. 封面图片上传区域
+
+原始问题：美图的封面是媒体库字段 `field_cover_image`（标签「图片封面」），不是文件直传，也没有 Dropzone。选中图片后，缩略图和「移除」画到字段虚线框右边外面。
+
+DOM 根因：`node-form.css` 把节点表单里的 `fieldset > legend` 设成 `float: left; width: 100%`。图例占满一行后，后面的选择区被挤进浮层旁边一条 0 宽的缝，网格列算出来是 `0px 0px 0px 0px`，选区落在字段右缘（x=775，宽 0）。图片本身只有 medium 样式的 102×220，比例没变，是容器被挤没了。改前：`ui-before/edit-cover-open.png`。
+
+另外，编辑表单的 form id 是 `node_photo_edit_form`。主题原先用 `node_{bundle}_form` 截取 bundle，编辑页被当成 `photo_edit`，封面、标签、人物名字都掉进收起的「更多选项」。添加页不受影响。已在 `xedc_admin.theme` 去掉末尾的 `_edit`，编辑页和添加页使用同一套美图布局。没有改字段。
+
+修复：图例改为普通块级，不再浮动。选择区宽度 100%。封面预览卡片按内容收缩，图片 `max-width: min(160px, 100%)`、`max-height: 220px`、`object-fit: contain`，不改上传文件。文件名可以断行。「移除」跟在预览旁边，窄屏允许换行。实测封面字段宽 760，图片右缘 168，按钮右缘 250，都在字段内（字段右缘 792）。页面没有横向滚动。
+
+- [x] 桌面空状态。`ui-after/add-cover-1440.png`、`ui-after/add-1440.png`。
+- [x] 桌面已有封面。`ui-after/edit-cover-1440.png`、`ui-after/edit-cover-1280.png`。1280 视口没有横向溢出。
+- [x] 手机封面。空状态 `ui-after/add-cover-390.png`、`ui-after/add-390.png`。已有封面图片在字段内，`ui-after/edit-cover-390.png`。
+- [x] 深色。`ui-after/edit-cover-dark-1440.png`、`ui-after/add-cover-dark-1440.png`。
+- [-] 没有新上传文件。预览用的是节点 315 上已经存在的封面，没有点「移除」，没有保存。
+
+### 2. 标签和人物名字
+
+实际机器名和 Drupal 标签：
+
+| 字段 | 机器名 | 组件 | 表单上的标签 |
+| --- | --- | --- | --- |
+| 标签 | `field_tags` | 分类术语自动完成，可多值 | 标签 |
+| 人物 | `field_model` | 分类术语自动完成，可多值，词表 `models` | 人物名字 |
+
+配置里的标签是「人物名字」，不是「模特名字」。本轮没有改字段配置，也没有用伪元素再写一个名字，所以输入框上方显示的是原有表头「人物名字」和「标签」。
+
+根因：多值自动完成的可见名称在 `thead th.field-label h4.label` 里，每行自己的 label 被 Drupal 标成 `visually-hidden`（文案是「标签 (值 1)」）。主题把整个 `thead` 裁成 1px，两个输入框就只剩「显示行的权重」。改前：`ui-before/add-card.png`。
+
+修复：表头里的字段名恢复成输入框上方的 14px 主色标题，其余表头单元格仍隐藏。权重开关留在右上，12px 次级色。自动完成仍是原来的组件。下拉挂到 `body`（沿用弹窗里那套 `appendTo`，`once()` id 仍是 `xedc-dialog-autocomplete`），避免表格容器裁切。输入「模特」后接口返回「模特 (79)」，菜单宽 622、高 47，挂在 body 上，文字完整。没有回车，没有选中，没有保存。
+
+- [x] 保留原有 label，没有第二份标题。`ui-after/add-tags-1440.png`、`ui-after/add-model-1440.png`、`ui-after/edit-card-1440.png`。
+- [x] 自动完成。`ui-after/add-autocomplete-1440.png`。
+- [x] 深色下两个标题都能读。`ui-after/add-card-dark-1440.png`。
+- [x] 手机上标题在输入框上面，删除按钮不够宽时换到下一行。`ui-after/add-card-390.png`。文档没有横向滚动。
+- [!] 屏幕上的人物字段名称是「人物名字」。若要改成「模特名字」，需要改字段标签配置，本轮按保护规则没有改。
+
+### 3. 结构多级导航
+
+原先左侧「结构」是一条没有子级的链接，和其他带飞出层的一级菜单不一致。管理菜单里 `system.admin_structure` 实际有 10 个子项，其中「分类」「显示模式」还有下一级。
+
+现在「结构」走和「网站配置」同一套按钮、飞出层、手风琴。子项顺序来自管理菜单，没有新增「管理字段」这类本地任务。概览指向原来的 `/admin/structure`，避免父级变成按钮后这条路由消失。有下级的项，自己的链接放在三级的第一项，因为展开按钮本身不能同时当链接。
+
+一级和「内容管理」同一套高度、字号、内边距、箭头。二级是飞出层里的行。三级再缩进一档，长标题换行，不截成省略号。当前页会标出对应项：在 `/admin/structure/display-modes/view` 时「查看模式」高亮，父级「显示模式」展开；在 `/admin/structure/taxonomy` 时「分类」展开。刷新后抽屉仍默认关闭，和原来一样，展开状态写在服务端渲染的 `is-open` 上。点一级展开，再点二级展开或收起三级。桌面飞出层宽 260，和配置菜单相同。
+
+分类页会同时点亮「内容分类」和「结构」，因为两条导航都覆盖 `/admin/structure/taxonomy`。没有删菜单。
+
+- [x] 一级展开。`ui-after/nav-structure-1440.png`、`ui-after/nav-structure-wide-1440.png`。改前叶子链接：`ui-before/nav-root-1440.png`。
+- [x] 二级和三级。显示模式下面有「显示模式 / 查看模式 / 表单模式」。分类下面有「分类 / Scheduled Taxonomy Terms」。`ui-after/nav-structure-wide-1440.png`、`ui-after/nav-structure-l3-390.png`。
+- [x] 当前项。查看模式、内容类型分别在对应页面高亮。
+- [x] 手机钻取。`ui-after/nav-structure-390.png`、`ui-after/nav-structure-l3-390.png`。没有横向溢出。
+- [x] 深色。`ui-after/nav-structure-dark-1440.png`、`ui-after/nav-structure-cat-1440.png`。
+
+### 4. 变更范围
+
+本轮改动：
+
+- `css/node-form.css`：封面选择区、多值字段标题。
+- `css/layout.css`：结构飞出层宽度与配置菜单对齐。
+- `includes/navigation.theme`：结构菜单改读管理菜单树。
+- `js/admin.js`：节点表单自动完成菜单挂到 body。
+- `xedc_admin.theme`：编辑表单 bundle 去掉 `_edit`。
+
+没有新增或删除主题文件。工作区里其他未提交文件没有被本轮覆盖。主题外文件本轮没有改。
+
+### 5. 回归
+
+- [x] 美图添加页、编辑页、封面、标签、人物名字、结构菜单，桌面 1440 和 1280、手机 390、深色，见上面的截图。
+- [x] Views 编辑页 `/admin/structure/views/view/image_gallery` 打开后布局还在，显示条「Page」高 32，名称按钮内链高 30，`.view-changed` 为 `none`。`ui-after/views-1440.png`。
+- [-] 这轮没有再点开 Views 设置弹窗。上一轮的遮罩 390、对话框 400 规则还在 `dialog.css`，没有改那两行。
+
+## 第十轮补充：按钮对齐和设置弹窗
+
+只改了 `web/themes/custom/xedc_admin/css/admin-ui.css` 和 `css/dialog.css`。没有改 `admin.js`，没有改主题以外的文件，没有提交表单。打开过的弹窗关闭后，`.view-changed` 仍是 `display: none`。样式稳定后执行了 `drush cr`。
+
+文字本来就接近几何中心（改前字形偏移约 0.2–0.8 像素）。显胖和左右不齐来自高度和内边距不一致：显示标签高 36、上下 padding 4px、1px 边框；名称按钮内链高 34；保存按钮截图盒高 41；弹窗主按钮高 40、padding `8px 16px`、行高 16.8px。
+
+### 实际改动
+
+| 位置 | 结果 |
+| --- | --- |
+| Views 显示条 | 「页面」「添加」高 32，padding `0 12px`，字号 13。名称下拉外框同为 32（含 1px 边框），内链高 30。两者垂直中心都在 y=228。窄屏（≤1023px）升到 44。 |
+| 保存、取消、弹窗底部按钮 | 高 36，padding `0 14px`，行高 34px，只留左右内边距。手机弹窗底部按钮高 44。字形偏移：保存 −0.7、取消 −0.9、应用 −0.5 像素。 |
+| 添加类弹窗 | 搜索和分类输入高 38。字段行是两列：复选框 20px，名称 14px，说明 12px 从名称左缘对齐。悬停和选中用现有表面色。列表在 `.scroll` 里滚，底栏不滚走。 |
+| 配置类弹窗 | 标签 13px，输入高 38，说明 12px，组间距 16px。折叠标题高 40，自带方向箭头。表格里的选择框高 32。 |
+
+### 实测
+
+- [x] 按钮不再靠上下 padding 撑高。显示条 32，保存和弹窗按钮 36。`button-before/metrics.json`、`button-after/metrics.json`。
+- [x] 文字垂直居中。改后字形偏移都在 1 像素以内。
+- [x] 工具栏左右对齐。`button-after/toolbar-1440.png`、`button-after/toolbar-1280.png`。名称按钮中心与「页面」重合。
+- [x] 保存、取消同高 36、同一基线。`button-after/save-1440.png`。
+- [x] 添加字段、过滤、排序、页眉、页脚、无结果、关联、上下文过滤器。搜索条、列表和底栏分开。没有点应用。
+- [x] 编辑字段。折叠标题 40px，展开「样式设定」后选项仍在。`dialog-after/edit-field-1440.png`、`dialog-after/edit-field-details.png`。
+- [x] 样式选项。表在弹窗内，底栏可见。`dialog-after/edit-format-1440.png`。
+- [x] 长列表能滚到底，底栏留在视口。添加字段 `scrollHeight` 11505、`clientHeight` 559，底栏底边 883，视口 900。排序 10296/559，上下文过滤器 12922/559。
+- [x] 「添加」菜单展开。`dialog-after/add-display-menu.png`。字段配置里点过原生选择框；无头 Chromium 不一定把系统弹层画进截图。
+- [x] 手机 390×664。文章列表视图没有横向溢出。过滤弹窗底栏按钮高 44，文字没有被裁。`dialog-mobile/add-filter-390.png`、`dialog-mobile/add-filter-bottom-390.png`。Chromium 模拟，不是 WebKit。
+- [x] 深色。添加字段弹窗沿用现有变量，输入框和底栏能分开。`dialog-dark/add-field-1440.png`、`dialog-dark/toolbar-1440.png`。
+- [ ] 对话框里的自动完成。这轮没有遇到可输入的自动完成字段。
+- [ ] 媒体库弹窗、CKEditor 弹窗。这轮没有打开。
+
+### 截图
+
+目录 `/root/xedc-admin-round10/`。
+
+- 改前：`button-before/toolbar-1440.png`、`button-before/save-1440.png`、`dialog-before/add-field-1440.png`、`dialog-before/add-filter.png`、`dialog-before/edit-field.png`、`dialog-before/edit-format.png`。
+- 改后：`button-after/toolbar-1440.png`、`toolbar-1280.png`、`save-1440.png`。
+- 弹窗：`dialog-after/add-field-1440.png`、`add-field-bottom.png`、`add-filter-1440.png`、`edit-field-1440.png`、`edit-field-details.png`、`edit-field-bottom.png`、`edit-format-1440.png`、`add-display-menu.png`，以及 `open-排序标准.png`、`open-页眉.png`、`open-页脚.png`、`open-无任何结果时的行为.png`、`open-关联.png`、`open-上下文过滤器.png` 和各自的 bottom。
+- 手机：`dialog-mobile/toolbar-390.png`、`add-filter-390.png`、`add-filter-bottom-390.png`。
+- 深色：`dialog-dark/toolbar-1440.png`、`add-field-1440.png`。
+
+### 遗留
+
+- 样式选项有九列，表头会折行，列仍在弹窗右缘以内。
+- 无头 Chromium 不能稳定截到操作系统绘制的 `<select>` 弹层。
+- 带字图标按钮这轮主要是名称下拉的箭头，箭头和文字在同一 32px 行里。没有另做一个独立的图标加文字按钮样张。
+- 自动完成、媒体库、CKEditor 弹窗这轮没有打开。
+- 手机结果来自 Chromium 模拟，不是真实 Safari。
+
+下面第十轮正文里「保存和取消同高 40 像素」是补充之前的测量。以这一节的 36 / 32 为准。
+
+## 第十轮：Views 编辑页
+
+只改了 `web/themes/custom/xedc_admin/` 里的三个文件。没有切回 Gin，没有改前台主题、`config/sync`、`StorageController.php`，没有提交表单，没有改视图配置。收尾时 `.view-changed` 仍是 `display: none`。缓存重建 `drush cr` 成功。
+
+手机测试是 Chromium 的 iPhone 模拟（390×664、触摸、移动端、Safari UA），不是真实 WebKit。主机仍缺 WebKit 依赖。
+
+### 实际改动
+
+| 文件 | 解决的问题 |
+| --- | --- |
+| `css/admin-ui.css` | 显示条改成同一行：左侧「页面 / 添加」，右侧「编辑视图的名称和描述」。去掉 Views 自带的灰绿底（`#e1e2dc`）和外边框。保存、取消不再铺一条旧底色。预览标题改用主题的浅灰变量。打开「添加」时，标签栏不再把菜单裁掉。 |
+| `css/dialog.css` | 遮罩仍是 390，对话框仍是 400。Views 弹窗的滚动交回 `.scroll`：列表约 1.1 万像素高时，可视区约 545 像素，滚轮能滚，滚到底按钮仍在视口内。样式选项表在弹窗里换行，九列都在弹窗右缘以内。自动完成菜单挂到 `body` 后用 460，高于对话框、低于进度层。 |
+| `js/admin.js` | 对话框里的 Drupal 自动完成把菜单挂到 `body`，避免被滚动容器裁切。本轮没有遇到带自动完成的字段，这项没有单独截图。 |
+
+### Views 页面
+
+- [x] 页面布局。桌面 1440 和 1280 上，标题、显示条、三列卡片和保存按钮左缘对齐。截图 `views-after/content-1440.png`、`views-after/content-1280.png`。
+- [x] 按钮对齐。保存和取消同高 40 像素、同一基线。显示标签和名称按钮在同一行。手机上名称按钮换到下一行，高度 44 像素。`views-mobile/article-390.png`。
+- [x] 弹窗。添加字段、过滤、排序、页眉、页脚、无结果、关联、上下文过滤器，以及字段配置、样式选项，都居中，标题和关闭按钮可见，底部按钮在视口内。没有点应用、保存或删除。
+- [x] 滚动。添加字段列表 `scrollHeight` 11439、`clientHeight` 545，滚轮后 `scrollTop` 500，再滚到 10894。底部截图 `views-dialogs/add-field-bottom.png`。字段配置滚到最后一项：`views-dialogs/edit-title-field-bottom.png`。
+- [x] 下拉菜单。显示条的「添加」展开为页内菜单，点到的最上层是菜单里的按钮。`views-dialogs/add-display-menu.png`。样式选项里的选择框完整落在弹窗内。无头 Chromium 不把系统下拉弹层画进页面截图。
+- [x] 遮罩。`elementsFromPoint` 打在标题上，最上层是对话框标题，其次才是遮罩。遮罩 390，对话框 400，和第九、十轮已验证的层级一致。
+- [x] 预览区。改前标题条是 Views 的 `#e1e2dc`。改后是 `rgb(244, 244, 245)`，查询信息表也是浅灰字，不是黑底。`views-after/content-preview-head.png`、`views-after/gallery-preview-1440.png`。美图预览里已经载入的封面是 480×800 的真实图片，背景是透明，不是主题涂黑。未载入的图片按原尺寸留白。前台的照片网格样式不在后台加载，所以封面是纵向排列，没有改成白色块。
+- [x] 手机端。文章列表视图没有横向溢出（文档宽 390）。添加过滤条件弹窗滚到 `scrollTop` 8412，按钮底边 647，视口 664。`views-mobile/add-filter-390.png`、`views-mobile/add-filter-390-bottom.png`。
+- [x] 深色。`views-after/article-dark-1440.png`，卡片、文字和边框沿用现有变量。
+
+### 其他后台页面
+
+1440 宽下这些页都打开了，状态 200，没有整页横向溢出。截图在 `admin-audit/`。
+
+看过且没有被本轮改坏：内容列表、内容编辑、添加内容、人员、帐户设置、分类、状态报告、日志、控制台、SEO 审计、Site Audit、服务器监控、文件统计、结构、扩展、外观。内容列表另有一张 390 宽的图 `content-list-390.png`。
+
+帐户设置这一屏是横向任务标签加折叠分组，没有竖向标签控件。内容编辑的发布卡片、保存、预览、删除都在。
+
+未在本轮打开：媒体库弹窗、CKEditor 链接和图片弹窗。上一轮在编辑页上没有点到这些按钮，这次没有再造页面。
+
+### 测试
+
+- [x] Views 编辑页桌面布局、按钮、预览标题。看过改前和改后截图。
+- [x] 添加字段、过滤、排序、页眉、页脚、无结果、关联、上下文过滤器。打开后关闭，没有点应用。
+- [x] 长列表滚到底，按钮仍可见。
+- [x] 「添加」显示菜单展开。
+- [x] 字段配置和样式选项弹窗。样式表右缘 1179，弹窗右缘 1180。
+- [x] 手机 390×664 的页面和过滤弹窗。Chromium 模拟，不是 WebKit。
+- [x] 深色模式的文章列表视图。
+- [x] 抽样后台页没有整页横向滚动。
+- [ ] 媒体库弹窗、CKEditor 弹窗。这轮没打开。
+- [ ] 对话框里的自动完成。代码已加上，没有实际输入框可测。
+
+### 截图
+
+目录 `/root/xedc-admin-round10/`。
+
+- 改前：`views-before/content-1440.png`、`frontpage-1440.png`、`image_gallery-1440.png`、`article_list-1440.png`，以及对应的 1280。
+- 改后：`views-after/content-1440.png`、`content-1280.png`、`content-preview-head.png`、`gallery-preview-1440.png`、`article-dark-1440.png`。
+- 弹窗：`views-dialogs/add-field.png`、`add-field-bottom.png`、`add-filter.png`、`add-display-menu.png`、`edit-format.png`、`edit-field.png`、`edit-title-field.png`、`edit-title-field-bottom.png`，以及 `open-排序标准.png`、`open-页眉.png`、`open-页脚.png`、`open-无任何结果时的行.png`、`open-关联.png`、`open-上下文过滤器.png` 和各自的 bottom。
+- 手机：`views-mobile/article-390.png`、`add-filter-390.png`、`add-filter-390-bottom.png`。
+- 其他页：`admin-audit/` 下的 content-list、node-edit、node-add、people、accounts、taxonomy、status、dblog、dashboard、audit、site-audit、monitor、files、structure、modules、appearance、content-list-390。
+
+### Git
+
+本轮新写进工作区的是：
+
+- `web/themes/custom/xedc_admin/css/admin-ui.css`
+- `web/themes/custom/xedc_admin/css/dialog.css`
+- `web/themes/custom/xedc_admin/js/admin.js`
+
+没有新增或删除文件。没有改主题以外的文件。工作区里其他未提交文件是开始之前就有的，没有动。
+
+### 遗留
+
+- 样式选项弹窗有九列，表头会折行，但没有被裁出弹窗。
+- 美图、首页预览的封面按原始 480×800 纵向排开。那是视图输出的图片尺寸，后台没有加载前台网格样式。
+- 无头 Chromium 截不到操作系统绘制的 `<select>` 弹层。
+- 自动完成的挂载方式写好了，这轮没有真实输入框可点。
+- WebKit 因缺少系统库没有跑。
+- 媒体库和 CKEditor 弹窗这轮没有打开。
+
+---
+
 第七轮还没做完。清单在 `XEDC_ADMIN_ROUND7.md`，截图在 `/root/xedc-admin-round7/`。已经看过的是：表格里的「编辑 ▾」改成独立浮层（手机是从底部滑上来的面板，删除是红字），手机上的表格可以左右滑，机读名称不再被编辑按钮压住。弹窗、进度条、添加内容页和全站扫描还没做。下面仍是第六轮及更早的说明。
 
 ## 给非技术人员的总结

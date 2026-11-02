@@ -13,6 +13,7 @@ use Drupal\xedc_core\Form\MergePlanForm;
 use Drupal\xedc_core\Form\UnusedPlanForm;
 use Drupal\xedc_core\Ops\Cleanup\CleanupRepository;
 use Drupal\xedc_core\Ops\Cleanup\FileAnalysisRunner;
+use Drupal\xedc_core\Ops\Cleanup\FileReferencePresenter;
 use Drupal\xedc_core\Ops\OpsFormat;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -29,6 +30,7 @@ class FileCleanupController extends ControllerBase {
     protected FileAnalysisRunner $runner,
     protected DateFormatterInterface $dateFormatter,
     protected TimeInterface $time,
+    protected FileReferencePresenter $presenter,
   ) {}
 
   /**
@@ -40,6 +42,7 @@ class FileCleanupController extends ControllerBase {
       $container->get('xedc_core.file_analysis'),
       $container->get('date.formatter'),
       $container->get('datetime.time'),
+      $container->get('xedc_core.reference_presenter'),
     );
   }
 
@@ -49,7 +52,29 @@ class FileCleanupController extends ControllerBase {
     $page = $this->page($request);
     $result = $batch ? $this->repository->groups((int) $batch['id'], $filters, 25, $page * 25) : ['rows' => [], 'total' => 0];
     $rows = [];
+    $membersByGroup = [];
+    $fids = [];
     foreach ($result['rows'] as $row) {
+      $members = $this->repository->members((int) $row['id']);
+      $membersByGroup[(int) $row['id']] = $members;
+      foreach ($members as $member) {
+        $fids[] = (int) $member['fid'];
+      }
+    }
+    $refsByFid = [];
+    foreach ($batch ? $this->repository->refsForFids((int) $batch['id'], $fids) : [] as $ref) {
+      $refsByFid[(int) $ref['fid']][] = $ref;
+    }
+    foreach ($result['rows'] as $row) {
+      $locations = 0;
+      $entities = 0;
+      $unknown = 0;
+      foreach ($membersByGroup[(int) $row['id']] ?? [] as $member) {
+        $summary = $this->presenter->summarize($refsByFid[(int) $member['fid']] ?? []);
+        $locations += $summary['locations'];
+        $entities += $summary['entities'];
+        $unknown += $summary['unknown'];
+      }
       $rows[] = [
         'id' => (int) $row['id'],
         'url' => Url::fromRoute('xedc_core.files_duplicate', ['group' => $row['id']])->toString(),
@@ -60,6 +85,9 @@ class FileCleanupController extends ControllerBase {
         'family' => $this->familyLabel((string) $row['mime_family']),
         'risk' => $this->riskLabel((string) $row['risk']),
         'status' => $this->refLabel((string) $row['ref_status']),
+        'locations' => $locations,
+        'entities' => $entities,
+        'unknown' => $unknown,
       ];
     }
     return $this->pageBuild('xedc_core_duplicates', [
@@ -78,8 +106,15 @@ class FileCleanupController extends ControllerBase {
       throw new NotFoundHttpException();
     }
     $members = [];
-    foreach ($this->repository->members($group) as $member) {
+    $rawMembers = $this->repository->members($group);
+    $summaries = [];
+    $refsByFid = [];
+    foreach ($rawMembers as $member) {
       $refs = $this->repository->refsForFid((int) $batch['id'], (int) $member['fid']);
+      $refsByFid[(int) $member['fid']] = $refs;
+      $summary = $this->presenter->summarize($refs);
+      $summaries[(int) $member['fid']] = $summary;
+      $page = $this->presenter->page($refs, $this->currentUser(), 'all', 0, 25);
       $members[] = [
         'fid' => (int) $member['fid'],
         'filename' => (string) $member['filename'],
@@ -88,14 +123,18 @@ class FileCleanupController extends ControllerBase {
         'bytes' => OpsFormat::bytes((int) $member['bytes']),
         'mime' => (string) $member['mime'],
         'mtime' => $this->stamp((int) $member['mtime']),
+        'hash' => (string) $row['sha256'],
         'entity' => (int) $member['has_entity'] === 1 ? '有' : '无',
         'media' => (int) $member['media_count'],
         'refs' => (int) $member['ref_count'],
         'status' => $this->refLabel((string) $member['ref_status']),
         'risk' => $this->riskLabel((string) $member['risk']),
-        'references' => array_map($this->presentRef(...), $refs),
+        'summary' => $summary,
+        'references' => $page['rows'],
+        'more' => $page['total'] > 25 ? Url::fromRoute('xedc_core.files_reference', ['fid' => $member['fid']])->toString() : '',
       ];
     }
+    $recommendation = $this->presenter->recommend($rawMembers, $summaries);
     $form = NULL;
     if ($this->currentUser()->hasPermission('create xedc cleanup plans')) {
       $form = $this->formBuilder()->getForm(MergePlanForm::class, $group);
@@ -111,6 +150,8 @@ class FileCleanupController extends ControllerBase {
         'status' => $this->refLabel((string) $row['ref_status']),
       ],
       'members' => $members,
+      'shared' => $this->presenter->shared($refsByFid),
+      'recommendation' => $recommendation,
       'form' => $form,
     ]);
   }
@@ -169,7 +210,8 @@ class FileCleanupController extends ControllerBase {
     if (!$row) {
       throw new NotFoundHttpException();
     }
-    $refs = array_map($this->presentRef(...), $this->repository->refsForFid((int) $batch['id'], $fid));
+    $refs = $this->repository->refsForFid((int) $batch['id'], $fid);
+    $page = $this->presenter->page($refs, $this->currentUser(), 'all', 0, 25);
     return $this->pageBuild('xedc_core_unused_item', [
       'file' => [
         'fid' => $fid,
@@ -185,8 +227,39 @@ class FileCleanupController extends ControllerBase {
         'risk' => $this->riskLabel((string) $row['risk']),
         'reason' => (string) $row['reason'],
         'hash' => (string) $row['sha256'],
+        'summary' => $this->presenter->summarize($refs),
+        'reference_url' => Url::fromRoute('xedc_core.files_reference', ['fid' => $fid])->toString(),
       ],
-      'references' => $refs,
+      'references' => $page['rows'],
+    ]);
+  }
+
+  public function reference(int $fid, Request $request): array {
+    $batch = $this->finishedBatch();
+    $row = $batch ? $this->repository->findingByFid((int) $batch['id'], $fid) : NULL;
+    if (!$row && $batch) {
+      $work = $this->repository->workByFid((int) $batch['id']);
+      $row = $work[$fid] ?? NULL;
+    }
+    if (!$row) {
+      throw new NotFoundHttpException();
+    }
+    $refs = $this->repository->refsForFid((int) $batch['id'], $fid);
+    $kind = substr(trim((string) $request->query->get('kind', 'all')), 0, 32);
+    $pageNumber = $this->page($request);
+    $page = $this->presenter->page($refs, $this->currentUser(), $kind, $pageNumber * 25, 25);
+    return $this->pageBuild('xedc_core_reference', [
+      'file' => [
+        'fid' => $fid,
+        'filename' => (string) ($row['filename'] ?? ''),
+        'uri' => (string) ($row['uri'] ?? ''),
+        'hash' => (string) ($row['sha256'] ?? ''),
+      ],
+      'summary' => $this->presenter->summarize($refs),
+      'kind' => $kind,
+      'rows' => $page['rows'],
+      'pager' => $this->pager($pageNumber, $page['total'], 25, ['kind' => $kind === 'all' ? '' : $kind]),
+      'empty' => $page['rows'] === [],
     ]);
   }
 
@@ -263,6 +336,7 @@ class FileCleanupController extends ControllerBase {
         'blocked' => $payload['blocked'] ?? [],
         'rejected' => $payload['rejected'] ?? [],
         'reclaimable' => isset($payload['reclaimable_bytes']) ? OpsFormat::bytes((int) $payload['reclaimable_bytes']) : '',
+        'integrity' => is_array($row['result']['integrity'] ?? NULL) ? $row['result']['integrity'] : [],
       ],
       'items' => $items,
       'forms' => $forms,
@@ -529,6 +603,7 @@ class FileCleanupController extends ControllerBase {
       'running' => '执行中',
       'success' => '执行成功',
       'partial' => '部分成功',
+      'needs_review' => '需要人工处理',
       'failed' => '执行失败',
       'cancelled' => '已取消',
       'pending_restore' => '待恢复',

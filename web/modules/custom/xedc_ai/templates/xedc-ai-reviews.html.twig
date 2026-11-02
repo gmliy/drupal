@@ -1,0 +1,93 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">AI 运营中心</p>
+      <h2 class="xedc-ai-title">AI 内容审核</h2>
+    </div>
+  </header>
+  <div class="xedc-ai-cards">
+    <article class="xedc-ai-card"><h3>待审核</h3><p class="xedc-ai-value">{{ counts.pending }}</p></article>
+    <article class="xedc-ai-card"><h3>已完成</h3><p class="xedc-ai-value">{{ counts.completed }}</p></article>
+    <article class="xedc-ai-card"><h3>高风险</h3><p class="xedc-ai-value">{{ counts.high }}</p></article>
+    <article class="xedc-ai-card"><h3>需要处理</h3><p class="xedc-ai-value">{{ counts.changes }}</p></article>
+    <article class="xedc-ai-card"><h3>失败</h3><p class="xedc-ai-value">{{ counts.failed }}</p></article>
+  </div>
+
+  <form class="xedc-ai-filters" method="get">
+    <label>类型
+      <select name="bundle">
+        <option value="">全部</option>
+        <option value="article"{{ filters.bundle == 'article' ? ' selected' }}>文章</option>
+        <option value="photo"{{ filters.bundle == 'photo' ? ' selected' }}>美图</option>
+        <option value="video"{{ filters.bundle == 'video' ? ' selected' }}>视频</option>
+      </select>
+    </label>
+    <label>状态
+      <select name="status">
+        <option value="">全部</option>
+        {% for key, label in {'pending':'待审核','processing':'审核中','completed':'审核完成','failed':'审核失败','ignored':'已忽略'} %}
+          <option value="{{ key }}"{{ filters.status == key ? ' selected' }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>风险
+      <select name="risk_level">
+        <option value="">全部</option>
+        <option value="low"{{ filters.risk_level == 'low' ? ' selected' }}>低</option>
+        <option value="medium"{{ filters.risk_level == 'medium' ? ' selected' }}>中</option>
+        <option value="high"{{ filters.risk_level == 'high' ? ' selected' }}>高</option>
+      </select>
+    </label>
+    <label>来源
+      <select name="source">
+        <option value=""{{ filters.source == '' ? ' selected' }}>全部</option>
+        <option value="content_review"{{ filters.source == 'content_review' ? ' selected' }}>内容审核</option>
+        <option value="seo_optimization"{{ filters.source == 'seo_optimization' ? ' selected' }}>SEO</option>
+      </select>
+    </label>
+    <label>投稿
+      <select name="submission">
+        <option value="">全部</option>
+        <option value="1"{{ filters.submission == '1' ? ' selected' }}>只看会员投稿</option>
+      </select>
+    </label>
+    <label>开始<input type="date" name="from" value="{{ filters.from }}"></label>
+    <label>结束<input type="date" name="to" value="{{ filters.to }}"></label>
+    <label>标题<input type="search" name="q" value="{{ filters.q }}"></label>
+    <button type="submit">筛选</button>
+  </form>
+
+  {% if rows %}
+    <div class="xedc-ai-table-wrap">
+      <table class="xedc-ai-table">
+        <thead><tr><th>内容</th><th>类型</th><th>状态</th><th>结论</th><th>风险</th><th>评分</th><th>时间</th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+          <tr>
+            <td><a href="{{ row.url }}">{{ row.title ?: '无标题' }}</a>{% if row.submission %} <span class="xedc-ai-tag">投稿</span>{% endif %}</td>
+            <td>{{ row.bundle }}</td>
+            <td><span class="xedc-ai-status is-{{ row.status_key }}">{{ row.status }}</span></td>
+            <td>{{ row.verdict }}</td>
+            <td><span class="xedc-ai-risk is-{{ row.risk_key }}">{{ row.risk }}</span></td>
+            <td>{{ row.score }}</td>
+            <td>{{ row.time }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ pager }}
+  {% else %}
+    <p class="xedc-ai-empty">这个筛选条件下没有审核记录。</p>
+  {% endif %}
+
+  {% if queue %}
+    <section class="xedc-ai-panel"><h3>队列</h3>{{ queue }}</section>
+  {% endif %}
+  {% if enqueue %}
+    <section class="xedc-ai-panel"><h3>手动加入审核</h3>{{ enqueue }}</section>
+  {% endif %}
+  {% if batch %}
+    <section class="xedc-ai-panel"><h3>批量处理本页</h3>{{ batch }}</section>
+  {% endif %}
+</div>

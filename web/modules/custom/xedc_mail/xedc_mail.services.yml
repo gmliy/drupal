@@ -1,0 +1,4 @@
+services:
+  xedc_mail.wrapper:
+    class: Drupal\xedc_mail\MailWrapper
+    arguments: ['@renderer', '@config.factory']

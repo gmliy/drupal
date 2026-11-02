@@ -123,7 +123,7 @@ class FileReferenceAnalyzer {
               'source' => 'embedded',
               'confidence' => 'unknown',
               'migratable' => 0,
-              'reason' => '正文或链接里出现了文件路径，不能自动改写。',
+              'reason' => $this->embeddedReason($value, $needle),
             ]);
           }
         }
@@ -178,7 +178,7 @@ class FileReferenceAnalyzer {
     }
     $uri = $file->getFileUri();
     $kind = $this->guard->kindForUri($uri);
-    $real = $this->fileSystem->realpath($uri);
+    $real = $this->guard->realpathIfLocal($uri);
     if (is_string($real) && $real !== '') {
       $pathKind = $this->guard->containedKind($real);
       if ($pathKind === 'outside') {
@@ -300,25 +300,56 @@ class FileReferenceAnalyzer {
     else {
       $this->incomplete = TRUE;
     }
-    foreach ([
+    foreach ($this->customTableRefs($fids) as $ref) {
+      $ref['batch_id'] = $batchId;
+      $this->repository->insertRef($ref);
+    }
+  }
+
+  /**
+   * Tables read by custom modules. A missing table is skipped.
+   *
+   * xedc_cleanup_probe exists only while the cleanup test is running.
+   *
+   * @return array<string, string>
+   *   Table name to file-id column.
+   */
+  private function customTableMap(): array {
+    return [
       'xedc_image_file' => 'fid',
       'xedc_import_item' => 'fid',
       'xedc_import_task' => 'archive_fid',
-    ] as $table => $column) {
+      'xedc_cleanup_probe' => 'fid',
+    ];
+  }
+
+  /**
+   * @param list<int> $fids
+   *   File ids.
+   *
+   * @return list<array<string, mixed>>
+   *   One confirmed, non-migratable reference per matching row.
+   */
+  private function customTableRefs(array $fids): array {
+    $refs = [];
+    foreach ($this->customTableMap() as $table => $column) {
       if (!$this->database->schema()->tableExists($table) || !$this->database->schema()->fieldExists($table, $column)) {
         continue;
       }
-      $ids = $this->database->select($table, 't')
-        ->fields('t', [$column])
+      $fields = [$column];
+      if ($column !== 'id' && $this->database->schema()->fieldExists($table, 'id')) {
+        $fields[] = 'id';
+      }
+      $rows = $this->database->select($table, 't')
+        ->fields('t', $fields)
         ->condition($column, $fids, 'IN')
-        ->execute()
-        ->fetchCol();
-      foreach ($ids as $id) {
-        $this->repository->insertRef([
-          'batch_id' => $batchId,
-          'fid' => (int) $id,
+        ->execute();
+      foreach ($rows as $row) {
+        $record = isset($row->id) ? (int) $row->id : 0;
+        $refs[] = [
+          'fid' => (int) $row->{$column},
           'entity_type' => $table,
-          'entity_id' => 0,
+          'entity_id' => $record,
           'revision_id' => 0,
           'langcode' => '',
           'field_name' => $column,
@@ -327,10 +358,11 @@ class FileReferenceAnalyzer {
           'source' => 'custom',
           'confidence' => 'confirmed',
           'migratable' => 0,
-          'reason' => '自定义表 ' . $table . ' 记录了此文件，不能自动改写。',
-        ]);
+          'reason' => '自定义表 ' . $table . ' 记录 ' . $record . ' 保存了此文件，不能自动改写。',
+        ];
       }
     }
+    return $refs;
   }
 
   /**
@@ -364,35 +396,8 @@ class FileReferenceAnalyzer {
     else {
       $this->incomplete = TRUE;
     }
-    foreach ([
-      'xedc_image_file' => 'fid',
-      'xedc_import_item' => 'fid',
-      'xedc_import_task' => 'archive_fid',
-    ] as $table => $column) {
-      if (!$this->database->schema()->tableExists($table) || !$this->database->schema()->fieldExists($table, $column)) {
-        continue;
-      }
-      $count = (int) $this->database->select($table, 't')
-        ->condition($column, $fid)
-        ->countQuery()
-        ->execute()
-        ->fetchField();
-      if ($count > 0) {
-        $refs[] = [
-          'fid' => $fid,
-          'entity_type' => $table,
-          'entity_id' => 0,
-          'revision_id' => 0,
-          'langcode' => '',
-          'field_name' => $column,
-          'delta' => 0,
-          'bundle' => '',
-          'source' => 'custom',
-          'confidence' => 'confirmed',
-          'migratable' => 0,
-          'reason' => '自定义表 ' . $table . ' 记录了此文件，不能自动改写。',
-        ];
-      }
+    foreach ($this->customTableRefs([$fid]) as $ref) {
+      $refs[] = $ref;
     }
     foreach ($this->fileSources() as $source) {
       foreach ($this->fetchTargets($source, [$fid], 0, 500) as $row) {
@@ -446,10 +451,17 @@ class FileReferenceAnalyzer {
     }
     $uses = array_filter($refs, static fn(array $ref): bool => $ref['source'] !== 'file_usage' || (int) $ref['migratable'] !== 1);
     if ($uses !== []) {
+      $reason = '文件仍被字段、模块或使用记录引用。';
+      foreach ($refs as $ref) {
+        if (($ref['source'] ?? '') === 'custom' && (string) ($ref['reason'] ?? '') !== '') {
+          $reason = (string) $ref['reason'];
+          break;
+        }
+      }
       return [
         'complete' => TRUE,
         'status' => 'referenced',
-        'reason' => '文件仍被字段、模块或使用记录引用。',
+        'reason' => $reason,
         'refs' => $refs,
         'kind' => 'content',
       ];
@@ -575,7 +587,7 @@ class FileReferenceAnalyzer {
         $type = $fieldStorage->getType();
         $target = (string) ($fieldStorage->getSetting('target_type') ?? '');
         $isFile = $type === 'file' || $type === 'image' || ($type === 'entity_reference' && $target === 'file');
-        $isText = in_array($type, ['text', 'text_long', 'text_with_summary', 'string_long', 'link'], TRUE);
+        $isText = in_array($type, ['text', 'text_long', 'text_with_summary', 'string', 'string_long', 'link'], TRUE);
         if (!$isFile && !$isText) {
           continue;
         }
@@ -788,6 +800,21 @@ class FileReferenceAnalyzer {
    * @return list<string>
    *   Path fragments long enough to search.
    */
+  private function embeddedReason(string $value, string $needle): string {
+    $pos = strpos($value, $needle);
+    $window = strtolower(substr($value, max(0, (int) $pos - 48), strlen($needle) + 96));
+    if (str_contains($window, 'srcset')) {
+      return '正文 srcset 中出现文件路径，不能自动改写。';
+    }
+    if (str_contains($window, '<img') || str_contains($window, ' src=')) {
+      return '正文图片 src 中出现文件路径，不能自动改写。';
+    }
+    if (str_contains($window, '<a') || str_contains($window, ' href=')) {
+      return '正文链接 href 中出现文件路径，不能自动改写。';
+    }
+    return '正文或链接里出现了文件路径，不能自动改写。';
+  }
+
   private function needles(string $uri): array {
     $out = [];
     if (str_starts_with($uri, 'public://')) {
@@ -843,6 +870,7 @@ class FileReferenceAnalyzer {
       'quarantine' => '隔离目录里的文件不能再次当作未引用文件。',
       'protected' => '系统文件受保护。',
       'outside' => '文件不在允许的公开或私有目录内。',
+      'remote' => '对象存储文件不按本地孤立文件处理。',
       default => '此文件受保护。',
     };
   }

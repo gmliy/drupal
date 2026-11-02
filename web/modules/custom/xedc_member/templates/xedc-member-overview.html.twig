@@ -11,6 +11,18 @@
     <b>{{ stats.favorites }}</b>
     <span>{{ '我的收藏'|t }}</span>
   </a>
+  <a class="xm-stat" href="{{ urls.likes }}">
+    <b>{{ stats.likes }}</b>
+    <span>{{ '我的点赞'|t }}</span>
+  </a>
+  <a class="xm-stat" href="{{ urls.downloads }}">
+    <b>{{ stats.downloads }}</b>
+    <span>{{ '我的下载'|t }}</span>
+  </a>
+  <a class="xm-stat" href="{{ urls.membership }}">
+    <b>{{ account.tier == 'vip' ? 'VIP' : '普通' }}</b>
+    <span>{{ '会员等级'|t }}</span>
+  </a>
   <a class="xm-stat" href="{{ urls.comments }}">
     <b>{{ stats.comments }}</b>
     <span>{{ '我的评论'|t }}</span>

@@ -3,7 +3,7 @@
     <a class="xm-user" href="{{ urls.profile }}">
       <span class="xm-avatar">{% if avatar %}{{ avatar }}{% else %}{{ account.initial }}{% endif %}</span>
       <span class="xm-user-info">
-        <strong class="xm-user-name">{{ account.name }}</strong>
+        <strong class="xm-user-name">{{ account.name }}{% if account.tier == 'vip' %}<span class="xm-tier xm-tier--vip">VIP</span>{% else %}<span class="xm-tier">{{ '普通会员'|t }}</span>{% endif %}</strong>
         <span class="xm-user-mail">{{ account.mail }}</span>
         <span class="xm-user-since">{{ '加入于 @date'|t({'@date': account.member_since}) }}</span>
       </span>

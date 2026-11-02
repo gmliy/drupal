@@ -4,3 +4,9 @@ services:
     arguments: ['@xedc_core.processor', '@xedc_core.cleaner', '@queue', '@plugin.manager.queue_worker']
     tags:
       - { name: drush.command }
+
+  xedc_core.traffic_commands:
+    class: Drupal\xedc_core\Drush\Commands\TrafficCommands
+    arguments: ['@xedc_core.traffic']
+    tags:
+      - { name: drush.command }

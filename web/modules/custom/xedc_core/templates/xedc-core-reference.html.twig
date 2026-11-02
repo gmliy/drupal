@@ -1,0 +1,71 @@
+<div class="xedc-ops">
+  <header class="xedc-ops-head">
+    <div>
+      <p class="xedc-ops-kicker">文件 {{ file.fid }}</p>
+      <h2 class="xedc-ops-title">{{ file.filename }}</h2>
+    </div>
+  </header>
+  <p class="xedc-ops-detail"><code>{{ file.uri }}</code></p>
+  <ul class="xedc-ops-metrics">
+    <li><span>引用位置</span><strong>{{ summary.locations }}</strong></li>
+    <li><span>内容实体</span><strong>{{ summary.entities }}</strong></li>
+    <li><span>Node</span><strong>{{ summary.node }}</strong></li>
+    <li><span>Media</span><strong>{{ summary.media }}</strong></li>
+    <li><span>User</span><strong>{{ summary.user }}</strong></li>
+    <li><span>Paragraph</span><strong>{{ summary.paragraph }}</strong></li>
+    <li><span>正文路径</span><strong>{{ summary.embedded }}</strong></li>
+    <li><span>自定义表</span><strong>{{ summary.custom }}</strong></li>
+    <li><span>未知</span><strong>{{ summary.unknown }}</strong></li>
+  </ul>
+  <p class="xedc-ops-note">引用位置按字段、修订和语言分别计算。内容实体数量把同一内容的多个位置算作一个实体。</p>
+  <form class="xedc-ops-filters" method="get">
+    <select name="kind">
+      {% for value, label in {
+        'all': '全部',
+        'node': 'Node',
+        'media': 'Media',
+        'user': 'User',
+        'paragraph': 'Paragraph',
+        'embedded': '正文路径',
+        'custom': '自定义表',
+        'unknown': '未知引用'
+      } %}
+        <option value="{{ value }}" {% if kind == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="xedc-ops-button" type="submit">筛选</button>
+  </form>
+  {% if empty %}
+    <p class="xedc-ops-note">这一页没有符合条件的引用。没有记录不等于可以删除。</p>
+  {% else %}
+    <div class="xedc-ops-table-wrap">
+      <table class="xedc-ops-table">
+        <thead><tr><th>来源</th><th>内容</th><th>类型</th><th>修订</th><th>语言</th><th>字段</th><th>状态</th><th>迁移</th><th>说明</th><th>入口</th></tr></thead>
+        <tbody>
+          {% for ref in rows %}
+            <tr>
+              <td>{{ ref.source }}</td>
+              <td>{{ ref.title }}{% if ref.parent %} · {{ ref.parent }}{% endif %}</td>
+              <td>{{ ref.bundle }}</td>
+              <td>{{ ref.revision }}</td>
+              <td>{{ ref.langcode }}</td>
+              <td>{{ ref.field }}</td>
+              <td>{{ ref.status }}</td>
+              <td>{{ ref.migratable }}</td>
+              <td>{{ ref.reason }}</td>
+              <td>
+                {% if ref.view %}<a href="{{ ref.view }}">查看</a>{% endif %}
+                {% if ref.edit %}<a href="{{ ref.edit }}">编辑</a>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="xedc-ops-pager">
+      {% if pager.prev %}<a class="xedc-ops-button" href="{{ pager.prev }}">上一页</a>{% endif %}
+      <span>{{ pager.page }} / {{ pager.pages }}，共 {{ pager.total }}</span>
+      {% if pager.next %}<a class="xedc-ops-button" href="{{ pager.next }}">下一页</a>{% endif %}
+    </div>
+  {% endif %}
+</div>

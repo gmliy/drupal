@@ -1,0 +1,194 @@
+xedc_ai.overview:
+  path: '/admin/xedc/ai'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\OverviewController::page'
+    _title: '运营概览'
+  requirements:
+    _custom_access: '\Drupal\xedc_ai\Access\AiAccess::overview'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.reviews:
+  path: '/admin/xedc/ai/reviews'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\ReviewController::collection'
+    _title: 'AI 内容审核'
+  requirements:
+    _permission: 'view xedc ai reviews'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.review:
+  path: '/admin/xedc/ai/reviews/{review}'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\ReviewController::detail'
+    _title: '审核详情'
+  requirements:
+    _permission: 'view xedc ai reviews'
+    review: \d+
+  options:
+    _admin_route: TRUE
+
+xedc_ai.seo:
+  path: '/admin/xedc/ai/seo'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\SeoController::page'
+    _title: 'AI SEO 优化'
+  requirements:
+    _permission: 'view xedc ai reviews'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.models:
+  path: '/admin/xedc/ai/models'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\ModelController::collection'
+    _title: 'AI 模型管理'
+  requirements:
+    _permission: 'administer xedc ai providers'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.model_add:
+  path: '/admin/xedc/ai/models/add'
+  defaults:
+    _form: '\Drupal\xedc_ai\Form\ModelForm'
+    _title: '添加模型'
+  requirements:
+    _permission: 'administer xedc ai providers'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.model_edit:
+  path: '/admin/xedc/ai/models/{model}/edit'
+  defaults:
+    _form: '\Drupal\xedc_ai\Form\ModelForm'
+    _title: '编辑模型'
+  requirements:
+    _permission: 'administer xedc ai providers'
+    model: \d+
+  options:
+    _admin_route: TRUE
+
+xedc_ai.model_delete:
+  path: '/admin/xedc/ai/models/{model}/delete'
+  defaults:
+    _form: '\Drupal\xedc_ai\Form\ModelDeleteForm'
+    _title: '删除模型'
+  requirements:
+    _permission: 'administer xedc ai providers'
+    model: \d+
+  options:
+    _admin_route: TRUE
+
+xedc_ai.providers:
+  path: '/admin/xedc/ai/models/providers'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\ProviderController::collection'
+    _title: 'AI 供应商'
+  requirements:
+    _permission: 'administer xedc ai providers'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.provider_add:
+  path: '/admin/xedc/ai/models/providers/add'
+  defaults:
+    _form: '\Drupal\xedc_ai\Form\ProviderForm'
+    _title: '新增供应商'
+  requirements:
+    _permission: 'administer xedc ai providers'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.provider_edit:
+  path: '/admin/xedc/ai/models/providers/{provider}/edit'
+  defaults:
+    _form: '\Drupal\xedc_ai\Form\ProviderForm'
+    _title: '编辑供应商'
+  requirements:
+    _permission: 'administer xedc ai providers'
+    provider: '[a-z][a-z0-9_]{0,31}'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.provider_delete:
+  path: '/admin/xedc/ai/models/providers/{provider}/delete'
+  defaults:
+    _form: '\Drupal\xedc_ai\Form\ProviderDeleteForm'
+    _title: '删除供应商'
+  requirements:
+    _permission: 'administer xedc ai providers'
+    provider: '[a-z][a-z0-9_]{0,31}'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.settings:
+  path: '/admin/xedc/ai/models/settings'
+  defaults:
+    _form: '\Drupal\xedc_ai\Form\SettingsForm'
+    _title: 'AI 运行配置'
+  requirements:
+    _permission: 'administer xedc ai'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.duplicates:
+  path: '/admin/xedc/ai/duplicates'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\DuplicateController::page'
+    _title: '重复内容检测'
+  requirements:
+    _permission: 'view xedc ai reviews'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.submissions:
+  path: '/admin/xedc/ai/submissions'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\SubmissionController::page'
+    _title: '会员投稿审核'
+  requirements:
+    _permission: 'view xedc ai reviews'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.translate:
+  path: '/admin/xedc/ai/translate'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\TranslateController::page'
+    _title: 'AI 翻译管理'
+  requirements:
+    _permission: 'view xedc ai reviews'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.rules:
+  path: '/admin/xedc/ai/rules'
+  defaults:
+    _form: '\Drupal\xedc_ai\Form\RulesForm'
+    _title: '审核规则配置'
+  requirements:
+    _permission: 'administer xedc ai rules'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.logs:
+  path: '/admin/xedc/ai/logs'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\LogController::page'
+    _title: '操作日志'
+  requirements:
+    _permission: 'view xedc ai logs'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.usage:
+  path: '/admin/xedc/ai/usage'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\UsageController::page'
+    _title: 'API 使用统计'
+  requirements:
+    _permission: 'view xedc ai usage'
+  options:
+    _admin_route: TRUE

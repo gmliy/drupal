@@ -4,14 +4,28 @@
  * Server monitoring dashboard. Numbers come from the controller.
  */
 #}
-<div class="xedc-ops">
+{% set active_refresh = snapshot.detail.refresh_seconds|default(snapshot.refresh_seconds|default(3)) %}
+<div class="xedc-ops" data-xedc-monitor>
   <header class="xedc-ops-head">
     <div>
-      <p class="xedc-ops-kicker">运维中心</p>
       <h2 class="xedc-ops-title">服务器监控</h2>
+      <p class="xedc-ops-kicker">实时监控服务器运行状态与资源使用情况。</p>
     </div>
-    <a class="xedc-ops-button" href="?refresh=1">重新获取</a>
+    <div class="xedc-ops-tools">
+      <span class="xedc-ops-live is-{{ snapshot.ok ? 'ok' : 'bad' }}">
+        <i aria-hidden="true"></i>
+        <strong data-k="connection">{{ snapshot.connection }}</strong>
+      </span>
+      {% if snapshot.agent %}
+        <span class="xedc-ops-chip">Netdata {{ snapshot.agent }}</span>
+      {% endif %}
+      <span class="xedc-ops-chip">更新 <strong data-k="updated">{{ snapshot.updated }}</strong></span>
+      <label class="xedc-ops-check"><input type="checkbox" data-xedc-auto checked> 自动刷新</label>
+      <span class="xedc-ops-chip" data-xedc-interval>{{ active_refresh }} 秒</span>
+      <a class="xedc-ops-button" href="?refresh=1">重新获取</a>
+    </div>
   </header>
+  <p class="xedc-ops-note" data-xedc-stale hidden></p>
 
   {% if not snapshot.ok %}
     <div class="xedc-ops-alert" role="alert">
@@ -25,26 +39,47 @@
     <div><span>服务器</span><strong>{{ snapshot.hostname }}</strong></div>
     <div><span>系统</span><strong>{{ snapshot.os }}</strong></div>
     <div><span>内核</span><strong>{{ snapshot.kernel }}</strong></div>
-    <div><span>运行时间</span><strong>{{ snapshot.uptime }}</strong></div>
-    <div><span>监控</span><strong class="is-{{ snapshot.ok ? 'ok' : 'bad' }}">{{ snapshot.connection }}</strong></div>
-    <div><span>采样时间</span><strong>{{ snapshot.updated }}</strong></div>
+    <div><span>运行时间</span><strong data-k="uptime">{{ snapshot.uptime }}</strong></div>
+    <div><span>监控</span><strong class="is-{{ snapshot.ok ? 'ok' : 'bad' }}" data-k="connection">{{ snapshot.connection }}</strong></div>
+    <div><span>采样时间</span><strong data-k="updated">{{ snapshot.updated }}</strong></div>
+    <div><span>刷新间隔</span><strong data-k="refresh">{{ active_refresh }} 秒</strong></div>
+    {% if snapshot.memory_mode %}
+      <div><span>存储</span><strong>{{ snapshot.memory_mode }}</strong></div>
+    {% endif %}
+    {% if snapshot.retention %}
+      <div><span>已保存</span><strong>{{ snapshot.retention }}</strong></div>
+    {% endif %}
     {% if snapshot.agent %}
       <div><span>Netdata</span><strong>{{ snapshot.agent }}</strong></div>
     {% endif %}
   </section>
 
+  {% if snapshot.nav %}
+    <nav class="xedc-ops-subnav" aria-label="监控分类">
+      {% for item in snapshot.nav %}
+        <a href="?section={{ item.id }}&amp;range={{ snapshot.range|default('1h') }}" data-section="{{ item.id }}" {% if snapshot.section|default('overview') == item.id %}aria-current="page"{% endif %}><span>{{ item.label }}</span></a>
+      {% endfor %}
+    </nav>
+  {% endif %}
+  <div class="xedc-ops-ranges" aria-label="历史范围">
+    {% for key, label in {'1m': '1 分钟', '5m': '5 分钟', '15m': '15 分钟', '1h': '1 小时', '6h': '6 小时', '24h': '24 小时', '7d': '7 天'} %}
+      <button type="button" data-range="{{ key }}" aria-pressed="{{ snapshot.range|default('1h') == key ? 'true' : 'false' }}">{{ label }}</button>
+    {% endfor %}
+  </div>
+
   {% if snapshot.cards %}
     <section class="xedc-ops-cards" aria-label="核心指标">
       {% for card in snapshot.cards %}
-        <article class="xedc-ops-card is-{{ card.state }}">
-          <h3>{{ card.label }}</h3>
-          <p class="xedc-ops-value">{{ card.value }}</p>
-          <p class="xedc-ops-detail">{{ card.detail }}</p>
+        <article class="xedc-ops-card is-{{ card.state }}" data-card="{{ loop.index0 }}">
+          <h3><i class="xedc-ops-icon" data-icon="{{ loop.index0 }}" aria-hidden="true"></i>{{ card.label }}</h3>
+          <p class="xedc-ops-value" data-card-value>{{ card.value }}</p>
+          <p class="xedc-ops-detail" data-card-detail>{{ card.detail }}</p>
         </article>
       {% endfor %}
     </section>
   {% endif %}
 
+  <div data-xedc-overview class="{{ snapshot.section|default('overview') != 'overview' ? 'is-hidden' : '' }}">
   {% if snapshot.cores %}
     <section class="xedc-ops-cores" aria-label="CPU 核心">
       {% for core in snapshot.cores %}
@@ -59,13 +94,18 @@
     <p class="xedc-ops-note">{{ snapshot.cores_note }}</p>
   {% endif %}
 
-  <section class="xedc-ops-charts" data-xedc-monitor aria-label="历史趋势">
-    <div class="xedc-ops-ranges">
-      <button type="button" data-range="1h" aria-pressed="true">最近 1 小时</button>
-      <button type="button" data-range="6h" aria-pressed="false">最近 6 小时</button>
-      <button type="button" data-range="24h" aria-pressed="false">最近 24 小时</button>
-      <button type="button" data-range="7d" aria-pressed="false">最近 7 天</button>
-    </div>
+  {% if snapshot.cpu_rows %}
+    <section class="xedc-ops-panel" aria-label="CPU 状态">
+      <h3>CPU 状态</h3>
+      <ul class="xedc-ops-metrics">
+        {% for row in snapshot.cpu_rows %}
+          <li><span>{{ row.label }}</span><strong>{{ row.value }}</strong></li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  <section class="xedc-ops-charts" aria-label="历史趋势">
     <p class="xedc-ops-note" data-xedc-monitor-notice>正在读取历史采样。</p>
     <div class="xedc-ops-chart-grid">
       {% for key, title in {'cpu': 'CPU 趋势', 'memory': '内存趋势', 'disk': '磁盘趋势', 'network': '网络流量趋势'} %}
@@ -155,16 +195,20 @@
       <div class="xedc-ops-table-wrap">
         <table class="xedc-ops-table">
           <thead>
-            <tr><th>接口</th><th>状态</th><th>接收</th><th>发送</th><th>累计流量</th></tr>
+            <tr><th>接口</th><th>类型</th><th>状态</th><th>接收</th><th>发送</th><th>累计流量</th><th>数据包</th><th>错误</th><th>丢包</th></tr>
           </thead>
           <tbody>
             {% for row in snapshot.interfaces %}
               <tr>
                 <td>{{ row.name }}</td>
+                <td>{{ row.kind|default('') }}</td>
                 <td>{{ row.state }}</td>
                 <td>{{ row.rx }}</td>
                 <td>{{ row.tx }}</td>
                 <td>{{ row.totals }}</td>
+                <td>{{ row.packets|default('未采集') }}</td>
+                <td>{{ row.errors|default('未采集') }}</td>
+                <td>{{ row.drops|default('未采集') }}</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -175,4 +219,11 @@
     {% endif %}
     {% if snapshot.totals_note %}<p class="xedc-ops-note">{{ snapshot.totals_note }}</p>{% endif %}
   </section>
+  </div>
+
+  <div data-xedc-detail class="{{ snapshot.section|default('overview') == 'overview' ? 'is-hidden' : '' }}">
+    {% if snapshot.detail %}
+      {% include '@xedc_core/xedc-core-monitor-detail.html.twig' with {detail: snapshot.detail, range: snapshot.range|default('1h')} %}
+    {% endif %}
+  </div>
 </div>

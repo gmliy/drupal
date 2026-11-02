@@ -1,0 +1,22 @@
+_core:
+  default_config_hash: fdC3HewPmgH3L5AIuWgb_73wQYvNY7LNmuyv6fZghSE
+default_model_id: 25
+fallback_model_id: 0
+timeout: 30
+max_tokens: 4096
+temperature: '0.2'
+auto_review_article: false
+auto_review_photo: false
+auto_review_video: false
+auto_review_submission: false
+deep_analysis: false
+retry_limit: 1
+max_concurrent: 2
+daily_budget: '2.00'
+monthly_budget: '30.00'
+budget_action: pause_auto
+allow_manual_over_budget: false
+allow_unpriced_manual: true
+unpriced_daily_tokens: 100000
+rule_version: 1
+retention_days: 180

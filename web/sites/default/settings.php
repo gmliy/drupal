@@ -975,3 +975,13 @@ if (!\Drupal\Core\Installer\InstallerKernel::installationAttempted() && extensio
     ],
   ];
 }
+
+/**
+ * XEDC S3-compatible object storage.
+ * Credentials stay in the environment. Invalid values keep local files.
+ */
+$xedc_storage_runtime = $app_root . '/modules/custom/xedc_core/xedc_storage.runtime.php';
+if (is_readable($xedc_storage_runtime)) {
+  include $xedc_storage_runtime;
+}
+

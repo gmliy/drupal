@@ -1,0 +1,4 @@
+administer ui sample:
+  title: 'Administer UI sample'
+  description: 'Permission description for the sample.'
+  restrict access: true

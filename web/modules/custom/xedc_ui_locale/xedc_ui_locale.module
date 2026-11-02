@@ -2,27 +2,41 @@
 
 /**
  * @file
- * Detects missing Simplified Chinese UI strings after module install.
+ * Queues Simplified Chinese interface translation after modules are installed.
  */
 
 declare(strict_types=1);
 
 use Drupal\Core\Installer\InstallerKernel;
+use Drupal\xedc_ui_locale\UiTranslationManager;
+
+/**
+ * Implements hook_module_implements_alter().
+ */
+function xedc_ui_locale_module_implements_alter(array &$implementations, string $hook): void {
+  if ($hook === 'modules_installed' && isset($implementations['xedc_ui_locale'])) {
+    $group = $implementations['xedc_ui_locale'];
+    unset($implementations['xedc_ui_locale']);
+    $implementations['xedc_ui_locale'] = $group;
+  }
+}
 
 /**
  * Implements hook_modules_installed().
  */
 function xedc_ui_locale_modules_installed(array $modules): void {
-  if (InstallerKernel::installationAttempted()) {
+  if (InstallerKernel::installationAttempted() || $modules === []) {
     return;
   }
-  $pending = \Drupal::state()->get('xedc_ui_locale.pending', []);
-  \Drupal::state()->set('xedc_ui_locale.pending', array_values(array_unique(array_merge($pending, $modules))));
   try {
-    \Drupal::service('xedc_ui_locale.filler')->fill($modules);
+    $manager = \Drupal::service(UiTranslationManager::class);
+    $manager->enqueueModules($modules, 'full');
+    if (PHP_SAPI === 'cli') {
+      $manager->processQueue(8);
+    }
   }
   catch (\Throwable $e) {
-    \Drupal::logger('xedc_ui_locale')->error('安装后补全界面翻译失败：@message。请执行 drush xedc:ui-translate。', [
+    \Drupal::logger('xedc_ui_locale')->error('安装后加入界面翻译队列失败：@message', [
       '@message' => $e->getMessage(),
     ]);
   }

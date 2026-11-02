@@ -12,6 +12,8 @@ use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
 use Drupal\file\Entity\File;
 use Drupal\file\FileInterface;
 use Drupal\file\FileUsage\FileUsageInterface;
+use Drupal\xedc_core\Ops\Storage\LocalFileBridge;
+use Drupal\xedc_core\Ops\Storage\LocalTempFileManager;
 
 /**
  * Detects, checks and extracts ZIP and 7Z archives.
@@ -29,7 +31,16 @@ class ArchiveManager {
     protected FileUsageInterface $fileUsage,
     protected ConfigFactoryInterface $configFactory,
     protected AccountProxyInterface $currentUser,
+    protected ?LocalTempFileManager $temp = NULL,
+    protected ?LocalFileBridge $files = NULL,
   ) {}
+
+  /**
+   * TRUE when an archive can be copied to a local temp directory before ZipArchive.
+   */
+  public function remoteReady(): bool {
+    return $this->files instanceof LocalFileBridge && $this->temp instanceof LocalTempFileManager;
+  }
 
   /**
    * TRUE when the private stream is configured.
@@ -115,8 +126,10 @@ class ArchiveManager {
     else {
       $stored = $this->intakeServer($server, $destination);
     }
-    $real = $this->fileSystem->realpath($stored['uri']);
-    if (!$real || !is_file($real) || is_link($real)) {
+    $owned = FALSE;
+    $real = $this->archivePath($stored['uri'], $owned);
+    try {
+    if (!is_file($real) || is_link($real)) {
       throw new ImportException('压缩包无法读取。');
     }
     $size = filesize($real);
@@ -134,26 +147,42 @@ class ArchiveManager {
       $this->addUsage($stored['fid'], $taskId);
     }
     return $stored;
+    }
+    catch (\Throwable $error) {
+      if ($owned && $this->temp instanceof LocalTempFileManager) {
+        $this->temp->recordDiagnostic('archive', $error->getMessage());
+      }
+      throw $error;
+    }
+    finally {
+      $this->releaseArchive($owned);
+    }
   }
 
   /**
    * Rejects an unreadable, empty, oversized or unknown archive before it is moved.
    */
   private function assertReadableArchive(string $uri): void {
-    $real = $this->fileSystem->realpath($uri);
-    if (!$real || !is_file($real) || is_link($real)) {
-      throw new ImportException('压缩包无法读取。');
+    $owned = FALSE;
+    $real = $this->archivePath($uri, $owned);
+    try {
+      if (!is_file($real) || is_link($real)) {
+        throw new ImportException('压缩包无法读取。');
+      }
+      $size = filesize($real);
+      if ($size === FALSE || $size < 1) {
+        throw new ImportException('压缩包是空的。');
+      }
+      if ($size > $this->limit('max_archive_bytes', 209715200)) {
+        throw new ImportException('压缩包超过大小限制。');
+      }
+      $format = $this->detect($real);
+      if ($format === '7z' && !$this->sevenZipBinary()) {
+        throw new ImportException('服务器未安装 7z，无法处理 7Z。安装：sudo apt-get install 7zip。验证：7z i');
+      }
     }
-    $size = filesize($real);
-    if ($size === FALSE || $size < 1) {
-      throw new ImportException('压缩包是空的。');
-    }
-    if ($size > $this->limit('max_archive_bytes', 209715200)) {
-      throw new ImportException('压缩包超过大小限制。');
-    }
-    $format = $this->detect($real);
-    if ($format === '7z' && !$this->sevenZipBinary()) {
-      throw new ImportException('服务器未安装 7z，无法处理 7Z。安装：sudo apt-get install 7zip。验证：7z i');
+    finally {
+      $this->releaseArchive($owned);
     }
   }
 
@@ -183,8 +212,14 @@ class ArchiveManager {
     if ($uri === '') {
       return FALSE;
     }
+    if ($this->files instanceof LocalFileBridge && $this->files->isRemoteUri($uri)) {
+      return is_file($uri) && !is_link($uri);
+    }
     $real = $this->fileSystem->realpath($uri);
-    return $real && is_file($real);
+    if ($real && is_file($real) && !is_link($real)) {
+      return TRUE;
+    }
+    return str_contains($uri, '://') && is_file($uri);
   }
 
   /**
@@ -195,8 +230,10 @@ class ArchiveManager {
    */
   public function openAndExtract(object $task): array {
     $uri = (string) $task->archive_uri;
-    $real = $this->fileSystem->realpath($uri);
-    if (!$real || !is_file($real)) {
+    $owned = FALSE;
+    $real = $this->archivePath($uri, $owned);
+    try {
+    if (!is_file($real) || is_link($real)) {
       throw new ImportException('找不到源压缩包，无法继续处理。');
     }
     $format = $this->detect($real);
@@ -217,6 +254,48 @@ class ArchiveManager {
     $collected['format'] = $format;
     $collected['work_uri'] = $work;
     return $collected;
+    }
+    catch (\Throwable $error) {
+      if ($owned && $this->temp instanceof LocalTempFileManager) {
+        $this->temp->recordDiagnostic('archive', $error->getMessage());
+      }
+      throw $error;
+    }
+    finally {
+      $this->releaseArchive($owned);
+    }
+  }
+
+  /**
+   * Local path of an archive. A remote object is copied and must be released.
+   */
+  private function archivePath(string $uri, bool &$owned): string {
+    $owned = FALSE;
+    if ($this->files instanceof LocalFileBridge && $this->files->isRemoteUri($uri)) {
+      $path = $this->files->localPath($uri);
+      if (!is_string($path) || !is_file($path) || is_link($path)) {
+        if ($this->temp instanceof LocalTempFileManager) {
+          $this->temp->recordDiagnostic('archive', '远程压缩包无法复制到本地临时文件。');
+        }
+        throw new ImportException('压缩包无法读取。');
+      }
+      $owned = TRUE;
+      return $path;
+    }
+    $real = $this->fileSystem->realpath($uri);
+    if (!$real || !is_file($real) || is_link($real)) {
+      throw new ImportException('压缩包无法读取。');
+    }
+    return $real;
+  }
+
+  /**
+   * Deletes only the temporary copy of a remote archive.
+   */
+  private function releaseArchive(bool $owned): void {
+    if ($owned && $this->files instanceof LocalFileBridge) {
+      $this->files->release();
+    }
   }
 
   /**

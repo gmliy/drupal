@@ -17,6 +17,24 @@
     <li><span>确认人</span><strong>{% if task.confirmed_uid %}UID {{ task.confirmed_uid }}{% else %}尚未确认{% endif %}</strong></li>
     {% if task.reclaimable %}<li><span>理论可释放</span><strong>{{ task.reclaimable }}</strong></li>{% endif %}
   </ul>
+  {% if task.integrity %}
+    <article class="xedc-ops-panel">
+      <h3>合并后完整性</h3>
+      <ul class="xedc-ops-metrics">
+        <li><span>结果</span><strong>{{ task.integrity.status }}</strong></li>
+        <li><span>已复核字段</span><strong>{{ task.integrity.verified }} / {{ task.integrity.total }}</strong></li>
+        <li><span>失败</span><strong>{{ task.integrity.failed }}</strong></li>
+        <li><span>警告</span><strong>{{ task.integrity.warnings }}</strong></li>
+        <li><span>无法验证</span><strong>{{ task.integrity.unverifiable }}</strong></li>
+      </ul>
+      {% if task.integrity.status != 'pass' %}
+        <p class="xedc-ops-note">只有结果为通过的合并，其待清理文件才可以进入永久清理。警告和无法验证都不能算通过。</p>
+      {% endif %}
+      {% for issue in task.integrity.issues %}
+        <p class="xedc-ops-detail">{{ issue.code }} · {{ issue.message }}</p>
+      {% endfor %}
+    </article>
+  {% endif %}
   {% if task.keep %}
     <article class="xedc-ops-panel">
       <h3>保留文件</h3>

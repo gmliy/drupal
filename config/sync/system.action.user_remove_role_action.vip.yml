@@ -1,0 +1,14 @@
+uuid: f109c1a9-b48d-4f2c-b2b1-b75d05f73ecf
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - user.role.vip
+  module:
+    - user
+id: user_remove_role_action.vip
+label: '从选择的用户中删除VIP 会员 角色'
+type: user
+plugin: user_remove_role_action
+configuration:
+  rid: vip

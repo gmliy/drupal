@@ -9,7 +9,6 @@
  */
 #}
 <div class="xedc-node" data-xedc-bundle="{{ xedc_bundle }}">
-  <div class="xedc-node__scroll">
   <div class="xedc-node__main">
     {% if xedc_bundle == 'article' %}
       <div class="xedc-node__title">{{ form.title }}</div>
@@ -74,6 +73,14 @@
       </details>
     {% endif %}
   </div>
+  <div class="xedc-node__rail">
+    <aside class="xedc-node__side">
+      <div class="xedc-publish">
+        <h2 class="xedc-publish__title">{{ '发布'|t }}</h2>
+        {{ form.footer }}
+        <div class="xedc-node__actions">{{ form.actions }}</div>
+      </div>
+    </aside>
     <div class="xedc-node__settings">
       {% if xedc_scheduler_key %}
         {{ attribute(form, xedc_scheduler_key) }}
@@ -87,13 +94,6 @@
       {% endif %}
     </div>
   </div>
-  <aside class="xedc-node__side">
-    <div class="xedc-publish">
-      <h2 class="xedc-publish__title">{{ '发布'|t }}</h2>
-      {{ form.footer }}
-      <div class="xedc-node__actions">{{ form.actions }}</div>
-    </div>
-  </aside>
 </div>
 <div hidden>
   {{ form.form_build_id }}

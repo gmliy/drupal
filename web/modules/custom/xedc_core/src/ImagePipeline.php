@@ -12,6 +12,8 @@ use Drupal\file\FileInterface;
 use Drupal\image\Entity\ImageStyle;
 use Drupal\media\Entity\Media;
 use Drupal\node\NodeInterface;
+use Drupal\xedc_core\Ops\Storage\ImageVariantBuilder;
+use Drupal\xedc_core\Ops\Storage\LocalFileBridge;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -35,7 +37,16 @@ class ImagePipeline {
     protected AltManager $alt,
     protected TaskRepository $tasks,
     protected LoggerInterface $logger,
+    protected ?LocalFileBridge $files = NULL,
+    protected ?ImageVariantBuilder $variants = NULL,
   ) {}
+
+  /**
+   * TRUE when remote originals are copied locally before GD runs.
+   */
+  public function remoteReady(): bool {
+    return $this->files instanceof LocalFileBridge;
+  }
 
   /**
    * TRUE when a GIF has more than one frame.
@@ -67,6 +78,18 @@ class ImagePipeline {
    * Imports one scanned image. A bad image is recorded and does not abort the task.
    */
   public function import(object $task, object $item, NodeInterface $node): void {
+    try {
+      $this->importBody($task, $item, $node);
+    }
+    finally {
+      $this->files?->release();
+    }
+  }
+
+  /**
+   * Imports one image. Remote temporary copies are released by import().
+   */
+  private function importBody(object $task, object $item, NodeInterface $node): void {
     $itemId = (int) $item->id;
     $taskId = (int) $task->id;
     if ((int) $item->mid > 0 && (int) $item->fid > 0) {
@@ -136,7 +159,7 @@ class ImagePipeline {
       $this->deleteBuilt($built['path'], $work);
       return;
     }
-    $this->publishNew($task, $item, $node, $built, $sourceHash, $storedHash);
+    $this->publishNew($task, $item, $node, $built, $sourceHash, $storedHash, $real, $checked);
   }
 
   /**
@@ -196,23 +219,42 @@ class ImagePipeline {
       return 'animated';
     }
     $ok = TRUE;
-    foreach (self::STYLES as $id) {
-      $style = ImageStyle::load($id);
-      if (!$style) {
-        continue;
-      }
-      $derivative = $style->buildUri($file->getFileUri());
-      $directory = $this->fileSystem->dirname($derivative);
-      $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
-      if (!$style->createDerivative($file->getFileUri(), $derivative)) {
-        $ok = FALSE;
-        $this->logger->warning('图片样式 @style 未能生成 WebP：@uri', [
-          '@style' => $id,
+    $source = $file->getFileUri();
+    $remote = $this->files instanceof LocalFileBridge && $this->files->isRemoteUri($source);
+    if ($remote) {
+      $local = $this->files->localPath($source);
+      if ($local === NULL) {
+        $this->logger->warning('远程原图无法复制到本地临时文件，图片样式未生成：@uri', [
           '@uri' => $file->getFileUri(),
         ]);
+        return 'fallback';
+      }
+      $source = $local;
+    }
+    try {
+      foreach (self::STYLES as $id) {
+        $style = ImageStyle::load($id);
+        if (!$style) {
+          continue;
+        }
+        $derivative = $style->buildUri($file->getFileUri());
+        $directory = $this->fileSystem->dirname($derivative);
+        $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
+        if (!$style->createDerivative($source, $derivative)) {
+          $ok = FALSE;
+          $this->logger->warning('图片样式 @style 未能生成 WebP：@uri', [
+            '@style' => $id,
+            '@uri' => $file->getFileUri(),
+          ]);
+        }
+      }
+      return $ok ? 'ok' : 'fallback';
+    }
+    finally {
+      if ($remote && $this->files instanceof LocalFileBridge) {
+        $this->files->release();
       }
     }
-    return $ok ? 'ok' : 'fallback';
   }
 
   /**
@@ -253,7 +295,7 @@ class ImagePipeline {
    */
   private function finishExistingFile(object $task, object $item, NodeInterface $node, string $sourceHash): void {
     $file = File::load((int) $item->fid);
-    $real = $file instanceof FileInterface ? $this->fileSystem->realpath($file->getFileUri()) : FALSE;
+    $real = $file instanceof FileInterface ? $this->readablePath($file->getFileUri()) : NULL;
     if (!$file instanceof FileInterface || !is_string($real) || !is_file($real) || str_starts_with($file->getFileUri(), 'private://')) {
       $this->tasks->markItem((int) $item->id, ['fid' => 0]);
       throw new ImportException('上次创建的正式文件已不可用。');
@@ -276,7 +318,7 @@ class ImagePipeline {
   private function reuseItem(object $task, object $item, object $prior, string $sourceHash): bool {
     $file = File::load((int) $prior->fid);
     $media = Media::load((int) $prior->mid);
-    $real = $file instanceof FileInterface ? $this->fileSystem->realpath($file->getFileUri()) : FALSE;
+    $real = $file instanceof FileInterface ? $this->readablePath($file->getFileUri()) : NULL;
     if (!$file instanceof FileInterface || !$media || !is_string($real) || !is_file($real) || str_starts_with($file->getFileUri(), 'private://')) {
       return FALSE;
     }
@@ -301,7 +343,7 @@ class ImagePipeline {
    */
   private function reuseFile(object $task, object $item, NodeInterface $node, array $existing, string $sourceHash, bool $zipDuplicate): bool {
     $file = $existing['file'];
-    $real = $this->fileSystem->realpath($file->getFileUri());
+    $real = $this->readablePath($file->getFileUri());
     if (!is_string($real) || !is_file($real)) {
       return FALSE;
     }
@@ -337,12 +379,14 @@ class ImagePipeline {
    * @param array{path: string, mime: string, extension: string, width: int, height: int, bytes: int, animated: bool, delivery: string} $built
    *   Validated official image still inside the task directory.
    */
-  private function publishNew(object $task, object $item, NodeInterface $node, array $built, string $sourceHash, string $storedHash): void {
+  private function publishNew(object $task, object $item, NodeInterface $node, array $built, string $sourceHash, string $storedHash, ?string $sourcePath = NULL, array $sourceInfo = []): void {
     $directory = 'public://' . date('Y-m');
     $ready = $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
+    $remotePublic = $this->files instanceof LocalFileBridge && $this->files->schemeIsRemote('public');
     $directoryReal = $ready ? $this->fileSystem->realpath($directory) : FALSE;
     clearstatcache(TRUE, is_string($directoryReal) ? $directoryReal : $directory);
-    if (!$ready || !is_string($directoryReal) || $directoryReal === '' || !is_dir($directoryReal) || !is_writable($directoryReal)) {
+    $localDirectory = is_string($directoryReal) && $directoryReal !== '' && is_dir($directoryReal) && is_writable($directoryReal);
+    if (!$ready || (!$remotePublic && !$localDirectory)) {
       throw new ImportAbortException('目标目录 ' . $directory . ' 无法创建或当前用户不可写，已停止导入。');
     }
     $total = max((int) $item->weight, (int) $task->total);
@@ -358,13 +402,18 @@ class ImagePipeline {
       $file->save();
     }
     catch (\Throwable $e) {
-      $copied = $this->fileSystem->realpath($uri);
-      if (is_string($copied) && is_file($copied)) {
-        unlink($copied);
+      if ($remotePublic) {
+        $this->fileSystem->delete($uri);
+      }
+      else {
+        $copied = $this->fileSystem->realpath($uri);
+        if (is_string($copied) && is_file($copied)) {
+          unlink($copied);
+        }
       }
       throw new ImportException('正式文件记录创建失败。');
     }
-    $storedReal = $this->fileSystem->realpath($file->getFileUri());
+    $storedReal = $this->readablePath($file->getFileUri());
     $bytes = is_string($storedReal) ? (int) filesize($storedReal) : 0;
     $this->rememberFile((int) $file->id(), $built['animated'], $built['delivery'], $bytes, $sourceHash, $storedHash);
     $alt = $this->altText($task, $item, $node);
@@ -387,6 +436,14 @@ class ImagePipeline {
       throw new ImportException('图片媒体创建失败。');
     }
     $this->markReady($item, $file, $media, $sourceHash, $storedHash, FALSE, 'success', $alt, $built);
+    if ($this->variants instanceof ImageVariantBuilder) {
+      try {
+        $this->variants->keep($file, $sourcePath, $sourceInfo, $built);
+      }
+      catch (\Throwable $error) {
+        $this->logger->warning('图片副本没有全部生成，正式文件已保留：@message', ['@message' => $error->getMessage()]);
+      }
+    }
   }
 
   /**
@@ -396,7 +453,7 @@ class ImagePipeline {
    *   Stored image description when this call created it.
    */
   private function markReady(object $item, FileInterface $file, Media $media, string $sourceHash, string $storedHash, bool $reused, string $status, string $alt = '', array $built = []): void {
-    $real = $this->fileSystem->realpath($file->getFileUri());
+    $real = $this->readablePath($file->getFileUri());
     $bytes = is_string($real) && is_file($real) ? (int) filesize($real) : (int) $file->getSize();
     if ($alt === '' && $media->hasField('field_media_image') && !$media->get('field_media_image')->isEmpty()) {
       $alt = (string) $media->get('field_media_image')->alt;
@@ -449,7 +506,7 @@ class ImagePipeline {
       if (!$file instanceof FileInterface || str_starts_with($file->getFileUri(), 'private://')) {
         continue;
       }
-      $real = $this->fileSystem->realpath($file->getFileUri());
+      $real = $this->readablePath($file->getFileUri());
       if (!is_string($real) || !is_file($real) || is_link($real)) {
         continue;
       }
@@ -884,6 +941,17 @@ class ImagePipeline {
   /**
    * TRUE when a database table is present.
    */
+  /**
+   * Local path for GD and hashing. Remote URIs are copied to temp first.
+   */
+  private function readablePath(string $uri): ?string {
+    if ($this->files instanceof LocalFileBridge) {
+      return $this->files->localPath($uri);
+    }
+    $real = $this->fileSystem->realpath($uri);
+    return is_string($real) && is_file($real) && !is_link($real) ? $real : NULL;
+  }
+
   private function databaseTable(string $table): bool {
     return \Drupal::database()->schema()->tableExists($table);
   }

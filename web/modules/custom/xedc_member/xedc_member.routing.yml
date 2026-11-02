@@ -18,6 +18,36 @@ xedc_member.favorites:
   options:
     no_cache: TRUE
 
+xedc_member.likes:
+  path: '/member/likes'
+  defaults:
+    _controller: '\Drupal\xedc_member\Controller\MemberController::likes'
+    _title: '我的点赞'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+  options:
+    no_cache: TRUE
+
+xedc_member.downloads:
+  path: '/member/downloads'
+  defaults:
+    _controller: '\Drupal\xedc_member\Controller\MemberController::downloads'
+    _title: '我的下载'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+  options:
+    no_cache: TRUE
+
+xedc_member.membership:
+  path: '/member/membership'
+  defaults:
+    _controller: '\Drupal\xedc_member\Controller\MemberController::membership'
+    _title: '会员等级'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+  options:
+    no_cache: TRUE
+
 xedc_member.history:
   path: '/member/history'
   defaults:

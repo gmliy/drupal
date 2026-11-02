@@ -42,12 +42,15 @@ class FileReferenceMerger {
     if (($payload['blocked'] ?? []) !== []) {
       return ['ok' => FALSE, 'error' => '方案里有不能迁移的引用，已阻止合并。', 'journal' => []];
     }
-    $journal = [];
+    $journal = is_array($task['result']['journal'] ?? NULL) ? $task['result']['journal'] : [];
     $applied = 0;
     try {
       foreach ($migrations as $ref) {
         if (($ref['source'] ?? '') !== 'field' || (int) ($ref['migratable'] ?? 0) !== 1) {
           throw new \RuntimeException('方案含有不是字段迁移的项目。');
+        }
+        if ((int) $this->state->get('xedc_cleanup_hold_next', 0) > 0) {
+          throw new RecoverableMergeException('下一条迁移已暂停，已完成的引用保持不变。');
         }
         $before = $this->replace(
           (string) $ref['entity_type'],
@@ -64,12 +67,19 @@ class FileReferenceMerger {
           'result' => [
             'started' => 1,
             'completed' => 0,
+            'batch_open' => 1,
+            'cursor' => (int) ($task['result']['cursor'] ?? 0),
+            'total' => (int) ($task['result']['total'] ?? count($migrations)),
             'journal' => $journal,
           ],
         ]);
         $failAfter = (int) $this->state->get('xedc_cleanup_fail_after_saves', 0);
         if ($failAfter > 0 && $applied >= $failAfter) {
           throw new \RuntimeException('测试失败点：在第 ' . $applied . ' 次保存后停止。');
+        }
+        $pauseAfter = (int) $this->state->get('xedc_cleanup_pause_after_saves', 0);
+        if ($pauseAfter > 0 && $applied >= $pauseAfter) {
+          throw new RecoverableMergeException('已完成的迁移会保留，其余可以重试。');
         }
       }
       $this->reconcileUsage($payload, $migrations);
@@ -78,8 +88,33 @@ class FileReferenceMerger {
       }
       $this->verify($migrations, (int) $payload['keep']['fid']);
     }
+    catch (RecoverableMergeException $exception) {
+      return [
+        'ok' => FALSE,
+        'recoverable' => TRUE,
+        'error' => $exception->getMessage(),
+        'journal' => $journal,
+        'rolled_back' => FALSE,
+      ];
+    }
+    catch (ManualMergeException $exception) {
+      return [
+        'ok' => FALSE,
+        'manual' => TRUE,
+        'error' => $exception->getMessage(),
+        'journal' => $journal,
+        'rolled_back' => FALSE,
+      ];
+    }
     catch (\Throwable $exception) {
       $rolled = $this->rollback($journal);
+      foreach ($migrations as $ref) {
+        try {
+          $this->entityTypeManager->getStorage((string) $ref['entity_type'])->resetCache([(int) $ref['entity_id']]);
+        }
+        catch (\Throwable) {
+        }
+      }
       foreach (array_merge([$payload['keep']['fid'] ?? 0], array_column($payload['drops'] ?? [], 'fid')) as $fid) {
         $this->keepPermanent((int) $fid);
       }
@@ -125,16 +160,42 @@ class FileReferenceMerger {
     }
     unset($item);
     if (!$changed) {
-      throw new \RuntimeException('字段里已经没有待迁移的文件 ' . $from . '。');
+      $targets = [];
+      foreach ($before as $item) {
+        $targets[] = (int) ($item['target_id'] ?? 0);
+      }
+      $foreign = array_filter($targets, static fn(int $id): bool => $id !== $to);
+      if ($foreign === [] && in_array($to, $targets, TRUE)) {
+        return [
+          'skipped' => 1,
+          'entity_type' => $entityType,
+          'entity_id' => $entityId,
+          'revision_id' => $revisionId,
+          'langcode' => $langcode,
+          'field_name' => $fieldName,
+          'was_default' => TRUE,
+          'before' => $before,
+        ];
+      }
+      throw new ManualMergeException('字段已被其他操作修改，需要人工处理，不会覆盖现有文件。');
     }
-    $wasDefault = !$entity instanceof RevisionableInterface || $entity->isDefaultRevision();
+    $revisionable = $entity->getEntityType()->isRevisionable();
+    $wasDefault = !$revisionable || !$entity instanceof RevisionableInterface || $entity->isDefaultRevision();
     $entity->set($fieldName, $values);
     $entity->setSyncing(TRUE);
-    $entity->setNewRevision(FALSE);
-    if ($entity instanceof RevisionableInterface && !$wasDefault) {
-      $entity->isDefaultRevision(FALSE);
+    if ($revisionable) {
+      $entity->setNewRevision(FALSE);
+      if ($entity instanceof RevisionableInterface && !$wasDefault) {
+        $entity->isDefaultRevision(FALSE);
+      }
     }
-    $storage->save($entity);
+    try {
+      $storage->save($entity);
+    }
+    catch (\Throwable $exception) {
+      $storage->resetCache([$entityId]);
+      throw $exception;
+    }
     return [
       'entity_type' => $entityType,
       'entity_id' => $entityId,
@@ -153,6 +214,9 @@ class FileReferenceMerger {
   public function rollback(array $journal): bool {
     $ok = TRUE;
     foreach (array_reverse($journal) as $entry) {
+      if (!empty($entry['skipped'])) {
+        continue;
+      }
       try {
         $storage = $this->entityTypeManager->getStorage((string) $entry['entity_type']);
         $definition = $this->entityTypeManager->getDefinition((string) $entry['entity_type']);
@@ -169,9 +233,12 @@ class FileReferenceMerger {
         }
         $entity->set((string) $entry['field_name'], $entry['before']);
         $entity->setSyncing(TRUE);
-        $entity->setNewRevision(FALSE);
-        if ($entity instanceof RevisionableInterface && empty($entry['was_default'])) {
-          $entity->isDefaultRevision(FALSE);
+        $revisionable = $entity->getEntityType()->isRevisionable();
+        if ($revisionable) {
+          $entity->setNewRevision(FALSE);
+          if ($entity instanceof RevisionableInterface && empty($entry['was_default'])) {
+            $entity->isDefaultRevision(FALSE);
+          }
         }
         $storage->save($entity);
       }
@@ -209,8 +276,15 @@ class FileReferenceMerger {
         }
         foreach ($types as $type => $ids) {
           foreach ($ids as $id => $count) {
+            $final = !array_key_exists('final_batch', $payload) || !empty($payload['final_batch']);
             if (empty($migrated[$type . ':' . $id])) {
-              throw new \RuntimeException('使用记录没有对应的字段迁移，已停止。');
+              if (!$this->entityStillReferences((string) $type, (int) $id, (int) $file->id())) {
+                continue;
+              }
+              if ($final) {
+                throw new \RuntimeException('使用记录没有对应的字段迁移，已停止。');
+              }
+              continue;
             }
             $this->fileUsage->delete($file, 'file', (string) $type, (string) $id, 0);
             $this->fileUsage->add($keep, 'file', (string) $type, (string) $id);
@@ -253,6 +327,32 @@ class FileReferenceMerger {
         throw new \RuntimeException('迁移后没有找到保留文件。');
       }
     }
+  }
+
+  private function entityStillReferences(string $entityType, int $entityId, int $fid): bool {
+    try {
+      $storage = $this->entityTypeManager->getStorage($entityType);
+      $storage->resetCache([$entityId]);
+      $entity = $storage->load($entityId);
+    }
+    catch (\Throwable) {
+      return TRUE;
+    }
+    if (!$entity instanceof ContentEntityInterface || $fid <= 0) {
+      return TRUE;
+    }
+    foreach ($entity->getFieldDefinitions() as $name => $definition) {
+      $type = $definition->getType();
+      if (!in_array($type, ['file', 'image', 'entity_reference'], TRUE) || !$entity->hasField($name)) {
+        continue;
+      }
+      foreach ($entity->get($name)->getValue() as $item) {
+        if ((int) ($item['target_id'] ?? 0) === $fid) {
+          return TRUE;
+        }
+      }
+    }
+    return FALSE;
   }
 
   private function keepPermanent(int $fid): void {

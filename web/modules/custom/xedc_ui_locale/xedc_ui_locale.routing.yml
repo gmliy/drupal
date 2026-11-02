@@ -1,0 +1,7 @@
+xedc_ui_locale.manage:
+  path: '/admin/config/regional/xedc-ui-locale'
+  defaults:
+    _form: '\Drupal\xedc_ui_locale\Form\ManageForm'
+    _title: '界面翻译'
+  requirements:
+    _permission: 'administer xedc ui locale'

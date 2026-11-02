@@ -31,7 +31,7 @@
       <div class="xedc-ops-table-wrap">
         <table class="xedc-ops-table">
           <thead>
-            <tr><th>组</th><th>数量</th><th>总大小</th><th>理论可释放</th><th>类型</th><th>风险</th><th>引用</th><th>SHA-256</th></tr>
+            <tr><th>组</th><th>数量</th><th>总大小</th><th>理论可释放</th><th>引用位置</th><th>内容实体</th><th>未知</th><th>类型</th><th>风险</th><th>引用</th><th>SHA-256</th></tr>
           </thead>
           <tbody>
             {% for row in rows %}
@@ -40,6 +40,9 @@
                 <td>{{ row.count }}</td>
                 <td>{{ row.bytes }}</td>
                 <td>{{ row.reclaimable }}</td>
+                <td>{{ row.locations }}</td>
+                <td>{{ row.entities }}</td>
+                <td>{{ row.unknown }}</td>
                 <td>{{ row.family }}</td>
                 <td><span class="xedc-ops-badge{% if row.risk == '高' %} is-high{% endif %}">{{ row.risk }}</span></td>
                 <td>{{ row.status }}</td>

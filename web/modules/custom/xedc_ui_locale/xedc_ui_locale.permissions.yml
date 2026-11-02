@@ -1,0 +1,4 @@
+administer xedc ui locale:
+  title: '管理界面翻译'
+  description: '查看界面翻译状态，并重新扫描、导入官方语言包或重试失败任务。'
+  restrict access: true

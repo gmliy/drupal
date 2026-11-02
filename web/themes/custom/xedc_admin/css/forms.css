@@ -156,15 +156,95 @@ html.xedc-admin-active.js .js-hide {
 .xedc-admin-active details,
 .xedc-admin-active fieldset {
   margin: 0 0 16px;
-  padding: 12px;
+  padding: 12px 16px 16px;
   border: 1px solid var(--xedc-admin-border);
-  border-radius: var(--xedc-admin-radius-md);
+  border-radius: 8px;
   background: var(--xedc-admin-surface);
+  min-inline-size: 0;
+}
+
+html.xedc-admin-active fieldset > legend,
+html.xedc-admin-active fieldset > .fieldset-legend,
+html.xedc-admin-active .fieldset__legend {
+  position: static;
+  float: none;
+  width: auto;
+  max-width: 100%;
+  margin: 0 0 8px;
+  padding: 0;
+  color: var(--xedc-admin-foreground);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .xedc-admin-active summary {
   cursor: pointer;
   font-weight: 600;
+}
+
+html.xedc-admin-active .js-form-type-checkbox:not(.form-no-label),
+html.xedc-admin-active .js-form-type-radio:not(.form-no-label),
+html.xedc-admin-active .form-type-checkbox:not(.form-no-label),
+html.xedc-admin-active .form-type-radio:not(.form-no-label) {
+  display: grid;
+  grid-template-columns: auto minmax(8em, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: start;
+  min-height: 44px;
+}
+
+html.xedc-admin-active .js-form-type-checkbox:not(.form-no-label) > input,
+html.xedc-admin-active .js-form-type-radio:not(.form-no-label) > input,
+html.xedc-admin-active .form-type-checkbox:not(.form-no-label) > input,
+html.xedc-admin-active .form-type-radio:not(.form-no-label) > input {
+  grid-column: 1;
+  grid-row: 1;
+  margin-top: 3px;
+}
+
+html.xedc-admin-active .js-form-type-checkbox:not(.form-no-label) > label,
+html.xedc-admin-active .js-form-type-radio:not(.form-no-label) > label,
+html.xedc-admin-active .form-type-checkbox:not(.form-no-label) > label,
+html.xedc-admin-active .form-type-radio:not(.form-no-label) > label {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 8em;
+  margin: 0;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+html.xedc-admin-active .js-form-type-checkbox > .description,
+html.xedc-admin-active .js-form-type-checkbox > .form-item__description,
+html.xedc-admin-active .js-form-type-radio > .description,
+html.xedc-admin-active .js-form-type-radio > .form-item__description,
+html.xedc-admin-active .form-type-checkbox > .description,
+html.xedc-admin-active .form-type-radio > .description {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 8em;
+}
+
+html.xedc-admin-active td .js-form-type-checkbox,
+html.xedc-admin-active td .js-form-type-radio,
+html.xedc-admin-active th .js-form-type-checkbox,
+html.xedc-admin-active th .js-form-type-radio {
+  display: inline-flex;
+  grid-template-columns: none;
+  min-width: 0;
+  min-height: 0;
+}
+
+html.xedc-admin-active td .js-form-type-checkbox > label,
+html.xedc-admin-active td .js-form-type-radio > label,
+html.xedc-admin-active th .js-form-type-checkbox > label,
+html.xedc-admin-active th .js-form-type-radio > label {
+  min-width: 0;
 }
 
 .xedc-admin-active .form-required::after {
@@ -187,12 +267,15 @@ html.xedc-admin-active.js .js-hide {
     font-size: 16px;
   }
 
-  .xedc-admin-active .form-type-checkbox,
-  .xedc-admin-active .form-type-radio,
-  .xedc-admin-active .js-form-type-checkbox,
-  .xedc-admin-active .js-form-type-radio {
-    display: flex;
-    align-items: center;
+}
+
+@media (max-width: 767px) {
+  html.xedc-admin-active .form-actions .button,
+  html.xedc-admin-active .form-actions input.form-submit,
+  html.xedc-admin-active input.button--primary,
+  html.xedc-admin-active a.button--primary,
+  html.xedc-admin-active .action-links a,
+  html.xedc-admin-active a.button-action {
     min-height: 44px;
   }
 }

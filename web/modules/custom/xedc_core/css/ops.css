@@ -355,9 +355,36 @@
   font-size: 12px;
 }
 
-.xedc-ops-badge.is-high {
+.xedc-ops-badge.is-high,
+.xedc-ops-badge.is-bad {
   background: #fef2f2;
   color: #991b1b;
+}
+
+.xedc-ops-badge.is-ok {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.xedc-ops-badge.is-warn {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.xedc-ops-badge.is-muted {
+  background: #f4f4f5;
+  color: #52525b;
+}
+
+.xedc-ops-subnav a[aria-current="page"] {
+  border-color: var(--ops-text);
+  font-weight: 600;
+}
+
+.xedc-ops pre,
+.xedc-ops code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .xedc-ops-plot.is-loading {
@@ -378,6 +405,47 @@
   }
 }
 
+.xedc-ops .is-hidden {
+  display: none !important;
+}
+
+.xedc-ops-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.xedc-ops-check {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--ops-muted);
+  font-size: 13px;
+}
+
+.xedc-ops-metrics em {
+  display: block;
+  color: var(--ops-muted);
+  font-style: normal;
+  font-size: 12px;
+}
+
+.xedc-ops-metrics em.is-failed,
+.xedc-ops-metrics em.is-stale {
+  color: var(--ops-bad);
+}
+
+.xedc-ops-metrics em.is-uncollected,
+.xedc-ops-metrics em.is-unavailable {
+  color: var(--ops-muted);
+}
+
+.xedc-ops [data-xedc-stale]:not([hidden]) {
+  color: var(--ops-bad);
+}
+
 @media (max-width: 640px) {
   .xedc-ops-head,
   .xedc-ops-cards,
@@ -389,5 +457,319 @@
 
   .xedc-ops-value {
     font-size: 24px;
+  }
+}
+
+/**
+ * Monitor page only. File pages share .xedc-ops and keep the rules above.
+ */
+.xedc-ops[data-xedc-monitor] {
+  --ops-chart-axis: var(--xedc-admin-border, #e4e4e7);
+  container: xedc-monitor / inline-size;
+  max-width: none;
+  min-width: 0;
+  gap: 16px;
+  overflow-x: clip;
+  font-variant-numeric: tabular-nums;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-head {
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 4px;
+  grid-template-columns: minmax(16rem, 1fr) minmax(0, auto);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-title,
+.xedc-ops[data-xedc-monitor] .xedc-ops-kicker {
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-title {
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-kicker {
+  margin: 6px 0 0;
+  max-width: 42rem;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-tools {
+  gap: 8px;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-live,
+.xedc-ops[data-xedc-monitor] .xedc-ops-chip,
+.xedc-ops[data-xedc-monitor] .xedc-ops-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--ops-border);
+  border-radius: 999px;
+  background: var(--ops-surface);
+  color: var(--ops-muted);
+  font-size: 13px;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-live strong,
+.xedc-ops[data-xedc-monitor] .xedc-ops-chip strong {
+  color: var(--ops-text);
+  font-weight: 600;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  background: var(--ops-muted);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-live.is-ok i {
+  background: var(--ops-ok);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-live.is-bad i {
+  background: var(--ops-bad);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-button {
+  min-height: 32px;
+  border-radius: 999px;
+  background: var(--ops-surface);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-button:hover,
+.xedc-ops[data-xedc-monitor] .xedc-ops-subnav a:hover,
+.xedc-ops[data-xedc-monitor] .xedc-ops-ranges button:hover {
+  background: var(--xedc-admin-hover, #f4f4f5);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-meta,
+.xedc-ops[data-xedc-monitor] .xedc-ops-card,
+.xedc-ops[data-xedc-monitor] .xedc-ops-panel,
+.xedc-ops[data-xedc-monitor] .xedc-ops-cores div,
+.xedc-ops[data-xedc-monitor] .xedc-ops-alert {
+  border-radius: 12px;
+  box-shadow: var(--xedc-admin-shadow, 0 1px 2px rgba(39, 39, 42, 0.06));
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ops-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  background: currentColor;
+  -webkit-mask: var(--ops-glyph) center / contain no-repeat;
+  mask: var(--ops-glyph) center / contain no-repeat;
+}
+
+.xedc-ops[data-xedc-monitor] [data-icon="0"] {
+  --ops-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M6 1h4v2h-4zM6 13h4v2h-4zM1 6h2v4H1zM13 6h2v4h-2zM4 4h8v8H4z'/%3E%3C/svg%3E");
+}
+
+.xedc-ops[data-xedc-monitor] [data-icon="1"] {
+  --ops-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M2 3h12v3H2zM3 8h10v2H3zM4 12h8v2H4z'/%3E%3C/svg%3E");
+}
+
+.xedc-ops[data-xedc-monitor] [data-icon="2"] {
+  --ops-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M3 4h10v8H3zM3 6h10V4H3z'/%3E%3C/svg%3E");
+}
+
+.xedc-ops[data-xedc-monitor] [data-icon="3"] {
+  --ops-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M2 7h8V5l4 3-4 3V9H2z'/%3E%3C/svg%3E");
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-value {
+  min-height: 34px;
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-subnav {
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-subnav a {
+  flex: 0 0 auto;
+  border-color: transparent;
+  background: transparent;
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: var(--ops-muted);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-subnav a[aria-current="page"] {
+  background: var(--xedc-admin-hover, #f4f4f5);
+  border-color: transparent;
+  color: var(--ops-text);
+  font-weight: 600;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-ranges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid var(--ops-border);
+  border-radius: 10px;
+  background: var(--xedc-admin-background, #f7f7f8);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-ranges button {
+  border: 0;
+  background: transparent;
+  border-radius: 7px;
+  color: var(--ops-muted);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-ranges button[aria-pressed="true"] {
+  background: var(--ops-surface);
+  border-color: transparent;
+  color: var(--ops-text);
+  box-shadow: 0 0 0 1px var(--ops-border);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-chart-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-plot {
+  min-height: 188px;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-plot.is-loading {
+  background: linear-gradient(90deg, transparent, var(--xedc-admin-hover, #f4f4f5), transparent);
+  background-size: 200% 100%;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-table-wrap {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-table th {
+  background: var(--xedc-admin-table-head, transparent);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-table td:nth-child(n+3) {
+  font-variant-numeric: tabular-nums;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--xedc-admin-hover, #f4f4f5);
+  color: var(--ops-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-pill.is-ok,
+.xedc-ops[data-xedc-monitor] .xedc-ops-pill.is-complete {
+  background: var(--xedc-admin-badge-success-bg, #dcfce7);
+  color: var(--xedc-admin-success, #16a34a);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-pill.is-partial {
+  background: var(--xedc-admin-badge-warning-bg, #fef3c7);
+  color: var(--xedc-admin-warning, #d97706);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-pill.is-gap,
+.xedc-ops[data-xedc-monitor] .xedc-ops-pill.is-failed,
+.xedc-ops[data-xedc-monitor] .xedc-ops-pill.is-stale,
+.xedc-ops[data-xedc-monitor] .xedc-ops-pill.is-bad {
+  background: var(--xedc-admin-badge-danger-bg, #fee2e2);
+  color: var(--xedc-admin-danger, #dc2626);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-alert {
+  background: var(--xedc-admin-danger-bg, #fef2f2);
+  border-color: var(--xedc-admin-danger-border, #fecaca);
+}
+
+.xedc-ops[data-xedc-monitor] .xedc-ops-filters input,
+.xedc-ops[data-xedc-monitor] .xedc-ops-filters select {
+  min-height: 36px;
+  border-radius: 8px;
+}
+
+.xedc-ops[data-xedc-monitor] a:focus-visible,
+.xedc-ops[data-xedc-monitor] button:focus-visible,
+.xedc-ops[data-xedc-monitor] input:focus-visible,
+.xedc-ops[data-xedc-monitor] select:focus-visible {
+  outline: 2px solid var(--xedc-admin-focus, #2563eb);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1100px) {
+  .xedc-ops[data-xedc-monitor] .xedc-ops-cards,
+  .xedc-ops[data-xedc-monitor] .xedc-ops-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container xedc-monitor (max-width: 920px) {
+  .xedc-ops[data-xedc-monitor] .xedc-ops-head {
+    grid-template-columns: 1fr;
+  }
+
+  .xedc-ops[data-xedc-monitor] .xedc-ops-tools {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 800px) {
+  .xedc-ops[data-xedc-monitor] .xedc-ops-chart-grid,
+  .xedc-ops[data-xedc-monitor] .xedc-ops-services,
+  .xedc-ops[data-xedc-monitor] .xedc-ops-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .xedc-ops[data-xedc-monitor] .xedc-ops-head,
+  .xedc-ops[data-xedc-monitor] .xedc-ops-cards,
+  .xedc-ops[data-xedc-monitor] .xedc-ops-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .xedc-ops[data-xedc-monitor] .xedc-ops-tools {
+    justify-content: flex-start;
+  }
+
+  .xedc-ops[data-xedc-monitor] .xedc-ops-value {
+    font-size: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xedc-ops[data-xedc-monitor] .xedc-ops-plot.is-loading {
+    background: var(--xedc-admin-hover, #f4f4f5);
   }
 }

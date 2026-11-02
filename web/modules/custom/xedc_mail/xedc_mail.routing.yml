@@ -1,0 +1,15 @@
+xedc_mail.preview:
+  path: '/admin/config/people/accounts/email-preview'
+  defaults:
+    _form: '\Drupal\xedc_mail\Form\EmailPreviewForm'
+    _title: '预览邮件样式'
+  requirements:
+    _permission: 'administer account settings'
+
+xedc_mail.preview_render:
+  path: '/admin/config/people/accounts/email-preview/render/{key}'
+  defaults:
+    _controller: '\Drupal\xedc_mail\Controller\PreviewController::render'
+  requirements:
+    _permission: 'administer account settings'
+    key: '[a-z0-9_]+'

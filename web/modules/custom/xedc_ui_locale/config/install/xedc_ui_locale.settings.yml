@@ -1,0 +1,5 @@
+protected_terms:
+  - DcLili
+  - Drupal
+  - XEDC
+batch_size: 20

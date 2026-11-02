@@ -74,3 +74,174 @@ xedc_core.settings:
     file_quarantine_days:
       type: integer
       label: 'Days a quarantined file must be kept'
+
+xedc_core.storage:
+  type: config_object
+  label: 'XEDC object storage'
+  mapping:
+    active_profile:
+      type: string
+      label: 'Active provider profile'
+    presign_ttl:
+      type: integer
+      label: 'Presign lifetime in seconds'
+    multipart_cleanup:
+      type: integer
+      label: 'Clean stale test multipart uploads during cron'
+    profiles:
+      type: sequence
+      label: 'Provider profiles'
+      sequence:
+        type: mapping
+        label: 'Provider profile'
+        mapping:
+          id:
+            type: string
+            label: 'Profile ID'
+          label:
+            type: string
+            label: 'Label'
+          provider:
+            type: string
+            label: 'Provider type'
+          region:
+            type: string
+            label: 'Region'
+          endpoint:
+            type: string
+            label: 'API endpoint'
+          bucket:
+            type: string
+            label: 'Bucket'
+          path_style:
+            type: boolean
+            label: 'Path-style endpoint'
+          public_base_url:
+            type: string
+            label: 'Public base URL'
+          cdn_base_url:
+            type: string
+            label: 'CDN base URL'
+          public_folder:
+            type: string
+            label: 'Public folder'
+          private_folder:
+            type: string
+            label: 'Private folder'
+          root_folder:
+            type: string
+            label: 'Root folder'
+          cache_control:
+            type: string
+            label: 'Cache-Control'
+          disable_version_sync:
+            type: boolean
+            label: 'Disable version listing'
+          upload_as_private:
+            type: boolean
+            label: 'Upload without public ACL'
+          access_key_env:
+            type: string
+            label: 'Access key environment variable'
+          secret_key_env:
+            type: string
+            label: 'Secret key environment variable'
+          bucket_env:
+            type: string
+            label: 'Bucket environment variable'
+          access_key_id:
+            type: string
+            label: 'Access key reference'
+          secret_key_id:
+            type: string
+            label: 'Secret key reference'
+          notes:
+            type: string
+            label: 'Notes'
+    policy:
+      type: mapping
+      label: 'Storage policy'
+      mapping:
+        cover_image:
+          type: string
+          label: 'Cover image'
+        thumbnail:
+          type: string
+          label: 'Thumbnail'
+        original_image:
+          type: string
+          label: 'Original image'
+        video_poster:
+          type: string
+          label: 'Video poster'
+        video_file:
+          type: string
+          label: 'Video file'
+        zip_archive:
+          type: string
+          label: 'ZIP archive'
+        vip_download:
+          type: string
+          label: 'VIP download'
+        article_attachment:
+          type: string
+          label: 'Article attachment'
+        temporary:
+          type: string
+          label: 'Temporary files'
+    cdn:
+      type: mapping
+      label: 'CDN settings'
+      mapping:
+        enabled:
+          type: boolean
+          label: 'CDN planned'
+        https_only:
+          type: boolean
+          label: 'HTTPS only'
+        image_domain:
+          type: string
+          label: 'Image domain'
+        media_domain:
+          type: string
+          label: 'Media domain'
+        base_url:
+          type: string
+          label: 'CDN base URL'
+        cache_control:
+          type: string
+          label: 'Object Cache-Control'
+        browser_cache:
+          type: string
+          label: 'Browser cache policy'
+        purge_mode:
+          type: string
+          label: 'Purge mode'
+    pricing:
+      type: mapping
+      label: 'Estimate prices'
+      mapping:
+        currency:
+          type: string
+          label: 'Currency'
+        storage_price_per_gb_month:
+          type: float
+          label: 'Storage price'
+        download_price_per_gb:
+          type: float
+          label: 'Download price'
+        request_price_per_thousand:
+          type: float
+          label: 'Request price'
+        free_storage_gb:
+          type: float
+          label: 'Free storage'
+        free_download_gb:
+          type: float
+          label: 'Free download'
+        free_requests:
+          type: integer
+          label: 'Free requests'
+        other_monthly:
+          type: float
+          label: 'Other monthly cost'

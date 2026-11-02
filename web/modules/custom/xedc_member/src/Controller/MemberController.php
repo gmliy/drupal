@@ -12,6 +12,9 @@ use Drupal\image\Entity\ImageStyle;
 use Drupal\media\MediaInterface;
 use Drupal\node\NodeInterface;
 use Drupal\user\UserInterface;
+use Drupal\xedc_core\Engagement\DownloadRecorder;
+use Drupal\xedc_core\Engagement\LikeManager;
+use Drupal\xedc_core\Form\LikeRemoveForm;
 use Drupal\xedc_member\Form\FavoriteToggleForm;
 use Drupal\xedc_member\Form\HistoryDeleteForm;
 use Drupal\xedc_member\Form\HistorySettingsForm;
@@ -79,6 +82,8 @@ class MemberController extends ControllerBase {
       '#account' => $this->accountData($account),
       '#stats' => [
         'favorites' => $this->favoriteManager->countVisible($uid),
+        'likes' => \Drupal::service('xedc_core.like_manager')->countVisible($uid),
+        'downloads' => \Drupal::service('xedc_core.download_recorder')->countForUser($uid),
         'history' => $this->historyManager->countVisible($uid),
         'comments' => $this->commentCount($uid),
         'submissions' => $this->submissionCount($uid),
@@ -126,6 +131,139 @@ class MemberController extends ControllerBase {
     ];
 
     return $this->shell('favorites', $content);
+  }
+
+  /**
+   * Likes for the current member.
+   */
+  public function likes() {
+    $uid = (int) $this->currentUser()->id();
+    $request = $this->requestStack->getCurrentRequest();
+    $type = $request ? $request->query->get('type') : NULL;
+    $type = is_string($type) && in_array($type, LikeManager::ALLOWED_BUNDLES, TRUE) ? $type : NULL;
+    /** @var \Drupal\xedc_core\Engagement\LikeManager $likes */
+    $likes = \Drupal::service('xedc_core.like_manager');
+    $rows = $likes->getRows($uid, $type);
+    $nodes = $this->loadNodesInOrder(array_map(static fn($row) => (int) $row->entity_id, $rows));
+    $cards = [];
+    foreach ($rows as $row) {
+      $node = $nodes[(int) $row->entity_id] ?? NULL;
+      if (!$node instanceof NodeInterface || !$node->access('view')) {
+        continue;
+      }
+      $card = $this->favoriteCard($node, $this->formBuilder()->getForm(LikeRemoveForm::class, (int) $node->id()));
+      $when = (int) ($row->changed ?: $row->created);
+      $card['date'] = $this->dateFormatter->format($when, 'custom', 'Y-m-d H:i');
+      $card['meta'] = $this->typeLabel($node->bundle());
+      $cards[] = $card;
+    }
+    $filters = [[
+      'key' => 'all',
+      'label' => $this->t('全部'),
+      'url' => Url::fromRoute('xedc_member.likes')->toString(),
+      'active' => $type === NULL,
+    ]];
+    foreach (LikeManager::ALLOWED_BUNDLES as $bundle) {
+      $filters[] = [
+        'key' => $bundle,
+        'label' => $this->typeLabel($bundle),
+        'url' => Url::fromRoute('xedc_member.likes', [], ['query' => ['type' => $bundle]])->toString(),
+        'active' => $type === $bundle,
+      ];
+    }
+    return $this->shell('likes', [
+      '#theme' => 'xedc_member_likes',
+      '#cards' => $cards,
+      '#filters' => $filters,
+      '#total' => $likes->countVisible($uid, $type),
+      '#pager' => [
+        '#type' => 'pager',
+        '#element' => LikeManager::PAGER_ELEMENT,
+        '#quantity' => 5,
+      ],
+      '#empty' => $type ? $this->t('这个分类还没有点赞。') : $this->t('还没有点赞。'),
+    ]);
+  }
+
+  /**
+   * Authorized download history. This is not proof the browser finished the file.
+   */
+  public function downloads() {
+    $uid = (int) $this->currentUser()->id();
+    /** @var \Drupal\xedc_core\Engagement\DownloadRecorder $recorder */
+    $recorder = \Drupal::service('xedc_core.download_recorder');
+    $labels = ['photo' => '图片', 'video' => '视频', 'article' => '文章'];
+    $states = [
+      'authorized' => $this->t('已授权'),
+      'zip_pending' => $this->t('ZIP 生成中'),
+      'zip_failed' => $this->t('ZIP 生成失败'),
+      'failed' => $this->t('交付失败'),
+    ];
+    $rows = [];
+    $nids = [];
+    $history = $recorder->history($uid);
+    foreach ($history as $row) {
+      $nids[] = (int) $row->content_id;
+    }
+    $nodes = $this->entityTypeManager()->getStorage('node')->loadMultiple(array_unique($nids));
+    foreach ($history as $row) {
+      $node = $nodes[(int) $row->content_id] ?? NULL;
+      $url = '';
+      $title = $this->t('内容不可用或已下架');
+      $cover = '';
+      if ($node instanceof NodeInterface && $node->access('view')) {
+        $title = $node->label();
+        $url = $node->toUrl()->toString();
+        $image = $this->coverImage($node);
+        $cover = is_array($image) ? (string) ($image['src'] ?? '') : '';
+      }
+      $rows[] = [
+        'content' => $title,
+        'url' => $url,
+        'cover' => $cover,
+        'bundle' => $labels[(string) $row->bundle] ?? (string) $row->bundle,
+        'title' => (string) $row->title,
+        'extension' => strtoupper((string) $row->extension),
+        'bytes' => \Drupal\xedc_core\Ops\OpsFormat::bytes((int) $row->bytes),
+        'time' => $this->dateFormatter->format((int) $row->created, 'custom', 'Y-m-d H:i'),
+        'status' => $states[(string) $row->status] ?? $this->t('已授权'),
+      ];
+    }
+    return $this->shell('downloads', [
+      '#theme' => 'xedc_member_downloads',
+      '#rows' => $rows,
+      '#total' => $recorder->countForUser($uid),
+      '#pager' => [
+        '#type' => 'pager',
+        '#element' => DownloadRecorder::PAGER_ELEMENT,
+        '#quantity' => 5,
+      ],
+    ]);
+  }
+
+  /**
+   * Current membership level. Expired VIP is shown as a normal member.
+   */
+  public function membership() {
+    $account = $this->loadAccount();
+    $snapshot = \Drupal::service('xedc_core.membership')->snapshot($account);
+    $format = static function (int $timestamp) {
+      return $timestamp > 0 ? \Drupal::service('date.formatter')->format($timestamp, 'custom', 'Y-m-d H:i') : '—';
+    };
+    return $this->shell('membership', [
+      '#theme' => 'xedc_member_membership',
+      '#membership' => [
+        'label' => $snapshot['label'],
+        'active' => $snapshot['active'],
+        'starts' => $format((int) $snapshot['starts']),
+        'expires' => $format((int) $snapshot['expires']),
+        'remaining' => (int) $snapshot['remaining'],
+        'expiring_soon' => $snapshot['expiring_soon'],
+        'expired' => $snapshot['expired'],
+        'cancelled' => $snapshot['cancelled'],
+        'benefits' => $snapshot['benefits'],
+      ],
+    ]);
   }
 
   /**
@@ -386,6 +524,9 @@ class MemberController extends ControllerBase {
     $nav = [
       ['key' => 'overview', 'label' => $this->t('概览'), 'url' => $urls['overview']],
       ['key' => 'favorites', 'label' => $this->t('我的收藏'), 'url' => $urls['favorites']],
+      ['key' => 'likes', 'label' => $this->t('我的点赞'), 'url' => $urls['likes']],
+      ['key' => 'downloads', 'label' => $this->t('我的下载'), 'url' => $urls['downloads']],
+      ['key' => 'membership', 'label' => $this->t('会员等级'), 'url' => $urls['membership']],
       ['key' => 'history', 'label' => $this->t('浏览历史'), 'url' => $urls['history']],
       ['key' => 'comments', 'label' => $this->t('我的评论'), 'url' => $urls['comments']],
       ['key' => 'submissions', 'label' => $this->t('我的投稿'), 'url' => $urls['submissions']],
@@ -433,6 +574,7 @@ class MemberController extends ControllerBase {
     }
     $name = $nickname !== '' ? $nickname : $username;
     $last_login = (int) $account->getLastLoginTime();
+    $snapshot = \Drupal::service('xedc_core.membership')->snapshot($account);
     return [
       'name' => $name,
       'username' => $username,
@@ -441,6 +583,8 @@ class MemberController extends ControllerBase {
       'initial' => $name !== '' ? mb_substr($name, 0, 1) : '?',
       'member_since' => $this->dateFormatter->format($account->getCreatedTime(), 'custom', 'Y-m-d'),
       'last_login' => $last_login > 0 ? $this->dateFormatter->format($last_login, 'custom', 'Y-m-d H:i') : $this->t('尚未登录'),
+      'tier' => $snapshot['tier'],
+      'tier_label' => $snapshot['label'],
     ];
   }
 
@@ -470,6 +614,9 @@ class MemberController extends ControllerBase {
     return [
       'overview' => Url::fromRoute('xedc_member.overview')->toString(),
       'favorites' => Url::fromRoute('xedc_member.favorites')->toString(),
+      'likes' => Url::fromRoute('xedc_member.likes')->toString(),
+      'downloads' => Url::fromRoute('xedc_member.downloads')->toString(),
+      'membership' => Url::fromRoute('xedc_member.membership')->toString(),
       'history' => Url::fromRoute('xedc_member.history')->toString(),
       'history_clear' => Url::fromRoute('xedc_member.history_clear')->toString(),
       'comments' => Url::fromRoute('xedc_member.comments')->toString(),

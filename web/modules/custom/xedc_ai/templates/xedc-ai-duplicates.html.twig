@@ -1,0 +1,61 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">AI 运营中心</p>
+      <h2 class="xedc-ai-title">重复内容检测</h2>
+    </div>
+  </header>
+  <p class="xedc-ai-note">SHA-256 表示文件完全相同。pHash 只提示图片可能相近，不能单独认定两张不同文件一定重复。视频不做画面相似度。已保存哈希 {{ scanned }} 条。感知哈希本次比较 {{ similar_scanned }} 条{% if similar_limited %}，只取了最近的一部分{% endif %}。相近阈值 {{ distance }}。</p>
+  <section class="xedc-ai-panel">
+    <h3>完全相同的文件</h3>
+    {% if exact %}
+      <div class="xedc-ai-table-wrap">
+        <table class="xedc-ai-table">
+          <thead><tr><th>SHA-256</th><th>数量</th><th>文件</th></tr></thead>
+          <tbody>
+          {% for group in exact %}
+            <tr>
+              <td><code>{{ group.sha256 }}</code></td>
+              <td>{{ group.copies }}</td>
+              <td>
+                {% for file in group.files %}
+                  <div>#{{ file.fid }} {{ file.filename }}</div>
+                {% endfor %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="xedc-ai-empty">还没有 SHA-256 完全相同的文件记录。</p>
+    {% endif %}
+  </section>
+  <section class="xedc-ai-panel">
+    <h3>疑似相近的图片</h3>
+    {% if similar %}
+      <div class="xedc-ai-table-wrap">
+        <table class="xedc-ai-table">
+          <thead><tr><th>文件</th><th>对照</th><th>距离</th></tr></thead>
+          <tbody>
+          {% for pair in similar %}
+            <tr>
+              <td>#{{ pair.left }} {{ pair.left_name }}</td>
+              <td>#{{ pair.right }} {{ pair.right_name }}</td>
+              <td>{{ pair.distance }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="xedc-ai-empty">没有达到阈值的疑似相近图片。</p>
+    {% endif %}
+  </section>
+  {% if scan %}
+    <section class="xedc-ai-panel">
+      <h3>加入本地扫描</h3>
+      {{ scan }}
+    </section>
+  {% endif %}
+</div>

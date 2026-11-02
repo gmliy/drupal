@@ -1,0 +1,14 @@
+name: 'XEDC AI'
+type: module
+description: 'AI 运营中心：统一文本模型、内容审核建议、SEO 建议和 API 用量。只分析文字，不分析图片或视频画面。'
+package: XEDC
+core_version_requirement: ^11
+configure: xedc_ai.settings
+dependencies:
+  - drupal:node
+  - drupal:user
+  - drupal:file
+  - drupal:content_moderation
+  - drupal:workflows
+  - key:key
+  - xedc_auto_translate:xedc_auto_translate

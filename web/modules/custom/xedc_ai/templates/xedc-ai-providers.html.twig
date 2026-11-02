@@ -1,0 +1,30 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">AI 模型管理</p>
+      <h2 class="xedc-ai-title">供应商</h2>
+    </div>
+    <a class="xedc-ai-button" href="{{ path('xedc_ai.provider_add') }}">新增供应商</a>
+  </header>
+  {% if rows %}
+    <div class="xedc-ai-table-wrap">
+      <table class="xedc-ai-table">
+        <thead><tr><th>名称</th><th>类型</th><th>地址</th><th>状态</th><th>密钥</th><th></th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.label }}<br><span class="xedc-ai-detail">{{ row.id }}</span></td>
+            <td>{{ row.driver }}</td>
+            <td>{{ row.base_url }}</td>
+            <td>{{ row.enabled ? '启用' : '停用' }}</td>
+            <td>{{ row.key }}{% if row.hint %} {{ row.hint }}{% endif %}</td>
+            <td><a href="{{ row.edit }}">编辑</a> <a href="{{ row.delete }}">删除</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="xedc-ai-empty">还没有供应商。新增后可以测试连接，页面不会显示完整密钥。</p>
+  {% endif %}
+</div>

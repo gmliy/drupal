@@ -1,0 +1,53 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">AI 运营中心</p>
+      <h2 class="xedc-ai-title">AI SEO 优化</h2>
+    </div>
+  </header>
+  <section class="xedc-ai-panel">
+    <h3>已保存的 Site Audit</h3>
+    <p class="xedc-ai-detail">{{ audit.message }}</p>
+    {% if audit.items %}
+      <div class="xedc-ai-table-wrap">
+        <table class="xedc-ai-table">
+          <thead><tr><th>项目</th><th>结果</th><th>说明</th></tr></thead>
+          <tbody>
+          {% for item in audit.items %}
+            <tr>
+              <td>{{ item.label }}</td>
+              <td>{{ item.value }}</td>
+              <td>{{ item.meaning }}{% if item.detail %}<br>{{ item.detail }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="xedc-ai-empty">没有可解释的已保存报告。</p>
+    {% endif %}
+    <p class="xedc-ai-links">
+      {% if audit.seo_url %}<a href="{{ audit.seo_url }}">SEO Audit</a>{% endif %}
+      {% if audit.site_url %}<a href="{{ audit.site_url }}">Site Audit</a>{% endif %}
+    </p>
+  </section>
+  {% if suggest %}
+    <section class="xedc-ai-panel">
+      <h3>按需生成建议</h3>
+      <p class="xedc-ai-detail">建议不会自动覆盖标题、简介或发布状态。</p>
+      {{ suggest }}
+    </section>
+  {% endif %}
+  <section class="xedc-ai-panel">
+    <h3>最近的 SEO 建议</h3>
+    {% if rows %}
+      <ul class="xedc-ai-list">
+        {% for row in rows %}
+          <li><a href="{{ row.url }}">{{ row.title ?: '无标题' }}</a><span>{{ row.status }} · {{ row.time }}</span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="xedc-ai-empty">还没有 SEO 建议。</p>
+    {% endif %}
+  </section>
+</div>

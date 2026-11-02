@@ -1,0 +1,36 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">AI 模型管理</p>
+      <h2 class="xedc-ai-title">模型</h2>
+    </div>
+    <a class="xedc-ai-button" href="{{ path('xedc_ai.model_add') }}">添加模型</a>
+  </header>
+  <div class="xedc-ai-cards">
+    <article class="xedc-ai-card"><h3>默认模型</h3><p class="xedc-ai-value xedc-ai-value-small">{{ default_model }}</p></article>
+    <article class="xedc-ai-card"><h3>备用模型</h3><p class="xedc-ai-value xedc-ai-value-small">{{ fallback_model }}</p></article>
+  </div>
+  {% if rows %}
+    <div class="xedc-ai-table-wrap">
+      <table class="xedc-ai-table">
+        <thead><tr><th>名称</th><th>模型 ID</th><th>供应商</th><th>能力</th><th>单价</th><th>状态</th><th></th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.label }}{% if row.default %} <span class="xedc-ai-tag">默认</span>{% endif %}{% if row.fallback %} <span class="xedc-ai-tag">备用</span>{% endif %}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.provider }}</td>
+            <td>{{ row.capabilities }}</td>
+            <td>{{ row.price }}</td>
+            <td>{{ row.enabled ? '启用' : '停用' }}</td>
+            <td><a href="{{ row.edit }}">编辑</a> <a href="{{ row.delete }}">删除</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="xedc-ai-empty">还没有模型。</p>
+  {% endif %}
+  {% if assign %}<section class="xedc-ai-panel"><h3>默认与备用</h3>{{ assign }}</section>{% endif %}
+</div>

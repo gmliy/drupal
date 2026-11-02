@@ -32,6 +32,11 @@ view xedc unused files:
   description: '查看文件引用分类。未知引用不会被显示成可以删除。'
   restrict access: true
 
+view xedc file references:
+  title: '查看文件引用详情'
+  description: '查看文件被哪些内容、修订、翻译和自定义表使用。不能通过此权限修改或删除文件。'
+  restrict access: true
+
 create xedc cleanup plans:
   title: '创建文件清理方案'
   description: '根据扫描结果创建待审核方案。不能通过此权限执行合并、隔离或删除。'
@@ -65,4 +70,29 @@ restore xedc quarantined files:
 view xedc cleanup logs:
   title: '查看文件清理日志'
   description: '查看清理操作记录。不能通过此权限修改日志。'
+  restrict access: true
+
+administer xedc object storage:
+  title: '管理对象存储'
+  description: '管理供应商配置、连接测试和迁移预检查。不能通过此权限删除业务文件或改写文件 URI。'
+  restrict access: true
+
+download xedc protected files:
+  title: '下载受保护对象文件'
+  description: '经过 Drupal 权限检查后获取短时有效的受保护对象地址。不能通过此权限访问本地私有文件。'
+  restrict access: true
+
+administer xedc downloads:
+  title: '管理下载资源'
+  description: '创建、修改、停用和删除内容的下载资源。不能通过此权限绕过 VIP 下载限制。'
+  restrict access: true
+
+administer xedc vip:
+  title: '管理 VIP 会员'
+  description: '开通、延长、取消 VIP，并查看开通和到期记录。'
+  restrict access: true
+
+view xedc engagement statistics:
+  title: '查看互动统计'
+  description: '查看点赞、下载和分享统计。不能通过此权限修改会员或下载资源。'
   restrict access: true

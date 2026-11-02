@@ -1,0 +1,5 @@
+name: 'UI Sample'
+type: module
+description: 'Save configuration for the DcLili site.'
+package: Testing
+core_version_requirement: ^11

@@ -1,0 +1,83 @@
+xedc_ai.tab.overview:
+  title: '运营概览'
+  route_name: xedc_ai.overview
+  base_route: xedc_ai.overview
+  weight: 0
+
+xedc_ai.tab.reviews:
+  title: '内容审核'
+  route_name: xedc_ai.reviews
+  base_route: xedc_ai.overview
+  weight: 1
+
+xedc_ai.tab.duplicates:
+  title: '重复检测'
+  route_name: xedc_ai.duplicates
+  base_route: xedc_ai.overview
+  weight: 2
+
+xedc_ai.tab.submissions:
+  title: '会员投稿'
+  route_name: xedc_ai.submissions
+  base_route: xedc_ai.overview
+  weight: 3
+
+xedc_ai.tab.seo:
+  title: 'SEO 优化'
+  route_name: xedc_ai.seo
+  base_route: xedc_ai.overview
+  weight: 4
+
+xedc_ai.tab.translate_manage:
+  title: '翻译管理'
+  route_name: xedc_ai.translate
+  base_route: xedc_ai.overview
+  weight: 5
+
+xedc_ai.tab.translate:
+  title: '自动翻译'
+  route_name: xedc_auto_translate.settings
+  base_route: xedc_ai.overview
+  weight: 6
+
+xedc_ai.tab.models:
+  title: '模型管理'
+  route_name: xedc_ai.models
+  base_route: xedc_ai.overview
+  weight: 7
+
+xedc_ai.tab.usage:
+  title: 'API 统计'
+  route_name: xedc_ai.usage
+  base_route: xedc_ai.overview
+  weight: 8
+
+xedc_ai.tab.rules:
+  title: '审核规则'
+  route_name: xedc_ai.rules
+  base_route: xedc_ai.overview
+  weight: 9
+
+xedc_ai.tab.logs:
+  title: '操作日志'
+  route_name: xedc_ai.logs
+  base_route: xedc_ai.overview
+  weight: 10
+
+xedc_ai.models.tab:
+  title: '模型'
+  route_name: xedc_ai.models
+  base_route: xedc_ai.models
+  weight: 0
+
+xedc_ai.providers.tab:
+  title: '供应商'
+  route_name: xedc_ai.providers
+  base_route: xedc_ai.models
+  weight: 1
+
+xedc_ai.settings.tab:
+  title: '运行配置'
+  route_name: xedc_ai.settings
+  base_route: xedc_ai.models
+  weight: 2

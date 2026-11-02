@@ -211,10 +211,17 @@ class UnusedFileScanner {
       $reason = $this->kindReason($kind);
       $refStatus = 'protected';
     }
-    elseif ((string) $row['phase'] === 'skipped' && str_contains((string) $row['message'], '不存在')) {
-      $category = 'missing_physical';
-      $reason = '数据库有记录，物理文件不存在。';
-      $refStatus = 'missing_physical';
+    elseif ($this->isContent($kind) && in_array((string) $row['phase'], ['skipped', 'failed'], TRUE) && !$this->regularFile((string) $row['path'])) {
+      if ((string) $row['path'] !== '' && is_link((string) $row['path'])) {
+        $category = 'protected';
+        $reason = '符号链接不能当作未引用文件。';
+        $refStatus = 'protected';
+      }
+      else {
+        $category = 'missing_physical';
+        $reason = '数据库有记录，物理文件不存在。';
+        $refStatus = 'missing_physical';
+      }
     }
     elseif ($incomplete) {
       $category = 'unknown';
@@ -311,6 +318,13 @@ class UnusedFileScanner {
     ];
   }
 
+  private function regularFile(string $path): bool {
+    if ($path === '' || is_link($path)) {
+      return FALSE;
+    }
+    return is_file($path);
+  }
+
   /**
    * @return array<string, int>
    *   Real paths of managed files.
@@ -325,7 +339,7 @@ class UnusedFileScanner {
       if (!is_string($uri)) {
         continue;
       }
-      $real = $this->fileSystem->realpath($uri);
+      $real = $this->guard->realpathIfLocal($uri);
       if (is_string($real) && $real !== '') {
         $paths[$real] = 1;
       }
@@ -347,6 +361,7 @@ class UnusedFileScanner {
       'quarantine' => '隔离目录受保护。',
       'protected' => '系统文件受保护。',
       'temporary' => '临时目录受保护。',
+      'remote' => '对象存储文件不按本地孤立文件处理。',
       default => '路径不在可清理范围内。',
     };
   }

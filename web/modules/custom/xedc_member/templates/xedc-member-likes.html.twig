@@ -1,0 +1,28 @@
+<header class="xm-head">
+  <div>
+    <h1 class="xm-title">{{ '我的点赞'|t }}</h1>
+    <p class="xm-sub">{{ '共 @count 个点赞'|t({'@count': total}) }}</p>
+  </div>
+</header>
+
+<nav class="xm-tabs" aria-label="{{ '点赞筛选'|t }}">
+  {% for filter in filters %}
+    <a href="{{ filter.url }}" class="xm-tab{% if filter.active %} is-active{% endif %}"{% if filter.active %} aria-current="page"{% endif %}>{{ filter.label }}</a>
+  {% endfor %}
+</nav>
+
+{% if cards %}
+  <div class="xm-grid">
+    {% for card in cards %}
+      {% include '@xedc_member/templates/xedc-member-card.html.twig' with {card: card} %}
+    {% endfor %}
+  </div>
+  {% if pager %}
+    <div class="xm-pager">{{ pager }}</div>
+  {% endif %}
+{% else %}
+  <div class="xm-empty">
+    <strong>{{ empty }}</strong>
+    <p>{{ '在内容页点赞后，会出现在这里。'|t }}</p>
+  </div>
+{% endif %}

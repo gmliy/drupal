@@ -52,6 +52,30 @@ function xedc_member_theme($existing, $type, $theme, $path) {
       ],
       'template' => 'xedc-member-favorites',
     ],
+    'xedc_member_likes' => [
+      'variables' => [
+        'cards' => [],
+        'filters' => [],
+        'total' => 0,
+        'pager' => [],
+        'empty' => '',
+      ],
+      'template' => 'xedc-member-likes',
+    ],
+    'xedc_member_downloads' => [
+      'variables' => [
+        'rows' => [],
+        'total' => 0,
+        'pager' => [],
+      ],
+      'template' => 'xedc-member-downloads',
+    ],
+    'xedc_member_membership' => [
+      'variables' => [
+        'membership' => [],
+      ],
+      'template' => 'xedc-member-membership',
+    ],
     'xedc_member_placeholder' => [
       'variables' => [
         'heading' => '',

@@ -1,0 +1,11 @@
+langcode: zh-hans
+status: true
+dependencies:
+  enforced:
+    module:
+      - xedc_core
+id: vip
+label: 'VIP 会员'
+weight: 4
+is_admin: false
+permissions: {  }

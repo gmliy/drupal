@@ -1,0 +1,24 @@
+<?php
+
+/**
+ * @file
+ * Fixture strings for the interface extractor.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Sample callbacks.
+ */
+function ui_sample_examples(): void {
+  t('Save configuration');
+  t('Hello @name', ['@name' => 'DcLili'], ['context' => 'Greeting']);
+  t('Drupal');
+}
+
+/**
+ * Sample plural.
+ */
+function ui_sample_plural(int $count): string {
+  return \Drupal::translation()->formatPlural($count, '1 item', '@count items');
+}

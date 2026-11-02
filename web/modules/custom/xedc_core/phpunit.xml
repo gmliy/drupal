@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory="/tmp/xedc-phpunit-cache">
+  <testsuites>
+    <testsuite name="xedc-core-cdn">
+      <directory>tests/src/Unit</directory>
+    </testsuite>
+  </testsuites>
+</phpunit>

@@ -1,0 +1,72 @@
+<?php
+
+/**
+ * @file
+ * HTML wrapper for core account mail. Other modules are not touched.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
+use Drupal\xedc_mail\MailWrapper;
+
+/**
+ * Implements hook_mail_alter().
+ *
+ * Any failure leaves the original plain-text message in place.
+ */
+function xedc_mail_mail_alter(array &$message): void {
+  $original = $message;
+  try {
+    \Drupal::service('xedc_mail.wrapper')->apply($message);
+  }
+  catch (\Throwable $e) {
+    $message = $original;
+    \Drupal::logger('xedc_mail')->error('Account mail was left as plain text: @message', ['@message' => $e->getMessage()]);
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function xedc_mail_theme(): array {
+  return [
+    'xedc_mail' => [
+      'variables' => [
+        'site_name' => '',
+        'site_url' => '',
+        'preheader' => '',
+        'heading' => '',
+        'body' => '',
+        'button_label' => '',
+        'button_url' => '',
+        'footer' => '',
+      ],
+      'template' => 'xedc-mail',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for the account settings form.
+ */
+function xedc_mail_form_user_admin_settings_alter(array &$form, FormStateInterface $form_state): void {
+  $form['xedc_mail_preview'] = [
+    '#type' => 'link',
+    '#title' => t('预览邮件样式'),
+    '#url' => Url::fromRoute('xedc_mail.preview'),
+    '#weight' => -100,
+    '#attributes' => ['class' => ['button']],
+  ];
+}
+
+/**
+ * Keys this module is allowed to wrap.
+ *
+ * @return string[]
+ *   Mail keys.
+ */
+function xedc_mail_allowed_keys(): array {
+  return MailWrapper::keys();
+}

@@ -1,0 +1,287 @@
+/**
+ * AI operations pages. Scoped so the rest of the admin theme stays unchanged.
+ */
+
+.xedc-ai {
+  --ai-surface: var(--xedc-admin-surface, #fff);
+  --ai-bg: var(--xedc-admin-background, #f8f9fb);
+  --ai-text: var(--xedc-admin-foreground, #18181b);
+  --ai-muted: var(--xedc-admin-muted, #71717a);
+  --ai-border: var(--xedc-admin-border, #e4e4e7);
+  --ai-ok: #16a34a;
+  --ai-warn: #b45309;
+  --ai-bad: #dc2626;
+  color: var(--ai-text);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1180px;
+}
+
+.xedc-ai-head,
+.xedc-ai-cards,
+.xedc-ai-split,
+.xedc-ai-filters,
+.xedc-ai-meta {
+  display: grid;
+  gap: 12px;
+}
+
+.xedc-ai-head {
+  grid-template-columns: 1fr auto;
+  align-items: end;
+}
+
+.xedc-ai-kicker,
+.xedc-ai-detail,
+.xedc-ai-note,
+.xedc-ai-card h3,
+.xedc-ai-list span {
+  color: var(--ai-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.xedc-ai-kicker,
+.xedc-ai-title,
+.xedc-ai-section,
+.xedc-ai-panel h3 {
+  margin: 0;
+}
+
+.xedc-ai-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.xedc-ai-section,
+.xedc-ai-panel h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.xedc-ai-cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.xedc-ai-card,
+.xedc-ai-panel {
+  background: var(--ai-surface);
+  border: 1px solid var(--ai-border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.xedc-ai-value {
+  margin: 8px 0 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.xedc-ai-value-small {
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.xedc-ai-split {
+  grid-template-columns: 1.2fr 0.8fr;
+}
+
+.xedc-ai-filters {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+}
+
+.xedc-ai-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ai-muted);
+}
+
+.xedc-ai-form .form-item,
+.xedc-ai-filters input,
+.xedc-ai-filters select,
+.xedc-ai-form input,
+.xedc-ai-form select,
+.xedc-ai-form textarea {
+  max-width: 100%;
+}
+
+.xedc-ai-filters input,
+.xedc-ai-filters select,
+.xedc-ai-form input[type="text"],
+.xedc-ai-form input[type="number"],
+.xedc-ai-form input[type="password"],
+.xedc-ai-form input[type="search"],
+.xedc-ai-form select,
+.xedc-ai-form textarea {
+  width: 100%;
+  border: 1px solid var(--ai-border);
+  border-radius: 6px;
+  background: var(--ai-surface);
+  color: var(--ai-text);
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.xedc-ai-button,
+.xedc-ai-filters button,
+.xedc-ai-form input[type="submit"],
+.xedc-ai-form .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  line-height: 1.2;
+  border: 1px solid var(--ai-border);
+  background: var(--ai-surface);
+  color: var(--ai-text);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.xedc-ai-form .button--primary,
+.xedc-ai-filters button {
+  background: #18181b;
+  border-color: #18181b;
+  color: #fff;
+}
+
+.xedc-ai-table-wrap {
+  overflow-x: auto;
+}
+
+.xedc-ai-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.xedc-ai-table th,
+.xedc-ai-table td {
+  border-bottom: 1px solid var(--ai-border);
+  padding: 10px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.xedc-ai-table th {
+  color: var(--ai-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.xedc-ai-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.xedc-ai-list a,
+.xedc-ai-links a,
+.xedc-ai-table a {
+  color: inherit;
+}
+
+.xedc-ai-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.xedc-ai-empty,
+.xedc-ai-note {
+  margin: 0;
+}
+
+.xedc-ai-error {
+  color: var(--ai-bad);
+}
+
+.xedc-ai-tag,
+.xedc-ai-status,
+.xedc-ai-risk {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  background: var(--ai-bg);
+}
+
+.xedc-ai-status.is-completed,
+.xedc-ai-status.is-success,
+.xedc-ai-risk.is-low {
+  color: var(--ai-ok);
+}
+
+.xedc-ai-status.is-failed,
+.xedc-ai-status.is-error,
+.xedc-ai-risk.is-high {
+  color: var(--ai-bad);
+}
+
+.xedc-ai-risk.is-medium,
+.xedc-ai-status.is-pending,
+.xedc-ai-status.is-processing {
+  color: var(--ai-warn);
+}
+
+.xedc-ai-meta {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.xedc-ai-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.xedc-ai-bar {
+  display: grid;
+  grid-template-columns: 88px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.xedc-ai-bar i {
+  display: block;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--ai-bg);
+  overflow: hidden;
+}
+
+.xedc-ai-bar b {
+  display: block;
+  height: 8px;
+  background: #18181b;
+}
+
+.xedc-ai-form details {
+  border: 1px solid var(--ai-border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin: 0 0 12px;
+}
+
+@media (max-width: 800px) {
+  .xedc-ai-cards,
+  .xedc-ai-split,
+  .xedc-ai-filters,
+  .xedc-ai-meta,
+  .xedc-ai-head {
+    grid-template-columns: 1fr;
+  }
+}

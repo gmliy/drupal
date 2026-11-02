@@ -1,6 +1,6 @@
 name: 'XEDC UI Locale'
 type: module
-description: '新模块安装后检测未翻译的界面字符串。先导入官方简体中文语言包，再用已配置的 DeepL 或 Microsoft Translator 补全。不覆盖已有译文，不翻译品牌名 DcLili 和模块名字。'
+description: '新模块启用后自动导入官方简体中文语言包，并用现有自动翻译平台补全缺失的界面字符串。不覆盖已有译文。'
 package: XEDC
 core_version_requirement: ^11
 dependencies:

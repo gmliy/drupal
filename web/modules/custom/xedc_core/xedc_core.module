@@ -7,11 +7,16 @@
 
 declare(strict_types=1);
 
+use Drupal\Core\Cache\Cache;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
+use Drupal\file\FileInterface;
 use Drupal\media\MediaInterface;
 use Drupal\node\NodeInterface;
+use Drupal\user\UserInterface;
+use Drupal\xedc_core\Entity\DownloadResource;
 use Drupal\xedc_core\ImportStatus;
 
 /**
@@ -43,6 +48,9 @@ function xedc_core_form_node_form_alter(array &$form, FormStateInterface $form_s
     return;
   }
   $node = $form_object->getEntity();
+  if ($node instanceof NodeInterface) {
+    xedc_core_download_form_attach($form, $node);
+  }
   if (!$node instanceof NodeInterface || $node->bundle() !== 'photo') {
     return;
   }
@@ -196,7 +204,7 @@ function xedc_core_photo_import_validate(array &$form, FormStateInterface $form_
  * Staff saves otherwise publish new photo nodes immediately.
  */
 function xedc_core_module_implements_alter(array &$implementations, string $hook): void {
-  if ($hook === 'node_presave' && isset($implementations['xedc_core'])) {
+  if (($hook === 'node_presave' || $hook === 'entity_delete') && isset($implementations['xedc_core'])) {
     $implementation = $implementations['xedc_core'];
     unset($implementations['xedc_core']);
     $implementations['xedc_core'] = $implementation;
@@ -304,6 +312,19 @@ function xedc_core_cron(): void {
   \Drupal::service('xedc_core.processor')->recover();
   \Drupal::service('xedc_core.cleaner')->expire();
   \Drupal::service('xedc_core.file_analysis')->cron();
+  try {
+    \Drupal::service('xedc_core.traffic')->samplePhysical();
+  }
+  catch (\Throwable $e) {
+    \Drupal::logger('xedc_core')->error('网络流量采样失败：@message', ['@message' => $e->getMessage()]);
+  }
+  if (\Drupal::hasService('xedc_core.storage_multipart')) {
+    \Drupal::service('xedc_core.storage_multipart')->cron();
+  }
+  if (\Drupal::hasService('xedc_core.membership')) {
+    \Drupal::service('xedc_core.membership')->expireDue();
+    \Drupal::service('xedc_core.zip_builder')->purgeExpired();
+  }
 }
 
 /**
@@ -343,9 +364,22 @@ function xedc_core_theme(): array {
       'variables' => [
         'group' => [],
         'members' => [],
+        'shared' => [],
+        'recommendation' => [],
         'form' => NULL,
       ],
       'template' => 'xedc-core-duplicate',
+    ],
+    'xedc_core_reference' => [
+      'variables' => [
+        'file' => [],
+        'summary' => [],
+        'kind' => 'all',
+        'rows' => [],
+        'pager' => [],
+        'empty' => TRUE,
+      ],
+      'template' => 'xedc-core-reference',
     ],
     'xedc_core_unused' => [
       'variables' => [
@@ -393,5 +427,179 @@ function xedc_core_theme(): array {
       ],
       'template' => 'xedc-core-cleanup-log',
     ],
+    'xedc_core_storage' => [
+      'variables' => [
+        'page' => '',
+        'title_text' => '',
+        'data' => [],
+        'form' => NULL,
+        'credential' => NULL,
+      ],
+      'template' => 'xedc-core-storage',
+    ],
+    'xedc_engagement_bar' => [
+      'variables' => [
+        'favorite' => [],
+        'like' => [],
+        'download' => [],
+        'share' => [],
+        'tier' => [],
+      ],
+      'template' => 'xedc-engagement-bar',
+    ],
   ];
+}
+
+/**
+ * Adds a download-resource summary to photo, video and article edit forms.
+ */
+function xedc_core_download_form_attach(array &$form, NodeInterface $node): void {
+  if (!\Drupal::currentUser()->hasPermission('administer xedc downloads') || !\Drupal::entityTypeManager()->hasDefinition('xedc_download')) {
+    return;
+  }
+  $rows = [];
+  if ($node->id()) {
+    $storage = \Drupal::entityTypeManager()->getStorage('xedc_download');
+    $ids = $storage->getQuery()->accessCheck(FALSE)->condition('parent', $node->id())->sort('weight')->execute();
+    foreach ($storage->loadMultiple($ids) as $resource) {
+      if (!$resource instanceof DownloadResource) {
+        continue;
+      }
+      $rows[] = [
+        $resource->label(),
+        (string) $resource->get('source_type')->value,
+        (string) $resource->get('access_level')->value,
+        $resource->isPublished() ? t('启用') : t('停用'),
+        Link::fromTextAndUrl(t('编辑'), $resource->toUrl('edit-form'))->toString(),
+      ];
+    }
+  }
+  $add = Url::fromRoute('entity.xedc_download.add_form');
+  if ($node->id()) {
+    $add->setOption('query', ['parent' => $node->id()]);
+  }
+  $form['xedc_downloads'] = [
+    '#type' => 'details',
+    '#title' => t('下载资源'),
+    '#open' => FALSE,
+    '#weight' => 40,
+    'add' => [
+      '#type' => 'link',
+      '#title' => t('添加下载资源'),
+      '#url' => $add,
+    ],
+    'list' => [
+      '#type' => 'table',
+      '#header' => [t('名称'), t('来源'), t('权限'), t('状态'), t('操作')],
+      '#rows' => $rows,
+      '#empty' => t('还没有下载资源。'),
+    ],
+  ];
+}
+
+/**
+ * Implements hook_preprocess_node().
+ */
+function xedc_core_preprocess_node(array &$variables): void {
+  $node = $variables['node'] ?? NULL;
+  if (!$node instanceof NodeInterface || ($variables['view_mode'] ?? '') !== 'full') {
+    return;
+  }
+  if (!in_array($node->bundle(), ['photo', 'video', 'article'], TRUE) || !$node->isPublished()) {
+    return;
+  }
+  $variables['xedc_engagement'] = [
+    '#lazy_builder' => ['xedc_core.engagement_builder:bar', [(string) $node->id()]],
+    '#create_placeholder' => TRUE,
+  ];
+}
+
+/**
+ * Implements hook_preprocess_comment().
+ */
+function xedc_core_preprocess_comment(array &$variables): void {
+  $comment = $variables['comment'] ?? NULL;
+  if (!is_object($comment) || !method_exists($comment, 'getOwnerId')) {
+    return;
+  }
+  $variables['xedc_vip_badge'] = [
+    '#lazy_builder' => ['xedc_core.engagement_builder:badge', [(string) $comment->getOwnerId()]],
+    '#create_placeholder' => TRUE,
+  ];
+}
+
+/**
+ * Implements hook_file_download().
+ *
+ * Private download files are only served by the checked download route.
+ */
+function xedc_core_file_download(string $uri): array|int|null {
+  if (str_starts_with($uri, 'private://xedc-downloads/') || str_starts_with($uri, 'private://xedc-zips/') || str_starts_with($uri, 'private://xedc-download-tmp/')) {
+    return -1;
+  }
+  return NULL;
+}
+
+/**
+ * Implements hook_entity_delete().
+ */
+function xedc_core_entity_delete(EntityInterface $entity): void {
+  if ($entity instanceof NodeInterface) {
+    if (\Drupal::entityTypeManager()->hasDefinition('xedc_download')) {
+      $storage = \Drupal::entityTypeManager()->getStorage('xedc_download');
+      $ids = $storage->getQuery()->accessCheck(FALSE)->condition('parent', $entity->id())->execute();
+      if ($ids) {
+        $storage->delete($storage->loadMultiple($ids));
+      }
+    }
+    \Drupal::service('xedc_core.like_manager')->deleteForEntity('node', (int) $entity->id());
+    \Drupal::service('xedc_core.download_recorder')->deleteForContent((int) $entity->id());
+    Cache::invalidateTags(['xedc_download_list']);
+    return;
+  }
+  if ($entity instanceof UserInterface) {
+    $uid = (int) $entity->id();
+    \Drupal::database()->delete('xedc_vip')->condition('uid', $uid)->execute();
+    \Drupal::database()->delete('xedc_vip_log')->condition('uid', $uid)->execute();
+    \Drupal::service('xedc_core.like_manager')->deleteForUser($uid);
+    \Drupal::service('xedc_core.share_recorder')->anonymizeUser($uid);
+    \Drupal::service('xedc_core.download_recorder')->deleteForUser($uid);
+    \Drupal::service('xedc_core.membership')->invalidate($uid);
+    return;
+  }
+  if (!$entity instanceof DownloadResource) {
+    return;
+  }
+  $fid = (int) $entity->get('file')->target_id;
+  if ($fid < 1) {
+    return;
+  }
+  $file = \Drupal::entityTypeManager()->getStorage('file')->load($fid);
+  if (!$file instanceof FileInterface || !str_starts_with((string) $file->getFileUri(), 'private://xedc-downloads/')) {
+    return;
+  }
+  $count = 0;
+  foreach (\Drupal::service('file.usage')->listUsage($file) as $module) {
+    foreach ($module as $type) {
+      foreach ($type as $number) {
+        $count += (int) $number;
+      }
+    }
+  }
+  if ($count === 0) {
+    $file->delete();
+  }
+}
+
+/**
+ * Implements hook_views_plugins_field_alter().
+ *
+ * The content list renders fifty operation menus on every request. Cache the
+ * rendered menus for that view only; other entity operation fields stay on
+ * the core handler.
+ */
+function xedc_core_views_plugins_field_alter(array &$plugins): void {
+  if (isset($plugins['entity_operations']['class'])) {
+    $plugins['entity_operations']['class'] = 'Drupal\\xedc_core\\Plugin\\views\\field\\ContentEntityOperations';
+  }
 }

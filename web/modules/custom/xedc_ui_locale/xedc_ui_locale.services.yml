@@ -2,16 +2,38 @@ services:
   logger.channel.xedc_ui_locale:
     parent: logger.channel_base
     arguments: ['xedc_ui_locale']
-  xedc_ui_locale.filler:
-    class: Drupal\xedc_ui_locale\UiTranslationFiller
+
+  Drupal\xedc_ui_locale\InterfaceStringExtractor: {}
+
+  Drupal\xedc_ui_locale\ProtectedTermGuard:
+    autowire: true
+
+  Drupal\xedc_ui_locale\TranslationValidator: {}
+
+  Drupal\xedc_ui_locale\StringCollector:
+    autowire: true
+
+  Drupal\xedc_ui_locale\TranslationTaskRepository:
+    autowire: true
+
+  Drupal\xedc_ui_locale\LocaleTranslationWriter:
+    autowire: true
+
+  Drupal\xedc_ui_locale\OfficialPackImporter:
+    autowire: true
     arguments:
-      - '@module_handler'
-      - '@extension.list.module'
-      - '@locale.storage'
-      - '@database'
-      - '@state'
-      - '@logger.channel.xedc_ui_locale'
-      - '@Drupal\locale\LocaleProjectRepository'
-      - '@Drupal\locale\LocaleFetch'
-      - '@Drupal\locale\LocaleSource'
-      - '@xedc_auto_translate.translator'
+      $logger: '@logger.channel.xedc_ui_locale'
+
+  Drupal\xedc_ui_locale\UiTranslationManager:
+    autowire: true
+    arguments:
+      $logger: '@logger.channel.xedc_ui_locale'
+      $translator: '@xedc_auto_translate.translator'
+
+  Drupal\xedc_ui_locale\QueueKick:
+    autowire: true
+    tags:
+      - { name: event_subscriber }
+
+  xedc_ui_locale.filler:
+    alias: Drupal\xedc_ui_locale\UiTranslationManager

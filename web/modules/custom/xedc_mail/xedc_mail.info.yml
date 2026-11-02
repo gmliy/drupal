@@ -1,0 +1,7 @@
+name: 'XEDC Mail'
+type: module
+description: 'Wraps core account emails in a simple HTML layout. Other modules are left unchanged.'
+core_version_requirement: ^11
+package: XEDC
+dependencies:
+  - drupal:user

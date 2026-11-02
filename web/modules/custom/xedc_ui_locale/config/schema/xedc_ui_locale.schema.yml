@@ -1,0 +1,13 @@
+xedc_ui_locale.settings:
+  type: config_object
+  label: 'XEDC interface translation'
+  mapping:
+    protected_terms:
+      type: sequence
+      label: 'Protected terms'
+      sequence:
+        type: string
+        label: 'Term'
+    batch_size:
+      type: integer
+      label: 'Batch size'

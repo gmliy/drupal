@@ -2122,3 +2122,22 @@ html.xm-page body {
 .media-library-wrapper .xm-media-hint {
   margin: 0 0 10px;
 }
+
+.xm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.xm-table th,
+.xm-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #f4f4f5;
+  text-align: left;
+  vertical-align: top;
+}
+
+.xm-table th {
+  color: #71717a;
+  font-weight: 600;
+}

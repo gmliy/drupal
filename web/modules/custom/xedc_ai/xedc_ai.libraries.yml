@@ -1,0 +1,9 @@
+admin:
+  css:
+    theme:
+      css/ai.css: {}
+  js:
+    js/ai.js: {}
+  dependencies:
+    - core/drupal
+    - core/once

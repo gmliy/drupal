@@ -13,7 +13,7 @@ services:
 
   xedc_core.archive:
     class: Drupal\xedc_core\ArchiveManager
-    arguments: ['@file_system', '@stream_wrapper_manager', '@file.usage', '@config.factory', '@current_user']
+    arguments: ['@file_system', '@stream_wrapper_manager', '@file.usage', '@config.factory', '@current_user', '@xedc_core.storage_temp', '@xedc_core.storage_files']
 
   xedc_core.cleaner:
     class: Drupal\xedc_core\TempCleaner
@@ -21,7 +21,7 @@ services:
 
   xedc_core.images:
     class: Drupal\xedc_core\ImagePipeline
-    arguments: ['@file_system', '@config.factory', '@xedc_core.alt', '@xedc_core.tasks', '@logger.channel.xedc_core']
+    arguments: ['@file_system', '@config.factory', '@xedc_core.alt', '@xedc_core.tasks', '@logger.channel.xedc_core', '@xedc_core.storage_files', '@xedc_core.storage_variants']
 
   xedc_core.publisher:
     class: Drupal\xedc_core\Publisher
@@ -39,9 +39,24 @@ services:
     class: Drupal\xedc_core\Ops\NetdataClient
     arguments: ['@http_client']
 
+  xedc_core.netdata_catalog:
+    class: Drupal\xedc_core\Ops\NetdataCatalog
+    arguments: ['@xedc_core.netdata', '@cache.default', '@datetime.time', '@config.factory']
+
   xedc_core.monitor:
     class: Drupal\xedc_core\Ops\ServerMonitor
-    arguments: ['@xedc_core.netdata', '@cache.default', '@datetime.time', '@date.formatter', '@config.factory', '@logger.channel.xedc_core']
+    arguments: ['@xedc_core.netdata', '@cache.default', '@datetime.time', '@date.formatter', '@config.factory', '@logger.channel.xedc_core', '@xedc_core.netdata_catalog']
+
+  xedc_core.traffic_reader:
+    class: Drupal\xedc_core\Ops\Traffic\SysfsCounterReader
+
+  xedc_core.traffic:
+    class: Drupal\xedc_core\Ops\Traffic\TrafficCollector
+    arguments: ['@database', '@lock', '@datetime.time', '@config.factory', '@logger.channel.xedc_core', '@xedc_core.traffic_reader']
+
+  xedc_core.traffic_report:
+    class: Drupal\xedc_core\Ops\Traffic\TrafficReport
+    arguments: ['@database', '@datetime.time', '@config.factory', '@date.formatter']
 
   xedc_core.disk:
     class: Drupal\xedc_core\Ops\DiskOverview
@@ -57,7 +72,7 @@ services:
 
   xedc_core.file_path_guard:
     class: Drupal\xedc_core\Ops\Cleanup\FilePathGuard
-    arguments: ['@file_system']
+    arguments: ['@file_system', '@xedc_core.storage_uris', '@xedc_core.storage_temp']
 
   xedc_core.cleanup_repository:
     class: Drupal\xedc_core\Ops\Cleanup\CleanupRepository
@@ -79,14 +94,166 @@ services:
     class: Drupal\xedc_core\Ops\Cleanup\FileReferenceMerger
     arguments: ['@entity_type.manager', '@file.usage', '@xedc_core.reference_analyzer', '@xedc_core.cleanup_repository', '@state']
 
+  xedc_core.reference_presenter:
+    class: Drupal\xedc_core\Ops\Cleanup\FileReferencePresenter
+    arguments: ['@entity_type.manager']
+
+  xedc_core.merge_integrity:
+    class: Drupal\xedc_core\Ops\Cleanup\MergeIntegrityChecker
+    arguments: ['@entity_type.manager', '@file_system', '@xedc_core.file_path_guard', '@xedc_core.cleanup_repository']
+
   xedc_core.quarantine_manager:
     class: Drupal\xedc_core\Ops\Cleanup\FileQuarantineManager
-    arguments: ['@entity_type.manager', '@file_system', '@xedc_core.file_path_guard', '@xedc_core.reference_analyzer', '@xedc_core.cleanup_repository', '@config.factory', '@datetime.time']
+    arguments: ['@entity_type.manager', '@file_system', '@xedc_core.file_path_guard', '@xedc_core.reference_analyzer', '@xedc_core.cleanup_repository', '@config.factory', '@datetime.time', '@xedc_core.merge_integrity', '@xedc_core.storage_guard']
 
   xedc_core.cleanup_manager:
     class: Drupal\xedc_core\Ops\Cleanup\FileCleanupManager
-    arguments: ['@xedc_core.cleanup_repository', '@xedc_core.reference_analyzer', '@xedc_core.reference_merger', '@xedc_core.quarantine_manager', '@xedc_core.file_path_guard', '@entity_type.manager', '@file_system', '@config.factory', '@lock', '@queue', '@datetime.time']
+    arguments: ['@xedc_core.cleanup_repository', '@xedc_core.reference_analyzer', '@xedc_core.reference_merger', '@xedc_core.quarantine_manager', '@xedc_core.file_path_guard', '@entity_type.manager', '@file_system', '@config.factory', '@lock', '@queue', '@datetime.time', '@xedc_core.merge_integrity', '@xedc_core.storage_guard']
 
   xedc_core.file_analysis:
     class: Drupal\xedc_core\Ops\Cleanup\FileAnalysisRunner
     arguments: ['@xedc_core.duplicate_scanner', '@xedc_core.reference_analyzer', '@xedc_core.unused_scanner', '@xedc_core.cleanup_manager', '@xedc_core.cleanup_repository', '@database', '@config.factory', '@lock', '@queue', '@state', '@datetime.time', '@logger.channel.xedc_core']
+
+  xedc_core.storage_config:
+    class: Drupal\xedc_core\Ops\Storage\StorageConfig
+    arguments: ['@config.factory']
+
+  xedc_core.storage_uris:
+    class: Drupal\xedc_core\Ops\Storage\StorageUriResolver
+    arguments: ['@xedc_core.storage_config']
+
+  xedc_core.storage_temp:
+    class: Drupal\xedc_core\Ops\Storage\LocalTempFileManager
+
+  xedc_core.storage_reader:
+    class: Drupal\xedc_core\Ops\Storage\RemoteFileReader
+    arguments: ['@xedc_core.storage_temp']
+
+  xedc_core.storage_guard:
+    class: Drupal\xedc_core\Ops\Storage\StorageOperationGuard
+    arguments: ['@database', '@xedc_core.storage_uris']
+
+  xedc_core.storage_writer:
+    class: Drupal\xedc_core\Ops\Storage\RemoteFileWriter
+    arguments: ['@xedc_core.storage_reader', '@xedc_core.storage_uris', '@xedc_core.storage_journal', '@xedc_core.storage_guard']
+
+  xedc_core.storage_files:
+    class: Drupal\xedc_core\Ops\Storage\LocalFileBridge
+    arguments: ['@file_system', '@xedc_core.storage_temp', '@xedc_core.storage_uris']
+
+  xedc_core.storage_delivery:
+    class: Drupal\xedc_core\Ops\Storage\DeliveryUrl
+    arguments: ['@xedc_core.storage_uris', '@file_url_generator']
+
+  xedc_core.storage_readiness:
+    class: Drupal\xedc_core\Ops\Storage\TakeoverReadiness
+    arguments: ['@database', '@xedc_core.storage_config', '@xedc_core.storage_uris', '@xedc_core.storage_journal']
+
+  xedc_core.storage_cdn_inspector:
+    class: Drupal\xedc_core\Ops\Storage\CdnInspector
+    arguments: ['@xedc_core.storage_config', '@xedc_core.storage_credentials', '@xedc_core.storage_uris', '@xedc_core.storage_writer', '@xedc_core.storage_reader', '@xedc_core.storage_temp', '@http_client', '@xedc_core.storage_journal', '@datetime.time', '@logger.channel.xedc_core']
+
+  xedc_core.storage_cdn_status:
+    class: Drupal\xedc_core\Ops\Storage\CdnStatus
+    arguments: ['@xedc_core.storage_config', '@xedc_core.storage_uris', '@xedc_core.storage_journal']
+
+  xedc_core.storage_media_pipeline:
+    class: Drupal\xedc_core\Ops\Storage\MediaObjectPipeline
+    arguments: ['@xedc_core.storage_config', '@xedc_core.storage_credentials', '@xedc_core.storage_uris', '@xedc_core.storage_reader', '@xedc_core.storage_writer', '@xedc_core.storage_temp', '@file_system']
+
+  xedc_core.storage_variants:
+    class: Drupal\xedc_core\Ops\Storage\ImageVariantBuilder
+    arguments: ['@file_system', '@database', '@xedc_core.storage_temp', '@logger.channel.xedc_core']
+
+  xedc_core.storage_credentials:
+    class: Drupal\xedc_core\Ops\Storage\CredentialVault
+    arguments: ['@xedc_core.storage_config', '@module_handler', '@entity_type.manager', '@logger.channel.xedc_core']
+
+  xedc_core.storage_journal:
+    class: Drupal\xedc_core\Ops\Storage\StorageJournal
+    arguments: ['@state', '@datetime.time']
+
+  xedc_core.storage_tester:
+    class: Drupal\xedc_core\Ops\Storage\ConnectionTester
+    arguments: ['@xedc_core.storage_config', '@xedc_core.storage_journal', '@lock', '@datetime.time', '@logger.channel.xedc_core', '@xedc_core.storage_credentials']
+
+  xedc_core.storage_probe:
+    class: Drupal\xedc_core\Ops\Storage\CapabilityProbe
+    arguments: ['@xedc_core.storage_config', '@xedc_core.storage_journal', '@lock', '@datetime.time', '@http_client', '@logger.channel.xedc_core', '@xedc_core.storage_credentials']
+
+  xedc_core.storage_monitor:
+    class: Drupal\xedc_core\Ops\Storage\ObjectMonitor
+    arguments: ['@database', '@cache.default', '@date.formatter', '@file_system', '@extension.list.module', '@config.factory', '@xedc_core.storage_journal', '@xedc_core.storage_config', '@xedc_core.storage_credentials']
+
+  xedc_core.storage_cost:
+    class: Drupal\xedc_core\Ops\Storage\CostEstimator
+    arguments: ['@xedc_core.storage_config', '@xedc_core.storage_monitor']
+
+  xedc_core.storage_migration:
+    class: Drupal\xedc_core\Ops\Storage\MigrationPlanner
+    arguments: ['@database', '@file_system', '@xedc_core.storage_config', '@xedc_core.storage_journal', '@lock', '@datetime.time', '@xedc_core.storage_credentials']
+
+  xedc_core.storage_migration_repository:
+    class: Drupal\xedc_core\Ops\Storage\MigrationRepository
+    arguments: ['@database', '@datetime.time']
+
+  xedc_core.storage_migration_executor:
+    class: Drupal\xedc_core\Ops\Storage\MigrationExecutor
+    arguments: ['@database', '@file_system', '@xedc_core.storage_config', '@xedc_core.storage_credentials', '@xedc_core.storage_migration', '@xedc_core.storage_migration_repository', '@xedc_core.storage_reader', '@xedc_core.storage_writer', '@xedc_core.storage_uris', '@xedc_core.storage_guard', '@xedc_core.storage_journal', '@lock']
+
+  xedc_core.storage_multipart:
+    class: Drupal\xedc_core\Ops\Storage\MultipartCleaner
+    arguments: ['@xedc_core.storage_config', '@xedc_core.storage_journal', '@lock', '@datetime.time', '@logger.channel.xedc_core', '@xedc_core.storage_credentials']
+
+  xedc_core.storage_download_gate:
+    class: Drupal\xedc_core\Ops\Storage\DownloadGate
+    arguments: ['@entity_type.manager', '@database', '@file_system', '@xedc_core.storage_config', '@xedc_core.storage_uris', '@xedc_core.storage_journal', '@datetime.time', '@xedc_core.membership', '@xedc_core.download_access']
+
+  xedc_core.storage_download:
+    class: Drupal\xedc_core\Ops\Storage\ProtectedDownloader
+    arguments: ['@entity_type.manager', '@xedc_core.storage_config', '@xedc_core.storage_journal', '@logger.channel.xedc_core', '@xedc_core.storage_uris', '@xedc_core.storage_download_gate']
+
+  xedc_core.external_url:
+    class: Drupal\xedc_core\Engagement\ExternalUrlGuard
+
+  xedc_core.membership:
+    class: Drupal\xedc_core\Engagement\MembershipManager
+    arguments: ['@database', '@datetime.time', '@entity_type.manager']
+
+  xedc_core.like_manager:
+    class: Drupal\xedc_core\Engagement\LikeManager
+    arguments: ['@database', '@datetime.time', '@cache.default']
+
+  xedc_core.engagement_report:
+    class: Drupal\xedc_core\Engagement\EngagementReport
+    arguments: ['@database', '@datetime.time']
+
+  xedc_core.share_recorder:
+    class: Drupal\xedc_core\Engagement\ShareRecorder
+    arguments: ['@database', '@datetime.time', '@request_stack']
+
+  xedc_core.download_recorder:
+    class: Drupal\xedc_core\Engagement\DownloadRecorder
+    arguments: ['@database', '@datetime.time']
+
+  xedc_core.original_files:
+    class: Drupal\xedc_core\Engagement\OriginalFiles
+
+  xedc_core.zip_builder:
+    class: Drupal\xedc_core\Engagement\ZipBuilder
+    arguments: ['@xedc_core.original_files', '@file_system', '@lock', '@queue']
+
+  xedc_core.download_access:
+    class: Drupal\xedc_core\Engagement\DownloadAccess
+    arguments: ['@xedc_core.membership', '@xedc_core.original_files', '@file_system']
+
+  xedc_core.download_presenter:
+    class: Drupal\xedc_core\Engagement\ResourcePresenter
+    arguments: ['@entity_type.manager', '@xedc_core.download_access', '@xedc_core.original_files', '@xedc_core.membership']
+
+  xedc_core.qr:
+    class: Drupal\xedc_core\Engagement\QrImage
+
+  xedc_core.engagement_builder:
+    class: Drupal\xedc_core\Engagement\EngagementBuilder
+    arguments: ['@current_user', '@entity_type.manager', '@xedc_core.like_manager', '@xedc_core.membership', '@xedc_core.download_presenter']

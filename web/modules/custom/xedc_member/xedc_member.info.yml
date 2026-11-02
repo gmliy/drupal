@@ -13,3 +13,4 @@ dependencies:
   - drupal:file
   - drupal:image
   - drupal:media
+  - xedc_core:xedc_core

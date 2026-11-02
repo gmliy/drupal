@@ -1,0 +1,8 @@
+min_title: 4
+max_title: 80
+min_article_body: 40
+max_tags: 12
+min_image_edge: 200
+max_video_seconds: 86400
+phash_distance: 10
+max_hash_bytes: 67108864

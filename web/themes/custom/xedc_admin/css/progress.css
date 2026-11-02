@@ -161,9 +161,88 @@ html.xedc-admin-active .view .ajax-progress {
 
 @media (prefers-reduced-motion: reduce) {
   html.xedc-admin-active .progress__bar,
+  html.xedc-admin-active .progress-wrapper .progress-bar,
   html.xedc-admin-active .ajax-progress-throbber .throbber,
   html.xedc-admin-active .ajax-progress-fullscreen::before {
     animation: none;
     transition: none;
   }
+}
+
+/* Radix batch markup: .progress-wrapper > label + .progress > .progress-bar + description. */
+html.xedc-admin-active .progress-wrapper {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  max-width: 560px;
+  margin: 24px auto;
+  padding: 20px 24px;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: 12px;
+  background: var(--xedc-admin-surface);
+  box-shadow: var(--xedc-admin-shadow);
+  color: var(--xedc-admin-foreground);
+}
+
+html.xedc-admin-active form .progress-wrapper,
+html.xedc-admin-active .ajax-progress .progress-wrapper {
+  max-width: 100%;
+  margin: 8px 0;
+}
+
+html.xedc-admin-active .progress-wrapper .progress__label {
+  grid-column: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+html.xedc-admin-active .progress-wrapper .xedc-progress-pct {
+  grid-column: 2;
+  margin: 0;
+  color: var(--xedc-admin-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+html.xedc-admin-active .progress-wrapper > .progress {
+  grid-column: 1 / -1;
+  height: 8px;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: var(--xedc-admin-surface-secondary);
+  box-shadow: none;
+}
+
+html.xedc-admin-active .progress-wrapper .progress-bar {
+  display: block;
+  height: 8px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: inherit;
+  background-color: var(--xedc-admin-primary);
+  background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
+  transition: width 300ms ease;
+  animation: xedc-admin-progress-flow 1.4s ease-in-out infinite;
+}
+
+html.xedc-admin-active .progress-wrapper .progress__description {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }

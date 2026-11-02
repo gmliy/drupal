@@ -510,6 +510,34 @@ class CleanupRepository {
   }
 
   /**
+   * @return list<array<string, mixed>>
+   *   Newest tasks of one type, with decoded payload and result.
+   */
+  public function latestTasks(string $type, int $limit): array {
+    if (!$this->ready()) {
+      return [];
+    }
+    $rows = $this->database->select('xedc_file_cleanup_task', 't')
+      ->fields('t')
+      ->condition('task_type', $type)
+      ->orderBy('id', 'DESC')
+      ->range(0, max(1, $limit))
+      ->execute()
+      ->fetchAll(\PDO::FETCH_ASSOC);
+    foreach ($rows as &$row) {
+      $row['payload'] = json_decode((string) ($row['payload'] ?? ''), TRUE);
+      if (!is_array($row['payload'])) {
+        $row['payload'] = [];
+      }
+      $row['result'] = json_decode((string) ($row['result'] ?? ''), TRUE);
+      if (!is_array($row['result'])) {
+        $row['result'] = [];
+      }
+    }
+    return $rows;
+  }
+
+  /**
    * @return array{rows: list<array<string, mixed>>, total: int}
    *   Task page.
    */

@@ -1,0 +1,67 @@
+{{ attach_library('xedc/engagement') }}
+<div class="xedc-act" data-xedc-act data-like-url="{{ like.url }}" data-share-record="{{ share.record }}" data-login="{{ like.login }}" data-share-title="{{ share.title }}" data-share-url="{{ share.url }}" data-share-qr="{{ share.qr }}" data-tier="{{ tier.tier }}" data-tier-label="{{ tier.label }}">
+  <div class="xedc-act__left">{{ favorite }}</div>
+  <div class="xedc-act__right">
+    <button type="button" class="xedc-act__btn{% if like.liked %} is-on{% endif %}" data-xedc-like aria-pressed="{{ like.liked ? 'true' : 'false' }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.6-7 9-7 9z"/></svg>
+      <span class="xedc-act__text">
+        <span data-xedc-like-label>{{ like.liked ? '已赞'|t : '点赞'|t }}</span>
+        <span class="xedc-act__count" data-xedc-like-count>{{ like.count }}</span>
+      </span>
+    </button>
+    {% if not download.empty %}
+      <button type="button" class="xedc-act__btn" data-xedc-open="download" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"/><path d="m7 11 5 5 5-5"/><path d="M5 19h14"/></svg>
+        <span>{{ '下载'|t }}</span>
+      </button>
+    {% endif %}
+    <button type="button" class="xedc-act__btn" data-xedc-open="share" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2"/><circle cx="16" cy="7" r="2"/><circle cx="16" cy="17" r="2"/><path d="m8 11 6-3M8 13l6 3"/></svg>
+      <span>{{ '分享'|t }}</span>
+    </button>
+  </div>
+</div>
+<p class="xedc-act__note" data-xedc-note hidden></p>
+
+{% if not download.empty %}
+<dialog class="xedc-sheet" data-xedc-sheet="download" aria-label="{{ '下载资源'|t }}">
+  <header class="xedc-sheet__head">
+    <strong>{{ '下载'|t }}</strong>
+    <button type="button" class="xedc-sheet__close" data-xedc-close aria-label="{{ '关闭'|t }}">×</button>
+  </header>
+  <div class="xedc-sheet__body">
+    {% for row in download.rows %}
+      <article class="xedc-dl">
+        <div class="xedc-dl__meta">
+          <strong>{{ row.title }}</strong>
+          <p>{{ row.extension }}{% if row.size %} · {{ row.size }}{% endif %} · {{ row.source_label }}</p>
+          <span class="xedc-dl__tag xedc-dl__tag--{{ row.access }}">{{ row.access_label }}</span>
+        </div>
+        {% if row.allowed %}
+          <a class="xedc-act__btn xedc-dl__go" href="{{ row.href }}"{% if row.source == 'zip' %} data-xedc-zip="1"{% endif %}>{{ '下载'|t }}</a>
+        {% else %}
+          <button type="button" class="xedc-act__btn xedc-dl__go" data-xedc-locked data-access="{{ row.access }}" data-message="{{ row.message }}">{{ '下载'|t }}</button>
+        {% endif %}
+      </article>
+    {% endfor %}
+    <div class="xedc-dl__note" data-xedc-download-note hidden></div>
+  </div>
+</dialog>
+{% endif %}
+
+<dialog class="xedc-sheet" data-xedc-sheet="share" aria-label="{{ '分享'|t }}">
+  <header class="xedc-sheet__head">
+    <strong>{{ '分享内容'|t }}</strong>
+    <button type="button" class="xedc-sheet__close" data-xedc-close aria-label="{{ '关闭'|t }}">×</button>
+  </header>
+  <div class="xedc-sheet__body">
+    <p class="xedc-share__title"></p>
+    <p class="xedc-share__url"></p>
+    <div class="xedc-share__actions">
+      <button type="button" class="xedc-act__btn" data-xedc-copy>{{ '复制链接'|t }}</button>
+      <button type="button" class="xedc-act__btn" data-xedc-native hidden>{{ '系统分享'|t }}</button>
+    </div>
+    <p class="xedc-share__feedback" data-xedc-share-feedback aria-live="polite"></p>
+    <img class="xedc-share__qr" alt="{{ '内容链接二维码'|t }}" width="180" height="180" hidden>
+  </div>
+</dialog>

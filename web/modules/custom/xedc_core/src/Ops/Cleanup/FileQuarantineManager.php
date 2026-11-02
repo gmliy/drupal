@@ -10,6 +10,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\file\FileInterface;
+use Drupal\xedc_core\Ops\Storage\StorageOperationGuard;
 
 /**
  * Copies a file into the private quarantine, verifies it, then updates Drupal.
@@ -24,6 +25,8 @@ class FileQuarantineManager {
     protected CleanupRepository $repository,
     protected ConfigFactoryInterface $configFactory,
     protected TimeInterface $time,
+    protected MergeIntegrityChecker $integrity,
+    protected ?StorageOperationGuard $operations = NULL,
   ) {}
 
   /**
@@ -40,7 +43,11 @@ class FileQuarantineManager {
     if ($uri !== (string) $item['uri']) {
       throw new \RuntimeException('文件 URI 已变化，停止隔离。');
     }
-    $real = $this->fileSystem->realpath($uri);
+    $blocked = $this->operations instanceof StorageOperationGuard ? $this->operations->localCleanupBlockReason($uri) : NULL;
+    if ($blocked !== NULL || $this->guard->kindForUri($uri) === 'remote') {
+      throw new \RuntimeException($blocked ?? '远程文件不能按本地路径隔离或删除。');
+    }
+    $real = $this->guard->realpathIfLocal($uri);
     $info = is_string($real) ? $this->guard->describe($real) : NULL;
     if ($info === NULL || $this->guard->containedKind($info['path']) !== 'content') {
       throw new \RuntimeException('文件不在允许清理的目录内。');
@@ -188,8 +195,12 @@ class FileQuarantineManager {
     if (!str_starts_with($uri, 'private://xedc-quarantine/')) {
       throw new \RuntimeException('文件实体不在隔离目录，禁止永久清理。');
     }
-    $real = $this->fileSystem->realpath($uri);
-    if (!is_string($real) || !$this->guard->isInsideQuarantine($real)) {
+    $blocked = $this->operations instanceof StorageOperationGuard ? $this->operations->localCleanupBlockReason($uri) : NULL;
+    if ($blocked !== NULL || $this->guard->kindForUri($uri) === 'remote') {
+      throw new \RuntimeException($blocked ?? '远程文件不能按本地路径隔离或删除。');
+    }
+    $real = $this->guard->realpathIfLocal($uri);
+    if ($real === FALSE || !$this->guard->isInsideQuarantine($real)) {
       throw new \RuntimeException('隔离路径校验失败。');
     }
     $kept = (int) ($meta['quarantined'] ?? 0);
@@ -204,6 +215,10 @@ class FileQuarantineManager {
     $hash = $this->guard->hashFile($real, $max);
     if ($hash === NULL || !hash_equals((string) ($meta['sha256'] ?? $item['sha256']), $hash)) {
       throw new \RuntimeException('永久清理前的 SHA-256 与隔离记录不一致。');
+    }
+    $blocked = $this->integrity->blocksPurge($fid);
+    if ($blocked !== NULL) {
+      throw new \RuntimeException($blocked);
     }
     $check = $this->analyzer->recheck($fid);
     if (($check['status'] ?? '') !== 'quarantine') {
@@ -237,8 +252,8 @@ class FileQuarantineManager {
       ->range(0, 200)
       ->execute();
     foreach ($this->entityTypeManager->getStorage('file')->loadMultiple($candidates) as $other) {
-      $path = $this->fileSystem->realpath($other->getFileUri());
-      if (is_string($path) && $path === $real) {
+      $path = $this->guard->realpathIfLocal($other->getFileUri());
+      if ($path !== FALSE && $path === $real) {
         return TRUE;
       }
     }

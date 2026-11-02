@@ -6,11 +6,14 @@ namespace Drupal\xedc_core\Ops\Cleanup;
 
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Entity\TranslatableInterface;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Lock\LockBackendInterface;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\file\FileInterface;
+use Drupal\xedc_core\Ops\Storage\StorageOperationGuard;
 
 /**
  * Creates cleanup plans and runs only tasks an administrator has confirmed.
@@ -29,6 +32,8 @@ class FileCleanupManager {
     protected LockBackendInterface $lock,
     protected QueueFactory $queueFactory,
     protected TimeInterface $time,
+    protected MergeIntegrityChecker $integrity,
+    protected ?StorageOperationGuard $operations = NULL,
   ) {}
 
   /**
@@ -107,9 +112,13 @@ class FileCleanupManager {
     if (!$batch) {
       return ['ok' => FALSE, 'task_id' => 0, 'errors' => ['还没有完成的分析批次。']];
     }
+    $fids = array_values(array_unique(array_map('intval', $fids)));
+    if (count($fids) > 50) {
+      return ['ok' => FALSE, 'task_id' => 0, 'errors' => ['一次最多隔离 50 个文件，请分成多批提交。']];
+    }
     $items = [];
     $errors = [];
-    foreach (array_slice(array_values(array_unique(array_map('intval', $fids))), 0, 50) as $fid) {
+    foreach ($fids as $fid) {
       if ($fid <= 0) {
         continue;
       }
@@ -120,7 +129,7 @@ class FileCleanupManager {
       }
       $items[] = $reason['item'];
     }
-    if ($items === []) {
+    if ($items === [] || $errors !== []) {
       return ['ok' => FALSE, 'task_id' => 0, 'errors' => $errors ?: ['没有可以隔离的文件。']];
     }
     $payload = [
@@ -196,10 +205,13 @@ class FileCleanupManager {
     }
     $payload = $task['payload'];
     if (!empty($payload['blocked'])) {
+      $blocked = is_array($payload['blocked']) ? $payload['blocked'] : [];
+      $reason = (string) ($blocked[0]['reason'] ?? '方案含有不能迁移的引用。');
+      $this->repository->insertLog($taskId, $uid, 'confirm', FALSE, '方案含有不能迁移的引用，不能确认执行。', [
+        'blocked' => count($blocked),
+        'reason' => $reason,
+      ]);
       return ['ok' => FALSE, 'message' => '方案含有不能迁移的引用，不能确认执行。'];
-    }
-    if (!empty($payload['migrations']) && count($payload['migrations']) > 40) {
-      return ['ok' => FALSE, 'message' => '迁移数量超过安全上限。'];
     }
     $hash = DuplicateMath::planHash($payload);
     if ($hash !== (string) $task['plan_hash']) {
@@ -212,9 +224,12 @@ class FileCleanupManager {
       'confirmed' => $this->time->getRequestTime(),
       'error' => '',
     ]);
+    $migrationCount = is_array($payload['migrations'] ?? NULL) ? count($payload['migrations']) : 0;
     $this->repository->insertLog($taskId, $uid, 'confirm', TRUE, '', [
       'task_type' => $task['task_type'],
       'plan_hash' => $hash,
+      'migrations' => $migrationCount,
+      'batches' => $migrationCount > 0 ? (int) ceil($migrationCount / $this->migrationBatchSize()) : 0,
     ]);
     $this->enqueue($taskId);
     return ['ok' => TRUE, 'message' => '已确认并加入队列。没有确认的任务不会执行。'];
@@ -263,12 +278,43 @@ class FileCleanupManager {
         return 'idle';
       }
       if (!empty($task['result']['started']) && empty($task['result']['completed']) && $task['task_type'] === 'merge' && $task['status'] === 'running') {
-        $rolled = $this->merger->rollback($task['result']['journal'] ?? []);
-        $this->fail($task, $rolled ? '合并中断，已按记录恢复引用。' : '合并中断，自动恢复没有全部成功。', [
-          'rolled_back' => $rolled,
-          'journal' => $task['result']['journal'] ?? [],
-        ]);
-        return 'failed';
+        $cursor = (int) ($task['result']['cursor'] ?? 0);
+        if (!empty($task['result']['batch_open']) && $cursor > 0) {
+          $journal = is_array($task['result']['journal'] ?? NULL) ? $task['result']['journal'] : [];
+          $extra = array_slice($journal, $cursor);
+          $rolled = $extra === [] || $this->merger->rollback($extra);
+          if (!$rolled) {
+            $this->fail($task, '合并重试中断，未完成的部分没能恢复。已完成的迁移没有回滚。', [
+              'rolled_back' => FALSE,
+              'journal' => $journal,
+            ]);
+            return 'failed';
+          }
+          $this->repository->updateTask($taskId, [
+            'status' => 'partial',
+            'error' => '合并重试中断。已完成的迁移已保留，可以继续处理剩余引用。',
+            'result' => [
+              'started' => 1,
+              'completed' => 0,
+              'batch_open' => 0,
+              'cursor' => $cursor,
+              'total' => (int) ($task['result']['total'] ?? 0),
+              'journal' => array_slice($journal, 0, $cursor),
+            ],
+          ]);
+          $this->repository->insertLog($taskId, (int) ($task['confirmed_uid'] ?? 0), 'merge', FALSE, '合并重试中断。已完成的迁移已保留。', [
+            'cursor' => $cursor,
+          ]);
+          return 'interrupted';
+        }
+        if (!empty($task['result']['batch_open']) || $cursor === 0) {
+          $rolled = $this->merger->rollback($task['result']['journal'] ?? []);
+          $this->fail($task, $rolled ? '合并中断，已按记录恢复引用。' : '合并中断，自动恢复没有全部成功。', [
+            'rolled_back' => $rolled,
+            'journal' => $task['result']['journal'] ?? [],
+          ]);
+          return 'failed';
+        }
       }
       if (!in_array($task['status'], ['queued', 'running'], TRUE)) {
         return 'idle';
@@ -296,45 +342,220 @@ class FileCleanupManager {
    *   Task row.
    */
   private function stepMerge(array $task): string {
-    $task['result'] = ['started' => 1, 'completed' => 0, 'journal' => []];
-    $this->repository->updateTask((int) $task['id'], ['result' => $task['result'], 'status' => 'running']);
-    $live = [];
-    foreach ($task['payload']['drops'] ?? [] as $drop) {
-      $check = $this->analyzer->recheck((int) $drop['fid']);
-      if (empty($check['complete'])) {
-        $this->fail($task, '执行前的引用复查不完整。', []);
-        return 'failed';
-      }
-      foreach ($check['refs'] ?? [] as $ref) {
-        $ref['fid'] = (int) $drop['fid'];
-        $live[] = $ref;
-      }
-    }
-    if (DuplicateMath::signature($live) !== (string) ($task['payload']['signature'] ?? '')) {
-      $this->fail($task, '引用关系已变化，原来的确认已失效。', ['signature' => DuplicateMath::signature($live)]);
+    $stored = is_array($task['result'] ?? NULL) ? $task['result'] : [];
+    $cursor = (int) ($stored['cursor'] ?? 0);
+    $journal = is_array($stored['journal'] ?? NULL) ? $stored['journal'] : [];
+    $migrations = $task['payload']['migrations'] ?? [];
+    if (!is_array($migrations)) {
+      $this->fail($task, '合并方案缺少引用清单。', []);
       return 'failed';
     }
+    if ($cursor === 0) {
+      $live = [];
+      foreach ($task['payload']['drops'] ?? [] as $drop) {
+        $check = $this->analyzer->recheck((int) $drop['fid']);
+        if (empty($check['complete'])) {
+          $this->fail($task, '执行前的引用复查不完整。', []);
+          return 'failed';
+        }
+        foreach ($check['refs'] ?? [] as $ref) {
+          $ref['fid'] = (int) $drop['fid'];
+          $live[] = $ref;
+        }
+      }
+      if (DuplicateMath::signature($live) !== (string) ($task['payload']['signature'] ?? '')) {
+        $this->fail($task, '引用关系已变化，原来的确认已失效。', ['signature' => DuplicateMath::signature($live)]);
+        return 'failed';
+      }
+      $journal = [];
+    }
+    $slice = array_slice($migrations, $cursor, $this->migrationBatchSize());
+    if ($slice === []) {
+      return $this->finishMerge($task, $journal);
+    }
+    if ($cursor > 0) {
+      $drift = $this->migrationDrift($slice, (int) ($task['payload']['keep']['fid'] ?? 0));
+      if ($drift !== NULL) {
+        $this->repository->updateTask((int) $task['id'], [
+          'status' => 'needs_review',
+          'error' => $drift,
+          'result' => [
+            'started' => 1,
+            'completed' => 0,
+            'batch_open' => 0,
+            'cursor' => $cursor,
+            'total' => count($migrations),
+            'journal' => $journal,
+          ],
+        ]);
+        $this->repository->insertLog((int) $task['id'], (int) $task['confirmed_uid'], 'merge', FALSE, $drift, [
+          'cursor' => $cursor,
+        ]);
+        return 'manual';
+      }
+    }
+    $task['payload']['migrations'] = $slice;
+    $task['payload']['final_batch'] = $cursor + count($slice) >= count($migrations);
+    $task['result'] = [
+      'started' => 1,
+      'completed' => 0,
+      'batch_open' => 1,
+      'cursor' => $cursor,
+      'total' => count($migrations),
+      'journal' => $journal,
+    ];
+    $this->repository->updateTask((int) $task['id'], ['result' => $task['result'], 'status' => 'running']);
+    if ((int) \Drupal::state()->get('xedc_cleanup_crash_before_execute', 0) > 0) {
+      \Drupal::state()->delete('xedc_cleanup_crash_before_execute');
+      return 'crashed';
+    }
     $result = $this->merger->execute($task);
-    $this->repository->insertLog((int) $task['id'], (int) $task['confirmed_uid'], 'merge', !empty($result['ok']), (string) ($result['error'] ?? ''), $result);
+    $this->repository->insertLog((int) $task['id'], (int) $task['confirmed_uid'], 'merge', !empty($result['ok']), (string) ($result['error'] ?? ''), [
+      'cursor' => $cursor,
+      'batch' => count($slice),
+      'error' => (string) ($result['error'] ?? ''),
+    ]);
     if (empty($result['ok'])) {
+      $kept = is_array($result['journal'] ?? NULL) ? $result['journal'] : $journal;
+      if (!empty($result['recoverable']) || !empty($result['manual'])) {
+        $status = !empty($result['manual']) ? 'needs_review' : 'partial';
+        $this->repository->updateTask((int) $task['id'], [
+          'status' => $status,
+          'error' => (string) $result['error'],
+          'result' => [
+            'started' => 1,
+            'completed' => 0,
+            'batch_open' => 0,
+            'cursor' => count($kept),
+            'total' => count($migrations),
+            'journal' => $kept,
+            'rolled_back' => FALSE,
+          ],
+        ]);
+        return !empty($result['manual']) ? 'manual' : 'retry';
+      }
       $this->repository->updateTask((int) $task['id'], [
         'status' => 'failed',
         'error' => (string) $result['error'],
         'result' => [
           'started' => 1,
           'completed' => 0,
-          'journal' => $result['journal'] ?? [],
+          'batch_open' => 0,
+          'cursor' => $cursor,
+          'journal' => $kept,
           'rolled_back' => $result['rolled_back'] ?? FALSE,
         ],
+      ]);
+      return 'failed';
+    }
+    $journal = is_array($result['journal'] ?? NULL) ? $result['journal'] : $journal;
+    $cursor += count($slice);
+    $this->repository->updateTask((int) $task['id'], [
+      'status' => 'running',
+      'result' => [
+        'started' => 1,
+        'completed' => 0,
+        'batch_open' => 0,
+        'cursor' => $cursor,
+        'total' => count($migrations),
+        'journal' => $journal,
+      ],
+    ]);
+    if ($cursor < count($migrations)) {
+      return 'more';
+    }
+    $task['result']['journal'] = $journal;
+    return $this->finishMerge($task, $journal);
+  }
+
+  /**
+   * @param array<string, mixed> $task
+   *   Merge task.
+   * @param list<array<string, mixed>> $journal
+   *   Applied field values.
+   */
+  private function finishMerge(array $task, array $journal): string {
+    $report = $this->integrity->inspect($task, $journal);
+    $this->repository->insertLog((int) $task['id'], (int) $task['confirmed_uid'], 'integrity', ($report['status'] ?? '') === 'pass', '', $report);
+    if (!in_array($report['status'] ?? '', ['pass', 'warning'], TRUE)) {
+      $rolled = $this->merger->rollback($journal);
+      $this->fail($task, '合并后完整性检测未通过，' . ($rolled ? '已按快照恢复引用。' : '自动恢复没有全部成功。'), [
+        'integrity' => $report,
+        'journal' => $journal,
+        'rolled_back' => $rolled,
       ]);
       return 'failed';
     }
     $this->repository->updateTask((int) $task['id'], [
       'status' => 'success',
       'error' => '',
-      'result' => ['started' => 1, 'completed' => 1, 'journal' => $result['journal'] ?? []],
+      'result' => [
+        'started' => 1,
+        'completed' => 1,
+        'batch_open' => 0,
+        'cursor' => count($journal),
+        'journal' => $journal,
+        'integrity' => $report,
+      ],
     ]);
     return 'done';
+  }
+
+  /**
+   * @param list<array<string, mixed>> $slice
+   *   Migrations that have not been recorded yet.
+   */
+  private function migrationDrift(array $slice, int $keepFid): ?string {
+    foreach ($slice as $ref) {
+      if (!is_array($ref) || ($ref['source'] ?? '') !== 'field') {
+        return '快照与当前状态不一致，剩余方案含有不能迁移的项目，已停止并等待人工处理。';
+      }
+      if ((int) ($ref['entity_id'] ?? 0) <= 0) {
+        return '快照与当前状态不一致，原实体已不存在，已停止并等待人工处理。';
+      }
+      try {
+        $type = (string) $ref['entity_type'];
+        $entityId = (int) $ref['entity_id'];
+        $storage = $this->entityTypeManager->getStorage($type);
+        $definition = $this->entityTypeManager->getDefinition($type);
+        $storage->resetCache([$entityId]);
+        $revisionId = (int) ($ref['revision_id'] ?? 0);
+        $entity = $definition->isRevisionable() && $revisionId > 0 ? $storage->loadRevision($revisionId) : $storage->load($entityId);
+        if ($entity instanceof TranslatableInterface) {
+          $langcode = (string) ($ref['langcode'] ?? '');
+          if ($langcode !== '' && $entity->language()->getId() !== $langcode) {
+            $entity = $entity->hasTranslation($langcode) ? $entity->getTranslation($langcode) : NULL;
+          }
+        }
+      }
+      catch (\Throwable) {
+        return '快照与当前状态不一致，已停止并等待人工处理。';
+      }
+      if (!$entity instanceof ContentEntityInterface || !$entity->hasField((string) $ref['field_name'])) {
+        return '快照与当前状态不一致，原实体或字段已变化，已停止并等待人工处理。';
+      }
+      $targets = [];
+      foreach ($entity->get((string) $ref['field_name'])->getValue() as $item) {
+        $targets[] = (int) ($item['target_id'] ?? 0);
+      }
+      $from = (int) ($ref['fid'] ?? 0);
+      if (in_array($from, $targets, TRUE)) {
+        continue;
+      }
+      $foreign = array_filter($targets, static fn(int $id): bool => $id !== $keepFid);
+      if ($foreign === [] && in_array($keepFid, $targets, TRUE)) {
+        continue;
+      }
+      return '字段已被其他操作修改，需要人工处理，不会覆盖现有文件。';
+    }
+    return NULL;
+  }
+
+  public function migrationBatchSize(): int {
+    $configured = (int) $this->configFactory->get('xedc_core.settings')->get('file_merge_batch');
+    $state = (int) \Drupal::state()->get('xedc_cleanup_migration_batch', 0);
+    $size = $state > 0 ? $state : ($configured > 0 ? $configured : 40);
+    return min(40, max(1, $size));
   }
 
   /**
@@ -432,7 +653,13 @@ class FileCleanupManager {
     if (!$file instanceof FileInterface) {
       return ['ok' => FALSE, 'error' => '文件 ' . $fid . ' 没有文件实体。'];
     }
-    $real = $this->fileSystem->realpath($file->getFileUri());
+    $blocked = $this->operations instanceof StorageOperationGuard
+      ? $this->operations->localCleanupBlockReason($file->getFileUri())
+      : NULL;
+    if ($blocked !== NULL || $this->guard->kindForUri($file->getFileUri()) === 'remote') {
+      return ['ok' => FALSE, 'error' => '文件 ' . $fid . ' ' . ($blocked ?? '在对象存储中，不能按本地路径隔离。')];
+    }
+    $real = $this->guard->realpathIfLocal($file->getFileUri());
     $info = is_string($real) ? $this->guard->describe($real) : NULL;
     if ($info === NULL) {
       return ['ok' => FALSE, 'error' => '文件 ' . $fid . ' 的路径不能确认。'];

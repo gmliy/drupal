@@ -38,19 +38,23 @@
           {% if node.field_views.value is not empty %}<span>·</span><span>{{ '@count 次播放'|t({'@count': node.field_views.value}) }}</span>{% endif %}
           {% if author %}<span>·</span><span>{{ author }}</span>{% endif %}
         </div>
-        {% if xedc_member_favorite|default('') %}
-          <div class="vd-fav">{{ xedc_member_favorite }}</div>
+        {% if node.field_categories|length %}
+          <div class="vd-classify">
+            <span>{{ '分类：'|t }}</span>
+            {% for item in node.field_categories %}
+              <a href="{{ path('entity.taxonomy_term.canonical', {'taxonomy_term': item.target_id}) }}">{{ item.entity.label }}</a>
+            {% endfor %}
+          </div>
         {% endif %}
-        {% if node.field_categories|length or node.field_tags|length %}
-        <div class="vd-badges">
-          {% for item in node.field_categories %}
-            <a class="vd-badge vd-badge--primary" href="{{ path('entity.taxonomy_term.canonical', {'taxonomy_term': item.target_id}) }}">{{ item.entity.label }}</a>
-          {% endfor %}
-          {% for item in node.field_tags %}
-            <a class="vd-badge" href="{{ path('entity.taxonomy_term.canonical', {'taxonomy_term': item.target_id}) }}">#{{ item.entity.label }}</a>
-          {% endfor %}
-        </div>
+        {% if node.field_tags|length %}
+          <div class="vd-tags">
+            <span>{{ '标签：'|t }}</span>
+            {% for item in node.field_tags %}
+              <a href="{{ path('entity.taxonomy_term.canonical', {'taxonomy_term': item.target_id}) }}">#{{ item.entity.label }}</a>
+            {% endfor %}
+          </div>
         {% endif %}
+        <div class="vd-actions">{{ xedc_engagement|default('') }}</div>
         {% if node.field_body.value %}
         <div class="vd-sep"></div>
         <div class="vd-body">{{ content.field_body }}</div>

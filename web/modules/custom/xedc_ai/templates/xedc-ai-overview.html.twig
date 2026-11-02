@@ -1,0 +1,94 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">AI 运营中心</p>
+      <h2 class="xedc-ai-title">运营概览</h2>
+    </div>
+  </header>
+
+  <section>
+    <h3 class="xedc-ai-section">运行情况</h3>
+    <div class="xedc-ai-cards">
+      <article class="xedc-ai-card"><h3>已启用模型</h3><p class="xedc-ai-value">{{ stats.models }}</p><p class="xedc-ai-detail">{{ stats.default_model }}</p></article>
+      <article class="xedc-ai-card"><h3>今日审核</h3><p class="xedc-ai-value">{{ stats.today_reviews }}</p><p class="xedc-ai-detail">累计 {{ stats.total_reviews }}</p></article>
+      <article class="xedc-ai-card"><h3>今日调用</h3><p class="xedc-ai-value">{{ stats.today_calls }}</p><p class="xedc-ai-detail">Token {{ stats.today_tokens }}</p></article>
+      <article class="xedc-ai-card"><h3>本月费用</h3><p class="xedc-ai-value">{{ stats.month_cost }}</p><p class="xedc-ai-detail">Token {{ stats.month_tokens }}，单位元</p></article>
+      <article class="xedc-ai-card"><h3>待审核</h3><p class="xedc-ai-value">{{ stats.pending }}</p><p class="xedc-ai-detail">失败 {{ stats.failed }}</p></article>
+      <article class="xedc-ai-card"><h3>审核通过</h3><p class="xedc-ai-value">{{ stats.passed }}</p><p class="xedc-ai-detail">已完成 {{ stats.completed }}</p></article>
+      <article class="xedc-ai-card"><h3>需要修改</h3><p class="xedc-ai-value">{{ stats.changes }}</p></article>
+      <article class="xedc-ai-card"><h3>高风险</h3><p class="xedc-ai-value">{{ stats.high }}</p><p class="xedc-ai-detail">重复文件 {{ stats.duplicates }}</p></article>
+    </div>
+  </section>
+
+  <section class="xedc-ai-panel">
+    <h3>预算</h3>
+    <p class="xedc-ai-detail">金额只统计已填写单价的调用。没有单价的调用单独显示 Token，不折算成费用。进行中的预留：{{ budget.held }} 元。</p>
+    <div class="xedc-ai-cards">
+      <article class="xedc-ai-card"><h3>今日已用</h3><p class="xedc-ai-value">{{ budget.daily_used }}</p><p class="xedc-ai-detail">上限 {{ budget.daily_limit }} 元，剩余 {{ budget.daily_remaining }} 元</p></article>
+      <article class="xedc-ai-card"><h3>本月已用</h3><p class="xedc-ai-value">{{ budget.monthly_used }}</p><p class="xedc-ai-detail">上限 {{ budget.monthly_limit }} 元，剩余 {{ budget.monthly_remaining }} 元</p></article>
+      <article class="xedc-ai-card"><h3>今日未标价 Token</h3><p class="xedc-ai-value">{{ budget.unpriced_tokens_today }}</p><p class="xedc-ai-detail">费用未核算</p></article>
+    </div>
+  </section>
+
+  <section class="xedc-ai-panel">
+    <h3>现有自动翻译</h3>
+    <p class="xedc-ai-detail">内容翻译仍使用 {{ translation.provider }}。密钥{{ translation.configured ? '已配置' : '未配置' }}，继续保存在原来的位置，这里不显示密钥。</p>
+    <p><a class="xedc-ai-button" href="{{ translation.url }}">打开自动翻译</a>
+      {% if translation.locale_url %}<a class="xedc-ai-button" href="{{ translation.locale_url }}">打开界面翻译</a>{% endif %}
+    </p>
+  </section>
+
+  <section class="xedc-ai-split">
+    <div class="xedc-ai-panel"><h3>每日审核</h3>{% include '@xedc_ai/templates/xedc-ai-bars.html.twig' with {items: charts.daily} %}</div>
+    <div class="xedc-ai-panel"><h3>内容类型</h3>{% include '@xedc_ai/templates/xedc-ai-bars.html.twig' with {items: charts.bundles} %}</div>
+  </section>
+  <section class="xedc-ai-split">
+    <div class="xedc-ai-panel"><h3>风险分布</h3>{% include '@xedc_ai/templates/xedc-ai-bars.html.twig' with {items: charts.risks} %}</div>
+    <div class="xedc-ai-panel"><h3>模型 Token</h3>{% include '@xedc_ai/templates/xedc-ai-bars.html.twig' with {items: charts.models} %}</div>
+  </section>
+  <section class="xedc-ai-panel">
+    <h3>API 费用趋势</h3>
+    <p class="xedc-ai-detail">只统计已填写单价的调用。没有单价的调用不会计入这条费用。</p>
+    {% if charts.cost %}
+      <div class="xedc-ai-bars">
+        {% for item in charts.cost %}
+          <div class="xedc-ai-bar"><span>{{ item.label }}</span><i><b style="width: {{ item.percent }}%"></b></i><em>{{ item.cost }}</em></div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="xedc-ai-empty">还没有费用记录。</p>
+    {% endif %}
+  </section>
+
+  <section class="xedc-ai-split">
+    <div class="xedc-ai-panel">
+      <h3>最近调用</h3>
+      {% if calls %}
+        <div class="xedc-ai-table-wrap">
+          <table class="xedc-ai-table">
+            <thead><tr><th>时间</th><th>来源</th><th>模型</th><th>状态</th><th>Token</th><th>费用</th></tr></thead>
+            <tbody>
+            {% for row in calls %}
+              <tr><td>{{ row.time }}</td><td>{{ row.source }}</td><td>{{ row.provider }} / {{ row.model }}</td><td>{{ row.status }}</td><td>{{ row.tokens }}</td><td>{{ row.cost }}</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="xedc-ai-empty">还没有调用记录。</p>
+      {% endif %}
+    </div>
+    <div class="xedc-ai-panel">
+      <h3>最近审核</h3>
+      {% if reviews %}
+        <ul class="xedc-ai-list">
+          {% for row in reviews %}
+            <li><a href="{{ row.url }}">{{ row.title ?: '无标题' }}</a><span>{{ row.bundle }} · {{ row.status }} · {{ row.risk }}</span></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="xedc-ai-empty">还没有审核记录。</p>
+      {% endif %}
+    </div>
+  </section>
+</div>

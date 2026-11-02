@@ -1,0 +1,39 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">AI 运营中心</p>
+      <h2 class="xedc-ai-title">操作日志</h2>
+    </div>
+  </header>
+  <p class="xedc-ai-note">日志记录管理员、时间和操作结果。API Key 不会写入这里。</p>
+  {% if rows %}
+    <div class="xedc-ai-table-wrap">
+      <table class="xedc-ai-table">
+        <thead><tr><th>时间</th><th>管理员</th><th>操作</th><th>对象</th><th>说明</th><th>确认</th><th>结果</th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.time }}</td>
+            <td>{{ row.user }}</td>
+            <td>{{ row.action }}</td>
+            <td>{{ row.target }}</td>
+            <td>
+              {{ row.message }}
+              {% if row.before or row.after %}
+                <div class="xedc-ai-detail">修改前：{{ row.before ?: '—' }}</div>
+                <div class="xedc-ai-detail">修改后：{{ row.after ?: '—' }}</div>
+              {% endif %}
+              {% if row.suggestion %}<div class="xedc-ai-detail">建议或原因：{{ row.suggestion }}</div>{% endif %}
+            </td>
+            <td>{{ row.confirmed ? '已确认' : '—' }}</td>
+            <td>{{ row.outcome ?: '—' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ pager }}
+  {% else %}
+    <p class="xedc-ai-empty">还没有操作日志。</p>
+  {% endif %}
+</div>

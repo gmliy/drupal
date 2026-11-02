@@ -1,0 +1,6 @@
+xedc_ui_locale.manage:
+  title: '界面翻译'
+  description: '新模块启用后自动导入官方简体中文，并用现有翻译平台补全缺失的界面字符串。'
+  parent: system.admin_config_regional
+  route_name: xedc_ui_locale.manage
+  weight: 16

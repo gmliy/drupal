@@ -13,6 +13,14 @@
     <li><span>引用</span><strong>{{ group.status }}</strong></li>
   </ul>
   <p class="xedc-ops-detail"><code>{{ group.hash }}</code></p>
+  {% if recommendation.fid %}
+    <p class="xedc-ops-note">参考保留文件 {{ recommendation.fid }}。{{ recommendation.reason }}</p>
+  {% else %}
+    <p class="xedc-ops-note">{{ recommendation.reason }}</p>
+  {% endif %}
+  {% if shared %}
+    <p class="xedc-ops-detail">被多个文件共同使用的内容：{{ shared|join('、') }}</p>
+  {% endif %}
   {% for member in members %}
     <article class="xedc-ops-panel">
       <h3>文件 {{ member.fid }} · {{ member.filename }}</h3>
@@ -24,24 +32,43 @@
         <li><span>修改时间</span><strong>{{ member.mtime }}</strong></li>
         <li><span>文件实体</span><strong>{{ member.entity }}</strong></li>
         <li><span>媒体字段</span><strong>{{ member.media }}</strong></li>
-        <li><span>引用数</span><strong>{{ member.refs }}</strong></li>
+        <li><span>引用位置</span><strong>{{ member.summary.locations }}</strong></li>
+        <li><span>内容实体</span><strong>{{ member.summary.entities }}</strong></li>
+        <li><span>Node</span><strong>{{ member.summary.node }}</strong></li>
+        <li><span>Media</span><strong>{{ member.summary.media }}</strong></li>
+        <li><span>User</span><strong>{{ member.summary.user }}</strong></li>
+        <li><span>正文</span><strong>{{ member.summary.embedded }}</strong></li>
+        <li><span>自定义表</span><strong>{{ member.summary.custom }}</strong></li>
+        <li><span>未知</span><strong>{{ member.summary.unknown }}</strong></li>
         <li><span>状态</span><strong>{{ member.status }}</strong></li>
         <li><span>风险</span><strong>{{ member.risk }}</strong></li>
       </ul>
+      <p class="xedc-ops-detail"><a href="{{ path('xedc_core.files_reference', {'fid': member.fid}) }}">查看全部引用</a></p>
       {% if member.references %}
         <div class="xedc-ops-table-wrap">
           <table class="xedc-ops-table">
-            <thead><tr><th>来源</th><th>实体</th><th>修订</th><th>语言</th><th>字段</th><th>判断</th><th>迁移</th><th>说明</th></tr></thead>
+            <thead><tr><th>来源</th><th>内容</th><th>实体</th><th>修订</th><th>语言</th><th>字段</th><th>状态</th><th>迁移</th><th>入口</th></tr></thead>
             <tbody>
               {% for ref in member.references %}
                 <tr>
-                  <td>{{ ref.source }}</td><td>{{ ref.entity }}</td><td>{{ ref.revision }}</td><td>{{ ref.langcode }}</td>
-                  <td>{{ ref.field }}</td><td>{{ ref.confidence }}</td><td>{{ ref.migratable }}</td><td>{{ ref.reason }}</td>
+                  <td>{{ ref.source }}</td>
+                  <td>{{ ref.title }}{% if ref.parent %} · 所属 {{ ref.parent }}{% endif %}</td>
+                  <td>{{ ref.entity }}</td>
+                  <td>{{ ref.revision }}</td>
+                  <td>{{ ref.langcode }}</td>
+                  <td>{{ ref.field }}</td>
+                  <td>{{ ref.status }}</td>
+                  <td>{{ ref.migratable }}</td>
+                  <td>
+                    {% if ref.view %}<a href="{{ ref.view }}">查看</a>{% endif %}
+                    {% if ref.edit %}<a href="{{ ref.edit }}">编辑</a>{% endif %}
+                  </td>
                 </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
+        {% if member.more %}<p class="xedc-ops-detail"><a href="{{ member.more }}">还有更多引用</a></p>{% endif %}
       {% else %}
         <p class="xedc-ops-note">没有记录到引用。若状态不是确认未引用，仍不能删除。</p>
       {% endif %}

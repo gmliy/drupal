@@ -1,0 +1,4 @@
+ui_sample.menu:
+  title: 'Sample menu'
+  description: 'Open the sample page'
+  route_name: ui_sample.page

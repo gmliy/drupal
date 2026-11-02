@@ -27,3 +27,93 @@ xedc_core.files_logs_tab:
   title: '日志'
   base_route: xedc_core.files
   weight: 4
+
+xedc_core.storage_tab:
+  route_name: xedc_core.storage
+  title: '概览'
+  base_route: xedc_core.storage
+  weight: 0
+
+xedc_core.storage_providers_tab:
+  route_name: xedc_core.storage_providers
+  title: '供应商'
+  base_route: xedc_core.storage
+  weight: 1
+
+xedc_core.storage_policy_tab:
+  route_name: xedc_core.storage_policy
+  title: '存储策略'
+  base_route: xedc_core.storage
+  weight: 2
+
+xedc_core.storage_cdn_tab:
+  route_name: xedc_core.storage_cdn
+  title: 'CDN'
+  base_route: xedc_core.storage
+  weight: 3
+
+xedc_core.storage_migration_tab:
+  route_name: xedc_core.storage_migration
+  title: '迁移'
+  base_route: xedc_core.storage
+  weight: 4
+
+xedc_core.storage_monitor_tab:
+  route_name: xedc_core.storage_monitor
+  title: '监控'
+  base_route: xedc_core.storage
+  weight: 5
+
+xedc_core.storage_security_tab:
+  route_name: xedc_core.storage_security
+  title: '安全'
+  base_route: xedc_core.storage
+  weight: 6
+
+xedc_core.storage_readiness_tab:
+  route_name: xedc_core.storage_readiness
+  title: '启用检查'
+  base_route: xedc_core.storage
+  weight: 7
+
+xedc_core.vip_tab:
+  route_name: xedc_core.vip_admin
+  title: 'VIP 会员'
+  base_route: xedc_core.vip_admin
+  weight: 0
+
+xedc_core.downloads_tab:
+  route_name: entity.xedc_download.collection
+  title: '下载资源'
+  base_route: xedc_core.vip_admin
+  weight: 1
+
+xedc_core.overview_tab:
+  route_name: xedc_core.engagement_overview
+  title: '互动总览'
+  base_route: xedc_core.vip_admin
+  weight: 2
+
+xedc_core.like_stats_tab:
+  route_name: xedc_core.like_stats
+  title: '点赞明细'
+  base_route: xedc_core.vip_admin
+  weight: 3
+
+xedc_core.download_stats_tab:
+  route_name: xedc_core.download_stats
+  title: '下载明细'
+  base_route: xedc_core.vip_admin
+  weight: 4
+
+xedc_core.share_stats_tab:
+  route_name: xedc_core.share_stats
+  title: '分享统计'
+  base_route: xedc_core.vip_admin
+  weight: 5
+
+xedc_core.zip_jobs_tab:
+  route_name: xedc_core.zip_jobs
+  title: 'ZIP 任务'
+  base_route: xedc_core.vip_admin
+  weight: 6

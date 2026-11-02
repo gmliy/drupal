@@ -1,0 +1,39 @@
+{#
+/**
+ * @file
+ * Content types as one grouped list. Each row is a single link.
+ */
+#}
+{% if types is not empty %}
+  <div class="xedc-admin-index-list xedc-add-list">
+    {% for type in types %}
+      <a class="xedc-admin-index-row" href="{{ type.url }}">
+        <span class="xedc-add-list__icon" aria-hidden="true">
+          {% if type.type == 'video' %}
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="M15 10l6-3v10l-6-3"/></svg>
+          {% elseif type.type == 'photo' %}
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 16l-5-5-9 8"/></svg>
+          {% elseif type.type == 'page' %}
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v6h6"/></svg>
+          {% else %}
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M15 3v6h6M8 13h8M8 17h5"/></svg>
+          {% endif %}
+        </span>
+        <span class="xedc-admin-index-row__body">
+          <span class="xedc-admin-index-row__title">{{ type.label }}</span>
+          {% if type.summary %}
+            <span class="xedc-admin-index-row__desc">{{ type.summary }}</span>
+          {% endif %}
+        </span>
+        <svg class="xedc-admin-index-row__arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <p>
+    {% set create_content = path('node.type_add') %}
+    {% trans %}
+      You have not created any content types yet. Go to the <a href="{{ create_content }}">content type creation page</a> to add a new content type.
+    {% endtrans %}
+  </p>
+{% endif %}

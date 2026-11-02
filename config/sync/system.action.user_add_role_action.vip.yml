@@ -1,0 +1,14 @@
+uuid: a5bf0f65-dcd0-42be-8b7f-7400d344f725
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - user.role.vip
+  module:
+    - user
+id: user_add_role_action.vip
+label: '为选择的用户添加 VIP 会员 角色'
+type: user
+plugin: user_add_role_action
+configuration:
+  rid: vip

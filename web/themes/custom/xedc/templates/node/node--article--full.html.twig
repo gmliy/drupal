@@ -31,18 +31,20 @@
       <div class="xa-prose" id="xa-prose">{{ xa_body }}</div>
 
       <footer class="xa-art__foot">
+        {% if xa_cat %}
+          <div class="xa-art__tags"><span>{{ '分类：'|t }}</span> <a href="{{ xa_cat.url }}">{{ xa_cat.name }}</a></div>
+        {% endif %}
         {% if xa_tags %}
           <div class="xa-art__tags">
+            <span>{{ '标签：'|t }}</span>
             {% for t in xa_tags %}<a class="xa-badge xa-badge--outline" href="{{ t.url }}">{{ t.name }}</a>{% endfor %}
           </div>
         {% endif %}
         <div class="xa-art__actions">
-          {{ xedc_member_favorite|default('') }}
+          {{ xedc_engagement|default('') }}
           {% if xa_source_url %}
             <a class="xa-btn xa-btn--primary" href="{{ xa_source_url }}" target="_blank" rel="nofollow noopener noreferrer" title="{{ xa_source_host }}">{{ '查看原文'|t }} ↗</a>
           {% endif %}
-          <button class="xa-btn" type="button" data-xa-share hidden>{{ '分享'|t }}</button>
-          <button class="xa-btn" type="button" data-xa-copy>{{ '复制链接'|t }}</button>
         </div>
       </footer>
 

@@ -50,6 +50,7 @@ module:
   help: 0
   image: 0
   jsonapi: 0
+  key: 0
   language: 0
   layout_builder: 0
   layout_discovery: 0
@@ -119,10 +120,12 @@ module:
   xa_views: 0
   xedc_admin_nav: 0
   xedc_admin_ui: 0
+  xedc_ai: 0
   xedc_audit: 0
   xedc_auto_translate: 0
   xedc_core: 0
   xedc_home: 0
+  xedc_mail: 0
   xedc_member: 0
   xedc_models: 0
   xedc_moderation: 0

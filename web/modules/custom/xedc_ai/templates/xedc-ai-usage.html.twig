@@ -1,0 +1,62 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">AI 运营中心</p>
+      <h2 class="xedc-ai-title">API 使用统计</h2>
+    </div>
+  </header>
+  <div class="xedc-ai-cards">
+    <article class="xedc-ai-card"><h3>筛选 Token</h3><p class="xedc-ai-value">{{ summary.tokens }}</p></article>
+    <article class="xedc-ai-card"><h3>已核算费用</h3><p class="xedc-ai-value">{{ summary.cost }}</p><p class="xedc-ai-detail">元</p></article>
+    <article class="xedc-ai-card"><h3>未核算次数</h3><p class="xedc-ai-value">{{ summary.unpriced }}</p></article>
+  </div>
+  <form class="xedc-ai-filters" method="get">
+    <label>来源
+      <select name="source">
+        <option value="">全部</option>
+        {% for key, label in {'content_review':'内容审核','translation':'自动翻译','seo_optimization':'SEO','connection_test':'连接测试'} %}
+          <option value="{{ key }}"{{ filters.source == key ? ' selected' }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>供应商<input name="provider_id" value="{{ filters.provider_id }}"></label>
+    <label>模型<input name="model_name" value="{{ filters.model_name }}"></label>
+    <label>状态
+      <select name="status">
+        <option value="">全部</option>
+        <option value="success"{{ filters.status == 'success' ? ' selected' }}>成功</option>
+        <option value="error"{{ filters.status == 'error' ? ' selected' }}>失败</option>
+      </select>
+    </label>
+    <label>开始<input type="date" name="from" value="{{ filters.from }}"></label>
+    <label>结束<input type="date" name="to" value="{{ filters.to }}"></label>
+    <button type="submit">查询</button>
+  </form>
+  {% if rows %}
+    <div class="xedc-ai-table-wrap">
+      <table class="xedc-ai-table">
+        <thead><tr><th>时间</th><th>来源</th><th>供应商</th><th>模型</th><th>状态</th><th>输入</th><th>输出</th><th>合计</th><th>耗时</th><th>费用</th><th>失败原因</th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.time }}</td>
+            <td>{{ row.source }}</td>
+            <td>{{ row.provider }}</td>
+            <td>{{ row.model }}</td>
+            <td><span class="xedc-ai-status is-{{ row.status_key }}">{{ row.status }}</span></td>
+            <td>{{ row.prompt }}</td>
+            <td>{{ row.completion }}</td>
+            <td>{{ row.total }}</td>
+            <td>{{ row.duration }} ms</td>
+            <td>{{ row.cost }}</td>
+            <td>{{ row.error }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ pager }}
+  {% else %}
+    <p class="xedc-ai-empty">这个筛选条件下没有调用记录。</p>
+  {% endif %}
+</div>

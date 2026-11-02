@@ -41,6 +41,9 @@ class MemberAliasManager {
   protected array $sections = [
     '' => '/member',
     'favorites' => '/member/favorites',
+    'likes' => '/member/likes',
+    'downloads' => '/member/downloads',
+    'membership' => '/member/membership',
     'history' => '/member/history',
     'history/clear' => '/member/history/clear',
     'comments' => '/member/comments',

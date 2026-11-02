@@ -53,3 +53,53 @@ xedc_core.files_logs:
   route_name: xedc_core.files_logs
   parent: xedc_core.ops
   weight: 5
+
+xedc_core.storage:
+  title: '对象存储'
+  description: '管理 S3 兼容供应商、存储策略、CDN 和迁移预检查。'
+  route_name: xedc_core.storage
+  parent: system.admin_config_media
+  weight: 10
+
+xedc_core.engagement:
+  title: '会员与互动'
+  description: 'VIP、下载资源和互动统计。'
+  route_name: xedc_core.vip_admin
+  parent: system.admin
+  weight: 4
+  enabled: false
+
+xedc_core.vip_admin:
+  title: 'VIP 会员'
+  description: '开通、延期和取消 VIP。'
+  route_name: xedc_core.vip_admin
+  parent: xedc_core.engagement
+  weight: 0
+
+xedc_core.downloads:
+  title: '下载资源'
+  description: '管理内容的下载资源。'
+  route_name: entity.xedc_download.collection
+  parent: xedc_core.engagement
+  weight: 1
+
+xedc_core.like_stats:
+  title: '点赞统计'
+  description: '查看点赞数量。'
+  route_name: xedc_core.like_stats
+  parent: xedc_core.engagement
+  weight: 2
+
+xedc_core.download_stats:
+  title: '下载统计'
+  description: '查看已授权的下载次数。'
+  route_name: xedc_core.download_stats
+  parent: xedc_core.engagement
+  weight: 3
+
+xedc_core.share_stats:
+  title: '分享统计'
+  description: '查看分享结果。'
+  route_name: xedc_core.share_stats
+  parent: xedc_core.engagement
+  weight: 4

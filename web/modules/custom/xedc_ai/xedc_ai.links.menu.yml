@@ -1,0 +1,73 @@
+xedc_ai.overview:
+  title: 'AI 运营中心'
+  description: '模型、文字审核、翻译、SEO 建议和 API 用量。'
+  route_name: xedc_ai.overview
+  parent: system.admin
+  weight: -8
+
+xedc_ai.overview.item:
+  title: '运营概览'
+  route_name: xedc_ai.overview
+  parent: xedc_ai.overview
+  weight: 0
+
+xedc_ai.reviews:
+  title: 'AI 内容审核'
+  route_name: xedc_ai.reviews
+  parent: xedc_ai.overview
+  weight: 1
+
+xedc_ai.duplicates:
+  title: '重复内容检测'
+  route_name: xedc_ai.duplicates
+  parent: xedc_ai.overview
+  weight: 2
+
+xedc_ai.submissions:
+  title: '会员投稿审核'
+  route_name: xedc_ai.submissions
+  parent: xedc_ai.overview
+  weight: 3
+
+xedc_ai.seo:
+  title: 'AI SEO 优化'
+  route_name: xedc_ai.seo
+  parent: xedc_ai.overview
+  weight: 4
+
+xedc_ai.translate_manage:
+  title: 'AI 翻译管理'
+  route_name: xedc_ai.translate
+  parent: xedc_ai.overview
+  weight: 5
+
+xedc_ai.translate:
+  title: 'AI 自动翻译'
+  description: '打开现有的自动翻译配置。'
+  route_name: xedc_auto_translate.settings
+  parent: xedc_ai.overview
+  weight: 6
+
+xedc_ai.models:
+  title: 'AI 模型管理'
+  route_name: xedc_ai.models
+  parent: xedc_ai.overview
+  weight: 7
+
+xedc_ai.usage:
+  title: 'API 使用统计'
+  route_name: xedc_ai.usage
+  parent: xedc_ai.overview
+  weight: 8
+
+xedc_ai.rules:
+  title: '审核规则配置'
+  route_name: xedc_ai.rules
+  parent: xedc_ai.overview
+  weight: 9
+
+xedc_ai.logs:
+  title: '操作日志'
+  route_name: xedc_ai.logs
+  parent: xedc_ai.overview
+  weight: 10

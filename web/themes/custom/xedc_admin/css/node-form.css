@@ -210,15 +210,50 @@
 }
 
 .xedc-admin-active .xedc-node .field-multiple-table thead {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+  display: block;
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0 0 6px;
   padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
   border: 0;
+}
+
+.xedc-admin-active .xedc-node .field-multiple-table thead tr {
+  display: block;
+  margin: 0;
+}
+
+.xedc-admin-active .xedc-node .field-multiple-table thead th {
+  display: none;
+}
+
+.xedc-admin-active .xedc-node .field-multiple-table thead th.field-label {
+  display: block;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--xedc-admin-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+}
+
+.xedc-admin-active .xedc-node .field-multiple-table thead th.field-label .label,
+.xedc-admin-active .xedc-node .field-multiple-table thead th.field-label h4 {
+  margin: 0;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .xedc-admin-active .xedc-node .field-multiple-table {
@@ -432,49 +467,69 @@
 }
 
 @media (max-width: 1023px) {
-  .xedc-admin-active .xedc-admin-content:has(.xedc-node-form) {
-    display: flex;
-    flex-direction: column;
-    height: calc(100dvh - var(--xedc-admin-header-height));
-    overflow: hidden;
-    padding-bottom: 0;
-  }
-
-  .xedc-admin-active .xedc-admin-content:has(.xedc-node-form) > :not(.xedc-admin-pagehead),
-  .xedc-admin-active .xedc-node-form {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
+  .xedc-admin-active .xedc-admin-content:has(.xedc-node-form),
+  .xedc-admin-active .xedc-node-form,
+  .xedc-admin-active .xedc-node,
+  .xedc-admin-active .xedc-node__main,
+  .xedc-admin-active .xedc-node__settings {
+    height: auto;
+    max-height: none;
+    overflow: visible;
   }
 
   .xedc-admin-active .xedc-node {
     display: flex;
-    flex: 1 1 auto;
     flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 
-  .xedc-admin-active .xedc-node__scroll {
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: calc(100dvh - var(--xedc-admin-header-height) - 320px);
-    overflow: auto;
-    padding-bottom: 12px;
+  .xedc-admin-active .xedc-node__rail {
+    display: contents;
   }
 
-  .xedc-admin-active .xedc-publish {
+  .xedc-admin-active .xedc-node__main {
+    order: 1;
+  }
+
+  .xedc-admin-active .xedc-node__settings {
+    order: 2;
+  }
+
+  .xedc-admin-active .xedc-node__side {
     position: sticky;
     bottom: 0;
     z-index: 5;
-    flex: none;
+    order: 3;
+    width: auto;
+    margin: 0 0 calc(-1 * (72px + env(safe-area-inset-bottom, 0px)));
+  }
+
+  .xedc-admin-active .xedc-publish {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 56px;
+    min-height: 56px;
+    max-height: 56px;
     margin: 0;
-    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    padding: 0 12px;
+    overflow: hidden;
     border: 0;
     border-top: 1px solid var(--xedc-admin-border);
     border-radius: 0;
+    background: var(--xedc-admin-surface);
+  }
+
+  .xedc-admin-active .xedc-publish__title,
+  .xedc-admin-active .xedc-publish .form-item__description,
+  .xedc-admin-active .xedc-publish .description,
+  .xedc-admin-active .xedc-publish .form-item > label,
+  .xedc-admin-active .xedc-publish .form-item__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
   }
 
   .xedc-admin-active .xedc-node__actions {
@@ -491,14 +546,26 @@
     margin: 0;
   }
 
-  .xedc-admin-active .xedc-publish .form-item {
+  .xedc-admin-active .xedc-publish .form-item,
+  .xedc-admin-active .xedc-publish .form-wrapper {
+    display: flex;
     flex: 1 1 auto;
+    align-items: center;
+    min-width: 0;
     margin: 0;
   }
 
+  .xedc-admin-active .xedc-publish select,
+  .xedc-admin-active .xedc-publish .form-select {
+    height: 36px;
+    min-height: 36px;
+    font-size: 14px;
+  }
+
   .xedc-admin-active .xedc-node__actions .button {
-    min-height: 40px;
-    height: 40px;
+    min-height: 36px;
+    height: 36px;
+    padding: 0 12px;
   }
 }
 
@@ -510,31 +577,28 @@
     align-items: start;
   }
 
-  .xedc-admin-active .xedc-node__scroll {
-    display: contents;
-  }
-
   .xedc-admin-active .xedc-node__main {
     grid-column: 1;
     grid-row: 1;
     max-width: 760px;
   }
 
-  .xedc-admin-active .xedc-node__settings {
+  .xedc-admin-active .xedc-node__rail {
     grid-column: 2;
     grid-row: 1;
     align-self: start;
-    margin-top: 210px;
+    width: 320px;
   }
 
   .xedc-admin-active .xedc-node__side {
     position: sticky;
     top: calc(var(--xedc-admin-header-height) + 16px);
-    grid-column: 2;
-    grid-row: 1;
-    align-self: start;
     width: 320px;
     height: fit-content;
+  }
+
+  .xedc-admin-active .xedc-node__settings {
+    margin-top: 16px;
   }
 
   .xedc-admin-active .xedc-card {
@@ -608,7 +672,8 @@ html.xedc-admin-active .xedc-node legend label {
 }
 
 html.xedc-admin-active .xedc-node fieldset > legend {
-  float: left;
+  float: none;
+  display: block;
   width: 100%;
   margin: 0 0 8px;
   padding: 0;
@@ -745,4 +810,139 @@ html.xedc-admin-active[data-theme="dark"] .xedc-node .field-multiple-table input
 
 html.xedc-admin-active[data-theme="dark"] .xedc-node .field-add-more-submit {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 3v10M3 8h10' stroke='%23E4E4E7' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+}
+
+/* Multiple-value labels sit above the input. The weight toggle stays secondary. */
+html.xedc-admin-active .xedc-node .field--name-field-tags,
+html.xedc-admin-active .xedc-node .field--name-field-model,
+html.xedc-admin-active .xedc-node .field--name-field-categories {
+  margin: 0 0 18px;
+}
+
+html.xedc-admin-active .xedc-node .field--widget-entity-reference-autocomplete .tabledrag-toggle-weight-wrapper {
+  margin: 0 0 4px auto !important;
+}
+
+html.xedc-admin-active .xedc-node .field--widget-entity-reference-autocomplete .tabledrag-toggle-weight {
+  color: var(--xedc-admin-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+html.xedc-admin-active .xedc-node .field--widget-entity-reference-autocomplete .xedc-admin-table-wrap {
+  overflow: visible;
+  border-radius: 0;
+}
+
+html.xedc-admin-active .xedc-node .field--widget-entity-reference-autocomplete .xedc-admin-table-wrap > table {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+html.xedc-admin-active .xedc-node .field--name-field-tags input.form-autocomplete,
+html.xedc-admin-active .xedc-node .field--name-field-model input.form-autocomplete,
+html.xedc-admin-active .xedc-node .field--name-field-categories input.form-autocomplete {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 40px;
+  min-height: 40px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+html.xedc-admin-active .xedc-node .field-multiple-table td {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 1023px) {
+  html.xedc-admin-active .xedc-node .field-multiple-table tr {
+    flex-wrap: wrap;
+  }
+}
+
+/* Cover and other media widgets stay inside the field. */
+html.xedc-admin-active .xedc-node .field--widget-media-library-widget,
+html.xedc-admin-active .xedc-node fieldset.js-media-library-widget,
+html.xedc-admin-active .xedc-node .js-media-library-widget,
+html.xedc-admin-active .xedc-node .js-media-library-selection,
+html.xedc-admin-active .xedc-node .js-media-library-item,
+html.xedc-admin-active .xedc-node .js-media-library-item article {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+}
+
+html.xedc-admin-active .xedc-node .js-media-library-selection {
+  width: 100%;
+}
+
+html.xedc-admin-active .xedc-node .field--name-field-cover-image .js-media-library-selection {
+  grid-template-columns: minmax(0, 100%);
+}
+
+html.xedc-admin-active .xedc-node .js-media-library-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px;
+  overflow: hidden;
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: 8px;
+  background: var(--xedc-admin-surface);
+}
+
+html.xedc-admin-active .xedc-node .field--name-field-cover-image .js-media-library-item {
+  justify-self: start;
+  width: auto;
+  max-width: 100%;
+}
+
+html.xedc-admin-active .xedc-node .js-media-library-item > .button,
+html.xedc-admin-active .xedc-node .js-media-library-item > input.form-submit {
+  order: 2;
+  flex: 0 0 auto;
+  align-self: center;
+  max-width: 100%;
+}
+
+html.xedc-admin-active .xedc-node .js-media-library-item article {
+  order: 1;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+html.xedc-admin-active .xedc-node .field--name-field-cover-image .js-media-library-item article {
+  flex: 0 1 auto;
+}
+
+html.xedc-admin-active .xedc-node .js-media-library-item-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--xedc-admin-surface-secondary);
+}
+
+html.xedc-admin-active .xedc-node .js-media-library-item-preview img {
+  display: block;
+  width: auto;
+  max-width: min(160px, 100%);
+  height: auto;
+  max-height: 220px;
+  object-fit: contain;
+}
+
+html.xedc-admin-active .xedc-node .js-media-library-item article > div:not(.js-media-library-item-preview) {
+  margin-top: 6px;
+  color: var(--xedc-admin-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }

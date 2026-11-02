@@ -1,0 +1,32 @@
+active_profile: ''
+presign_ttl: 120
+multipart_cleanup: 0
+profiles: []
+policy:
+  cover_image: public
+  thumbnail: public
+  original_image: inherit
+  video_poster: public
+  video_file: private
+  zip_archive: private
+  vip_download: private
+  article_attachment: inherit
+  temporary: local
+cdn:
+  enabled: false
+  https_only: true
+  image_domain: ''
+  media_domain: ''
+  base_url: ''
+  cache_control: 'public, max-age=31536000, immutable'
+  browser_cache: 'public, max-age=31536000, immutable'
+  purge_mode: manual
+pricing:
+  currency: USD
+  storage_price_per_gb_month: 0
+  download_price_per_gb: 0
+  request_price_per_thousand: 0
+  free_storage_gb: 0
+  free_download_gb: 0
+  free_requests: 0
+  other_monthly: 0

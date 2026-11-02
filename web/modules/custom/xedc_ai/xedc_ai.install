@@ -1,0 +1,254 @@
+<?php
+
+/**
+ * @file
+ * Schema for the AI operations center.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_schema().
+ */
+function xedc_ai_schema(): array {
+  $provider = [
+    'description' => 'AI providers. API keys are not stored in this table.',
+    'fields' => [
+      'id' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE],
+      'label' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'driver' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'custom'],
+      'base_url' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'enabled' => ['type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'timeout' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 30],
+      'max_tokens' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 800],
+      'temperature' => ['type' => 'varchar', 'length' => 8, 'not null' => TRUE, 'default' => '0.2'],
+      'key_hint' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+  ];
+  $model = [
+    'description' => 'Text models belonging to a provider.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'provider_id' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'model_name' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'label' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'enabled' => ['type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 1],
+      'input_price' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'output_price' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'currency' => ['type' => 'varchar', 'length' => 8, 'not null' => TRUE, 'default' => 'CNY'],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'capabilities' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'provider_model' => ['provider_id', 'model_name'],
+    ],
+    'indexes' => [
+      'provider' => ['provider_id'],
+    ],
+  ];
+  $review = [
+    'description' => 'Text review suggestions. They do not change moderation state.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'entity_type' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'node'],
+      'entity_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'revision_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'langcode' => ['type' => 'varchar', 'length' => 12, 'not null' => TRUE, 'default' => ''],
+      'bundle' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'fingerprint' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'field_hash' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'model_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'provider_id' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'model_name' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'rule_version' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 1],
+      'source' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'content_review'],
+      'depth' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'quick'],
+      'force_call' => ['type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'allow_over_budget' => ['type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'pending'],
+      'risk_level' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'score' => ['type' => 'int', 'not null' => FALSE],
+      'seo_score' => ['type' => 'int', 'not null' => FALSE],
+      'issues' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'suggestions' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'summary' => ['type' => 'text', 'not null' => FALSE],
+      'result' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'local_checks' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'error_code' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'error_message' => ['type' => 'text', 'not null' => FALSE],
+      'attempts' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'is_submission' => ['type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'handled_status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'open'],
+      'handled_uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'handled_at' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'moderation_state' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'moderation_workflow' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'title' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'task_note' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'completed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'status' => ['status'],
+      'fingerprint' => ['fingerprint'],
+      'entity' => ['entity_type', 'entity_id', 'revision_id'],
+      'created' => ['created'],
+      'bundle_risk' => ['bundle', 'risk_level'],
+      'source' => ['source'],
+      'model' => ['model_id'],
+      'provider' => ['provider_id'],
+    ],
+  ];
+  $usage = [
+    'description' => 'AI call log without prompts, responses or API keys.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'source' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'provider_id' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'model_name' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'prompt_tokens' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'completion_tokens' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'total_tokens' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'duration_ms' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'cost_micro' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'cost_known' => ['type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'error_code' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'error_message' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'review_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'call_state' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'finished'],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'created' => ['created'],
+      'source' => ['source'],
+      'provider' => ['provider_id'],
+      'model_name' => ['model_name'],
+      'status' => ['status'],
+      'review_state' => ['review_id', 'call_state'],
+    ],
+  ];
+  $hold = [
+    'description' => 'Budget reservations for calls that have not finished.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'cost_micro' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'held'],
+      'review_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'status' => ['status'],
+      'review' => ['review_id'],
+    ],
+  ];
+  $filehash = [
+    'description' => 'Local SHA-256 and perceptual hashes. No remote vision call.',
+    'fields' => [
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'phash' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'width' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'height' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'mime' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'kind' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['fid'],
+    'indexes' => [
+      'sha256' => ['sha256'],
+      'phash' => ['phash'],
+    ],
+  ];
+  $audit = [
+    'description' => 'Admin actions for AI operations. Secrets are not stored.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'action' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'message' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'target_type' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'target_id' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'before_text' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'after_text' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'suggestion' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'confirmed' => ['type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'outcome' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'created' => ['created'],
+    ],
+  ];
+  return [
+    'xedc_ai_provider' => $provider,
+    'xedc_ai_model' => $model,
+    'xedc_ai_review' => $review,
+    'xedc_ai_usage' => $usage,
+    'xedc_ai_hold' => $hold,
+    'xedc_ai_filehash' => $filehash,
+    'xedc_ai_audit' => $audit,
+  ];
+}
+
+/**
+ * Creates the AI operations tables when they are missing.
+ */
+function xedc_ai_update_10001(): string {
+  $schema = xedc_ai_schema();
+  $database = \Drupal::database();
+  foreach ($schema as $name => $table) {
+    if (!$database->schema()->tableExists($name)) {
+      $database->schema()->createTable($name, $table);
+    }
+  }
+  return 'AI 运营中心数据表已就绪。';
+}
+
+/**
+ * Adds model capabilities, review notes and operation-log details.
+ */
+function xedc_ai_update_10002(): string {
+  $database = \Drupal::database();
+  $schema = $database->schema();
+  $spec = xedc_ai_schema();
+  $fields = [
+    'xedc_ai_model' => ['capabilities'],
+    'xedc_ai_review' => ['task_note'],
+    'xedc_ai_audit' => ['target_type', 'target_id', 'before_text', 'after_text', 'suggestion', 'confirmed', 'outcome'],
+  ];
+  foreach ($fields as $table => $names) {
+    foreach ($names as $name) {
+      if ($schema->tableExists($table) && !$schema->fieldExists($table, $name)) {
+        $schema->addField($table, $name, $spec[$table]['fields'][$name]);
+      }
+    }
+  }
+  $rules = \Drupal::configFactory()->getEditable('xedc_ai.rules');
+  if ($rules->get('min_title') === NULL) {
+    $rules->setData(\Drupal\xedc_ai\Review\RuleLimits::defaults())->save(TRUE);
+  }
+  return 'AI 运营中心已补充模型能力、审核备注和操作日志字段。';
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function xedc_ai_uninstall(): void {
+  if (\Drupal::hasService('xedc_ai.secrets')) {
+    \Drupal::service('xedc_ai.secrets')->deleteAll();
+  }
+}

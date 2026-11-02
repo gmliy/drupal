@@ -475,7 +475,8 @@ body.xedc-admin-active .dialog-off-canvas-main-canvas {
     display: none;
   }
 
-  .xedc-admin-drawer__pane[data-xedc-nav-pane="config"] {
+  .xedc-admin-drawer__pane[data-xedc-nav-pane="config"],
+  .xedc-admin-drawer__pane[data-xedc-nav-pane="structure"] {
     width: 260px;
     max-height: calc(100dvh - var(--xedc-admin-header-height));
   }

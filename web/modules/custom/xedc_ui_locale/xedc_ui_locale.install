@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Keeps existing Simplified Chinese interface translations in place.
+ * Schema and updates for interface translation tracking.
  */
 
 declare(strict_types=1);
@@ -15,4 +15,97 @@ function xedc_ui_locale_install(): void {
     ->set('translation.overwrite_customized', FALSE)
     ->set('translation.overwrite_not_customized', FALSE)
     ->save();
+  \Drupal::queue('xedc_ui_locale')->createQueue();
+}
+
+/**
+ * {@inheritdoc}
+ */
+function xedc_ui_locale_schema(): array {
+  $job = [
+    'description' => 'Interface translation job for one module.',
+    'fields' => [
+      'module' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE],
+      'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'pending'],
+      'operation' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'full'],
+      'official_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'ai_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'existing_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'remaining_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'failed_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'protected_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'attempts' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'official_done' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'official_seek' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'official_file' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'message' => ['type' => 'text', 'not null' => FALSE],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['module'],
+  ];
+  $item = [
+    'description' => 'Per-string interface translation status.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'module' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE],
+      'source_hash' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE],
+      'context_hash' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE],
+      'source' => ['type' => 'text', 'size' => 'big', 'not null' => TRUE],
+      'context' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'translation' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'origin' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'pending'],
+      'reason' => ['type' => 'text', 'not null' => FALSE],
+      'lid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'source' => ['module', 'source_hash', 'context_hash'],
+    ],
+    'indexes' => [
+      'module_status' => ['module', 'status'],
+    ],
+  ];
+  $log = [
+    'description' => 'Interface translation log.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'module' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'level' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'notice'],
+      'message' => ['type' => 'text', 'not null' => TRUE],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'created' => ['created'],
+    ],
+  ];
+  return [
+    'xedc_ui_locale_job' => $job,
+    'xedc_ui_locale_item' => $item,
+    'xedc_ui_locale_log' => $log,
+  ];
+}
+
+/**
+ * Creates interface translation tables and default protected terms.
+ */
+function xedc_ui_locale_update_11001(): void {
+  $schema = xedc_ui_locale_schema();
+  $database = \Drupal::database();
+  foreach ($schema as $table => $definition) {
+    if (!$database->schema()->tableExists($table)) {
+      $database->schema()->createTable($table, $definition);
+    }
+  }
+  \Drupal::queue('xedc_ui_locale')->createQueue();
+  $config = \Drupal::configFactory()->getEditable('xedc_ui_locale.settings');
+  if ($config->get('protected_terms') === NULL) {
+    $config
+      ->set('protected_terms', ['DcLili', 'Drupal'])
+      ->set('batch_size', 20)
+      ->save();
+  }
 }

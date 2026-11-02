@@ -1,0 +1,37 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">AI 运营中心</p>
+      <h2 class="xedc-ai-title">会员投稿审核</h2>
+    </div>
+    <a class="xedc-ai-button" href="{{ moderation_url }}">Drupal 内容审核</a>
+  </header>
+  <p class="xedc-ai-note">这里列出工作流中处于「待审核」的文章、美图和视频。通过、退回和拒绝都要管理员确认，并且只使用现有工作流允许的状态。</p>
+  {% if rows %}
+    <div class="xedc-ai-table-wrap">
+      <table class="xedc-ai-table">
+        <thead><tr><th>投稿</th><th>类型</th><th>投稿人</th><th>时间</th><th>完整性</th><th>AI 审核</th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+          <tr>
+            <td><a href="{{ row.edit_url }}">{{ row.title ?: '无标题' }}</a></td>
+            <td>{{ row.bundle }}</td>
+            <td>{{ row.author }}</td>
+            <td>{{ row.time }}</td>
+            <td>{{ row.gaps ? row.gaps|join('、') : '字段完整' }}</td>
+            <td>{% if row.review_url %}<a href="{{ row.review_url }}">{{ row.review }}</a>{% else %}{{ row.review }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="xedc-ai-empty">当前没有待审核的会员投稿。</p>
+  {% endif %}
+  {% if action %}
+    <section class="xedc-ai-panel">
+      <h3>人工处理</h3>
+      {{ action }}
+    </section>
+  {% endif %}
+</div>

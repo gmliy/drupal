@@ -64,6 +64,22 @@
   visibility: hidden;
 }
 
+@media (max-width: 767px) {
+  .xedc-front-nav__button {
+    top: auto;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    border: 1px solid #E4E4E7;
+    background: #FFFFFF;
+    box-shadow: 0 4px 16px rgba(24, 24, 27, 0.12);
+    transition: transform 200ms ease;
+  }
+
+  .xedc-admin--front.is-launcher-hidden .xedc-front-nav__button {
+    transform: translateY(calc(100% + 24px + env(safe-area-inset-bottom, 0px)));
+  }
+}
+
 .xedc-admin--front .xedc-admin-overlay {
   z-index: 1100;
 }

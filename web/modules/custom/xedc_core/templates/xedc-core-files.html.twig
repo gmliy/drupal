@@ -36,7 +36,7 @@
     {% if analysis.has_batch %}
       <div class="xedc-ops-cards">
         <article class="xedc-ops-card"><h3>Drupal 文件</h3><p class="xedc-ops-value">{{ analysis.managed_files }}</p><p class="xedc-ops-detail">记录容量 {{ analysis.managed_bytes }}</p></article>
-        <article class="xedc-ops-card"><h3>重复组</h3><p class="xedc-ops-value">{{ analysis.duplicate_groups }}</p><p class="xedc-ops-detail">理论可释放 {{ analysis.reclaimable }}，不是已释放空间</p></article>
+        <article class="xedc-ops-card"><h3>重复组</h3><p class="xedc-ops-value">{{ analysis.duplicate_groups }}</p><p class="xedc-ops-detail">理论可释放 {{ analysis.reclaimable }}，不是已释放空间。未知引用 {{ analysis.unknown_count }}</p></article>
         <article class="xedc-ops-card"><h3>确认未引用</h3><p class="xedc-ops-value">{{ analysis.unused_count }}</p><p class="xedc-ops-detail">待审核 {{ analysis.unused_bytes }}</p></article>
         <article class="xedc-ops-card"><h3>分析批次</h3><p class="xedc-ops-value">#{{ analysis.finished_batch }}</p><p class="xedc-ops-detail">状态 {{ analysis.status }}</p></article>
       </div>

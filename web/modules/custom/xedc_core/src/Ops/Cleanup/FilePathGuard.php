@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Drupal\xedc_core\Ops\Cleanup;
 
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Site\Settings;
+use Drupal\xedc_core\Ops\Storage\LocalTempFileManager;
+use Drupal\xedc_core\Ops\Storage\StorageUriResolver;
 
 /**
  * Allows file operations only inside the Drupal public and private roots.
@@ -13,6 +16,8 @@ final class FilePathGuard {
 
   public function __construct(
     protected FileSystemInterface $fileSystem,
+    protected ?StorageUriResolver $uris = NULL,
+    protected ?LocalTempFileManager $temp = NULL,
   ) {}
 
   /**
@@ -47,6 +52,18 @@ final class FilePathGuard {
     if (str_starts_with($path, 'temporary://')) {
       return 'temporary';
     }
+    if ($this->uris instanceof StorageUriResolver && $this->uris->isRemote($uri)) {
+      return 'remote';
+    }
+    if (str_starts_with($path, 's3://')) {
+      return 'remote';
+    }
+    if (str_starts_with($path, 'public://') && (bool) Settings::get('s3fs.use_s3_for_public', FALSE)) {
+      return 'remote';
+    }
+    if (str_starts_with($path, 'private://') && (bool) Settings::get('s3fs.use_s3_for_private', FALSE)) {
+      return 'remote';
+    }
     if (str_starts_with($path, 'public://styles/') || $path === 'public://styles') {
       return 'derivative';
     }
@@ -78,8 +95,22 @@ final class FilePathGuard {
    * @return array<string, mixed>|null
    *   Regular file stat inside an allowed root, without following a symlink.
    */
+  /**
+   * Real path of a local URI. Remote URIs return FALSE without calling realpath().
+   */
+  public function realpathIfLocal(string $uri): string|false {
+    if ($uri === '' || str_contains($uri, "\0") || $this->kindForUri($uri) === 'remote') {
+      return FALSE;
+    }
+    $real = $this->fileSystem->realpath($uri);
+    return is_string($real) && $real !== '' ? $real : FALSE;
+  }
+
   public function describe(string $path): ?array {
     if ($path === '' || str_contains($path, "\0")) {
+      return NULL;
+    }
+    if ($this->temp instanceof LocalTempFileManager && $this->temp->contains($path)) {
       return NULL;
     }
     $stat = @lstat($path);
@@ -137,6 +168,9 @@ final class FilePathGuard {
     if ($path === '' || str_contains($path, "\0")) {
       return 'outside';
     }
+    if ($this->temp instanceof LocalTempFileManager && $this->temp->contains($path)) {
+      return 'temporary';
+    }
     $stat = @lstat($path);
     if (!is_array($stat) || (($stat['mode'] & 0170000) === 0120000)) {
       return 'outside';
@@ -149,6 +183,9 @@ final class FilePathGuard {
   }
 
   public function containedKind(string $path): string {
+    if ($this->temp instanceof LocalTempFileManager && $this->temp->contains($path)) {
+      return 'temporary';
+    }
     $info = $this->describe($path);
     if ($info === NULL) {
       return 'outside';
@@ -173,6 +210,9 @@ final class FilePathGuard {
         'js' => 'aggregate_js',
         'styles' => 'derivative',
         'php' => 'protected',
+        'translations' => 'protected',
+        'languages' => 'protected',
+        'media-icons' => 'protected',
       ] as $dir => $kind) {
         $prefix = $roots['public'] . '/' . $dir;
         if ($real === $prefix || str_starts_with($real, $prefix . '/')) {

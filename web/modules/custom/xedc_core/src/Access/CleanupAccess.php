@@ -27,6 +27,13 @@ class CleanupAccess implements ContainerInjectionInterface {
     return new static($container->get('xedc_core.cleanup_repository'));
   }
 
+  public function references(AccountInterface $account): AccessResultInterface {
+    $allowed = $account->hasPermission('view xedc file references')
+      || $account->hasPermission('view xedc duplicate files')
+      || $account->hasPermission('view xedc unused files');
+    return AccessResult::allowedIf($allowed)->cachePerPermissions();
+  }
+
   public function review(AccountInterface $account, int $task): AccessResultInterface {
     if (!$this->repository->loadTask($task)) {
       return AccessResult::forbidden()->cachePerPermissions();

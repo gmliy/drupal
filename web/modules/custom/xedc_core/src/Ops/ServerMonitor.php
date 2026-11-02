@@ -16,11 +16,40 @@ use Psr\Log\LoggerInterface;
 class ServerMonitor {
 
   private const RANGES = [
+    '1m' => 60,
+    '5m' => 300,
+    '15m' => 900,
     '1h' => 3600,
     '6h' => 21600,
     '24h' => 86400,
     '7d' => 604800,
   ];
+
+  public const SECTIONS = [
+    'overview' => ['label' => '实时总览', 'refresh' => 3],
+    'cpu' => ['label' => 'CPU', 'refresh' => 3],
+    'memory' => ['label' => '内存', 'refresh' => 3],
+    'disk' => ['label' => '磁盘', 'refresh' => 5],
+    'network' => ['label' => '网络', 'refresh' => 3],
+    'system' => ['label' => '系统', 'refresh' => 10],
+    'nginx' => ['label' => 'Nginx', 'refresh' => 10],
+    'phpfpm' => ['label' => 'PHP-FPM', 'refresh' => 10],
+    'mariadb' => ['label' => 'MariaDB', 'refresh' => 10],
+    'redis' => ['label' => 'Redis', 'refresh' => 10],
+    'docker' => ['label' => 'Docker', 'refresh' => 8],
+    'browser' => ['label' => '完整指标', 'refresh' => 60],
+    'collectors' => ['label' => '采集器', 'refresh' => 60],
+    'alarms' => ['label' => '告警', 'refresh' => 15],
+  ];
+
+  /**
+   * @var array<string, array<string, mixed>>
+   */
+  private array $bag = [];
+
+  protected NetdataReader $reader;
+
+  protected MonitorBoard $board;
 
   public function __construct(
     protected NetdataClient $client,
@@ -29,7 +58,11 @@ class ServerMonitor {
     protected DateFormatterInterface $dateFormatter,
     protected ConfigFactoryInterface $configFactory,
     protected LoggerInterface $logger,
-  ) {}
+    protected NetdataCatalog $catalog,
+  ) {
+    $this->reader = new NetdataReader($client);
+    $this->board = new MonitorBoard($dateFormatter);
+  }
 
   /**
    * @return array<string, mixed>
@@ -45,7 +78,7 @@ class ServerMonitor {
       return $cached->data;
     }
     $snapshot = $this->buildSnapshot();
-    $expire = $this->time->getRequestTime() + ($snapshot['ok'] ? 20 : 15);
+    $expire = $this->time->getRequestTime() + ($snapshot['ok'] ? 3 : 15);
     $this->cache->set($cid, $snapshot, $expire);
     return $snapshot;
   }
@@ -71,6 +104,9 @@ class ServerMonitor {
     }
     $history = $this->buildHistory($range);
     $ttl = match ($range) {
+      '1m' => 5,
+      '5m' => 15,
+      '15m' => 20,
       '1h' => 30,
       '6h' => 60,
       '24h' => 120,
@@ -83,8 +119,15 @@ class ServerMonitor {
   public function invalidate(): void {
     $this->cache->delete('xedc_core:monitor:snapshot');
     $this->cache->delete('xedc_core:monitor:charts');
+    $this->catalog->invalidate();
     foreach (array_keys(self::RANGES) as $range) {
       $this->cache->delete('xedc_core:monitor:history:' . $range);
+    }
+    foreach (array_keys(self::SECTIONS) as $section) {
+      $this->cache->delete('xedc_core:monitor:section:' . $section);
+      foreach (array_keys(self::RANGES) as $range) {
+        $this->cache->delete('xedc_core:monitor:section:' . $section . ':' . $range);
+      }
     }
   }
 
@@ -94,7 +137,7 @@ class ServerMonitor {
    */
   private function buildSnapshot(): array {
     $empty = $this->emptySnapshot('Netdata 暂不可用。');
-    $info = $this->client->get($this->baseUrl(), '/api/v1/info');
+    $info = $this->trackedGet('/api/v1/info');
     if (!$info['ok']) {
       $this->logger->warning('Netdata info failed: @message', ['@message' => $info['error']]);
       $empty['error'] = $info['error'];
@@ -108,6 +151,8 @@ class ServerMonitor {
       $empty['agent'] = (string) ($info['data']['version'] ?? '');
       return $empty;
     }
+    $this->bag = [];
+    $this->warm($this->overviewIds($charts));
 
     $cpu = $this->latest('system.cpu');
     $ram = $this->latest('system.ram');
@@ -134,21 +179,25 @@ class ServerMonitor {
     $services = [
       $this->service('Nginx', 'app.nginx_cpu_utilization', 'app.nginx_mem_usage', [
         $this->metric('进程数', 'app.nginx_processes', 'processes', '个'),
-        $this->unavailableMetric('活动连接', '未开启 Nginx stub_status。本次没有修改站点配置，所以没有连接数。'),
-        $this->unavailableMetric('请求速率', '未采集 Nginx 请求指标。进程数不能代替请求量。'),
+        $this->unavailableMetric('活动连接', '未采集：没有 Nginx stub_status 图表。'),
+        $this->unavailableMetric('请求速率', '未采集：没有 Nginx 请求图表。进程数不能代替请求量。'),
       ]),
       $this->service('PHP-FPM', 'app.phpfpm_cpu_utilization', 'app.phpfpm_mem_usage', [
         $this->metric('进程数', 'app.phpfpm_processes', 'processes', '个'),
-        $this->unavailableMetric('空闲进程', '未开启 PHP-FPM status 页面，空闲和活动进程数暂不可用。'),
-        $this->unavailableMetric('活动进程', '进程数是进程总数，不是正在处理请求的进程数。'),
+        $this->unavailableMetric('空闲进程', '未采集：没有 PHP-FPM status 图表。'),
+        $this->unavailableMetric('活动进程', '未采集：进程数是进程总数，不是正在处理请求的进程。'),
       ]),
       $this->service('MariaDB', 'app.mariadb_cpu_utilization', 'app.mariadb_mem_usage', [
         $this->metric('活动连接', 'mysql_local.connections_active', 'active', '个'),
         $this->metric('连接上限', 'mysql_local.connections_active', 'limit', '个'),
+        $this->metric('查询速率', 'mysql_local.queries', 'queries', '次/秒'),
+        $this->metric('慢查询速率', 'mysql_local.queries', 'slow_queries', '次/秒'),
       ]),
       $this->service('Redis', 'app.redis_cpu_utilization', 'app.redis_mem_usage', [
         $this->metric('已连接客户端', 'redis_local.clients', 'connected', '个'),
         $this->metricBytes('Redis 内存', 'redis_local.memory', 'used'),
+        $this->metric('命中率', 'redis_local.key_lookup_hit_rate', 'lookup_hit_rate', '%'),
+        $this->metric('命令速率', 'redis_local.commands', 'processed', '次/秒'),
       ]),
       $this->dockerService(),
     ];
@@ -169,7 +218,7 @@ class ServerMonitor {
           'value' => OpsFormat::percent($cpuTotal),
           'detail' => $cpu === NULL
             ? '暂无数据'
-            : '用户 ' . OpsFormat::percent($user) . ' · 系统 ' . OpsFormat::percent($system) . ' · I/O 等待 ' . OpsFormat::percent($iowait),
+            : '用户 ' . OpsFormat::percent($user) . ' · 系统 ' . OpsFormat::percent($system) . ' · I/O 等待 ' . OpsFormat::percent($iowait) . ' · 空闲 ' . ($cpuTotal !== NULL && $cpuTotal >= 0 && $cpuTotal <= 100.5 ? OpsFormat::percent(max(0, 100 - $cpuTotal)) . '（推算）' : '未采集'),
           'state' => $cpuTotal === NULL ? 'empty' : 'ok',
         ],
         [
@@ -203,7 +252,14 @@ class ServerMonitor {
       'io' => $this->ioSummary($io, $charts),
       'interfaces' => $this->interfaces($charts),
       'services' => $services,
-      'totals_note' => '累计流量暂不可用。Netdata 保存的是带宽速率，没有网卡累计字节计数器，这里不会把速率换算成总流量。',
+      'totals_note' => '累计流量未采集。Netdata 保存的是速率，没有网卡累计字节计数器，这里不会把速率积分成总流量。',
+      'cpu_rows' => $this->cpuRows($cpu),
+      'refresh_seconds' => self::SECTIONS['overview']['refresh'],
+      'nav' => $this->navigation(),
+      'memory_mode' => (string) ($this->catalog->meta()['memory_mode'] ?? ''),
+      'retention' => $this->retentionNote($charts),
+      'section' => 'overview',
+      'detail' => [],
     ];
   }
 
@@ -214,12 +270,15 @@ class ServerMonitor {
   private function buildHistory(string $range): array {
     $window = self::RANGES[$range];
     $points = match ($range) {
+      '1m' => 30,
+      '5m' => 60,
+      '15m' => 60,
       '1h' => 60,
       '6h' => 72,
       '24h' => 96,
       default => 84,
     };
-    $info = $this->client->get($this->baseUrl(), '/api/v1/info');
+    $info = $this->trackedGet('/api/v1/info');
     if (!$info['ok']) {
       return [
         'ok' => FALSE,
@@ -298,18 +357,10 @@ class ServerMonitor {
    *   Chart index keyed by id.
    */
   private function charts(): ?array {
-    $cid = 'xedc_core:monitor:charts';
-    $cached = $this->cache->get($cid);
-    if ($cached && is_array($cached->data)) {
-      return $cached->data;
+    $charts = $this->catalog->charts();
+    if ($charts === NULL) {
+      $this->logger->warning('Netdata charts failed.');
     }
-    $response = $this->client->get($this->baseUrl(), '/api/v1/charts');
-    if (!$response['ok'] || !is_array($response['data']['charts'] ?? NULL)) {
-      $this->logger->warning('Netdata charts failed: @message', ['@message' => $response['error']]);
-      return NULL;
-    }
-    $charts = $response['data']['charts'];
-    $this->cache->set($cid, $charts, $this->time->getRequestTime() + 120);
     return $charts;
   }
 
@@ -318,18 +369,14 @@ class ServerMonitor {
    *   Latest dimension values.
    */
   private function latest(string $chart): ?array {
-    $series = $this->series($chart, -40, 1);
-    $row = $series['rows'][array_key_last($series['rows'])] ?? NULL;
-    if (!is_array($row) || empty($row['values'])) {
+    if (!array_key_exists($chart, $this->bag)) {
+      $this->warm([$chart]);
+    }
+    $row = $this->bag[$chart] ?? NULL;
+    if (!is_array($row) || ($row['status'] ?? '') !== 'ok' || !is_array($row['values'] ?? NULL) || $row['values'] === []) {
       return NULL;
     }
-    $values = [];
-    foreach ($row['values'] as $name => $value) {
-      if (is_float($value) || is_int($value)) {
-        $values[(string) $name] = (float) $value;
-      }
-    }
-    return $values === [] ? NULL : $values;
+    return $row['values'];
   }
 
   /**
@@ -353,65 +400,12 @@ class ServerMonitor {
    *   One Netdata data response.
    */
   private function fetchChart(string $chart, int $after, int $points): array {
-    $response = $this->client->get($this->baseUrl(), '/api/v1/data', [
-      'chart' => $chart,
-      'after' => $after,
-      'points' => max(1, $points),
-      'group' => 'average',
-      'format' => 'json',
-      'options' => 'jsonwrap',
-    ]);
-    if (!$response['ok']) {
-      return [
-        'rows' => [],
-        'partial' => TRUE,
-        'notice' => $response['error'],
-        'first_entry' => 0,
-      ];
+    $response = $this->reader->series($this->baseUrl(), $chart, $after, $points);
+    $this->recordStats($this->reader->takeStats());
+    if (!empty($response['partial']) && ($response['notice'] ?? '') === '' && !empty($response['first_entry'])) {
+      $response['notice'] = '该指标最早的采样是 ' . $this->dateFormatter->format((int) $response['first_entry'], 'custom', 'Y-m-d H:i') . '。';
     }
-    $payload = $response['data'];
-    $result = $payload['result'] ?? [];
-    $labels = is_array($result['labels'] ?? NULL) ? $result['labels'] : [];
-    $data = is_array($result['data'] ?? NULL) ? $result['data'] : [];
-    $rows = [];
-    foreach ($data as $row) {
-      if (!is_array($row) || !isset($row[0]) || !is_numeric($row[0])) {
-        continue;
-      }
-      $values = [];
-      $seen = FALSE;
-      foreach ($labels as $index => $label) {
-        if ($index === 0 || !is_string($label)) {
-          continue;
-        }
-        $value = $row[$index] ?? NULL;
-        if (is_numeric($value)) {
-          $values[$label] = (float) $value;
-          $seen = TRUE;
-        }
-        else {
-          $values[$label] = NULL;
-        }
-      }
-      if ($seen) {
-        $rows[] = ['time' => (int) $row[0], 'values' => $values];
-      }
-    }
-    $rows = array_reverse($rows);
-    $oldest = $rows[0]['time'] ?? 0;
-    $firstEntry = (int) ($payload['first_entry'] ?? 0);
-    $requestedStart = $after > 0 ? $after : $this->time->getRequestTime() + $after;
-    $partial = $rows === [] || ($oldest > 0 && $oldest > $requestedStart + 120);
-    $notice = '';
-    if ($partial && $firstEntry > 0) {
-      $notice = '该指标最早的采样是 ' . $this->dateFormatter->format($firstEntry, 'custom', 'Y-m-d H:i') . '。';
-    }
-    return [
-      'rows' => $rows,
-      'partial' => $partial,
-      'notice' => $notice,
-      'first_entry' => $firstEntry,
-    ];
+    return $response;
   }
 
   /**
@@ -630,10 +624,14 @@ class ServerMonitor {
       }
       $rows[] = [
         'name' => $name,
+        'kind' => preg_match('/^(lo|docker\\d*|br-|veth|virbr|tun|tap|dummy)/', $name) ? '虚拟' : '物理',
         'rx' => OpsFormat::rate($this->kilobitsToBytes($values['received'] ?? NULL)),
         'tx' => OpsFormat::rate($this->kilobitsToBytes($values['sent'] ?? NULL)),
         'state' => $state,
-        'totals' => '暂不可用',
+        'totals' => '未采集',
+        'packets' => isset($charts['net_packets.' . $name]) ? $this->ifaceRate($this->latest('net_packets.' . $name), 'received', 'sent', '包/秒') : '未采集',
+        'errors' => isset($charts['net_errors.' . $name]) ? $this->ifaceRate($this->latest('net_errors.' . $name), 'inbound', 'outbound', '错误/秒') : '未采集',
+        'drops' => isset($charts['net_drops.' . $name]) ? $this->ifaceRate($this->latest('net_drops.' . $name), 'inbound', 'outbound', '丢包/秒') : '未采集',
       ];
     }
     return $rows;
@@ -699,6 +697,10 @@ class ServerMonitor {
       if (($chart['context'] ?? '') !== 'cgroup.cpu' || !preg_match('/^cgroup_(.+)\.cpu$/', (string) $id, $matches)) {
         continue;
       }
+      $image = (string) ($chart['labels']['image'] ?? '');
+      if ($image === '' || $image === '[none]') {
+        continue;
+      }
       $cpu = $this->latest((string) $id);
       $memId = 'cgroup_' . $matches[1] . '.mem_usage';
       $mem = isset($charts[$memId]) ? $this->latest($memId) : NULL;
@@ -711,9 +713,9 @@ class ServerMonitor {
         }
       }
       $containers[] = [
-        'label' => $matches[1],
+        'label' => (string) (($chart['labels']['cgroup_name'] ?? '') !== '' ? $chart['labels']['cgroup_name'] : $matches[1]),
         'value' => 'CPU ' . OpsFormat::percent(is_numeric($cpuSum) ? (float) $cpuSum : NULL) . ' · 内存 ' . OpsFormat::bytes($this->mib(is_numeric($memValue) ? (float) $memValue : NULL)),
-        'reason' => '',
+        'reason' => $image,
       ];
     }
     if ($containers === []) {
@@ -988,6 +990,487 @@ class ServerMonitor {
       'interfaces' => [],
       'services' => [],
       'totals_note' => '',
+      'cpu_rows' => [],
+      'refresh_seconds' => self::SECTIONS['overview']['refresh'],
+      'nav' => $this->navigation(),
+      'memory_mode' => '',
+      'retention' => '',
+      'section' => 'overview',
+      'detail' => [],
+    ];
+  }
+
+  /**
+   * @return list<array{id: string, label: string, refresh: int}>
+   *   Section navigation.
+   */
+  public function navigation(): array {
+    $items = [];
+    foreach (self::SECTIONS as $id => $section) {
+      $items[] = [
+        'id' => $id,
+        'label' => $section['label'],
+        'refresh' => $section['refresh'],
+      ];
+    }
+    return $items;
+  }
+
+  public function normalizeRange(string $range): string {
+    return isset(self::RANGES[$range]) ? $range : '1h';
+  }
+
+  /**
+   * @param array<string, mixed> $filters
+   *   Browser filters.
+   *
+   * @return array<string, mixed>
+   *   One monitor section.
+   */
+  public function section(string $section, string $range, bool $refresh, bool $series, array $filters = []): array {
+    if ($section === 'overview') {
+      $snapshot = $this->snapshot($refresh);
+      $snapshot['section'] = 'overview';
+      return $snapshot;
+    }
+    if (!isset(self::SECTIONS[$section])) {
+      return [
+        'ok' => FALSE,
+        'error' => '未知的监控分类。',
+        'section' => $section,
+        'groups' => [],
+        'charts' => [],
+      ];
+    }
+    $range = $this->normalizeRange($range);
+    $page = max(0, (int) ($filters['page'] ?? 0));
+    $query = mb_substr(trim((string) ($filters['q'] ?? '')), 0, 80);
+    $category = (string) ($filters['category'] ?? '');
+    $cid = 'xedc_core:monitor:section:' . $section . ($series ? ':' . $range : '');
+    if ($section === 'browser') {
+      $cid .= ':' . substr(hash('sha256', $category . '|' . $query . '|' . $page), 0, 16);
+    }
+    if (!$refresh) {
+      $cached = $this->cache->get($cid);
+      if ($cached && is_array($cached->data)) {
+        return $cached->data;
+      }
+    }
+    $before = $this->stats();
+    $charts = $this->charts();
+    if ($charts === NULL) {
+      return [
+        'ok' => FALSE,
+        'error' => '没有读到 Netdata 指标目录。',
+        'section' => $section,
+        'title' => self::SECTIONS[$section]['label'],
+        'groups' => [],
+        'charts' => [],
+        'refresh_seconds' => self::SECTIONS[$section]['refresh'],
+      ];
+    }
+    $ids = $this->board->wantedIds($section, $charts);
+    $found = NULL;
+    if ($section === 'browser') {
+      $found = $this->catalog->search($category, $query, $page);
+      $ids = array_map(static fn (array $row): string => (string) $row['id'], $found['rows']);
+    }
+    $samples = $this->readIntoBag($ids);
+    $context = [
+      'title' => self::SECTIONS[$section]['label'],
+      'refresh' => self::SECTIONS[$section]['refresh'],
+      'updated' => $this->dateFormatter->format($this->time->getRequestTime(), 'custom', 'Y-m-d H:i:s'),
+      'now' => $this->time->getRequestTime(),
+      'notes' => [],
+      'stats' => $this->stats(),
+    ];
+    if ($section === 'alarms') {
+      $context['alarm_payload'] = $this->alarmPayload();
+      $context['notes'][] = '这里只显示 Netdata 原生告警。页面没有另造阈值告警。';
+    }
+    if ($section === 'collectors') {
+      $context['collector_rows'] = $this->collectorRows();
+      $meta = $this->catalog->meta();
+      $context['notes'][] = '存储后端 ' . ((string) ($meta['memory_mode'] ?? '') !== '' ? $meta['memory_mode'] : '未知') . '。图表 ' . (int) ($meta['charts_count'] ?? count($charts)) . '，维度 ' . (int) ($meta['dimensions_count'] ?? 0) . '。已保存跨度 ' . $this->retentionNote($charts) . '。';
+    }
+    if ($found !== NULL) {
+      $context['browser'] = $this->browserRows($found, $samples, $query, $category);
+    }
+    $payload = $this->board->build($section, $charts, $samples, $context);
+    $payload['refresh_seconds'] = self::SECTIONS[$section]['refresh'];
+    $payload['updated'] = $context['updated'];
+    if ($series) {
+      $payload['charts'] = $this->sectionCharts($section, $charts, $range);
+    }
+    $after = $this->stats();
+    $payload['elapsed_ms'] = max(0, (int) $after['ms'] - (int) $before['ms']);
+    $payload['charts_fetched'] = max(0, (int) $after['calls'] - (int) $before['calls']);
+    $this->cache->set($cid, $payload, $this->time->getRequestTime() + (int) self::SECTIONS[$section]['refresh']);
+    return $payload;
+  }
+
+  /**
+   * @return array<string, mixed>
+   *   History for one catalog chart.
+   */
+  public function chartHistory(string $chart, string $range, bool $refresh = FALSE): array {
+    unset($refresh);
+    if (!$this->catalog->safeId($chart) || !$this->catalog->allows($chart)) {
+      return [
+        'ok' => FALSE,
+        'error' => '图表不存在或未采集。',
+        'charts' => [],
+      ];
+    }
+    $range = $this->normalizeRange($range);
+    $meta = $this->charts()[$chart] ?? ['title' => $chart, 'units' => ''];
+    $series = $this->series($chart, -self::RANGES[$range], 60);
+    return [
+      'ok' => $series['rows'] !== [],
+      'error' => $series['rows'] === [] ? (($series['notice'] ?? '') !== '' ? $series['notice'] : '这个图表没有历史采样。') : '',
+      'range' => $range,
+      'notice' => (string) ($series['notice'] ?? ''),
+      'charts' => [
+        'detail' => $this->genericChart($meta, $series),
+      ],
+    ];
+  }
+
+  /**
+   * @param array<string, array<string, mixed>> $charts
+   *   Catalog.
+   *
+   * @return list<string>
+   *   Charts needed by the existing overview.
+   */
+  private function overviewIds(array $charts): array {
+    $ids = [
+      'system.cpu', 'system.ram', 'mem.available', 'mem.swap', 'system.load',
+      'system.uptime', 'system.processes', 'system.active_processes', 'system.io',
+      'system.net', 'disk_space./',
+      'app.nginx_cpu_utilization', 'app.nginx_mem_usage', 'app.nginx_processes',
+      'app.phpfpm_cpu_utilization', 'app.phpfpm_mem_usage', 'app.phpfpm_processes',
+      'app.mariadb_cpu_utilization', 'app.mariadb_mem_usage',
+      'mysql_local.connections_active', 'mysql_local.queries',
+      'app.redis_cpu_utilization', 'app.redis_mem_usage',
+      'redis_local.clients', 'redis_local.memory', 'redis_local.key_lookup_hit_rate', 'redis_local.commands',
+    ];
+    foreach ($charts as $id => $chart) {
+      $context = (string) ($chart['context'] ?? '');
+      if (in_array($context, ['cpu.cpu', 'net.net', 'net.operstate', 'net.packets', 'net.errors', 'net.drops', 'disk.ops'], TRUE)) {
+        $ids[] = (string) $id;
+      }
+      if (in_array($context, ['cgroup.cpu', 'cgroup.mem_usage'], TRUE)) {
+        $image = (string) ($chart['labels']['image'] ?? '');
+        if ($image !== '' && $image !== '[none]') {
+          $ids[] = (string) $id;
+        }
+      }
+    }
+    return array_values(array_unique($ids));
+  }
+
+  /**
+   * @param list<string> $ids
+   *   Chart ids.
+   */
+  private function warm(array $ids): void {
+    $charts = $this->catalog->charts() ?? [];
+    $need = [];
+    foreach ($ids as $id) {
+      if (!is_string($id) || $id === '' || array_key_exists($id, $this->bag)) {
+        continue;
+      }
+      if (!isset($charts[$id])) {
+        $this->bag[$id] = [
+          'status' => 'missing',
+          'values' => NULL,
+          'previous' => NULL,
+          'sampled' => 0,
+          'error' => '',
+        ];
+        continue;
+      }
+      $need[] = $id;
+    }
+    if ($need === []) {
+      return;
+    }
+    foreach ($this->reader->latestMany($this->baseUrl(), $need) as $id => $row) {
+      $this->bag[$id] = $row;
+    }
+    $this->recordStats($this->reader->takeStats());
+  }
+
+  /**
+   * @param list<string> $ids
+   *   Chart ids.
+   *
+   * @return array<string, array<string, mixed>>
+   *   Samples.
+   */
+  private function readIntoBag(array $ids): array {
+    $this->bag = [];
+    $this->warm($ids);
+    $out = [];
+    foreach ($ids as $id) {
+      if (isset($this->bag[$id])) {
+        $out[$id] = $this->bag[$id];
+      }
+    }
+    return $out;
+  }
+
+  /**
+   * @param array<string, float>|null $values
+   *   CPU dimensions.
+   *
+   * @return list<array{label: string, value: string}>
+   *   CPU rows for the overview.
+   */
+  private function cpuRows(?array $values): array {
+    if ($values === NULL) {
+      return [];
+    }
+    $rows = [];
+    foreach ([
+      'user' => '用户',
+      'system' => '系统',
+      'nice' => 'Nice',
+      'iowait' => 'I/O 等待',
+      'irq' => '硬中断',
+      'softirq' => '软中断',
+      'steal' => 'Steal',
+    ] as $key => $label) {
+      $rows[] = [
+        'label' => $label,
+        'value' => array_key_exists($key, $values) ? OpsFormat::percent($values[$key]) : '未采集',
+      ];
+    }
+    $sum = array_sum($values);
+    $rows[] = [
+      'label' => '空闲（推算）',
+      'value' => ($sum >= 0 && $sum <= 100.5) ? OpsFormat::percent(max(0, 100 - $sum)) : '未采集',
+    ];
+    return $rows;
+  }
+
+  /**
+   * @param array<string, array<string, mixed>> $charts
+   *   Catalog.
+   */
+  private function retentionNote(array $charts): string {
+    $chart = $charts['system.cpu'] ?? NULL;
+    if (!is_array($chart) || empty($chart['first_entry']) || empty($chart['last_entry'])) {
+      return '暂无已保存跨度';
+    }
+    $span = max(0, (int) $chart['last_entry'] - (int) $chart['first_entry']);
+    return OpsFormat::duration($span);
+  }
+
+  /**
+   * @param array<string, float>|null $values
+   *   Rate dimensions.
+   */
+  private function ifaceRate(?array $values, string $left, string $right, string $suffix): string {
+    if ($values === NULL) {
+      return '暂不可用';
+    }
+    $a = array_key_exists($left, $values) ? OpsFormat::number(abs($values[$left]), 1) : '未采集';
+    $b = array_key_exists($right, $values) ? OpsFormat::number(abs($values[$right]), 1) : '未采集';
+    return '↓ ' . $a . ' · ↑ ' . $b . ' ' . $suffix;
+  }
+
+  /**
+   * @param array<string, mixed> $chart
+   *   Chart metadata.
+   * @param array{rows: list<array{time: int, values: array<string, float|null>}>} $series
+   *   History.
+   *
+   * @return array<string, mixed>
+   *   Browser chart spec.
+   */
+  private function genericChart(array $chart, array $series): array {
+    $dims = [];
+    foreach ($series['rows'] as $row) {
+      foreach ($row['values'] as $name => $value) {
+        if ($value !== NULL) {
+          $dims[(string) $name] = TRUE;
+        }
+      }
+    }
+    $names = array_slice(array_keys($dims), 0, 6);
+    $colors = ['#171717', '#52525b', '#a1a1aa', '#d97706', '#0369a1', '#15803d'];
+    $lines = [];
+    foreach ($names as $index => $name) {
+      $lines[] = [
+        'key' => 'd' . $index,
+        'label' => $name,
+        'color' => $colors[$index],
+      ];
+    }
+    $points = [];
+    foreach ($series['rows'] as $row) {
+      $point = ['t' => $this->dateFormatter->format($row['time'], 'custom', 'm-d H:i')];
+      foreach ($names as $index => $name) {
+        $value = $row['values'][$name] ?? NULL;
+        $point['d' . $index] = is_numeric($value) ? round((float) $value, 3) : NULL;
+      }
+      $points[] = $point;
+    }
+    return [
+      'title' => (string) ($chart['title'] ?? ''),
+      'unit' => (string) ($chart['units'] ?? ''),
+      'lines' => $lines,
+      'points' => $points,
+    ];
+  }
+
+  /**
+   * @param array<string, array<string, mixed>> $charts
+   *   Catalog.
+   *
+   * @return array<string, array<string, mixed>>
+   *   Section charts.
+   */
+  private function sectionCharts(string $section, array $charts, string $range): array {
+    $points = match ($range) {
+      '1m' => 30,
+      '5m', '15m', '1h' => 60,
+      '6h' => 72,
+      '24h' => 96,
+      default => 84,
+    };
+    $chartsOut = [];
+    foreach ($this->board->seriesIds($section, $charts) as $index => $id) {
+      $chartsOut['s' . $index] = $this->genericChart(
+        $charts[$id] ?? ['title' => $id, 'units' => ''],
+        $this->series($id, -self::RANGES[$range], $points),
+      );
+    }
+    return $chartsOut;
+  }
+
+  /**
+   * @return array<string, mixed>
+   *   Native alarm documents.
+   */
+  private function alarmPayload(): array {
+    $current = $this->trackedGet('/api/v1/alarms', ['all' => '1']);
+    $log = $this->trackedGet('/api/v1/alarm_log');
+    return [
+      'current' => $current['ok'] ? $current['data'] : [],
+      'log' => $log['ok'] ? $log['data'] : [],
+    ];
+  }
+
+  /**
+   * @return list<array{name: string, charts: string, state: string}>
+   *   Collector rows.
+   */
+  private function collectorRows(): array {
+    $rows = [];
+    foreach ($this->catalog->collectorCounts() as $name => $count) {
+      $rows[] = [
+        'name' => (string) $name,
+        'charts' => (string) $count,
+        'state' => '已发现图表',
+      ];
+    }
+    return $rows;
+  }
+
+  /**
+   * @param array{total: int, pages: int, page: int, rows: list<array<string, mixed>>} $found
+   *   Catalog page.
+   * @param array<string, array<string, mixed>> $samples
+   *   Samples.
+   *
+   * @return array<string, mixed>
+   *   Browser payload.
+   */
+  private function browserRows(array $found, array $samples, string $query, string $category): array {
+    $rows = [];
+    foreach ($found['rows'] as $chart) {
+      $sample = $samples[$chart['id']] ?? ['status' => 'missing', 'values' => NULL, 'sampled' => 0];
+      $bits = [];
+      if (is_array($sample['values'] ?? NULL)) {
+        $slice = array_slice($sample['values'], 0, 3, TRUE);
+        foreach ($slice as $dimension => $value) {
+          $bits[] = $dimension . ' ' . OpsFormat::number((float) $value, 2);
+        }
+      }
+      $rows[] = [
+        'id' => (string) $chart['id'],
+        'title' => (string) $chart['title'],
+        'context' => (string) $chart['context'],
+        'units' => (string) $chart['units'],
+        'category' => (string) $chart['category'],
+        'dimensions' => implode(', ', array_slice($chart['dimensions'] ?? [], 0, 8)),
+        'plugin' => trim((string) $chart['plugin'] . '/' . (string) $chart['module'], '/'),
+        'status' => match ((string) ($sample['status'] ?? 'missing')) {
+          'ok' => '正常',
+          'failed' => '采集失败',
+          'empty' => '暂不可用',
+          default => '未采集',
+        },
+        'value' => $bits === [] ? '' : implode(' · ', $bits),
+        'updated' => !empty($sample['sampled']) ? $this->dateFormatter->format((int) $sample['sampled'], 'custom', 'H:i:s') : '',
+      ];
+    }
+    return [
+      'total' => $found['total'],
+      'pages' => $found['pages'],
+      'page' => $found['page'],
+      'query' => $query,
+      'category' => $category,
+      'categories' => $this->catalog->categoryCounts(),
+      'rows' => $rows,
+    ];
+  }
+
+  /**
+   * @param array<string, mixed> $query
+   *   API query.
+   *
+   * @return array{ok: bool, error: string, data: array<string, mixed>, status: int, elapsed_ms: int}
+   *   API result, counted in the monitor stats.
+   */
+  private function trackedGet(string $path, array $query = []): array {
+    $response = $this->client->get($this->baseUrl(), $path, $query);
+    $this->recordStats([
+      'calls' => 1,
+      'fails' => empty($response['ok']) ? 1 : 0,
+      'ms' => (int) ($response['elapsed_ms'] ?? 0),
+    ]);
+    return $response;
+  }
+
+  /**
+   * @param array{calls?: int, fails?: int, ms?: int} $delta
+   *   One batch.
+   */
+  private function recordStats(array $delta): void {
+    $current = $this->stats();
+    $current['calls'] += (int) ($delta['calls'] ?? 0);
+    $current['fails'] += (int) ($delta['fails'] ?? 0);
+    $current['ms'] += (int) ($delta['ms'] ?? 0);
+    $current['last'] = $this->time->getRequestTime();
+    $this->cache->set('xedc_core:monitor:stats', $current, $this->time->getRequestTime() + 86400);
+  }
+
+  /**
+   * @return array{calls: int, fails: int, ms: int, last: int}
+   *   Cumulative API stats.
+   */
+  private function stats(): array {
+    $cached = $this->cache->get('xedc_core:monitor:stats');
+    $data = is_array($cached->data ?? NULL) ? $cached->data : [];
+    return [
+      'calls' => (int) ($data['calls'] ?? 0),
+      'fails' => (int) ($data['fails'] ?? 0),
+      'ms' => (int) ($data['ms'] ?? 0),
+      'last' => (int) ($data['last'] ?? 0),
     ];
   }
 

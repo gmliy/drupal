@@ -1,0 +1,79 @@
+{#
+/**
+ * @file
+ * Cumulative traffic for the selected physical NIC.
+ */
+#}
+<section class="xedc-ops-panel" data-xedc-traffic data-traffic-current="{{ traffic.span }}" data-traffic-nic-current="{{ traffic.iface }}">
+  <h3>网络流量统计</h3>
+  {% for note in traffic.notes|default([]) %}
+    <p class="xedc-ops-note">{{ note }}</p>
+  {% endfor %}
+  <div class="xedc-ops-cards" aria-label="网络流量总览">
+    {% for card in traffic.cards|default([]) %}
+      <article class="xedc-ops-card" data-traffic-card="{{ loop.index0 }}">
+        <h3>{{ card.label }}</h3>
+        <p class="xedc-ops-value">{{ card.value }}</p>
+        <p class="xedc-ops-detail xedc-ops-pill is-{{ card.state|default('muted') }}">{{ card.detail }}</p>
+      </article>
+    {% endfor %}
+  </div>
+  <div class="xedc-ops-ranges" aria-label="流量趋势范围">
+    {% for span in [7, 30, 90] %}
+      <button type="button" data-traffic-span="{{ span }}" aria-pressed="{{ traffic.span == span ? 'true' : 'false' }}">最近 {{ span }} 天</button>
+    {% endfor %}
+  </div>
+  <article class="xedc-ops-panel" data-chart="traffic">
+    <h3>{{ traffic.chart.title|default('每日入站和出站流量') }}</h3>
+    <div class="xedc-ops-plot" data-plot></div>
+    <p class="xedc-ops-detail" data-chart-note></p>
+  </article>
+  <div class="xedc-ops-meta" aria-label="网卡信息">
+    <div><span>统计网卡</span><strong>{{ traffic.iface ? traffic.iface : '未采集' }}</strong></div>
+    <div><span>类型</span><strong>{{ traffic.kind ? traffic.kind : '未采集' }}</strong></div>
+    <div><span>网卡状态</span><strong>{{ traffic.operstate }}</strong></div>
+    <div><span>当前下载速度</span><strong>{{ traffic.rx_rate }}</strong></div>
+    <div><span>当前上传速度</span><strong>{{ traffic.tx_rate }}</strong></div>
+    <div><span>速率来源</span><strong>{{ traffic.rate_source }}</strong></div>
+    <div><span>最近采集</span><strong>{{ traffic.last_sample ? traffic.last_sample : '未采集' }}</strong></div>
+    <div><span>开始统计</span><strong>{{ traffic.started ? traffic.started : '未采集' }}</strong></div>
+    <div><span>数据完整性</span><strong class="xedc-ops-pill is-{{ traffic.integrity|default('empty') }}">{{ traffic.integrity_label }}</strong></div>
+  </div>
+  {% if traffic.last_detail %}
+    <p class="xedc-ops-note">{{ traffic.last_detail }}</p>
+  {% endif %}
+  {% if traffic.choices|length > 1 %}
+    <div class="xedc-ops-ranges" aria-label="选择网卡">
+      {% for name in traffic.choices %}
+        <button type="button" data-traffic-nic="{{ name }}" aria-pressed="{{ name == traffic.iface ? 'true' : 'false' }}">{{ name }}</button>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <form class="xedc-ops-filters" data-traffic-form method="get" action="">
+    <input type="hidden" name="section" value="network">
+    <input type="hidden" name="nic" value="{{ traffic.iface }}">
+    <input type="hidden" name="span" value="{{ traffic.span }}">
+    <label>查看日期 <input type="date" name="day" value="{{ traffic.day }}"></label>
+    <button class="xedc-ops-button" type="submit">查看这一天</button>
+  </form>
+  <div class="xedc-ops-table-wrap">
+    <table class="xedc-ops-table">
+      <thead>
+        <tr><th>日期</th><th>入站流量（下载）</th><th>出站流量（上传）</th><th>完整性</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        {% for row in traffic.days|default([]) %}
+          <tr>
+            <td>{{ row.day }}</td>
+            <td>{{ row.rx }}</td>
+            <td>{{ row.tx }}</td>
+            <td>{{ row.integrity }}</td>
+            <td>{{ row.note }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5">未采集</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>

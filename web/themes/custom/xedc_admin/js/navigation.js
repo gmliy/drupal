@@ -376,4 +376,35 @@
       });
     },
   };
+
+  Drupal.behaviors.xedcFrontLauncher = {
+    attach(context) {
+      once('xedc-front-launcher', '.xedc-admin--front .xedc-front-nav__button', context).forEach((button) => {
+        const root = button.closest('.xedc-admin--front');
+        if (!root) {
+          return;
+        }
+        let last = window.scrollY || 0;
+        let ticking = false;
+        window.addEventListener('scroll', () => {
+          if (ticking) {
+            return;
+          }
+          ticking = true;
+          window.requestAnimationFrame(() => {
+            const y = window.scrollY || 0;
+            const phone = window.matchMedia('(max-width: 767px)').matches;
+            if (phone && y > last + 8 && y > 40) {
+              root.classList.add('is-launcher-hidden');
+            }
+            else if (y < last - 8) {
+              root.classList.remove('is-launcher-hidden');
+            }
+            last = y;
+            ticking = false;
+          });
+        }, { passive: true });
+      });
+    },
+  };
 })(Drupal, once);

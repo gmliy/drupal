@@ -24,6 +24,7 @@
         "drupal/core-recommended": "11.4.11",
         "drupal/easy_breadcrumb": "^2.0",
         "drupal/gin": "^5.0",
+        "drupal/key": "1.22.0",
         "drupal/mailsystem": "4.x-dev@dev",
         "drupal/matomo": "2.0.x-dev@dev",
         "drupal/metatag": "^2.2",

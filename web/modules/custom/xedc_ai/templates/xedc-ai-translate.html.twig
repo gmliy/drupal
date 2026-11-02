@@ -1,0 +1,38 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">AI 运营中心</p>
+      <h2 class="xedc-ai-title">AI 翻译管理</h2>
+    </div>
+    <a class="xedc-ai-button" href="{{ settings_url }}">打开现有自动翻译</a>
+  </header>
+  <div class="xedc-ai-cards">
+    <article class="xedc-ai-card">
+      <h3>内容自动翻译</h3>
+      <p class="xedc-ai-value xedc-ai-value-small">{{ provider }}</p>
+      <p class="xedc-ai-detail">密钥{{ configured ? '已配置' : '未配置' }}。密钥仍保存在原来的位置，这里不显示。</p>
+    </article>
+    <article class="xedc-ai-card">
+      <h3>翻译建议模型</h3>
+      <p class="xedc-ai-value xedc-ai-value-small">{{ model }}</p>
+      <p class="xedc-ai-detail">未单独指定时使用默认文本模型。</p>
+    </article>
+  </div>
+  <section class="xedc-ai-panel">
+    <h3>生成翻译建议</h3>
+    <p class="xedc-ai-note">建议只保存审核记录。它不会创建译文，也不会发布内容。正式的发布翻译仍走现有自动翻译。</p>
+    {% if enqueue %}{{ enqueue }}{% else %}<p class="xedc-ai-empty">当前账号不能加入翻译建议。</p>{% endif %}
+  </section>
+  <section class="xedc-ai-panel">
+    <h3>最近的翻译建议</h3>
+    {% if rows %}
+      <ul class="xedc-ai-list">
+        {% for row in rows %}
+          <li><a href="{{ row.url }}">{{ row.title ?: '无标题' }}</a><span>{{ row.status }} · {{ row.time }}</span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="xedc-ai-empty">还没有翻译建议。</p>
+    {% endif %}
+  </section>
+</div>

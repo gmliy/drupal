@@ -1,0 +1,7 @@
+ui_sample.page:
+  path: '/admin/ui-sample'
+  defaults:
+    _title: 'Sample page'
+    _controller: '\Drupal\ui_sample\Controller\SampleController::page'
+  requirements:
+    _permission: 'administer ui sample'

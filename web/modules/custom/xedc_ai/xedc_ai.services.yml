@@ -1,0 +1,103 @@
+services:
+  logger.channel.xedc_ai:
+    parent: logger.channel_base
+    arguments: ['xedc_ai']
+
+  xedc_ai.access:
+    class: Drupal\xedc_ai\Access\AiAccess
+
+  xedc_ai.secrets:
+    class: Drupal\xedc_ai\Provider\SecretStore
+    arguments: ['@file_system', '@entity_type.manager', '@module_handler', '@logger.channel.xedc_ai']
+
+  xedc_ai.providers:
+    class: Drupal\xedc_ai\Provider\ProviderRepository
+    arguments: ['@database', '@datetime.time']
+
+  xedc_ai.models:
+    class: Drupal\xedc_ai\Provider\ModelRepository
+    arguments: ['@database', '@datetime.time', '@config.factory', '@xedc_ai.providers', '@xedc_ai.secrets']
+
+  xedc_ai.transport:
+    class: Drupal\xedc_ai\Client\GuzzleChatTransport
+    arguments: ['@http_client']
+
+  xedc_ai.client:
+    class: Drupal\xedc_ai\Client\OpenAiChatClient
+    arguments: ['@xedc_ai.transport']
+
+  xedc_ai.usage:
+    class: Drupal\xedc_ai\Usage\UsageLogger
+    arguments: ['@database', '@datetime.time']
+
+  xedc_ai.audit:
+    class: Drupal\xedc_ai\Usage\AuditLog
+    arguments: ['@database', '@datetime.time', '@current_user', '@logger.channel.xedc_ai']
+
+  xedc_ai.budget:
+    class: Drupal\xedc_ai\Budget\BudgetService
+    arguments: ['@database', '@config.factory', '@datetime.time']
+
+  xedc_ai.reviews:
+    class: Drupal\xedc_ai\Review\ReviewRepository
+    arguments: ['@database', '@datetime.time']
+
+  xedc_ai.extractor:
+    class: Drupal\xedc_ai\Review\TextExtractor
+    arguments: ['@entity_type.manager']
+
+  xedc_ai.vision:
+    class: Drupal\xedc_ai\Review\DisabledVisionAudit
+
+  xedc_ai.local:
+    class: Drupal\xedc_ai\Review\LocalInspector
+    arguments: ['@database', '@file_system', '@entity_type.manager', '@datetime.time', '@config.factory', '@xedc_ai.vision']
+
+  xedc_ai.duplicates:
+    class: Drupal\xedc_ai\Review\DuplicateFinder
+    arguments: ['@database', '@queue']
+
+  xedc_ai.submissions:
+    class: Drupal\xedc_ai\Review\SubmissionModerator
+    arguments: ['@entity_type.manager', '@content_moderation.moderation_information', '@xedc_ai.audit', '@xedc_ai.reviews', '@datetime.time', '@database']
+
+  xedc_ai.stats:
+    class: Drupal\xedc_ai\Usage\OperationsStats
+    arguments: ['@database', '@xedc_ai.duplicates']
+
+  xedc_ai.runner:
+    class: Drupal\xedc_ai\Review\ReviewRunner
+    arguments:
+      - '@xedc_ai.reviews'
+      - '@xedc_ai.models'
+      - '@xedc_ai.client'
+      - '@xedc_ai.usage'
+      - '@xedc_ai.budget'
+      - '@xedc_ai.extractor'
+      - '@xedc_ai.local'
+      - '@xedc_ai.audit'
+      - '@config.factory'
+      - '@lock'
+      - '@datetime.time'
+      - '@logger.channel.xedc_ai'
+      - '@state'
+
+  xedc_ai.enqueuer:
+    class: Drupal\xedc_ai\Review\ReviewEnqueuer
+    arguments:
+      - '@xedc_ai.reviews'
+      - '@xedc_ai.models'
+      - '@xedc_ai.extractor'
+      - '@queue'
+      - '@config.factory'
+      - '@content_moderation.moderation_information'
+      - '@xedc_ai.audit'
+      - '@datetime.time'
+
+  xedc_ai.seo:
+    class: Drupal\xedc_ai\Seo\SeoAdvisor
+    arguments: ['@entity_type.manager', '@module_handler', '@config.factory', '@xedc_ai.audit', '@content_moderation.moderation_information']
+
+  xedc_ai.maintenance:
+    class: Drupal\xedc_ai\Usage\Maintenance
+    arguments: ['@database', '@config.factory', '@datetime.time', '@xedc_ai.budget', '@xedc_ai.reviews']

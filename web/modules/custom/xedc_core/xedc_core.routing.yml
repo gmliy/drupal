@@ -187,6 +187,19 @@ xedc_core.files_duplicate:
       group:
         type: integer
 
+xedc_core.files_reference:
+  path: '/admin/reports/xedc-files/references/{fid}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\FileCleanupController::reference'
+    _title: '文件引用'
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\CleanupAccess::references'
+  options:
+    _admin_route: TRUE
+    parameters:
+      fid:
+        type: integer
+
 xedc_core.files_unused:
   path: '/admin/reports/xedc-files/unused'
   defaults:
@@ -311,3 +324,289 @@ xedc_core.files_log_item:
     parameters:
       log:
         type: integer
+
+xedc_core.storage:
+  path: '/admin/config/media/object-storage'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\StorageController::overview'
+    _title: '对象存储'
+  requirements:
+    _permission: 'administer xedc object storage'
+  options:
+    _admin_route: TRUE
+
+xedc_core.storage_providers:
+  path: '/admin/config/media/object-storage/providers'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\StorageController::providers'
+    _title: '供应商'
+  requirements:
+    _permission: 'administer xedc object storage'
+  options:
+    _admin_route: TRUE
+
+xedc_core.storage_profile_add:
+  path: '/admin/config/media/object-storage/providers/add'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\StorageController::profileForm'
+    _title: '新增供应商'
+    mode: add
+  requirements:
+    _permission: 'administer xedc object storage'
+  options:
+    _admin_route: TRUE
+
+xedc_core.storage_profile_edit:
+  path: '/admin/config/media/object-storage/providers/{profile}/edit'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\StorageController::profileForm'
+    _title: '编辑供应商'
+    mode: edit
+  requirements:
+    _permission: 'administer xedc object storage'
+    profile: '[a-z][a-z0-9_]{0,31}'
+  options:
+    _admin_route: TRUE
+
+xedc_core.storage_policy:
+  path: '/admin/config/media/object-storage/policy'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\StorageController::policy'
+    _title: '存储策略'
+  requirements:
+    _permission: 'administer xedc object storage'
+  options:
+    _admin_route: TRUE
+
+xedc_core.storage_cdn:
+  path: '/admin/config/media/object-storage/cdn'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\StorageController::cdn'
+    _title: 'CDN'
+  requirements:
+    _permission: 'administer xedc object storage'
+  options:
+    _admin_route: TRUE
+
+xedc_core.storage_migration:
+  path: '/admin/config/media/object-storage/migration'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\StorageController::migration'
+    _title: '迁移'
+  requirements:
+    _permission: 'administer xedc object storage'
+  options:
+    _admin_route: TRUE
+
+xedc_core.storage_monitor:
+  path: '/admin/config/media/object-storage/monitor'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\StorageController::monitor'
+    _title: '监控'
+  requirements:
+    _permission: 'administer xedc object storage'
+  options:
+    _admin_route: TRUE
+
+xedc_core.storage_readiness:
+  path: '/admin/config/media/object-storage/readiness'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\StorageController::readiness'
+    _title: '启用检查'
+  requirements:
+    _permission: 'administer xedc object storage'
+  options:
+    _admin_route: TRUE
+
+xedc_core.storage_security:
+  path: '/admin/config/media/object-storage/security'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\StorageController::security'
+    _title: '安全'
+  requirements:
+    _permission: 'administer xedc object storage'
+  options:
+    _admin_route: TRUE
+
+xedc_core.storage_protected_download:
+  path: '/xedc/storage/protected/{fid}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\ProtectedDownloadController::download'
+  requirements:
+    _custom_access: '\Drupal\xedc_core\Access\StorageAccess::download'
+    fid: \d+
+
+xedc_core.vip_admin:
+  path: '/admin/xedc/vip'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\EngagementAdminController::vip'
+    _title: 'VIP 会员'
+  requirements:
+    _permission: 'administer xedc vip'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.vip_history:
+  path: '/admin/xedc/vip/{user}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\EngagementAdminController::history'
+    _title: 'VIP 记录'
+  requirements:
+    _permission: 'administer xedc vip'
+    user: \d+
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+    parameters:
+      user:
+        type: entity:user
+
+xedc_core.engagement_overview:
+  path: '/admin/xedc/overview'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\EngagementAdminController::overview'
+    _title: '互动总览'
+  requirements:
+    _permission: 'view xedc engagement statistics'
+  options:
+    no_cache: TRUE
+
+xedc_core.zip_jobs:
+  path: '/admin/xedc/zip'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\EngagementAdminController::zips'
+    _title: 'ZIP 任务'
+  requirements:
+    _permission: 'view xedc engagement statistics'
+  options:
+    no_cache: TRUE
+
+xedc_core.like_stats:
+  path: '/admin/xedc/likes'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\EngagementAdminController::likes'
+    _title: '点赞统计'
+  requirements:
+    _permission: 'view xedc engagement statistics'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.download_stats:
+  path: '/admin/xedc/download-stats'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\EngagementAdminController::downloads'
+    _title: '下载统计'
+  requirements:
+    _permission: 'view xedc engagement statistics'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.share_stats:
+  path: '/admin/xedc/shares'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\EngagementAdminController::shares'
+    _title: '分享统计'
+  requirements:
+    _permission: 'view xedc engagement statistics'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.download_toggle:
+  path: '/admin/xedc/downloads/{xedc_download}/toggle'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\DownloadDeliveryController::toggle'
+  requirements:
+    _permission: 'administer xedc downloads'
+    xedc_download: \d+
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+    parameters:
+      xedc_download:
+        type: entity:xedc_download
+
+xedc_core.download_file:
+  path: '/xedc/download/{xedc_download}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\DownloadDeliveryController::file'
+  requirements:
+    _access: 'TRUE'
+    xedc_download: \d+
+  options:
+    no_cache: TRUE
+    parameters:
+      xedc_download:
+        type: entity:xedc_download
+
+xedc_core.download_original:
+  path: '/xedc/download/{xedc_download}/original/{fid}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\DownloadDeliveryController::original'
+  requirements:
+    _access: 'TRUE'
+    xedc_download: \d+
+    fid: \d+
+  options:
+    no_cache: TRUE
+    parameters:
+      xedc_download:
+        type: entity:xedc_download
+
+xedc_core.download_archive:
+  path: '/xedc/download/{xedc_download}/archive'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\DownloadDeliveryController::archive'
+  requirements:
+    _access: 'TRUE'
+    xedc_download: \d+
+  options:
+    no_cache: TRUE
+    parameters:
+      xedc_download:
+        type: entity:xedc_download
+
+xedc_core.like_toggle:
+  path: '/xedc/like/{node}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\EngagementController::toggleLike'
+  methods: [POST]
+  requirements:
+    _csrf_request_header_token: 'TRUE'
+    _entity_access: 'node.view'
+    node: \d+
+  options:
+    no_cache: TRUE
+    parameters:
+      node:
+        type: entity:node
+
+xedc_core.share_record:
+  path: '/xedc/share/{node}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\EngagementController::recordShare'
+  methods: [POST]
+  requirements:
+    _csrf_request_header_token: 'TRUE'
+    _entity_access: 'node.view'
+    node: \d+
+  options:
+    no_cache: TRUE
+    parameters:
+      node:
+        type: entity:node
+
+xedc_core.share_qr:
+  path: '/xedc/share/{node}/qr'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\EngagementController::qr'
+  requirements:
+    _entity_access: 'node.view'
+    node: \d+
+  options:
+    parameters:
+      node:
+        type: entity:node

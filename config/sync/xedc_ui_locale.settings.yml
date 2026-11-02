@@ -1,0 +1,4 @@
+protected_terms:
+  - DcLili
+  - Drupal
+batch_size: 20

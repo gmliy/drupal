@@ -1,0 +1,99 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">AI 内容审核</p>
+      <h2 class="xedc-ai-title">{{ review.title ?: node.title }}</h2>
+    </div>
+    <a class="xedc-ai-button" href="{{ path('xedc_ai.reviews') }}">返回列表</a>
+  </header>
+  {% if review.stale %}<p class="xedc-ai-note">当前文字已经变化，这条结果属于旧版本。</p>{% endif %}
+  {% if review.cached %}<p class="xedc-ai-note">这条结果复用了相同内容版本、模型和规则的既有审核，没有再次调用模型。</p>{% endif %}
+  <div class="xedc-ai-meta">
+    <span>类型 {{ review.bundle }}</span>
+    <span>内容 {{ review.entity_id }}</span>
+    <span>版本 {{ review.revision_id }}</span>
+    {% if review.current_revision and review.current_revision != review.revision_id %}<span>当前版本 {{ review.current_revision }}</span>{% endif %}
+    <span>{{ review.time }}</span>
+    <span>模型 {{ review.model ?: '未记录' }}</span>
+    <span class="xedc-ai-status is-{{ review.status_key }}">{{ review.status }}</span>
+    <span>{{ review.verdict }}</span>
+    <span class="xedc-ai-risk is-{{ review.risk_key }}">{{ review.risk }}</span>
+  </div>
+  <div class="xedc-ai-cards">
+    <article class="xedc-ai-card"><h3>评分</h3><p class="xedc-ai-value">{{ review.score }}</p><p class="xedc-ai-detail">Token {{ review.tokens }} · {{ review.cost }} 元</p></article>
+    <article class="xedc-ai-card"><h3>SEO 参考分</h3><p class="xedc-ai-value">{{ review.seo_score }}</p></article>
+    <article class="xedc-ai-card"><h3>工作流</h3><p class="xedc-ai-value xedc-ai-value-small">{{ review.moderation }}</p><p class="xedc-ai-detail">{{ review.workflow ?: '内容类型没有启用审核流' }}</p></article>
+    <article class="xedc-ai-card"><h3>人工处理</h3><p class="xedc-ai-value xedc-ai-value-small">{{ review.handled }}</p><p class="xedc-ai-detail">{{ review.handler }}</p></article>
+  </div>
+  <section class="xedc-ai-panel">
+    <h3>摘要</h3>
+    <p>{{ review.summary ?: '没有摘要。' }}</p>
+    {% if review.error %}<p class="xedc-ai-error">{{ review.error_code }}：{{ review.error }}</p>{% endif %}
+  </section>
+  <section class="xedc-ai-split">
+    <div class="xedc-ai-panel">
+      <h3>问题</h3>
+      {% if review.issues %}
+        <ul>
+          {% for item in review.issues %}
+            <li>{% if item.field %}{{ item.field }} · {% endif %}{{ item.message }}{% if item.suggestion %}（{{ item.suggestion }}）{% endif %}</li>
+          {% endfor %}
+        </ul>
+      {% else %}<p class="xedc-ai-empty">没有列出问题。</p>{% endif %}
+    </div>
+    <div class="xedc-ai-panel">
+      <h3>建议</h3>
+      {% if review.suggestions %}<ul>{% for item in review.suggestions %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="xedc-ai-empty">没有修改建议。</p>{% endif %}
+    </div>
+  </section>
+  {% if review.seo_title or review.meta_description %}
+    <section class="xedc-ai-panel">
+      <h3>SEO 建议</h3>
+      {% if review.seo_title %}<p>标题：{{ review.seo_title }}</p>{% endif %}
+      {% if review.meta_description %}<p>描述：{{ review.meta_description }}</p>{% endif %}
+      {% if review.tags %}<p>标签：{{ review.tags|join('、') }}</p>{% endif %}
+    </section>
+  {% endif %}
+  {% if review.comparisons %}
+    <section class="xedc-ai-panel">
+      <h3>建议对比</h3>
+      <div class="xedc-ai-table-wrap">
+        <table class="xedc-ai-table">
+          <thead><tr><th>字段</th><th>当前</th><th>建议</th><th>原因</th></tr></thead>
+          <tbody>
+          {% for item in review.comparisons %}
+            <tr><td>{{ item.field }}</td><td>{{ item.original }}</td><td>{{ item.suggested }}</td><td>{{ item.reason }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+  <section class="xedc-ai-panel">
+    <h3>重复检测</h3>
+    {% if review.duplicates %}<ul>{% for item in review.duplicates %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="xedc-ai-empty">这条记录里没有重复文件提示。</p>{% endif %}
+  </section>
+  <section class="xedc-ai-panel">
+    <h3>审核历史</h3>
+    {% if review.history %}
+      <ul class="xedc-ai-list">
+        {% for item in review.history %}
+          <li><a href="{{ item.url }}">#{{ item.id }}</a><span>{{ item.status }} · {{ item.time }}</span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="xedc-ai-empty">没有更早的审核记录。重复审核会新增记录，不会覆盖这一条。</p>
+    {% endif %}
+  </section>
+  <section class="xedc-ai-panel">
+    <h3>本地检查</h3>
+    {% if review.local %}<ul>{% for item in review.local %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="xedc-ai-empty">没有本地检查记录。</p>{% endif %}
+    <p class="xedc-ai-detail">本地检查不调用视觉模型，也不会把图片或视频发给第三方。</p>
+  </section>
+  <p class="xedc-ai-links">
+    {% if review.node_url %}<a href="{{ review.node_url }}">查看内容</a>{% endif %}
+    {% if review.edit_url %}<a href="{{ review.edit_url }}">编辑内容</a>{% endif %}
+    <a href="{{ review.moderation_url }}">Drupal 内容审核</a>
+  </p>
+  {% if action %}<section class="xedc-ai-panel"><h3>处理</h3><p class="xedc-ai-detail">确认、忽略和重新审核都不会自动发布或删除内容。</p>{{ action }}</section>{% endif %}
+</div>

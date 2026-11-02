@@ -1,0 +1,154 @@
+<?php
+
+/**
+ * @file
+ * AI operations center hooks.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
+use Drupal\node\NodeInterface;
+
+/**
+ * Implements hook_theme().
+ */
+function xedc_ai_theme(): array {
+  $path = \Drupal::service('extension.list.module')->getPath('xedc_ai');
+  return [
+    'xedc_ai_overview' => [
+      'variables' => ['stats' => [], 'budget' => [], 'calls' => [], 'reviews' => [], 'translation' => [], 'charts' => []],
+      'template' => 'xedc-ai-overview',
+      'path' => $path . '/templates',
+    ],
+    'xedc_ai_reviews' => [
+      'variables' => ['rows' => [], 'filters' => [], 'counts' => [], 'enqueue' => NULL, 'batch' => NULL, 'pager' => NULL, 'queue' => NULL],
+      'template' => 'xedc-ai-reviews',
+      'path' => $path . '/templates',
+    ],
+    'xedc_ai_review' => [
+      'variables' => ['review' => [], 'node' => [], 'action' => NULL],
+      'template' => 'xedc-ai-review',
+      'path' => $path . '/templates',
+    ],
+    'xedc_ai_providers' => [
+      'variables' => ['rows' => []],
+      'template' => 'xedc-ai-providers',
+      'path' => $path . '/templates',
+    ],
+    'xedc_ai_models' => [
+      'variables' => ['rows' => [], 'default_model' => '', 'fallback_model' => '', 'assign' => NULL],
+      'template' => 'xedc-ai-models',
+      'path' => $path . '/templates',
+    ],
+    'xedc_ai_usage' => [
+      'variables' => ['rows' => [], 'filters' => [], 'summary' => [], 'pager' => NULL],
+      'template' => 'xedc-ai-usage',
+      'path' => $path . '/templates',
+    ],
+    'xedc_ai_seo' => [
+      'variables' => ['audit' => [], 'rows' => [], 'suggest' => NULL],
+      'template' => 'xedc-ai-seo',
+      'path' => $path . '/templates',
+    ],
+    'xedc_ai_duplicates' => [
+      'variables' => ['exact' => [], 'similar' => [], 'scanned' => 0, 'similar_scanned' => 0, 'similar_limited' => FALSE, 'distance' => 10, 'scan' => NULL],
+      'template' => 'xedc-ai-duplicates',
+      'path' => $path . '/templates',
+    ],
+    'xedc_ai_submissions' => [
+      'variables' => ['rows' => [], 'action' => NULL, 'moderation_url' => ''],
+      'template' => 'xedc-ai-submissions',
+      'path' => $path . '/templates',
+    ],
+    'xedc_ai_logs' => [
+      'variables' => ['rows' => [], 'pager' => NULL],
+      'template' => 'xedc-ai-logs',
+      'path' => $path . '/templates',
+    ],
+    'xedc_ai_translate' => [
+      'variables' => ['provider' => '', 'configured' => FALSE, 'settings_url' => '', 'model' => '', 'rows' => [], 'enqueue' => NULL],
+      'template' => 'xedc-ai-translate',
+      'path' => $path . '/templates',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_cron().
+ */
+function xedc_ai_cron(): void {
+  \Drupal::service('xedc_ai.maintenance')->purge();
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function xedc_ai_node_insert(NodeInterface $node): void {
+  try {
+    \Drupal::service('xedc_ai.enqueuer')->onInsert($node);
+  }
+  catch (\Throwable $exception) {
+    \Drupal::logger('xedc_ai')->error('审核任务没有入队：@message', [
+      '@message' => \Drupal\xedc_ai\Client\Redactor::text($exception->getMessage()),
+    ]);
+  }
+}
+
+/**
+ * Implements hook_form_node_form_alter().
+ */
+function xedc_ai_form_node_form_alter(array &$form, FormStateInterface $form_state, string $form_id): void {
+  $node = $form_state->getFormObject()->getEntity();
+  if (!$node instanceof NodeInterface || !in_array($node->bundle(), ['article', 'photo', 'video'], TRUE) || !$node->id()) {
+    return;
+  }
+  if (!\Drupal::currentUser()->hasPermission('view xedc ai reviews')) {
+    return;
+  }
+  $row = \Drupal::database()->select('xedc_ai_review', 'r')
+    ->fields('r', ['id', 'status', 'risk_level'])
+    ->condition('entity_type', 'node')
+    ->condition('entity_id', $node->id())
+    ->orderBy('id', 'DESC')
+    ->range(0, 1)
+    ->execute()
+    ->fetchAssoc();
+  $form['xedc_ai_review'] = [
+    '#type' => 'details',
+    '#title' => t('AI 审核建议'),
+    '#open' => FALSE,
+    '#weight' => 95,
+    '#access' => TRUE,
+  ];
+  if ($row === FALSE) {
+    $form['xedc_ai_review']['empty'] = [
+      '#markup' => '<p>' . t('还没有 AI 审核记录。AI 不会因为打开这个编辑页而调用模型。') . '</p>',
+    ];
+    return;
+  }
+  $url = Url::fromRoute('xedc_ai.review', ['review' => $row['id']])->toString();
+  $form['xedc_ai_review']['link'] = [
+    '#markup' => '<p><a href="' . $url . '">' . t('查看审核 #@id', ['@id' => $row['id']]) . '</a> · ' . t('状态 @status', ['@status' => $row['status']]) . '</p><p>' . t('这里只提供建议。发布、退回和修改内容仍使用原来的编辑与审核流程。') . '</p>',
+  ];
+}
+
+/**
+ * Implements hook_menu_local_tasks_alter().
+ */
+function xedc_ai_menu_local_tasks_alter(array &$data, string $route_name): void {
+  if ($route_name !== 'view.moderated_content.moderated_content' || !\Drupal::currentUser()->hasPermission('view xedc ai reviews')) {
+    return;
+  }
+  $data['tabs'][0]['xedc_ai.moderated_link'] = [
+    '#theme' => 'menu_local_task',
+    '#link' => [
+      'title' => t('AI 审核建议'),
+      'url' => Url::fromRoute('xedc_ai.reviews'),
+      'localized_options' => [],
+    ],
+    '#active' => FALSE,
+    '#weight' => 50,
+  ];
+}

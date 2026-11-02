@@ -1,0 +1,54 @@
+administer xedc ai:
+  title: '管理 AI 运营中心'
+  description: '修改审核开关、预算和运行参数。'
+  restrict access: true
+
+view xedc ai dashboard:
+  title: '查看 AI 运营概览'
+  description: '查看模型、用量和审核数量。不能查看完整 API Key。'
+  restrict access: true
+
+administer xedc ai providers:
+  title: '管理 AI 供应商和模型'
+  description: '新增、修改、停用供应商和模型，并测试连接。页面不显示完整 API Key。'
+  restrict access: true
+
+view xedc ai usage:
+  title: '查看 AI API 用量'
+  description: '查看调用记录、Token 和已核算费用。'
+  restrict access: true
+
+view xedc ai reviews:
+  title: '查看 AI 内容审核结果'
+  description: '查看文字审核建议。不能发布或修改内容。'
+  restrict access: true
+
+execute xedc ai reviews:
+  title: '执行 AI 内容审核'
+  description: '手动把文字内容加入审核队列。不会自动发布或修改内容。'
+  restrict access: true
+
+administer xedc ai reviews:
+  title: '批准审核结果'
+  description: '确认或忽略审核建议。不能通过此权限发布内容。'
+  restrict access: true
+
+administer xedc ai rules:
+  title: '管理审核规则'
+  description: '修改本地审核阈值。不能查看完整 API Key。'
+  restrict access: true
+
+apply xedc ai changes:
+  title: '执行内容修改'
+  description: '在人工确认后，把 AI 建议写入已有字段。不会自动发布。'
+  restrict access: true
+
+view xedc ai logs:
+  title: '管理审核日志'
+  description: '查看 AI 运营操作日志。日志不包含 API Key。'
+  restrict access: true
+
+moderate xedc ai submissions:
+  title: '批准会员投稿'
+  description: '在确认后通过、退回或拒绝会员投稿。使用现有审核工作流。'
+  restrict access: true

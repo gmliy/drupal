@@ -74,15 +74,13 @@
           {% endif %}
         </div>
       {% endif %}
+      <div class="img-detail__actions">{{ xedc_engagement|default('') }}</div>
       {% if img_summary|default('')|trim != '' %}
         <div class="img-detail__desc-group">
           <div class="img-detail__desc-label">{{ '描述'|t }}</div>
           <div class="img-detail__desc" id="img-detail-desc">{{ img_summary }}</div>
           <button type="button" class="img-detail__desc-toggle" hidden aria-expanded="false" aria-controls="img-detail-desc">{{ '展开'|t }}</button>
         </div>
-      {% endif %}
-      {% if xedc_member_favorite|default('') %}
-        <div class="img-detail__fav">{{ xedc_member_favorite }}</div>
       {% endif %}
     </aside>
     <nav class="img-nav">

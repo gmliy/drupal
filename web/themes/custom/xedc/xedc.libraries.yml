@@ -31,6 +31,18 @@ meta:
     theme:
       css/xedc-meta.css: {}
 
+engagement:
+  version: 1.4
+  css:
+    theme:
+      css/engagement.css: {}
+  js:
+    js/engagement.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+    - core/drupalSettings
+
 navbar:
   version: 1.8
   css:

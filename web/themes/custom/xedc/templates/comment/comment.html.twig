@@ -4,7 +4,7 @@
 <article{{ attributes.addClass('js-comment','cm') }}>
   <div class="cm__avatar" data-name="{{ nm }}">{% if user_picture %}{{ user_picture }}{% else %}{{ nm|slice(0,1)|upper }}{% endif %}</div>
   <div class="cm__main">
-    <div class="cm__head"><b>{{ nm }}</b>{% if comment.pid.target_id %}<i class="cm__to">{{ '回复 @name'|t({'@name': comment.pid.entity.getAuthorName()|striptags}) }}</i>{% endif %}<span>· {{ comment.created.value|date('m-d H:i') }}</span></div>
+    <div class="cm__head"><b>{{ nm }}</b>{{ xedc_vip_badge|default('') }}{% if comment.pid.target_id %}<i class="cm__to">{{ '回复 @name'|t({'@name': comment.pid.entity.getAuthorName()|striptags}) }}</i>{% endif %}<span>· {{ comment.created.value|date('m-d H:i') }}</span></div>
     <div class="cm__body">{{ content.comment_body }}</div>
     {{ content.field_comment_image }}
     <div class="cm__links">{{ content.links }}</div>

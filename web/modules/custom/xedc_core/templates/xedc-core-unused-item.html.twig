@@ -19,15 +19,18 @@
     <li><span>SHA-256</span><strong>{{ file.hash ?: '暂无数据' }}</strong></li>
   </ul>
   <p class="xedc-ops-note">{{ file.reason }}</p>
+  {% if file.summary %}
+    <p class="xedc-ops-detail">引用位置 {{ file.summary.locations }}，内容实体 {{ file.summary.entities }}，未知 {{ file.summary.unknown }}。 <a href="{{ file.reference_url }}">查看引用详情</a></p>
+  {% endif %}
   {% if references %}
     <div class="xedc-ops-table-wrap">
       <table class="xedc-ops-table">
-        <thead><tr><th>来源</th><th>实体</th><th>修订</th><th>语言</th><th>字段</th><th>判断</th><th>迁移</th><th>说明</th></tr></thead>
+        <thead><tr><th>来源</th><th>内容</th><th>修订</th><th>语言</th><th>字段</th><th>状态</th><th>迁移</th><th>说明</th></tr></thead>
         <tbody>
           {% for ref in references %}
             <tr>
-              <td>{{ ref.source }}</td><td>{{ ref.entity }}</td><td>{{ ref.revision }}</td><td>{{ ref.langcode }}</td>
-              <td>{{ ref.field }}</td><td>{{ ref.confidence }}</td><td>{{ ref.migratable }}</td><td>{{ ref.reason }}</td>
+              <td>{{ ref.source }}</td><td>{{ ref.title }}</td><td>{{ ref.revision }}</td><td>{{ ref.langcode }}</td>
+              <td>{{ ref.field }}</td><td>{{ ref.status }}</td><td>{{ ref.migratable }}</td><td>{{ ref.reason }}</td>
             </tr>
           {% endfor %}
         </tbody>
