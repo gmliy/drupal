@@ -15,7 +15,7 @@
 
 依据是 `tests/test_core.py` 的安全测试，连续两轮通过。
 
-数据库导出通过 `0600` 的临时 defaults 文件调用 `mysqldump --single-transaction`，口令不出现在进程参数里。日志经过脱敏。远程删除函数直接拒绝，避免误删对象存储里的备份。
+数据库导出通过 `0600` 的临时 defaults 文件调用 `mysqldump --single-transaction`，口令不出现在进程参数里。日志经过脱敏。按目录删除远端备份仍然直接拒绝。保留策略只删除 `xedc-recover/packages/` 下过期的 `xedc-full-*` 对象，名称不符合这个格式的对象不会删除。
 
 ## 加密和备份内容
 
@@ -48,8 +48,30 @@
 
 正式 R2 上传和正式证书申请仍然没有执行。审计日志位于 `/var/lib/xedc-recover/audit/`，里面没有写入 Git。
 
+## 2026-11-03 完整恢复包
+
+恢复包使用原来的 AES-256-GCM 密文。`PACKAGE.json` 的 `key_included` 为 false。旁边的 `.credentials.enc` 仍是密文，模式 `600`。明文清单记录口令和 hash salt 是否存在，不记录值。对包内说明文件和 manifest 搜索 `ghp_`、`AKIA` 和私钥开头，没有命中。
+
+上传恢复包时拒绝文件名以 `.key` 结尾的对象。本地 S3 测试确认下载结果里没有密钥文件。远端删除函数仍然直接拒绝。
+
+一键恢复在生产目录存在时退出码 3。目标已有网站且没有本次安装状态时拒绝覆盖。成功后的重复执行不会重写。自签私钥模式 `600`。程序不改 Cloudflare DNS，也不申请正式证书。
+
+APT 仓库公钥写成 `644`。这是公钥，不是站点密钥。原因是 `umask 077` 会让 APT 的非 root 用户读不到 `signed-by` 文件。
+
+生产文件的修改时间在这次测试后没有变化。演练容器在取回证据后删除。
+
 ## 仍须人工保管
 
 - `/var/lib/xedc-recover/keys/primary.key` 不进入 Git。丢失后已有备份无法解密。
 - 主分支历史上已经跟踪 `web/sites/default/settings.php`。这次提交不新增其中的值，也不改写历史。
-- 正式 R2 上传和正式证书申请没有执行。
+- 正式证书申请没有执行。备份上传只发生在 `xedc-recover/` 前缀。
+
+## 2026-11-03 一键命令
+
+`xedc-backup` 把 621434331 字节的加密包上传到桶 `dclili` 的 `xedc-recover/packages/`。上传前该前缀为空。上传后前缀里只有这一份包、SHA256 和 `.credentials.enc`。HEAD 的 `Content-Length` 与本地文件一致。清单和日志里没有 `ghp_`、`key_b64` 或私钥。Git 远端被写成 `https://github.com/xxedc/drupal.git`，没有用户名和令牌。
+
+保留策略在生产前缀上没有删除任何对象。单元测试在本地 S3 上确认：`public/keep.jpg` 和 `packages/public-image.jpg` 不会被删除，直接删除 `public/` 对象会拒绝。
+
+从 R2 下载并恢复的容器没有挂载本地备份包，没有生产目录，没有 docker.sock，不是特权容器。恢复后的对象存储密钥目录不存在，R2 检查只列出备份前缀，`writes` 为 false。容器和临时凭据文件已删除。
+
+生产 `settings.php` 的修改时间仍是 2026-11-02 09:33:14 UTC，`/root/backup.sh` 仍是 2026-11-02 22:50:02 UTC。首页在测试前后都是 HTTP 200。

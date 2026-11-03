@@ -1,5 +1,17 @@
 # XEDC 备份、迁移与灾难恢复
 
+普通用户只需要仓库根目录的 [README.md](../../README.md) 和 [QUICK_RESTORE.md](../../QUICK_RESTORE.md)。命令是 `xedc-backup` 和 `xedc-restore`。
+
+本目录按用途分开：
+
+| 类型 | 文件 |
+| --- | --- |
+| 用户操作 | 根目录 README.md、QUICK_RESTORE.md |
+| 开发架构 | ARCHITECTURE.md、BACKUP_FORMAT.md、ENVIRONMENT_AUDIT.md、DEPENDENCY_INVENTORY.md、BACKUP_GUIDE.md、FULL_RESTORE.md、DOMAIN_MIGRATION.md、SSL_GUIDE.md、CREDENTIALS_GUIDE.md |
+| 测试和安全审计 | TEST_PLAN.md、TEST_REPORT.md、SECURITY_REVIEW.md、KNOWN_ISSUES.md、CHANGELOG.md、PROGRESS.md |
+
+下面保留原有维护说明，不作为恢复网站的必读步骤。
+
 这套工具的命令名是 `xedc-recover`。它备份 Drupal 代码、数据库、public/private 文件和必要配置，使用 AES-256-GCM 加密，并能在一台没有生产网站的新机器上恢复。
 
 程序位置：`tools/xedc-recover`。
@@ -9,7 +21,9 @@ python3 tools/xedc-recover/bin/xedc-recover --version
 python3 tools/xedc-recover/bin/xedc-recover --help
 ```
 
-当前版本：2.0.0。验收记录见 [TEST_REPORT.md](TEST_REPORT.md)，限制见 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)。
+当前版本：2.2.0。验收记录见 [TEST_REPORT.md](TEST_REPORT.md)，限制见 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)。
+
+旧服务器离线时，用完整恢复包恢复，不要把 GitHub 当作数据库和媒体文件的来源。命令见 [QUICK_RESTORE.md](QUICK_RESTORE.md)。
 
 ## 先读哪一份
 

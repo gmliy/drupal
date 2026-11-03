@@ -25,6 +25,7 @@ http {{
     default_type application/octet-stream;
     server {{
         listen {port};
+        {listen_ssl}
         server_name {server_name};
         root {webroot};
         index index.php index.html;
@@ -59,12 +60,15 @@ def self_sign(domain: str, out_dir: str, days: int = 30) -> dict:
 
 
 def render_nginx(*, server_name: str, webroot: str, prefix: str, port: int = 8080, fpm: str = "/run/php/php8.5-fpm.sock", cert: str = "", key: str = "") -> str:
+    listen_ssl = ""
     ssl_lines = ""
     if cert and key:
+        listen_ssl = "listen 443 ssl;"
         ssl_lines = f"ssl_certificate {cert};\n        ssl_certificate_key {key};"
     return NGINX_TEMPLATE.format(
         prefix=prefix,
         port=port,
+        listen_ssl=listen_ssl,
         server_name=server_name,
         webroot=webroot,
         fpm=fpm,

@@ -1,10 +1,18 @@
 # 架构
 
+普通用户使用两条命令。`xedc-backup` 在旧服务器完成检查、加密备份、打包、上传、回读校验和保留清理。`xedc-restore` 在新服务器下载或读取本地包，安装运行环境并恢复网站。分步命令仍然保留。
+
+GitHub 保存程序、`composer.lock`、`config/sync` 和恢复工具。R2 只在 `xedc-recover/` 前缀保存加密备份包。解密密钥留在本机密钥文件里。
+
+备份记录 Git 提交。工作区干净时，恢复会尝试取出这个提交，并核对 `composer.lock`。提交不可用，或备份时工作区有未提交改动时，使用包内代码快照，避免用另一份代码去配这套数据库。
+
 `xedc-recover` 是生产网站旁边的一个 Python 3.12 程序。它不安装进 Drupal，不改模块、主题和 `config/sync`。
 
 ```text
 tools/xedc-recover/
-  bin/xedc-recover          命令入口
+  bin/xedc-recover          分步命令入口
+  bin/xedc-backup           完整恢复包。create --full 会打包已有加密备份
+  bin/xedc-restore          一键恢复和对象存储下载
   xedc_recover/             备份、恢复、加密、S3、域名、证书、保护规则
   php/domain_migrate.php    域名替换。序列化长度由 PHP 按字节重写
   lab/drill.sh              只在没有生产目录的机器里运行
@@ -28,6 +36,12 @@ tools/xedc-recover/
 ## 恢复
 
 目标目录由调用者指定。lab 角色切断对象存储，避免演练站点写生产 R2。replacement 角色保留存储配置，只应在旧服务器已经不存在时使用。
+
+`xedc-restore install` 先核对恢复包，再调用原来的解密和恢复。生产目录存在时，只要没有同时跳过服务安装和数据库导入，就直接拒绝。目标里已有网站、且没有这次安装的状态文件时，也拒绝覆盖。同一份成功报告再次执行会返回，不重写文件。
+
+对象存储沿用原来的 S3 客户端。`xedc-backup upload` 上传恢复包、SHA256 和加密凭据文件。`xedc-restore fetch` 下载并核对。密钥文件被拒绝上传。远端删除仍然直接拒绝。
+
+一键恢复会写 Nginx 和一份自签证书。它不修改 Cloudflare DNS，也不申请正式证书。新机器的 IP、主机名、域名和目录由命令参数决定，不从旧服务器复制。
 
 ## 测试环境
 

@@ -13,7 +13,7 @@ from pathlib import Path
 from xedc_recover.backup import create_backup, verify_backup
 from xedc_recover.crypto import write_key
 from xedc_recover.domain import count_remaining, dump_for_rollback, migrate, restore_rollback
-from xedc_recover.remote import download_backup, upload_backup
+from xedc_recover.remote import download_backup, download_package, upload_backup, upload_package
 from xedc_recover.restore import restore_backup
 from xedc_recover.s3 import EMPTY_SHA, S3Client
 from tests.s3_lab_server import serve
@@ -81,6 +81,42 @@ class ObjectStoreTests(unittest.TestCase):
             original = hashlib.sha256(blob.read_bytes()).hexdigest()
             copied = hashlib.sha256((root / "site/public/big.bin").read_bytes()).hexdigest()
             self.assertEqual(original, copied)
+
+    def test_package_upload_download_leaves_key_local(self):
+        server = serve(19001)
+        self.addCleanup(server.shutdown)
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            packages = root / "packages"
+            packages.mkdir()
+            archive = packages / "xedc-full-20261103-abc123.tar.zst"
+            archive.write_bytes(b"xedc-package-bytes")
+            digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+            (packages / (archive.name + ".sha256")).write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
+            (packages / "xedc-full-20261103-abc123.credentials.enc").write_bytes(b"XEDCENC1-not-a-key")
+            (packages / "primary.key").write_bytes(b"local-key-must-stay")
+            config = {
+                "backup_root": str(root / "backups"),
+                "remote": {
+                    "enabled": True,
+                    "endpoint": "http://127.0.0.1:19001",
+                    "bucket": "xedc-lab",
+                    "region": "us-east-1",
+                    "prefix": "xedc-recover/",
+                    "access_key": "lab-access",
+                    "secret_key": "lab-secret-key",
+                    "path_style": True,
+                    "timeout": 30,
+                    "retries": 3,
+                },
+            }
+            uploaded = upload_package(config, str(archive))
+            self.assertFalse(uploaded["key_included"])
+            self.assertTrue(all(not item["key"].endswith(".key") for item in uploaded["uploaded"]))
+            fetched = download_package(config, "latest", str(root / "fetched"))
+            self.assertEqual(fetched["sha256"], digest)
+            self.assertTrue((root / "fetched/xedc-full-20261103-abc123.credentials.enc").is_file())
+            self.assertFalse((root / "fetched/primary.key").exists())
 
 
 class DomainLabTests(unittest.TestCase):

@@ -15,13 +15,14 @@ from .backup import (
     show_backup,
     verify_backup,
 )
+from .bundle import create_full_package, install_bundle
 from .config import load_config
 from .credentials import init_key, login_link, reset_admin_plan
 from .crypto import CryptoError
 from .domain import DomainError, migrate, self_test
 from .installer import InstallError, ensure_marker, install_pinned
 from .redact import redact
-from .remote import download_backup, upload_backup
+from .remote import download_backup, download_package, upload_backup, upload_package
 from .restore import restore_backup
 from .s3 import S3Error
 from .safety import ProductionGuard
@@ -150,6 +151,32 @@ def build_parser() -> argparse.ArgumentParser:
 
     packages = sub.add_parser("install")
     packages.add_argument("--yes", action="store_true")
+    bundle = sub.add_parser("bundle")
+    bundle_sub = bundle.add_subparsers(dest="action", required=True)
+    bundle_create = bundle_sub.add_parser("create")
+    bundle_create.add_argument("--output", required=True)
+    bundle_create.add_argument("--from-backup", default="")
+    bundle_create.add_argument("--allow-live-read", action="store_true")
+    bundle_create.add_argument("--label", default="")
+    bundle_install = bundle_sub.add_parser("install")
+    bundle_install.add_argument("--backup", required=True)
+    bundle_install.add_argument("--target", required=True)
+    bundle_install.add_argument("--yes", action="store_true")
+    bundle_install.add_argument("--role", default="lab", choices=["lab", "replacement"])
+    bundle_install.add_argument("--domain", default="")
+    bundle_install.add_argument("--db-name", default="xedc_restore")
+    bundle_install.add_argument("--db-user", default="xedc_restore")
+    bundle_install.add_argument("--db-password-env", default="XEDC_RESTORE_DB_PASSWORD")
+    bundle_install.add_argument("--db-host", default="127.0.0.1")
+    bundle_install.add_argument("--db-port", type=int, default=3306)
+    bundle_install.add_argument("--search-dir", default="")
+    bundle_install.add_argument("--skip-services", action="store_true")
+    bundle_install.add_argument("--skip-database", action="store_true")
+    bundle_upload = bundle_sub.add_parser("upload")
+    bundle_upload.add_argument("--archive", required=True)
+    bundle_fetch = bundle_sub.add_parser("fetch")
+    bundle_fetch.add_argument("--name", default="latest")
+    bundle_fetch.add_argument("--output", required=True)
     sub.add_parser("doctor")
     sub.add_parser("deps")
     sub.add_parser("audit")
@@ -318,6 +345,40 @@ def main(argv=None) -> int:
         if args.command == "install":
             ensure_marker()
             _print(install_pinned(yes=args.yes), as_json)
+            return 0
+        if args.command == "bundle" and args.action == "create":
+            _print(create_full_package(
+                config,
+                args.output,
+                from_backup=args.from_backup,
+                allow_live_read=args.allow_live_read,
+                label=args.label,
+            ), as_json)
+            return 0
+        if args.command == "bundle" and args.action == "upload":
+            _print(upload_package(config, args.archive), as_json)
+            return 0
+        if args.command == "bundle" and args.action == "fetch":
+            _print(download_package(config, args.name, args.output), as_json)
+            return 0
+        if args.command == "bundle" and args.action == "install":
+            import os
+            _print(install_bundle(
+                config,
+                args.backup,
+                args.target,
+                yes=args.yes,
+                role=args.role,
+                domain=args.domain,
+                database_name=args.db_name,
+                database_user=args.db_user,
+                database_password=os.environ.get(args.db_password_env, ""),
+                database_host=args.db_host,
+                database_port=args.db_port,
+                skip_services=args.skip_services,
+                skip_database=args.skip_database,
+                search_dir=args.search_dir,
+            ), as_json)
             return 0
         if args.command in ("audit", "deps"):
             from .audit import collect

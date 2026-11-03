@@ -137,7 +137,7 @@ def _safe_link(path: Path, root: Path) -> bool:
         return False
 
 
-def archive_tree(root: Path, destination: Path, exclude: list[str], only: dict[str, str] | None = None) -> list[dict]:
+def archive_tree(root: Path, destination: Path, exclude: list[str], only: dict[str, str] | None = None, drift: list | None = None) -> list[dict]:
     records = []
     root = root.resolve()
     with tarfile.open(destination, "w:gz", compresslevel=6) as archive:
@@ -172,6 +172,7 @@ def archive_tree(root: Path, destination: Path, exclude: list[str], only: dict[s
                     info.linkname = ""
                     info.size = path.stat().st_size
                 digest = hashlib.sha256()
+                before = path.stat()
                 with open(path, "rb") as handle:
                     class _Proxy:
                         def read(self, amount=-1):
@@ -179,6 +180,9 @@ def archive_tree(root: Path, destination: Path, exclude: list[str], only: dict[s
                             digest.update(block)
                             return block
                     archive.addfile(info, _Proxy())
+                after = path.stat()
+                if drift is not None and (before.st_mtime_ns != after.st_mtime_ns or before.st_size != after.st_size):
+                    drift.append(rel)
                 records.append({"path": rel, "type": "file", "sha256": digest.hexdigest(), "size": info.size})
     return records
 
@@ -404,6 +408,7 @@ def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = Fa
         public_records: list[dict] = []
         private_records: list[dict] = []
         deleted: list[str] = []
+        file_drift: list[str] = []
         if not step_done("files"):
             only = None
             current_map = {}
@@ -419,13 +424,13 @@ def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = Fa
                 changed = {path: digest for path, digest in current_map.items() if previous_map.get(path) != digest}
                 deleted = sorted(path for path in previous_map if path not in current_map)
                 only = changed
-            code_records = archive_tree(source, plain_dir / "code.tar.gz", exclude, _strip_prefix(only, "") if only is not None else None)
+            code_records = archive_tree(source, plain_dir / "code.tar.gz", exclude, _strip_prefix(only, "") if only is not None else None, file_drift)
             code_sha = encrypt_file(plain_dir / "code.tar.gz", payload / "code.tar.gz.enc", key, key_id)
             (plain_dir / "code.tar.gz").unlink(missing_ok=True)
             public_records = []
             if public_path.exists():
                 public_only = _strip_prefix(only, "public/") if only is not None else None
-                public_records = archive_tree(public_path, plain_dir / "public.tar.gz", [], public_only)
+                public_records = archive_tree(public_path, plain_dir / "public.tar.gz", [], public_only, file_drift)
                 public_sha = encrypt_file(plain_dir / "public.tar.gz", payload / "public.tar.gz.enc", key, key_id)
                 (plain_dir / "public.tar.gz").unlink(missing_ok=True)
             else:
@@ -434,15 +439,16 @@ def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = Fa
             private_sha = ""
             if private.exists():
                 private_only = _strip_prefix(only, "private/") if only is not None else None
-                private_records = archive_tree(private, plain_dir / "private.tar.gz", [], private_only)
+                private_records = archive_tree(private, plain_dir / "private.tar.gz", [], private_only, file_drift)
                 private_sha = encrypt_file(plain_dir / "private.tar.gz", payload / "private.tar.gz.enc", key, key_id)
                 (plain_dir / "private.tar.gz").unlink(missing_ok=True)
-            done("files", code_sha256=code_sha, public_sha256=public_sha, private_sha256=private_sha, deleted=deleted, code_records=code_records, public_records=public_records, private_records=private_records)
+            done("files", code_sha256=code_sha, public_sha256=public_sha, private_sha256=private_sha, deleted=deleted, file_drift=file_drift, code_records=code_records, public_records=public_records, private_records=private_records)
         else:
             code_sha = state["steps"]["files"]["code_sha256"]
             public_sha = state["steps"]["files"]["public_sha256"]
             private_sha = state["steps"]["files"]["private_sha256"]
             deleted = state["steps"]["files"].get("deleted", [])
+            file_drift = state["steps"]["files"].get("file_drift", [])
             code_records = state["steps"]["files"].get("code_records", [])
             public_records = state["steps"]["files"].get("public_records", [])
             private_records = state["steps"]["files"].get("private_records", [])
@@ -488,6 +494,8 @@ def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = Fa
             },
             "files": files,
             "deleted": deleted,
+            "file_drift": file_drift,
+            "files_consistency": "database-single-transaction; per-file sha256 at read time",
             "storage": {"mode": state["steps"]["secrets"].get("storage_mode", ""), "credentials_in_backup": True},
             "trusted_hosts": state["steps"]["secrets"].get("trusted_hosts", []),
             "restore_steps": [

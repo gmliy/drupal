@@ -1,136 +1,163 @@
-# 完整搬家步骤
+# XEDC Drupal 一键备份与恢复
 
-下面 5 步可以把旧服务器上的数据库、公共文件和私有文件迁到一台新的 Ubuntu 22.04 或 24.04 服务器。按顺序复制命令。把「新服务器IP」「新域名」和打包文件名换成你自己的。不需要先读脚本。
+这是一个 Drupal 网站的一键完整备份、Cloudflare R2 异地存储和跨服务器一键恢复系统。
 
-## 1. 旧服务器打包
+GitHub 保存网站程序和可以版本管理的配置。Cloudflare R2 保存数据库、上传文件和加密后的完整备份包。新服务器从这两处取回资源，自动安装环境并恢复网站。
 
-在旧服务器的站点目录执行。这一步默认只读：不改数据库内容、不改上传文件、不改 `settings.php`。`--maintenance` 会临时打开维护模式，命令结束或异常退出时都会恢复原来的值。`--yes` 用来确认工作区里未提交的代码改动不会被带走。
+## 架构
 
-```bash
-cd /var/www/drupal
-sudo ./site-migrate.sh export --out /root/site-migrate --maintenance --yes
+```text
+旧服务器
+  xedc-backup
+      |                         |
+      v                         v
+   GitHub                      Cloudflare R2
+   代码、composer.lock、        加密的完整备份包
+   config/sync、恢复程序         数据库、public/private 文件、
+                                 manifest、SHA256
+      |                         |
+      +-----------+-------------+
+                  v
+            新服务器
+            xedc-restore
+            安装 PHP、Nginx、MariaDB
+            按备份记录的提交取代码
+            解密并恢复数据库和文件
 ```
 
-成功后，终端会打印两个文件的完整路径：一个 `.tgz`，一个同名的 `.tgz.sha256`。复制 `.tgz` 那一行路径，下一步两个文件都要传。
+解密密钥不在 GitHub 里，也不在 R2 里。请单独保存。
 
-## 2. 传到新服务器
+## 旧服务器：一键备份
 
-`.tgz` 和 `.tgz.sha256` 必须一起传。不要放进 Git，也不要放到网站目录里。
-
-```bash
-scp /root/site-migrate/site-migrate-时间.tgz* root@新服务器IP:/root/
-```
-
-把 `site-migrate-时间.tgz` 换成上一步终端里看到的真实文件名。`*` 会同时带上 `.sha256` 文件。
-
-## 3. 新服务器恢复
-
-新服务器还没有 Nginx、PHP、MariaDB 或代码时，导入会自动安装。下面这条命令会下载脚本、校验压缩包，再按包里的 git 提交号拉取代码并导入数据。
+仓库如果是私有的，先用 GitHub CLI 或 SSH 完成登录。不要把令牌写进命令或文件。
 
 ```bash
-curl -fsSL -o /root/site-migrate.sh https://raw.githubusercontent.com/xxedc/drupal/main/site-migrate.sh
-chmod +x /root/site-migrate.sh
-sudo /root/site-migrate.sh import --pack /root/site-migrate-时间.tgz --domain 新域名
+sudo apt-get update
+sudo apt-get install -y git python3 python3-cryptography zstd
+git clone -b feature/migration-v2 --depth 1 https://github.com/xxedc/drupal.git /opt/xedc-drupal
+sudo ln -sfn /opt/xedc-drupal/tools/xedc-recover/bin/xedc-backup /usr/local/bin/xedc-backup
+sudo ln -sfn /opt/xedc-drupal/tools/xedc-recover/bin/xedc-restore /usr/local/bin/xedc-restore
+xedc-backup
 ```
 
-只在目标库已经有节点，或已经有 `uid>1` 的用户时，才在命令末尾加上 `--force --yes`。这两个参数表示确认覆盖现有数据。空库或全新服务器不要加。
+第一次运行会做两件需要你保管的事：
 
-也可以先单独装环境，失败后直接再执行同一条命令，已完成的安装步骤会跳过：
+1. 如果还没有解密密钥，程序会生成 `/var/lib/xedc-recover/keys/primary.key`。立刻复制到密码管理器或其他机器。没有这个文件就无法恢复。
+2. 对象存储使用环境变量 `XEDC_S3_ACCESS_KEY` 和 `XEDC_S3_SECRET_KEY`。如果本机 Drupal 已经配置了 Cloudflare R2，程序会读取现有密钥，但只把备份写到 `xedc-recover/` 前缀，不改网站正在使用的对象。
+
+也可以自己写一份不含密钥的配置 `/var/lib/xedc-recover/config.json`：
+
+```json
+{
+  "backup_root": "/var/lib/xedc-recover/backups",
+  "key_file": "/var/lib/xedc-recover/keys/primary.key",
+  "source_root": "/var/www/drupal",
+  "remote": {
+    "endpoint": "https://ACCOUNT.r2.cloudflarestorage.com",
+    "bucket": "YOUR_BUCKET",
+    "region": "auto",
+    "prefix": "xedc-recover/",
+    "access_key_env": "XEDC_S3_ACCESS_KEY",
+    "secret_key_env": "XEDC_S3_SECRET_KEY"
+  }
+}
+```
+
+然后：
 
 ```bash
-sudo /root/site-migrate.sh setup --domain 新域名
-sudo /root/site-migrate.sh import --pack /root/site-migrate-时间.tgz --domain 新域名
+export XEDC_S3_ACCESS_KEY="从密码管理器读取"
+export XEDC_S3_SECRET_KEY="从密码管理器读取"
+xedc-backup --config /var/lib/xedc-recover/config.json
 ```
 
-## 4. 查看报告和凭据
+成功时会打印备份编号、大小、SHA256、远端位置和用时。上传后会重新下载并解密校验。校验失败不会显示成功。中断后执行 `xedc-backup --resume`。
+
+备份期间网站继续服务。数据库使用单事务导出。正在被写入的文件会记入漂移清单，不会为了备份去停机或清空缓存。
+
+## 新服务器：一键恢复
+
+新机器只需要 Ubuntu 24.04、上面的解密密钥，以及 R2 的访问凭据。旧服务器不需要在线。
 
 ```bash
-cat /root/site-migrate-report.txt
-cat /root/site-migrate-credentials.txt
+sudo apt-get update
+sudo apt-get install -y git python3 ca-certificates
+git clone -b feature/migration-v2 --depth 1 https://github.com/xxedc/drupal.git /opt/xedc-drupal
+sudo install -m 755 /opt/xedc-drupal/tools/xedc-recover/bin/xedc-restore /usr/local/bin/xedc-restore
+sudo mkdir -p /var/lib/xedc-recover/keys
+sudo install -m 600 /从密码管理器取出的/primary.key /var/lib/xedc-recover/keys/primary.key
+export XEDC_S3_ACCESS_KEY="从密码管理器读取"
+export XEDC_S3_SECRET_KEY="从密码管理器读取"
+xedc-restore --domain 新域名 --yes
 ```
 
-报告第一行是「结果: 成功」或「结果: 失败」。凭据文件里有数据库名、账号、密码，以及管理员用户名和 uid。Drupal 只保存密码哈希，凭据文件里没有原来的登录密码；用搬家前的原密码登录即可。如果导入时加了 `--reset-admin-pass`，文件里会多一行新的管理员密码，原密码就不再有效。
+交互执行 `xedc-restore` 时，程序会在开始前询问还缺少的域名、R2 凭据和解密密钥路径。其余安装、下载、校验、解密和导入都会自动完成。
 
-## 5. 切 DNS 前验证
-
-先不要改权威 DNS。在新服务器上执行：
+默认 `--role lab`：网站文件恢复到本机，对象存储写入保持暂停，避免在旧服务器还在线时写回生产 R2。确认旧服务器已经下线、要让新网站继续使用原来的对象存储时，才使用：
 
 ```bash
-curl -sI -H "Host: 新域名" http://127.0.0.1
+xedc-restore --domain 新域名 --yes --role replacement
 ```
 
-看到 `200` 或 `301`/`302` 这类 3xx 后，再在自己的电脑上用 hosts 把新域名指到新服务器，打开首页、登录和上传文件。确认无误后再切 DNS。旧服务器先留着。
+程序会安装与备份匹配的 PHP 8.5、Nginx、MariaDB 和必要扩展，恢复数据库、public 文件和 private 文件，并写好站点配置。它不修改 Cloudflare DNS，也不申请正式证书。新机器上会放一份仅供检查的自签证书。
 
-## 前提
+数据库口令写在 `/var/lib/xedc-recover/restore-db.password`，权限是 `600`。会员和管理员仍使用原来的密码。
 
-仓库需要是公开的，并且 `site-migrate.sh` 已经推送到 `main`，第 3 步的 `curl` 才能下载到脚本。如果仓库是私有的，或脚本还没推上去，改用克隆：
+## 指定备份
+
+恢复最新一份：
 
 ```bash
-git clone https://github.com/xxedc/drupal.git /var/www/drupal
-sudo /var/www/drupal/site-migrate.sh import --pack /root/site-migrate-时间.tgz --domain 新域名 --root /var/www/drupal
+xedc-restore --domain 新域名 --yes
 ```
 
-旧服务器和新服务器都用 root 运行。只支持 Ubuntu 22.04 和 24.04。`apt` 全程使用 `DEBIAN_FRONTEND=noninteractive`。
-
-## 包里有什么
-
-包含：
-
-- 数据库。`cache`、`cache_*`、`sessions`、`watchdog`、`flood`、`key_value_expire` 只保留表结构，其余表含数据
-- 公共文件 `web/sites/default/files`。名为 `php`、`css`、`js`、`styles` 的目录不打包，这些由 Drupal 重新生成
-- 私有文件。只有旧站配置了私有目录并且目录存在时才有
-
-不包含：
-
-- 代码和未提交改动。新服务器按 manifest 里的 git 提交号从仓库检出
-- Nginx、SSL、cron、邮件服务器配置
-
-包和旁边的 `.sha256` 文件权限都是 `600`。包内有用户邮箱和密码哈希，用完后在两边都删除。
-
-## 脚本会自动完成的事
-
-- 安装 Nginx、PHP-FPM、MariaDB、Composer，并写入一个只监听 80 端口的基础虚拟主机
-- 按提交号拉取代码，执行 `composer install`。PHP 主次版本或 Drupal 版本与包内记录不一致时中止
-- 校验 `.tgz.sha256`（如果有）和 manifest 里每个文件的 sha256
-- 确认磁盘可用空间至少是包大小的 3 倍
-- 覆盖前备份数据库和文件，并在终端打印回滚命令
-- 导入数据库、解压文件、修正属主，然后 `drush updb` 和 `drush cr`。不执行 `drush cim`，以数据库里的配置为准
-- 创建或沿用数据库账号，并写回 `settings.php` 的数据库连接
-- 让 `$settings['trusted_host_patterns']` 包含 `^新域名$`。域名不以 `www.` 开头时同时写入 `www`，以 `www.` 开头时同时写入去掉 `www.` 的域名
-- 用 `drush config:set` 更新 `simple_sitemap.settings` 的 `base_url`（保留原来的 http 或 https）
-- 私有文件路径为空，或落在 webroot 里面时，改到站点目录下的 `private`（在 `web/` 外面），解压位置和最终路径一致
-- `hash_salt` 优先写回迁移包里的旧值。旧站没有该值时，才保留目标 `settings.php` 里已有的值；两边都没有才新生成。用户密码哈希不依赖把明文密码搬过去，原密码仍然可以登录。salt 只放在权限 `600` 的包和 `settings.php` 里，不写入凭据文件
-- 把数据库账号、管理员用户名和 uid 写入 `/root/site-migrate-credentials.txt`（权限 `600`）
-
-## 需要手动检查的事
-
-脚本只扫描并写进验收报告，不会改这些内容：
-
-- 节点正文、菜单链接和其他用户内容里的绝对 URL
-- Matomo、Metatag 图片地址、SMTP、`system.site` 的邮箱
-
-另外还要自己处理：自定义 Nginx 配置、SSL 证书（certbot）、邮件发送、cron。基础虚拟主机只有 HTTP。证书申请前，DNS 必须已经指向新服务器。
-
-验收报告在 `/root/site-migrate-report.txt`。结果为成功时，节点数、用户数、文件数与 manifest 一致，`drush status` 的 bootstrap 为 `Successful`，首页 HTTP 为 200 或 3xx。验收失败时站点会停在维护模式，并保留覆盖前的备份。
-
-回滚命令形如：
+恢复某一天或某一个编号：
 
 ```bash
-sudo /root/site-migrate.sh rollback --backup /root/site-migrate-backup-时间 --yes
+xedc-restore --backup xedc-full-20261104 --domain 新域名 --yes
 ```
 
-以导入时终端实际打印的命令为准。
-
-## 其他命令
+使用已经下载到本机的包：
 
 ```bash
-sudo ./site-migrate.sh export --help
-sudo ./site-migrate.sh setup --domain 新域名 --root /var/www/drupal --php 8.5
-sudo ./site-migrate.sh import --pack /root/site-migrate-时间.tgz --domain 新域名 --reset-admin-pass
+xedc-restore --file /path/to/xedc-full.tar.zst --domain 新域名 --yes
 ```
 
-同一时间只允许一个 `site-migrate.sh` 运行。日志在 `/var/log/site-migrate.log`，权限 `600`，数据库口令和 `hash_salt` 会打码。
+`--file` 旁边必须有同名的 `.sha256` 文件。本地恢复不需要旧服务器，也不需要在恢复过程中访问 GitHub 上的数据库。代码优先按备份记录的提交从 GitHub 取出。提交不存在，或备份时工作区有未提交改动时，使用备份包里的代码快照。
 
-PHP 只要求主次版本与导出时相同（例如都是 8.5）。补丁版本不同会记一条警告后继续。Drupal 核心版本必须与包内完全一致。
+## 怎样确认已经恢复
 
-尚未在真实环境完成端到端测试，建议先在测试服务器验证后再用于生产。
+在新服务器上：
+
+```bash
+curl -sI -H "Host: 新域名" http://127.0.0.1/
+curl -s -H "Host: 新域名" http://127.0.0.1/user/login | grep -o user-login-form
+runuser -u www-data -- /srv/xedc/code/vendor/bin/drush --root=/srv/xedc/code/web status
+```
+
+首页和登录页应返回 200。未登录访问 `/admin` 应返回 403。用原来的管理员账号登录后台。打开一张图片和一个视频页。`/srv/xedc/private` 不应允许其他用户读取。完整结果在 `/srv/xedc/INSTALL_REPORT.json`。
+
+确认无误后，再由人把域名指到新服务器。不要让两台服务器同时向生产 R2 写入。
+
+## 安全
+
+- 解密密钥、数据库口令、R2 密钥和 SSL 私钥不要提交到 GitHub。
+- 备份包是加密的。只有密钥和备份包在一起才能恢复。
+- 生产网站目录还在这台机器上时，`xedc-restore` 会直接拒绝。`--force` 不能跳过。
+- 恢复目标里如果已经有别的网站，程序也会拒绝覆盖。
+- 远端清理只删除 `xedc-recover/` 前缀下过期的 `xedc-full-*` 备份，不会删除网站媒体对象。
+- 正式证书和 Cloudflare DNS 需要你确认后再做。
+
+## 常见问题
+
+| 现象 | 处理 |
+| --- | --- |
+| 退出码 3 | 这台机器仍有生产网站，或目标路径被保护。换一台没有该网站的机器。 |
+| 退出码 4 | 解密密钥和这份备份不是一对。 |
+| 退出码 5 | 没能安装 PHP 8.5。不要改用别的 PHP 版本继续。 |
+| `远端没有完整恢复包` | R2 前缀不是 `xedc-recover/`，或凭据指向了别的桶。 |
+| `磁盘空间不足` | 可用空间需要达到恢复包大小的大约 3 倍。 |
+| GitHub 克隆失败 | 私有仓库需要先登录。恢复仍可使用备份包里的代码快照。 |
+| 再次执行没有变化 | 同一份成功报告会直接返回。要重做，先删除 `/srv/xedc`。 |
+
+开发和审计记录在 `docs/migration/`。恢复网站不需要阅读那些文件。

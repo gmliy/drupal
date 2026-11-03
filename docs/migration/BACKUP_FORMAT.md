@@ -22,3 +22,27 @@ BACKUP_ID/
 增量备份的 `files` 只列出变化文件，`deleted` 列出删除路径。校验会沿着 `parent_id` 走到完整备份。出现循环或断链就是失败。
 
 代码包排除 `.git`、`_server`、`node_modules`、public files 和 private files。public 与 private 单独打包。解包拒绝绝对路径、`..` 和符号链接成员。
+
+## 完整恢复包
+
+`xedc-backup` 在上面的加密备份之外，再生成一个可以单独搬走的包。它不取代目录格式。文件名是 `xedc-full-YYYYMMDDTHHMMSSZ-备份编号末6位.tar.zst`。旁边有同名的 `.sha256`，以及 `.credentials.enc`。凭据文件是原来的 `secrets.json.enc` 副本，仍然是密文。解密密钥不在包里，也不在 `.sha256` 旁边。旧文件名 `xedc-full-YYYYMMDD-6位.tar.zst` 仍可恢复。
+
+包内是 schema 3 的 `PACKAGE.json`。schema 2 的旧包仍可恢复。清单包含：
+
+```text
+PACKAGE.json
+environment.json
+RESTORE.txt
+manifest.json
+manifest.sha256
+payload/*.enc
+service/nginx.conf.template
+service/NOTES.txt
+tool/
+```
+
+`environment.json` 记录 PHP、Nginx、MariaDB、Composer、`/usr/bin/node` 和 `/usr/bin/npm` 的版本，以及 PHP 扩展、`composer.lock` 的 SHA256、存储模式和无关服务的容器名。它只记录口令和 hash salt 是否存在，不记录值。Matomo、Netdata、VPN 和代理的数据不会打进这个包。
+
+`PACKAGE.json` 记录 Git 提交、分支、远端地址（不含凭据）、工作区是否有未提交改动、Drupal 版本、PHP 版本和 `composer.lock` 的 SHA256。远端地址里的用户名和令牌会去掉。
+
+`tool/` 是恢复程序副本，不含测试和密钥。GitHub 仓库保存这份程序和对应提交的代码。网站数据库和上传文件以恢复包为准。提交取不到，或备份时工作区不干净时，恢复使用包内代码快照。

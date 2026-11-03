@@ -185,6 +185,15 @@ class S3Client:
         status, _body, _headers = self._request("HEAD", f"/{self.bucket}/{object_key}")
         return status
 
+    def delete_key(self, key: str) -> None:
+        object_key = self.object_key(key)
+        relative = object_key[len(self.prefix):] if self.prefix and object_key.startswith(self.prefix) else object_key
+        if not relative.startswith("packages/xedc-full-"):
+            raise S3Error("拒绝删除非备份包对象")
+        status, _body, _headers = self._request("DELETE", f"/{self.bucket}/{object_key}")
+        if status not in (200, 202, 204):
+            raise S3Error(f"删除备份对象失败: {status}")
+
     def list_keys(self, prefix: str) -> list[str]:
         keys = []
         token = ""
