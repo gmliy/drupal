@@ -3,12 +3,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from xedc_recover.cli import main
+from xedc_recover.oneshot import main_backup
 
 if __name__ == "__main__":
-    argv = list(sys.argv[1:])
-    if argv and argv[0] == "create":
-        argv = ["bundle", "create", *[item for item in argv[1:] if item != "--full"]]
-    else:
-        argv = ["bundle", *argv]
-    raise SystemExit(main(argv))
+    raise SystemExit(main_backup())

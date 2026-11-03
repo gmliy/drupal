@@ -78,6 +78,15 @@ class Handler(BaseHTTPRequestHandler):
         STORE.objects[key] = body
         self._send(200, extra={"ETag": '"' + hashlib.md5(body).hexdigest() + '"'})
 
+    def do_DELETE(self):
+        parts, _query = self._parts()
+        if len(parts) < 2:
+            self._send(404)
+            return
+        key = "/".join(parts[1:])
+        STORE.objects.pop(key, None)
+        self._send(204, b"")
+
     def do_GET(self):
         parts, query = self._parts()
         if len(parts) == 1 and "list-type" in query:

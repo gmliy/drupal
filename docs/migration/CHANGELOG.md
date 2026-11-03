@@ -1,5 +1,12 @@
 # 变更记录
 
+## 2.2.0
+
+- `xedc-backup` 和 `xedc-restore` 成为两条完整命令。备份会加密、上传、回读并解密校验后才报告成功。
+- 恢复可以指定 `--backup` 或 `--file`。代码优先对齐备份记录的 Git 提交；提交不可用或工作区不干净时使用包内快照。
+- 远端保留策略只清理 `xedc-recover/packages/` 下过期的完整包。
+- 根目录 README 和 QUICK_RESTORE 改为面向这两条命令。
+
 ## 2.1.0
 
 - 增加 `xedc-backup create --full` 和 `xedc-restore install`。完整恢复包包含原有密文、环境清单、服务模板和恢复程序。

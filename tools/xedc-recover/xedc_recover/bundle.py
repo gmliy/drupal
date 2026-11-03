@@ -15,6 +15,7 @@ from pathlib import Path
 from . import __version__
 from .audit import collect
 from .backup import BackupError, canonical, create_backup, show_backup, verify_backup
+from .gitmeta import align_code, collect_identity
 from .installer import ensure_marker, install_pinned
 from .restore import restore_backup
 from .safety import ProductionGuard, assert_backup_destination, assert_restore_target, production_webroot_present
@@ -142,7 +143,9 @@ def _restore_readme(backup_id: str, key_id: str) -> str:
         "不要从 GitHub 重新克隆来代替数据库和媒体文件。仓库里没有这些数据。",
         "",
         "恢复命令：",
-        "  xedc-restore install --backup /path/to/xedc-full-YYYYMMDD.tar.zst --domain 新域名 --yes",
+        "  xedc-restore --file /path/to/xedc-full.tar.zst",
+        "或从 R2 取指定版本：",
+        "  xedc-restore --backup xedc-full-YYYYMMDD",
         "",
         "程序不会修改 Cloudflare DNS。证书和域名指向需要你确认后再做。",
         "Matomo、Netdata、VPN 和代理不在这个包里。",
@@ -186,7 +189,7 @@ def pack_backup(config: dict, backup_id: str, output_dir: str) -> dict:
     destination_root = assert_backup_destination(output_dir)
     destination_root.mkdir(parents=True, exist_ok=True)
     os.chmod(destination_root, 0o700)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     base = f"xedc-full-{stamp}-{backup_id[-6:]}"
     archive = destination_root / f"{base}.tar.zst"
     stage = Path(tempfile.mkdtemp(prefix="xedc-pack-"))
@@ -219,12 +222,16 @@ def pack_backup(config: dict, backup_id: str, output_dir: str) -> dict:
             encoding="utf-8",
         )
         _copy_tool(stage / "tool")
+        file_rows = manifest.get("files") or []
+        identity = collect_identity(Path(config.get("source_root") or "/var/www/drupal"))
         counts = {
-            "manifest_files": len(manifest.get("files") or []),
+            "manifest_files": len(file_rows),
+            "file_bytes": sum(int(item.get("size") or 0) for item in file_rows if isinstance(item, dict)),
             "database": (manifest.get("database") or {}).get("counts", {}),
         }
         package_manifest = {
-            "schema": 2,
+            "schema": 3,
+            "manifest_version": 3,
             "package_format": "xedc-full-tar-zst",
             "backup_id": backup_id,
             "backup_type": manifest.get("type"),
@@ -233,7 +240,19 @@ def pack_backup(config: dict, backup_id: str, output_dir: str) -> dict:
             "key_id": key_id,
             "key_included": False,
             "counts": counts,
+            "file_drift": manifest.get("file_drift") or [],
+            "git": {
+                "commit": identity.get("commit") or "",
+                "branch": identity.get("branch") or "",
+                "remote": identity.get("remote") or "",
+                "dirty": bool(identity.get("dirty")),
+                "dirty_entries": identity.get("dirty_entries") or 0,
+            },
+            "drupal_version": identity.get("drupal_version") or "",
+            "php_version": identity.get("php_version") or "",
+            "composer_lock_sha256": identity.get("composer_lock_sha256") or "",
             "artifacts": manifest.get("artifacts"),
+            "code_recovery": "github-commit-when-clean-else-package-snapshot",
             "cloudflare_dns": "manual-confirmation-required",
         }
         (stage / "PACKAGE.json").write_text(json.dumps(package_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -496,6 +515,10 @@ def install_bundle(
         if domain:
             escaped = domain.replace(".", r"\.")
             hosts = [f"^{escaped}$", "^localhost$"]
+        package_doc = {}
+        package_path = work / "PACKAGE.json"
+        if package_path.is_file():
+            package_doc = json.loads(package_path.read_text(encoding="utf-8"))
         restored = restore_backup(
             restore_config,
             backup_id,
@@ -511,6 +534,9 @@ def install_bundle(
             database_port=database_port,
             trusted_hosts=hosts or None,
         )
+        git_info = dict(package_doc.get("git") or {})
+        git_info["composer_lock_sha256"] = package_doc.get("composer_lock_sha256") or ""
+        code_align = align_code(destination / "code", git_info)
         services = {}
         health = {}
         if not skip_services:
@@ -528,6 +554,9 @@ def install_bundle(
             "target": str(destination),
             "role": role,
             "preflight": preflight,
+            "code": code_align,
+            "git_commit": (package_doc.get("git") or {}).get("commit", ""),
+            "drupal_version": package_doc.get("drupal_version", ""),
             "restored": {"database_imported": restored.get("database_imported"), "chain": restored.get("chain")},
             "services": services,
             "health": health,

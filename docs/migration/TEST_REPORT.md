@@ -144,7 +144,67 @@ manifest 中的计数：users 11，node 94，file_managed 273。校验输出和 
 
 | 项目 | 状态 | 原因 |
 | --- | --- | --- |
-| 向生产或专用 R2 桶上传 | BLOCKED | 没有专用测试桶。MinIO 镜像无法拉取。本地 S3 和公开签名向量已通过 |
+| 向生产或专用 R2 桶上传 | PASS | 2026-11-03 17:09 UTC 已上传到 `xedc-recover/`。见下方一键命令记录。媒体前缀没有写入 |
 | 正式 Let's Encrypt 和 DNS-01 | BLOCKED | 只生成 staging 计划，不申请正式证书 |
 | replacement 角色整站启动 | NOT TESTED | 该角色会保留对象存储密钥。演练使用 lab，避免第二份网站写回生产 R2 |
 | 在生产机安装 systemd 定时任务 | NOT TESTED | 生产主机上该操作被拒绝。临时目录渲染已通过 |
+| 独立物理 VPS | NOT TESTED | 没有第二台服务器。全新系统演练使用隔离 Ubuntu 24.04 容器 |
+| 对 github.com 的网络克隆 | NOT TESTED | 本地 Git 仓库的提交对齐已通过。生产备份工作区不干净，实际恢复使用包内快照 |
+
+## 2026-11-03 17:15Z 一键备份和 R2 恢复
+
+工具版本 2.2.0。生产 `settings.php` 修改时间仍是 2026-11-02 09:33:14 UTC，`/root/backup.sh` 仍是 2026-11-02 22:50:02 UTC。测试前后 `https://gitxx.xyz/` 都是 200。
+
+单元测试：
+
+```bash
+cd /opt/xedc-migration/tools/xedc-recover
+python3 -m unittest tests.test_oneshot tests.test_core tests.test_lab
+```
+
+2026-11-03 16:53 UTC，26 tests OK，5.923 秒。覆盖一条命令的本地 S3 上传、回读解密、保留策略不删除媒体键、Git 提交覆盖和不可用提交回退。
+
+### 连续两轮全新 Ubuntu 恢复
+
+每轮都是新的 `ubuntu:24.04` 容器。非特权，内存 3 GiB，网络 `xedc-recover-lab`，没有 docker.sock，没有生产目录。只读挂载密钥、工具和已有恢复包。命令是 `xedc-restore --file /packages/xedc-full-20261103-3cd3bf.tar.zst --domain lab.xedc.test --yes --role lab`。
+
+| 轮次 | 时间 (UTC) | 退出码 | 结果 |
+| --- | --- | --- | --- |
+| 1 | 16:54:15–16:58:15 | 0 | PASS。日志 `oneshot-cli-round1.log`。端口 `127.0.0.1:18082` |
+| 2 | 16:58:56–17:03:27 | 0 | PASS。日志 `oneshot-cli-round2.log`。端口 `127.0.0.1:18083` |
+
+两轮宿主机检查相同：首页 200，登录页含 `user-login-form`，匿名 `/admin` 403，PNG 173184 字节。数据库 users 11、node 94、file_managed 273。Drush 显示 Drupal 11.4.11，数据库 Connected。对象存储密钥目录不存在。容器已删除。
+
+这份包是更早的恢复包，当时还没有记录 Git 提交，所以代码来源是 `package-snapshot` / `no-commit-recorded`。
+
+### 生产一键备份和 R2
+
+```bash
+ionice -c 3 nice -n 19 python3 /opt/xedc-migration/tools/xedc-recover/bin/xedc-backup --json
+```
+
+2026-11-03 17:04:33–17:09:20 UTC，退出码 0。日志 `xedc-backup-live.log`。
+
+| 项目 | 结果 |
+| --- | --- |
+| 备份编号 | `xedc-20261103T170434Z-764a29` |
+| 包 | `xedc-full-20261103T170644Z-764a29.tar.zst` |
+| 大小 | 621434331 字节 |
+| SHA256 | `0ba8019cc3e2244f705e95a49c0f7ff2e6473d54e783ece464466f3edd1dcc0a` |
+| 数据库 | users 11，node 94，file_managed 334 |
+| 文件漂移 | 0 |
+| Git | `e72409eba38874aaaba4c48e16d085951d222f10`，分支 `main`，137 项未提交改动 |
+| 回读解密 | PASS |
+| R2 | 桶 `dclili`，前缀 `xedc-recover/packages/`，3 个对象。HEAD `Content-Length` 621434331 |
+
+上传前该前缀是空的。上传后没有 `public/` 或 `private/` 对象。密钥没有上传。
+
+### 不挂载本地包、从 R2 恢复
+
+容器 `xedc-restore-r2r`，`ubuntu:24.04`，非特权，内存 3 GiB，网络 `xedc-recover-lab`，端口 `127.0.0.1:18084`。没有生产目录，没有本地备份包挂载。
+
+```bash
+xedc-restore --backup xedc-full-20261103T170644Z-764a29 --domain lab.xedc.test --yes --role lab
+```
+
+2026-11-03 17:10:38–17:14:42 UTC，退出码 0。日志 `r2-restore-round.log`。容器内下载文件的 SHA256 与上面一致。首页 200，登录 200，匿名后台 403，PNG 173184 字节。数据库 users 11、node 94、file_managed 334。代码来源 `package-snapshot`，原因 `working-tree-dirty`，提交号与备份一致。R2 检查为列出备份前缀，`writes` 为 false。对象存储密钥目录不存在。容器和临时凭据文件已删除。

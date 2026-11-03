@@ -2,7 +2,7 @@
 
 工作树：`/opt/xedc-migration`，分支 `feature/migration-v2`。生产仓库 `/var/www/drupal` 仍在 `main`，原有未提交修改没有被移动或清理。
 
-最后更新：2026-11-03 16:18 UTC。最终审计日志在 `/var/lib/xedc-recover/audit/`。
+最后更新：2026-11-03 17:15 UTC。审计日志在 `/var/lib/xedc-recover/audit/`。
 
 | 阶段 | 状态 |
 | --- | --- |
@@ -22,6 +22,10 @@
 | 全新容器恢复演练 | PASS。目录恢复和完整恢复包各有连续两轮 |
 | 连续两轮关键测试 | PASS。见 TEST_REPORT.md 的 16:13–16:18 记录 |
 | 文档 | 恢复包流程已写入手册和测试报告 |
-| Git 推送 | 恢复包测试和审查通过后推送 `feature/migration-v2`。不合并 main，不部署 |
+| 一键命令 | `xedc-backup` 与 `xedc-restore` 已接上现有加密备份和恢复。版本 2.2.0 |
+| 生产备份并上传 R2 | PASS。`xedc-20261103T170434Z-764a29`，包 SHA256 `0ba8019cc3e2244f705e95a49c0f7ff2e6473d54e783ece464466f3edd1dcc0a`。前缀 `xedc-recover/`。回读解密 PASS |
+| 从 R2 恢复 | PASS。隔离容器没有挂载本地包，下载后 SHA256 一致，首页 200 |
+| 连续两轮本地包恢复 | PASS。两台全新 Ubuntu 24.04 容器，端口 18082 和 18083 |
+| Git 推送 | 上述测试通过后推送 `feature/migration-v2`。不合并 main，不部署 |
 
 中断后续跑时：先读 `docs/MIGRATION_MASTER_SPEC.md` 和本文件。不要在 `/var/www/drupal` 里切分支。不要删除 `/var/lib/xedc-recover`。不要把密钥、备份或生产数据提交到 Git。
