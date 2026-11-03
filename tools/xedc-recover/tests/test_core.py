@@ -5,6 +5,8 @@ from __future__ import annotations
 import io
 import json
 import os
+import shutil
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -12,6 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from xedc_recover.backup import BackupError, archive_tree, create_backup, prune_backups, verify_backup
+from xedc_recover.bundle import create_full_package, install_bundle, verify_package
 from xedc_recover.cli import main
 from xedc_recover.credentials import login_link, reset_admin_plan
 from xedc_recover.crypto import CryptoError, decrypt_file, encrypt_file, write_key, load_key
@@ -305,6 +308,80 @@ $settings['trusted_host_patterns'] = [
             result = prune_backups(config, dry_run=False)
             self.assertIn(second["id"], result["kept"])
             self.assertIn(first["id"], result["kept"])
+
+    def test_portable_package_restores_without_github(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            source = root / "src"
+            backups = root / "backups"
+            packages = root / "packages"
+            fixture(source)
+            key = write_key(root / "key.json")
+            config = config_for(source, backups, Path(key["path"]))
+            created = create_full_package(config, str(packages))
+            archive = Path(created["archive"])
+            self.assertTrue(archive.name.startswith("xedc-full-"))
+            self.assertTrue(str(archive).endswith(".tar.zst"))
+            self.assertFalse(created["key_included"])
+            self.assertEqual(verify_package(archive), created["sha256"])
+            listing = subprocess.run(["tar", "--zstd", "-tf", str(archive)], text=True, capture_output=True, check=True)
+            names = listing.stdout.splitlines()
+            self.assertTrue(any(name.endswith("manifest.json") for name in names))
+            self.assertTrue(any("payload/" in name and name.endswith(".enc") for name in names))
+            self.assertFalse(any(name.endswith("primary.key") or name.endswith(".key") for name in names))
+            stage = root / "listed"
+            stage.mkdir()
+            subprocess.run(["tar", "--zstd", "-xf", str(archive), "-C", str(stage)], check=True)
+            readable = "\n".join(
+                path.read_text(encoding="utf-8", errors="replace")
+                for path in stage.rglob("*")
+                if path.is_file() and path.suffix not in {".enc"} and "payload" not in path.parts
+            )
+            self.assertNotIn("fixture-secret", readable)
+            self.assertNotIn("salt-value-not-real", readable)
+            self.assertIn("manual-confirmation-required", readable)
+            self.assertIn("Matomo", readable)
+            self.assertTrue(Path(created["credentials"]).read_bytes().startswith(b"XEDCENC1"))
+            bad = packages / "bad.tar.zst"
+            payload = bytearray(archive.read_bytes())
+            payload[-20] ^= 1
+            bad.write_bytes(payload)
+            shutil.copy(created["checksum"], str(bad) + ".sha256")
+            with self.assertRaises(BackupError):
+                verify_package(bad)
+            target = root / "site"
+            report = install_bundle(
+                config,
+                str(archive),
+                str(target),
+                yes=True,
+                role="lab",
+                skip_services=True,
+                skip_database=True,
+            )
+            self.assertEqual(report["status"], "PASS")
+            self.assertEqual((target / "public/pic.txt").read_text(encoding="utf-8"), "picture\n")
+            self.assertTrue(os.access(target / "code/web/tool.sh", os.X_OK))
+            self.assertIn("cloudflare", report["cloudflare_dns"].lower())
+            again = install_bundle(
+                config,
+                str(archive),
+                str(target),
+                yes=True,
+                role="lab",
+                skip_services=True,
+                skip_database=True,
+            )
+            self.assertTrue(again["idempotent"])
+            occupied = root / "occupied"
+            (occupied / "code/web/core").mkdir(parents=True)
+            (occupied / "code/web/sites/default/settings.php").parent.mkdir(parents=True)
+            (occupied / "code/web/sites/default/settings.php").write_text("<?php\n", encoding="utf-8")
+            with self.assertRaises(BackupError):
+                install_bundle(config, str(archive), str(occupied), yes=True, role="lab", skip_services=True, skip_database=True)
+
+    def test_one_shot_restore_refused_on_production_host(self):
+        self.assertEqual(main(["bundle", "install", "--backup", "/tmp/xedc-missing.tar.zst", "--target", "/tmp/xedc-not-used", "--yes", "--force"]), 3)
 
 
 class DomainSslTests(unittest.TestCase):

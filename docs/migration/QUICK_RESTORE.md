@@ -1,168 +1,133 @@
 # 快速恢复手册
 
-假设旧服务器已经不能使用。你手头有：
+旧服务器不需要继续在线。GitHub 只提供恢复程序和代码版本，不保存数据库和媒体文件。
 
-- 一台新的 x86_64 服务器，建议至少 4 核、8 GB 内存、40 GB 可用磁盘
-- 这个 Git 仓库的 `feature/migration-v2` 分支
-- 加密备份（本机目录或 Cloudflare R2 / S3）
-- 单独保管的解密密钥文件
-- 要使用的域名
+新机器需要：
 
-支持的系统：Ubuntu 24.04 是本次实际演练的系统。Ubuntu 22.04、20.04 以及 Debian 12/13 可以使用同一流程，但必须仍能安装 PHP 8.5。Ubuntu 20.04 和 Debian 11 已接近或超过常规维护窗口，不作为默认目标。不要为了省事改用发行版自带的 PHP 8.3，除非接受版本漂移并在报告里写明。
+- Ubuntu 24.04，x86_64，建议至少 4 核、8 GB 内存、40 GB 可用磁盘
+- 完整恢复包 `xedc-full-YYYYMMDD.tar.zst` 和旁边的 `.sha256` 文件
+- 单独保管的解密密钥，模式 `600`
+- 如有对象存储，再准备访问密钥。密钥不要放进恢复包
 
-## 1. 准备新机器
+恢复包可以来自 U 盘、另一台机器，或从 R2/S3 下载。本机已有文件时直接指定路径。
 
-用 root 登录。不要把仓库直接克隆到一台仍在运行旧站的机器上执行恢复。
-
-```bash
-apt-get update
-apt-get install -y git python3 ca-certificates
-git clone https://github.com/xxedc/drupal.git /opt/drupal
-cd /opt/drupal
-git checkout feature/migration-v2
-```
-
-确认这台机器没有旧站：
+## 1. 确认这不是生产机
 
 ```bash
 test ! -d /var/www/drupal/web/core && echo "可以继续"
 ```
 
-如果上一行失败，说明这台机器仍是生产机。停止。不要继续。
+上一行失败就停止。生产目录存在时，一键恢复会退出码 3。`--force` 不能跳过。
 
-## 2. 放入解密密钥和对象存储凭据
+## 2. 取得恢复程序
 
-密钥文件权限必须是 `600`。不要把它放进 Git。
+恢复包里有 `tool/`。也可以只为了取得程序而克隆仓库：
+
+```bash
+apt-get update
+apt-get install -y python3 ca-certificates
+git clone https://github.com/xxedc/drupal.git /opt/drupal
+cd /opt/drupal
+git checkout feature/migration-v2
+```
+
+克隆结果不能代替恢复包。仓库里没有数据库，也没有 public/private 文件。
+
+## 3. 放入密钥
 
 ```bash
 install -m 600 /path/from/your-password-manager/primary.key /root/xedc-recover.key
-```
-
-```bash
 cat > /root/xedc-recover.json <<'EOF'
 {
   "backup_root": "/var/lib/xedc-recover/backups",
   "key_file": "/root/xedc-recover.key",
   "public_files": "web/sites/default/files",
-  "private_files": "/var/www/drupal/private",
-  "remote": {
-    "enabled": true,
-    "endpoint": "https://ACCOUNT.r2.cloudflarestorage.com",
-    "bucket": "YOUR_BUCKET",
-    "region": "auto",
-    "prefix": "xedc-recover/",
-    "access_key_env": "XEDC_S3_ACCESS_KEY",
-    "secret_key_env": "XEDC_S3_SECRET_KEY",
-    "path_style": true
-  }
+  "private_files": "/srv/xedc/private"
 }
 EOF
 chmod 600 /root/xedc-recover.json
-export XEDC_S3_ACCESS_KEY="从密码管理器读取"
-export XEDC_S3_SECRET_KEY="从密码管理器读取"
-```
-
-只在本机磁盘上已有备份、不走对象存储时，把 `remote.enabled` 设为 `false`。
-
-## 3. 查看并校验备份
-
-```bash
-python3 /opt/drupal/tools/xedc-recover/bin/xedc-recover \
-  --config /root/xedc-recover.json backup list
-```
-
-选择时间最新、类型为 `full`，或者一条父备份都还在的 `incremental`。然后：
-
-```bash
-python3 /opt/drupal/tools/xedc-recover/bin/xedc-recover \
-  --config /root/xedc-recover.json backup download --backup-id BACKUP_ID
-
-python3 /opt/drupal/tools/xedc-recover/bin/xedc-recover \
-  --config /root/xedc-recover.json backup verify --backup-id BACKUP_ID
-```
-
-`verify` 的结果必须是 `"status": "PASS"`。校验失败就换上一份备份，不要继续恢复。
-
-## 4. 安装运行环境并恢复
-
-```bash
-python3 /opt/drupal/tools/xedc-recover/bin/xedc-recover install --yes
-```
-
-这条命令会写入 `/etc/xedc-recover-lab`，并安装 PHP 8.5、Nginx、MariaDB、Redis、ffmpeg、7z 和证书工具。它在发现 `/var/www/drupal/web/core` 时会直接退出。
-
-生成一个新的数据库密码，只放在 `600` 文件里：
-
-```bash
 umask 077
 python3 -c 'import secrets; print(secrets.token_hex(16))' > /root/xedc-restore-db.password
 export XEDC_RESTORE_DB_PASSWORD="$(cat /root/xedc-restore-db.password)"
 ```
 
+不要把 `umask 077` 留到后面的安装过程。过严的 umask 会让 APT 读不到仓库公钥。
+
+## 4. 从对象存储下载，或使用本地文件
+
+下载到新目录。程序会核对 `.sha256`，并一并取回加密的凭据文件。解密密钥不会从对象存储下载。
+
 ```bash
-python3 /opt/drupal/tools/xedc-recover/bin/xedc-recover \
-  --config /root/xedc-recover.json restore run \
-  --backup-id BACKUP_ID \
-  --target /var/www/drupal \
-  --role replacement \
+export XEDC_S3_ACCESS_KEY="从密码管理器读取"
+export XEDC_S3_SECRET_KEY="从密码管理器读取"
+python3 /opt/drupal/tools/xedc-recover/bin/xedc-restore \
+  --config /root/xedc-recover.json fetch \
+  --name latest \
+  --output /var/lib/xedc-recover/packages
+```
+
+配置里的 `remote` 使用 `endpoint`、`bucket`、`region`、`prefix`、`access_key_env`、`secret_key_env`。本地已经有包时跳过这一步。
+
+## 5. 一键恢复
+
+```bash
+python3 /opt/drupal/tools/xedc-recover/bin/xedc-restore \
+  --config /root/xedc-recover.json install \
+  --backup /var/lib/xedc-recover/packages/xedc-full-YYYYMMDD.tar.zst \
+  --target /srv/xedc \
+  --domain 新域名 \
   --yes \
-  --import-database \
-  --db-name drupal \
-  --db-user drupal \
-  --trusted-host '^gitxx\.xyz$' \
-  --trusted-host '^www\.gitxx\.xyz$'
+  --role replacement
 ```
 
-旧服务器还活着、这只是演练时，使用 `--role lab`。lab 会改成本地文件存储，并移除恢复目录里的对象存储密钥，避免第二份网站写回生产 R2。
+`--backup latest` 会在配置的 `backup_root/packages` 里按修改时间选择最新的 `xedc-full-*.tar.zst`。
 
-## 5. 配置 Web 并检查
+旧站还在、这只是演练时，使用 `--role lab`。lab 会改成本地文件、关闭 CDN、暂停写入，并删除恢复目录里的对象存储密钥。
 
-```bash
-python3 /opt/drupal/tools/xedc-recover/bin/xedc-recover ssl render \
-  --server-name "gitxx.xyz www.gitxx.xyz" \
-  --webroot /var/www/drupal/web \
-  --prefix /tmp/xedc-nginx \
-  --port 80 \
-  --output /etc/nginx/nginx.conf
-mkdir -p /tmp/xedc-nginx
-nginx -t
-chown www-data:www-data /var/www/drupal/private /var/www/drupal/web/sites/default/settings.php
-chmod 440 /var/www/drupal/web/sites/default/settings.php
-if id nginx >/dev/null 2>&1; then
-  sed -i -E 's/^;*[[:space:]]*listen\.group[[:space:]]*=.*/listen.group = nginx/' /etc/php/8.5/fpm/pool.d/www.conf
-  sed -i -E 's/^;*[[:space:]]*listen\.mode[[:space:]]*=.*/listen.mode = 0660/' /etc/php/8.5/fpm/pool.d/www.conf
-fi
-systemctl restart php8.5-fpm
-systemctl enable --now php8.5-fpm mariadb redis-server nginx
-systemctl reload nginx
-```
+这条命令会：
 
-`ssl render` 把 pid 和日志写到 `--prefix`。这个目录必须先存在，否则 `nginx -t` 会报 pid 文件无法打开。官方 Nginx 包的工作进程用户是 `nginx`，PHP-FPM 套接字默认只允许 `www-data` 连接，所以上面把 `listen.group` 改成 `nginx`。恢复程序会把代码和 public 设成目录 `755`、文件 `644`，把 private 设成目录 `750`、文件 `640`，把 `settings.php` 设成 `440`。
+1. 检查系统、磁盘和内存。可用磁盘需达到恢复包的 3 倍，可用内存低于 1 GB 时拒绝安装服务。
+2. 核对恢复包 SHA256，再校验包内 manifest。
+3. 用单独的密钥解密。
+4. 安装 PHP 8.5、扩展、Nginx、MariaDB、Redis、Composer 所需的系统包和 ffmpeg。PHP 不是 8.5 时退出码 5。
+5. 恢复代码、数据库、public、private 和 Drupal 配置。`hash_salt` 保持不变。
+6. 把数据库主机、私有目录和 trusted host 改成这台机器的值。IP、主机名、域名和目录都可以与旧服务器不同。
+7. 写好文件权限，配置 PHP-FPM 和 Nginx，并生成一份只在这台机器上使用的自签证书。
+8. 检查登录页和 Drush。结果写在 `/srv/xedc/INSTALL_REPORT.json`。
 
-然后逐项看：
+同一份报告已经是 PASS、且 SHA256 相同，再次执行会直接返回，不会重写网站。要再做一遍完整恢复，先删除目标目录和旁边的 `.目标名.xedc-install.json`。目标里已经有 `web/core`、又没有这次安装留下的状态文件时，程序拒绝覆盖。
+
+## 6. 域名和正式证书要人工确认
+
+程序不会修改 Cloudflare DNS，也不会申请正式证书。自签证书在 `/etc/xedc-recover/ssl`，私钥模式 `600`。
+
+确认网站在新机器上可用之后，再由人完成：
+
+1. 在 Cloudflare 把域名指到新服务器的 IP。
+2. 按 [SSL_GUIDE.md](SSL_GUIDE.md) 决定是否申请正式证书。`ssl plan` 只打印计划，不执行申请。
+3. 确认 HTTPS 和回源都正常后，再停用旧服务器。
+
+## 7. 检查
 
 | 检查 | 做法 |
 | --- | --- |
-| 首页 | `curl -I -H 'Host: gitxx.xyz' http://127.0.0.1/` |
-| 登录页 | 打开 `/user/login`，应出现登录表单 |
-| 后台 | 使用原账号登录 `/admin`。正常恢复不会重置会员或管理员密码 |
-| 用户和内容 | 对照 manifest 里的 `database.counts` |
-| 图片 | 打开一条带图的内容，确认 public files 可访问 |
-| 视频 | 确认 ffmpeg 存在：`ffmpeg -version` |
-| 私有文件 | `settings.php` 的 `file_private_path` 指向新目录，且目录属主是 `www-data` |
-| 数据库 | `mariadb -e 'SHOW TABLES' drupal` 能列出业务表 |
-| 日志 | `tail /var/log/nginx/error.log` 和 Drupal watchdog |
-| 证书 | 见 SSL 手册。演练使用自签证书；正式证书用 staging 计划 |
-| 对象存储 | replacement 角色保留原配置。lab 角色强制本地文件，不会连接生产 R2 |
+| 首页和登录页 | `curl -I -H 'Host: 新域名' http://127.0.0.1/`，`/user/login` 应有登录表单 |
+| 自签 HTTPS | `curl -k -I --resolve 新域名:443:127.0.0.1 https://新域名/user/login` |
+| 后台 | 用原账号登录 `/admin`。恢复不会重置会员或管理员密码。匿名访问应为 403 |
+| 用户和内容 | 对照 manifest 的 `database.counts` |
+| 图片和视频 | 打开带图的内容和视频页。public 文件应能访问 |
+| 私有文件 | `file_private_path` 指向新目录，属主是 `www-data` |
+| 对象存储 | lab 不会连接生产 R2。replacement 保留原配置，只在旧服务器已经不存在时使用 |
+| Drush | `runuser -u www-data -- /srv/xedc/code/vendor/bin/drush status` |
 
-管理员进不去时，只在你明确要应急入口时执行：
+## 8. 需要分步操作时
+
+一键命令失败后，不要清空数据库再跑 Drupal 安装程序。可以继续使用原来的分步命令：`backup verify`、`restore run`、`ssl render`。步骤和权限见 [FULL_RESTORE.md](FULL_RESTORE.md)。
+
+管理员进不去、并且明确需要应急入口时：
 
 ```bash
 python3 /opt/drupal/tools/xedc-recover/bin/xedc-recover credentials reset-admin --reset-admin --json
 ```
 
 生产网站目录仍在时，这条命令会被拒绝。
-
-## 6. 失败时
-
-不要删掉数据库重装 Drupal。保留 `/var/www/drupal/RESTORE_REPORT.json` 和命令输出，按 [TROUBLESHOOTING.md](TROUBLESHOOTING.md) 处理。换一份通过 `verify` 的备份再恢复。

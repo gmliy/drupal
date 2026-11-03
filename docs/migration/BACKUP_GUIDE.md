@@ -32,6 +32,10 @@ python3 tools/xedc-recover/bin/xedc-recover credentials init --out /var/lib/xedc
 | `backup show --backup-id ID` | 查看 manifest。其中没有密码和 hash salt |
 | `backup verify --backup-id ID` | 校验 manifest、密文，并解密核对明文 SHA256 |
 | `backup upload --backup-id ID` | 上传到配置里的 S3/R2 前缀。本地文件在上传核对完成前不会删除 |
+| `xedc-backup create --full --from-backup ID` | 把已有加密备份打成 `xedc-full-*.tar.zst`。不重新导出数据库 |
+| `xedc-backup upload --archive 包路径` | 上传恢复包、SHA256 和加密凭据。不上传密钥 |
+| `xedc-restore fetch --name latest` | 从对象存储下载恢复包并核对 SHA256 |
+| `xedc-restore install --backup 包路径` | 在没有生产目录的机器上恢复。见快速恢复手册 |
 | `backup download --backup-id ID` | 下载并核对 manifest |
 | `backup prune --dry-run` | 按保留策略列出将删除的本地备份。增量备份的父备份会被留下 |
 | `backup status` | 同 list |

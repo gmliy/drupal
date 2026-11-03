@@ -114,6 +114,32 @@ manifest 中的计数：users 11，node 94，file_managed 273。校验输出和 
 
 生产 `settings.php`、Nginx 配置和 `/root/backup.sh` 的修改时间在审计结束后仍分别是 2026-11-02 09:33、2026-11-01 14:31 和 2026-11-02 22:50 UTC。演练容器已删除。
 
+## 2026-11-03 16:18Z 完整恢复包
+
+这次没有重新导出生产数据库。完整包复用已校验的备份 `xedc-20261103T135450Z-3cd3bf`。隔离容器 `xedc-recover-oneshot` 使用 ubuntu:24.04，非特权，内存 3 GiB，没有挂载，端口 `127.0.0.1:18081`。容器内没有生产网站目录。
+
+| 项目 | 日志 | 时间 (UTC) | 状态 |
+| --- | --- | --- | --- |
+| 单元与实验室，连续两轮 | `unit-bundle-ssl-r1.log`、`unit-bundle-ssl-r2.log`，各 21 项 OK | 16:13 前后 | PASS |
+| 本地 S3 恢复包上传下载 | 包含在上面 21 项中。端口 `127.0.0.1:19001`。密钥文件没有上传 | 同上 | PASS |
+| APT 公钥不可读 | `oneshot-round1.log` 前半段。`umask 077` 让 Nginx 和 MariaDB 公钥变成 `600`，APT 报 `NO_PUBKEY`，退出码 5 | 16:00:13–16:01:45 | FIXED |
+| 无 HTTPS 的一次完整恢复 | 修复公钥权限后，`oneshot-round1.log` 退出码 0。首页、登录、图片、视频、计数和 uid 1 登录已检查 | 16:03:07–16:06:33 | PASS |
+| Nginx 仍占用 80 | `oneshot-round2.log`。`service nginx stop` 找不到自定义 pid，再次启动失败 | 16:08:16–16:10:16 | FIXED |
+| 最终恢复第 1 轮 | `oneshot-ssl-round1.log`，退出码 0。包 SHA256 `94cbdaeb15add903c927c70bbda3ea948582cd38eb0bdbb91edbcd6ecba6971b` | 16:13:21–16:15:32 | PASS |
+| 最终恢复第 2 轮 | 删除 `/srv/xedc` 后重跑。`oneshot-ssl-round2.log`，退出码 0。同一 SHA256 | 16:15:58–16:18:28 | PASS |
+| 重复执行保护 | 第 2 轮成功后再次执行，返回 `idempotent: true`，没有重写 | 16:18 后 | PASS |
+
+两轮最终恢复都确认了这些结果：
+
+- HTTP 200：首页、`/user/login`、`/meinv`、`/bizhi/1`、视频页、173184 字节的 PNG。匿名 `/admin` 为 403。私有 URL 为 404。
+- 自签 HTTPS 的登录页返回 200。证书 CN 是 `lab.xedc.test`，私钥模式 `600`。
+- 数据库：users 11，node 94，file_managed 273，user__roles 2。私有目录 295 个文件。public 是符号链接。
+- Drush 模式 `755`，Drupal 11.4.11，数据库 Connected，主题 `xedc` / `xedc_admin`。uid 1 进入 `/user/1/edit`，页面含管理工具栏，标题为 `admin | DcLili`。
+- 存储配置是 `lab-isolated`，没有 `xedc-storage-keys`。程序没有修改 Cloudflare。
+- 生产 `settings.php`、Nginx 配置和 `/root/backup.sh` 的修改时间仍是 2026-11-02 09:33:14Z、2026-11-01 14:31:02Z 和 2026-11-02 22:50:02Z。
+
+随后用同一份密文重新打包，补上 `/usr/bin/node` v20.20.2 和 npm 10.8.2。新包 SHA256 是 `d8e150020bfb2d61605a8e36421bbe1ef36e614df178c0b013c8bb8fca52b733`。两边 `PACKAGE.json` 的密文哈希一致。实际恢复使用的旧包保存在 `xedc-full-20261103-3cd3bf.restored.tar.zst`。这两份包都不进入 Git。
+
 ## 未通过项
 
 | 项目 | 状态 | 原因 |

@@ -13,7 +13,7 @@ from .safety import ProductionGuard, assert_host_mutation_allowed, create_lab_ma
 PACKAGES = [
     "ca-certificates", "curl", "gnupg", "python3", "python3-cryptography",
     "nginx", "mariadb-server", "mariadb-client", "redis-server",
-    "ffmpeg", "p7zip-full", "unzip", "certbot",
+    "ffmpeg", "p7zip-full", "unzip", "certbot", "openssl",
     "php8.5-cli", "php8.5-fpm", "php8.5-mysql", "php8.5-gd", "php8.5-mbstring",
     "php8.5-xml", "php8.5-curl", "php8.5-zip", "php8.5-intl", "php8.5-bcmath",
     "php8.5-apcu", "php8.5-redis", "php8.5-igbinary",
@@ -53,6 +53,7 @@ def install_pinned(*, yes: bool) -> dict:
         _run(["add-apt-repository", "-y", "ppa:ondrej/php"])
     if not Path("/etc/apt/sources.list.d/nginx-xedc.list").exists():
         _run(["bash", "-lc", "curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg"])
+        os.chmod("/usr/share/keyrings/nginx-archive-keyring.gpg", 0o644)
         Path("/etc/apt/sources.list.d/nginx-xedc.list").write_text(
             "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/mainline/ubuntu noble nginx\n",
             encoding="utf-8",
@@ -60,6 +61,7 @@ def install_pinned(*, yes: bool) -> dict:
     if not Path("/etc/apt/sources.list.d/mariadb-xedc.sources").exists():
         Path("/etc/apt/keyrings").mkdir(parents=True, exist_ok=True)
         _run(["bash", "-lc", "curl -fsSL https://supplychain.mariadb.com/mariadb-keyring-2019.gpg -o /etc/apt/keyrings/mariadb-keyring.gpg"])
+        os.chmod("/etc/apt/keyrings/mariadb-keyring.gpg", 0o644)
         Path("/etc/apt/sources.list.d/mariadb-xedc.sources").write_text(
             "\n".join([
                 "X-Repolib-Name: MariaDB Server",

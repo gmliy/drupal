@@ -9,7 +9,9 @@ python3 tools/xedc-recover/bin/xedc-recover --version
 python3 tools/xedc-recover/bin/xedc-recover --help
 ```
 
-当前版本：2.0.0。验收记录见 [TEST_REPORT.md](TEST_REPORT.md)，限制见 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)。
+当前版本：2.1.0。验收记录见 [TEST_REPORT.md](TEST_REPORT.md)，限制见 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)。
+
+旧服务器离线时，用完整恢复包恢复，不要把 GitHub 当作数据库和媒体文件的来源。命令见 [QUICK_RESTORE.md](QUICK_RESTORE.md)。
 
 ## 先读哪一份
 
