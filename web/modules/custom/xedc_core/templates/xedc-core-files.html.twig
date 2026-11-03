@@ -21,6 +21,18 @@
     {% if analysis.links.logs %}<a href="{{ path('xedc_core.files_logs') }}">日志</a>{% endif %}
   </nav>
 
+  {% if gallery %}
+  <section aria-label="图片优化">
+    <h3 class="xedc-ops-section">图片优化</h3>
+    <div class="xedc-ops-cards">
+      <article class="xedc-ops-card"><h3>已记录图片</h3><p class="xedc-ops-value">{{ gallery.files }}</p><p class="xedc-ops-detail">已知原图 {{ gallery.known }}，未知 {{ gallery.unknown }}</p></article>
+      <article class="xedc-ops-card"><h3>原图容量</h3><p class="xedc-ops-value">{{ gallery.original }}</p><p class="xedc-ops-detail">只统计有原始字节的图片</p></article>
+      <article class="xedc-ops-card"><h3>优化后</h3><p class="xedc-ops-value">{{ gallery.optimized }}</p><p class="xedc-ops-detail">节省 {{ gallery.saved }}，只比较有原图记录的文件</p></article>
+      <article class="xedc-ops-card"><h3>导入任务</h3><p class="xedc-ops-value">{{ gallery.archive_tasks }}</p><p class="xedc-ops-detail">ZIP {{ gallery.zip_tasks }}，7z {{ gallery.seven_tasks }}，普通图片任务 {{ gallery.image_tasks }}，失败记录 {{ gallery.failed }}</p></article>
+    </div>
+  </section>
+{% endif %}
+
   <section aria-label="概览">
     <h3 class="xedc-ops-section">概览</h3>
     {% if disk.ok and disk.primary %}

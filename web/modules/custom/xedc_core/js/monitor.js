@@ -215,6 +215,9 @@
             return;
           }
           scope.querySelectorAll('[data-chart]').forEach(function (panel) {
+            if (panel.closest('[data-xedc-traffic]')) {
+              return;
+            }
             const plot = panel.querySelector('[data-plot]');
             if (plot) {
               plot.classList.remove('is-loading');
@@ -663,6 +666,7 @@
               plot.classList.add('is-loading');
             });
           }
+          const sectionAtStart = state.section;
           fetch(endpoint(params), {
             credentials: 'same-origin',
             headers: { Accept: 'application/json' },
@@ -678,6 +682,9 @@
               return response.json();
             })
             .then(function (payload) {
+              if (sectionAtStart !== state.section) {
+                return;
+              }
               showStale('');
               state.lastOk = payload.updated || state.lastOk;
               if (state.section === 'overview') {
@@ -708,6 +715,7 @@
             state.liveController.abort();
           }
           state.liveController = new AbortController();
+          const sectionAtStart = state.section;
           const liveParams = { section: state.section, range: state.range };
           if (state.section === 'network') {
             liveParams.span = state.trafficSpan || '7';
@@ -729,6 +737,9 @@
               return response.json();
             })
             .then(function (payload) {
+              if (sectionAtStart !== state.section || (payload.section && payload.section !== state.section)) {
+                return;
+              }
               if (payload.ok === false && !payload.cards && !payload.groups) {
                 throw new Error(payload.error || '监控数据不可用');
               }
@@ -773,6 +784,10 @@
         }
 
         function showSection(section) {
+          if (state.liveController) {
+            state.liveController.abort();
+            state.liveController = null;
+          }
           state.section = section;
           root.querySelectorAll('[data-section]').forEach(function (link) {
             if (link.getAttribute('data-section') === section) {

@@ -27,6 +27,9 @@ function xedc_core_schema(): array {
       'archive_uri' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
       'archive_fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'archive_format' => ['type' => 'varchar', 'length' => 8, 'not null' => TRUE, 'default' => ''],
+      'archive_bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'archive_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'upload_token' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
       'source' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'upload'],
       'work_uri' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
       'total' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
@@ -37,6 +40,7 @@ function xedc_core_schema(): array {
       'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'progress' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'message' => ['type' => 'text', 'not null' => FALSE],
+      'phase' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
       'error' => ['type' => 'text', 'not null' => FALSE],
       'snapshot' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
       'replaced' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
@@ -52,6 +56,8 @@ function xedc_core_schema(): array {
       'nid' => ['nid'],
       'uid' => ['uid'],
       'cleanup' => ['cleanup_after'],
+      'upload_token' => ['upload_token'],
+      'archive_sha256' => ['archive_sha256'],
     ],
   ];
 
@@ -67,6 +73,7 @@ function xedc_core_schema(): array {
       'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'mid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'original_bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'width' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'height' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'mime' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
@@ -80,6 +87,10 @@ function xedc_core_schema(): array {
       'stored_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
       'reused' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'attempts' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'elapsed_ms' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'optimize_ms' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'store_ms' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'finished' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
     ],
     'primary key' => ['id'],
     'indexes' => [
@@ -122,6 +133,14 @@ function xedc_core_schema(): array {
       'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'source_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
       'stored_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'original_bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'original_mime' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'original_extension' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'optimized_bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'optimized_mime' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'optimized_extension' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'optimization_status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'processed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
     ],
     'primary key' => ['fid'],
     'indexes' => [
@@ -457,7 +476,8 @@ function xedc_core_schema(): array {
     'xedc_storage_migration_item' => $migrationItem,
   ] + \Drupal\xedc_core\Engagement\EngagementSchema::tables()
     + \Drupal\xedc_core\Ops\Traffic\TrafficSchema::tables()
-    + ['xedc_video_transcode' => \Drupal\xedc_core\Video\TranscodeSchema::table()];
+    + ['xedc_video_transcode' => \Drupal\xedc_core\Video\TranscodeSchema::table()]
+    + \Drupal\xedc_core\Upload\UploadSchema::tables();
 }
 
 /**
@@ -465,7 +485,7 @@ function xedc_core_schema(): array {
  */
 function xedc_core_install(): void {
   $filesystem = \Drupal::service('file_system');
-  foreach (['private://xedc-import/inbox', 'private://xedc-import/tasks', 'private://xedc-downloads', 'private://xedc-zips', 'private://xedc-download-tmp'] as $directory) {
+  foreach (['private://xedc-import/inbox', 'private://xedc-import/tasks', 'private://xedc-upload', 'private://xedc-downloads', 'private://xedc-zips', 'private://xedc-download-tmp'] as $directory) {
     try {
       $filesystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
     }
@@ -800,4 +820,92 @@ function xedc_core_update_10012(): string {
   }
   $schema->createTable('xedc_image_optimize', xedc_core_schema()['xedc_image_optimize']);
   return '已创建图片优化记录表。历史图片没有批量处理。';
+}
+
+/**
+ * Adds original-size columns. Existing rows stay at 0, which means unknown.
+ */
+function xedc_core_update_10013(): string {
+  $schema = \Drupal::database()->schema();
+  $spec = xedc_core_schema();
+  $added = [];
+  $map = [
+    'xedc_import_task' => ['archive_bytes', 'archive_sha256', 'upload_token'],
+    'xedc_import_item' => ['original_bytes'],
+    'xedc_image_file' => [
+      'original_bytes',
+      'original_mime',
+      'original_extension',
+      'optimized_bytes',
+      'optimized_mime',
+      'optimized_extension',
+      'optimization_status',
+      'processed',
+    ],
+  ];
+  foreach ($map as $table => $fields) {
+    if (!$schema->tableExists($table) || !isset($spec[$table]['fields'])) {
+      continue;
+    }
+    foreach ($fields as $field) {
+      if ($schema->fieldExists($table, $field) || !isset($spec[$table]['fields'][$field])) {
+        continue;
+      }
+      $schema->addField($table, $field, $spec[$table]['fields'][$field]);
+      $added[] = $table . '.' . $field;
+    }
+  }
+  if (!$schema->indexExists('xedc_import_task', 'upload_token') && $schema->fieldExists('xedc_import_task', 'upload_token')) {
+    $schema->addIndex('xedc_import_task', 'upload_token', ['upload_token'], $spec['xedc_import_task']);
+  }
+  return $added ? '已增加原图大小字段：' . implode(', ', $added) . '。历史记录保持未知，没有回填。' : '原图大小字段已存在，未改动历史记录。';
+}
+
+/**
+ * Adds import phase and per-image timings. Existing rows stay at the default.
+ */
+function xedc_core_update_10014(): string {
+  $schema = \Drupal::database()->schema();
+  $spec = xedc_core_schema();
+  $added = [];
+  $map = [
+    'xedc_import_task' => ['phase'],
+    'xedc_import_item' => ['elapsed_ms', 'optimize_ms', 'store_ms', 'finished'],
+  ];
+  foreach ($map as $table => $fields) {
+    if (!$schema->tableExists($table) || !isset($spec[$table]['fields'])) {
+      continue;
+    }
+    foreach ($fields as $field) {
+      if ($schema->fieldExists($table, $field) || !isset($spec[$table]['fields'][$field])) {
+        continue;
+      }
+      $schema->addField($table, $field, $spec[$table]['fields'][$field]);
+      $added[] = $table . '.' . $field;
+    }
+  }
+  return $added ? '已增加导入进度字段：' . implode(', ', $added) . '。历史任务没有回填耗时。' : '导入进度字段已存在，未改动历史记录。';
+}
+
+/**
+ * Adds resumable upload session tables. Existing imports are not changed.
+ */
+function xedc_core_update_10015(): string {
+  $schema = \Drupal::database()->schema();
+  $created = [];
+  foreach (\Drupal\xedc_core\Upload\UploadSchema::tables() as $name => $table) {
+    if ($schema->tableExists($name)) {
+      continue;
+    }
+    $schema->createTable($name, $table);
+    $created[] = $name;
+  }
+  try {
+    $directory = 'private://xedc-upload';
+    \Drupal::service('file_system')->prepareDirectory($directory, \Drupal\Core\File\FileSystemInterface::CREATE_DIRECTORY | \Drupal\Core\File\FileSystemInterface::MODIFY_PERMISSIONS);
+  }
+  catch (\Throwable $e) {
+    \Drupal::logger('xedc_core')->error('无法创建私有上传目录：@message', ['@message' => $e->getMessage()]);
+  }
+  return $created ? '已创建断点续传表：' . implode(', ', $created) . '。' : '断点续传表已存在，未改动。';
 }

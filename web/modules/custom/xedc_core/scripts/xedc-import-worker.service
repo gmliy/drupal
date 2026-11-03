@@ -1,0 +1,28 @@
+[Unit]
+Description=XEDC image import queue worker
+After=network.target mariadb.service
+Wants=mariadb.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/drupal
+Environment=XEDC_STORAGE_RUNTIME=1
+Environment=STORAGE_I_UNDERSTAND_TAKEOVER=1
+Environment=STORAGE_PUBLIC_TAKEOVER=1
+Environment=STORAGE_PRIVATE_TAKEOVER=0
+Environment=STORAGE_CDN_ENABLED=1
+ExecStart=/usr/bin/php -d memory_limit=512M -d max_execution_time=0 /var/www/drupal/vendor/bin/drush.php xedc:import-work --max=600
+Restart=always
+RestartSec=3
+MemoryMax=768M
+CPUQuota=150%
+Nice=10
+RuntimeMaxSec=900
+StandardOutput=append:/var/log/xedc-import-worker.log
+StandardError=append:/var/log/xedc-import-worker.log
+
+[Install]
+WantedBy=multi-user.target

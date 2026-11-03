@@ -252,8 +252,8 @@ class MonitorBoard {
       $metrics[] = $this->dimensionMetric('mem.' . $dimension, $label, 'system.ram', $ram, $dimension, 'mib');
     }
     $metrics[] = $this->dimensionMetric('mem.avail', '可用', 'mem.available', $samples['mem.available'] ?? NULL, 'avail', 'mib');
-    $metrics[] = $this->dimensionMetric('mem.active', 'Active', 'mem.reclaiming', $samples['mem.reclaiming'] ?? NULL, 'active', 'mib');
-    $metrics[] = $this->dimensionMetric('mem.inactive', 'Inactive', 'mem.reclaiming', $samples['mem.reclaiming'] ?? NULL, 'inactive', 'mib');
+    $metrics[] = $this->dimensionMetricAny('mem.active', 'Active', 'mem.reclaiming', $samples['mem.reclaiming'] ?? NULL, ['Active', 'active'], 'mib');
+    $metrics[] = $this->dimensionMetricAny('mem.inactive', 'Inactive', 'mem.reclaiming', $samples['mem.reclaiming'] ?? NULL, ['Inactive', 'inactive'], 'mib');
     if (isset($charts['system.shared_memory_bytes'])) {
       $metrics[] = $this->dimensionMetric('mem.sysv', 'System V 共享内存', 'system.shared_memory_bytes', $samples['system.shared_memory_bytes'] ?? NULL, 'bytes', 'bytes');
     }
@@ -367,8 +367,8 @@ class MonitorBoard {
     $groups[] = [
       'title' => '内核聚合吞吐',
       'metrics' => [
-        $this->dimensionMetric('disk.sys.read', 'system.io 读', 'system.io', $host, 'in', 'kib_rate'),
-        $this->dimensionMetric('disk.sys.write', 'system.io 写', 'system.io', $host, 'out', 'kib_rate'),
+        $this->dimensionMetricAny('disk.sys.read', 'system.io 读', 'system.io', $host, ['reads', 'in'], 'kib_rate'),
+        $this->dimensionMetricAny('disk.sys.write', 'system.io 写', 'system.io', $host, ['writes', 'out'], 'kib_rate'),
       ],
     ];
     return $groups;
@@ -581,7 +581,7 @@ class MonitorBoard {
       $this->dimensionMetric('db.pool.total', 'Buffer Pool 页', (string) $pool, $samples[$pool] ?? NULL, 'total', 'number'),
       $this->dimensionMetric('db.pool.data', 'Buffer Pool 数据页', (string) $pool, $samples[$pool] ?? NULL, 'data', 'number'),
       $this->dimensionMetric('db.pool.free', 'Buffer Pool 空闲页', (string) $pool, $samples[$pool] ?? NULL, 'free', 'number'),
-      $this->dimensionMetric('db.pool.bytes', 'Buffer Pool 数据量', (string) $poolBytes, $samples[$poolBytes] ?? NULL, 'data', 'mib'),
+      $this->bufferPoolMetric('db.pool.bytes', 'Buffer Pool 数据量', (string) $poolBytes, $samples[$poolBytes] ?? NULL, 'data'),
       $this->dimensionMetric('db.locks', '行锁等待', (string) $locks, $samples[$locks] ?? NULL, 'current waits', 'number'),
       $this->dimensionMetric('db.net.in', '数据库网络入', (string) $net, $samples[$net] ?? NULL, 'in', 'kilobits'),
       $this->dimensionMetric('db.net.out', '数据库网络出', (string) $net, $samples[$net] ?? NULL, 'out', 'kilobits'),
@@ -907,6 +907,39 @@ class MonitorBoard {
       }
     }
     return $this->dimensionMetric($key, $label, $chart, $sample, $dimensions[0] ?? '', $kind);
+  }
+
+  /**
+   * @param array<string, mixed>|null $sample
+   *   Sample.
+   */
+  /**
+   * InnoDB buffer-pool bytes are labeled MiB, but this agent still returns bytes.
+   *
+   * A real MiB sample on this chart stays far below 8 TiB. Larger numbers are
+   * the raw byte counters, including a negative area-chart direction.
+   *
+   * @param array<string, mixed>|null $sample
+   *   Sample.
+   */
+  private function bufferPoolMetric(string $key, string $label, string $chart, ?array $sample, string $dimension): array {
+    $values = is_array($sample['values'] ?? NULL) ? $sample['values'] : [];
+    $peak = 0.0;
+    foreach ($values as $value) {
+      if (is_numeric($value)) {
+        $peak = max($peak, abs((float) $value));
+      }
+    }
+    if ($peak < 8388608) {
+      return $this->dimensionMetric($key, $label, $chart, $sample, $dimension, 'mib');
+    }
+    if (is_array($sample) && is_array($sample['values'] ?? NULL) && isset($sample['values'][$dimension]) && is_numeric($sample['values'][$dimension])) {
+      $sample['values'][$dimension] = abs((float) $sample['values'][$dimension]);
+      if (is_array($sample['previous'] ?? NULL) && isset($sample['previous'][$dimension]) && is_numeric($sample['previous'][$dimension])) {
+        $sample['previous'][$dimension] = abs((float) $sample['previous'][$dimension]);
+      }
+    }
+    return $this->dimensionMetric($key, $label, $chart, $sample, $dimension, 'bytes');
   }
 
   /**

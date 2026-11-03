@@ -62,6 +62,12 @@ final class SetModerationState extends ViewsBulkOperationsActionBase implements 
     }
 
     $label = (string) $this->getPluginDefinition()['label'];
+    if ($this->targetState() === 'published' && $entity->bundle() === 'photo' && \Drupal::hasService('xedc_core.tasks') && \Drupal::service('xedc_core.tasks')->blocksPublish((int) $entity->id())) {
+      return [
+        'message' => (string) $this->t('「@title」图片还在处理或有失败图片，未发布。', ['@title' => $entity->label()]),
+        'type' => 'warning',
+      ];
+    }
     try {
       $entity->set('moderation_state', $this->targetState());
       if ($entity instanceof RevisionLogInterface) {

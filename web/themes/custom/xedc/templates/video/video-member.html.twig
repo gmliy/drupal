@@ -1,0 +1,25 @@
+{% if name %}
+  {% if url %}
+    <a class="vmember{{ extra ? ' ' ~ extra : '' }}" href="{{ url }}">
+      <span class="vmember__avatar" aria-hidden="true">
+        {% if avatar %}
+          <img src="{{ avatar }}" alt="" width="24" height="24">
+        {% else %}
+          <svg viewBox="0 0 72 72" focusable="false"><circle cx="36" cy="36" r="36"></circle><circle cx="36" cy="28" r="12"></circle><path d="M14 62c3.5-12 13-18 22-18s18.5 6 22 18"></path></svg>
+        {% endif %}
+      </span>
+      <span class="vmember__name">{{ name }}</span>
+    </a>
+  {% else %}
+    <span class="vmember vmember--plain{{ extra ? ' ' ~ extra : '' }}">
+      <span class="vmember__avatar" aria-hidden="true">
+        {% if avatar %}
+          <img src="{{ avatar }}" alt="" width="24" height="24">
+        {% else %}
+          <svg viewBox="0 0 72 72" focusable="false"><circle cx="36" cy="36" r="36"></circle><circle cx="36" cy="28" r="12"></circle><path d="M14 62c3.5-12 13-18 22-18s18.5 6 22 18"></path></svg>
+        {% endif %}
+      </span>
+      <span class="vmember__name">{{ name }}</span>
+    </span>
+  {% endif %}
+{% endif %}

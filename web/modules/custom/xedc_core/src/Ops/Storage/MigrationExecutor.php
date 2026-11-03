@@ -434,13 +434,15 @@ final class MigrationExecutor {
       $stats['skipped']++;
       return;
     }
-    $folder = $scheme === 'private' ? 's3fs-private/' : 's3fs-public/';
+    $folders = $this->uris->folders();
+    $folderName = $scheme === 'private' ? (string) $folders['private'] : (string) $folders['public'];
+    $folder = ($folders['root'] !== '' ? $folders['root'] . '/' : '') . trim($folderName, '/') . '/';
     if ($scheme !== 'public' && $scheme !== 'private') {
       $this->repository->update($id, ['status' => 'failed', 'message' => '来源不是 public 或 private，没有上传。']);
       $stats['differ']++;
       return;
     }
-    if (!str_starts_with($key, $folder)) {
+    if ($folder === '/' || !str_starts_with($key, $folder)) {
       $this->repository->update($id, ['status' => 'failed', 'message' => '对象键和来源协议不一致，没有上传。']);
       $stats['differ']++;
       return;

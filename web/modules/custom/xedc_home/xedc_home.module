@@ -162,7 +162,7 @@ function _xedc_home_staff_moderation_default(array $form, FormStateInterface $fo
  * Staff accounts publish new moderated content instead of leaving a draft.
  */
 function _xedc_home_publish_new_staff_node(NodeInterface $node): void {
-  if (!$node->isNew() || !$node->hasField('moderation_state') || !in_array($node->bundle(), ['article', 'photo', 'video'], TRUE)) {
+  if (!$node->isNew() || !empty($node->xedc_keep_unpublished) || !$node->hasField('moderation_state') || !in_array($node->bundle(), ['article', 'photo', 'video'], TRUE)) {
     return;
   }
   if (!_xedc_home_is_staff_publisher()) {

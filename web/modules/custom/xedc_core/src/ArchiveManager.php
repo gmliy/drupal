@@ -232,6 +232,7 @@ class ArchiveManager {
     $uri = (string) $task->archive_uri;
     $owned = FALSE;
     $real = $this->archivePath($uri, $owned);
+    $workReal = '';
     try {
     if (!is_file($real) || is_link($real)) {
       throw new ImportException('找不到源压缩包，无法继续处理。');
@@ -239,23 +240,28 @@ class ArchiveManager {
     $format = $this->detect($real);
     $work = 'private://xedc-import/tasks/' . (int) $task->id . '/extract';
     $this->resetDirectory($work);
-    $workReal = $this->fileSystem->realpath($work);
-    if (!$workReal) {
+    $workReal = (string) $this->fileSystem->realpath($work);
+    if ($workReal === '') {
       throw new ImportException('无法创建解压目录。');
     }
-    if ($format === 'zip') {
-      $this->extractZip($real, $workReal);
-    }
-    else {
-      $this->extractSevenZip($real, $workReal);
-    }
+    $skippedExtra = $format === 'zip'
+      ? $this->extractZip($real, $workReal)
+      : $this->extractSevenZip($real, $workReal);
     $collected = $this->collect($work, $workReal);
     $collected['files'] = $this->sortFiles($collected['files']);
+    $collected['skipped'] += $skippedExtra;
     $collected['format'] = $format;
     $collected['work_uri'] = $work;
     return $collected;
     }
     catch (\Throwable $error) {
+      if ($workReal !== '' && is_dir($workReal)) {
+        try {
+          $this->deleteTree($workReal);
+        }
+        catch (\Throwable) {
+        }
+      }
       if ($owned && $this->temp instanceof LocalTempFileManager) {
         $this->temp->recordDiagnostic('archive', $error->getMessage());
       }
@@ -403,52 +409,57 @@ class ArchiveManager {
   }
 
   /**
-   * Extracts a ZIP without using archive-supplied absolute paths.
+   * Extracts image entries from a ZIP. Non-images are counted and not written.
+   *
+   * @return int
+   *   Non-image files that were skipped.
    */
-  private function extractZip(string $archive, string $destination): void {
+  private function extractZip(string $archive, string $destination): int {
     $zip = new \ZipArchive();
     if ($zip->open($archive) !== TRUE) {
       throw new ImportException('ZIP 已损坏或无法读取。');
     }
     $entries = [];
     $total = 0;
+    $skipped = 0;
     $maxFiles = $this->limit('max_files', 2000);
     $maxBytes = $this->limit('max_uncompressed_bytes', 1073741824);
+    $maxImage = $this->limit('max_image_bytes', 52428800);
     $maxDepth = $this->limit('max_depth', 8);
-    for ($i = 0; $i < $zip->numFiles; $i++) {
-      $flags = defined('ZipArchive::FL_ENC_UTF_8') ? \ZipArchive::FL_ENC_UTF_8 : 0;
-      $name = $zip->getNameIndex($i, $flags);
-      if ($name === FALSE) {
-        $name = $zip->getNameIndex($i);
-      }
-      $name = str_replace('\\', '/', (string) $name);
-      if ($name === '' || str_ends_with($name, '/')) {
-        continue;
-      }
-      if ($this->unsafeRelative($name) || substr_count($name, '/') > $maxDepth) {
-        $zip->close();
-        throw new ImportException('压缩包包含不安全路径或目录过深。');
-      }
-      $stat = $zip->statIndex($i);
-      $size = (int) ($stat['size'] ?? 0);
-      $total += $size;
-      $entries[] = ['index' => $i, 'name' => $name, 'size' => $size];
-      if (count($entries) > $maxFiles || $total > $maxBytes) {
-        $zip->close();
-        throw new ImportException('解压后的文件数量或体积超过限制。');
-      }
-    }
-    $zip->close();
-    if (!$entries) {
-      return;
-    }
-    $zip = new \ZipArchive();
-    if ($zip->open($archive) !== TRUE) {
-      throw new ImportException('ZIP 已损坏或无法读取。');
-    }
-    $written = 0;
-    $used = [];
     try {
+      for ($i = 0; $i < $zip->numFiles; $i++) {
+        $flags = defined('ZipArchive::FL_ENC_UTF_8') ? \ZipArchive::FL_ENC_UTF_8 : 0;
+        $name = $zip->getNameIndex($i, $flags);
+        if ($name === FALSE) {
+          $name = $zip->getNameIndex($i);
+        }
+        $name = str_replace('\\', '/', (string) $name);
+        if ($name === '' || str_ends_with($name, '/')) {
+          continue;
+        }
+        if ($this->unsafeRelative($name) || substr_count($name, '/') > $maxDepth) {
+          throw new ImportException('压缩包包含不安全路径或目录过深。');
+        }
+        $stat = $zip->statIndex($i);
+        $size = (int) ($stat['size'] ?? 0);
+        $total += $size;
+        $image = $this->imageName($name) && !$this->ignored($name);
+        if ($image && $size > $maxImage) {
+          throw new ImportException('压缩包内有单张图片超过大小限制。');
+        }
+        if (!$image) {
+          $skipped++;
+        }
+        else {
+          $entries[] = ['index' => $i, 'name' => $name, 'size' => $size];
+        }
+        if (($skipped + count($entries)) > $maxFiles || $total > $maxBytes) {
+          throw new ImportException('解压后的文件数量或体积超过限制。');
+        }
+      }
+      $this->assertRoom($destination, $total, (int) filesize($archive));
+      $written = 0;
+      $used = [];
       foreach ($entries as $entry) {
         $relative = $this->uniqueRelative($entry['name'], $used);
         $target = $destination . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
@@ -479,7 +490,12 @@ class ArchiveManager {
           unlink($target);
           throw new ImportException('压缩包包含符号链接。');
         }
-        $written += (int) $copied;
+        $actual = (int) filesize($resolved);
+        if ($actual > $maxImage) {
+          unlink($resolved);
+          throw new ImportException('压缩包内有单张图片超过大小限制。');
+        }
+        $written += $actual;
         if ($written > $maxBytes) {
           throw new ImportException('解压后的体积超过限制。');
         }
@@ -488,12 +504,16 @@ class ArchiveManager {
     finally {
       $zip->close();
     }
+    return $skipped;
   }
 
   /**
-   * Lists a 7Z first, then extracts with an argument array.
+   * Lists a 7Z first, then extracts only image files.
+   *
+   * @return int
+   *   Non-image files that were not written.
    */
-  private function extractSevenZip(string $archive, string $destination): void {
+  private function extractSevenZip(string $archive, string $destination): int {
     $binary = $this->sevenZipBinary();
     if (!$binary) {
       throw new ImportException('服务器未安装 7z，无法处理 7Z。安装：sudo apt-get install 7zip。验证：7z i');
@@ -504,24 +524,48 @@ class ArchiveManager {
     }
     $entries = $this->parseSevenZipList($listing['output']);
     $total = 0;
+    $skipped = 0;
+    $images = 0;
     $maxFiles = $this->limit('max_files', 2000);
     $maxBytes = $this->limit('max_uncompressed_bytes', 1073741824);
+    $maxImage = $this->limit('max_image_bytes', 52428800);
     $maxDepth = $this->limit('max_depth', 8);
     foreach ($entries as $entry) {
       if ($this->unsafeRelative($entry['path']) || substr_count($entry['path'], '/') > $maxDepth) {
         throw new ImportException('压缩包包含不安全路径或目录过深。');
       }
       $total += $entry['size'];
+      $image = $this->imageName($entry['path']) && !$this->ignored($entry['path']);
+      if ($image && $entry['size'] > $maxImage) {
+        throw new ImportException('压缩包内有单张图片超过大小限制。');
+      }
+      if ($image) {
+        $images++;
+      }
+      else {
+        $skipped++;
+      }
     }
     if (count($entries) > $maxFiles || $total > $maxBytes) {
       throw new ImportException('解压后的文件数量或体积超过限制。');
     }
-    $extracted = $this->runSevenZip([$binary, 'x', '-y', '-o' . $destination, $archive], 180);
+    $this->assertRoom($destination, $total, (int) filesize($archive));
+    if ($images < 1) {
+      return $skipped;
+    }
+    $command = [$binary, 'x', '-y', '-o' . $destination];
+    foreach (self::IMAGE_EXTENSIONS as $extension) {
+      $command[] = '-ir!*.' . $extension;
+      $command[] = '-ir!*.' . strtoupper($extension);
+    }
+    $command[] = $archive;
+    $extracted = $this->runSevenZip($command, 180);
     if ($extracted['code'] >= 2) {
       throw new ImportException('7Z 已损坏或无法读取。');
     }
     $this->rejectSpecialFiles($destination);
     $this->assertExtractedSize($destination, $maxBytes);
+    return $skipped;
   }
 
   /**
@@ -622,7 +666,12 @@ class ArchiveManager {
       if (!$file->isFile() || $file->isLink()) {
         continue;
       }
-      $total += (int) $file->getSize();
+      $size = (int) $file->getSize();
+      if ($size > $this->limit('max_image_bytes', 52428800)) {
+        $this->deleteTree($root);
+        throw new ImportException('压缩包内有单张图片超过大小限制。');
+      }
+      $total += $size;
       if ($total > $maxBytes) {
         $this->deleteTree($root);
         throw new ImportException('解压后的体积超过限制。');
@@ -802,6 +851,33 @@ class ArchiveManager {
   /**
    * Configured limit, or the default when unset.
    */
+  /**
+   * Refuses a declared expansion that is too large for this disk or this ratio.
+   */
+  private function assertRoom(string $destination, int $declared, int $archiveBytes): void {
+    $maxBytes = $this->limit('max_uncompressed_bytes', 1073741824);
+    $maxRatio = $this->limit('max_compression_ratio', 40);
+    if ($declared > $maxBytes) {
+      throw new ImportException('解压后的体积超过限制。');
+    }
+    if ($archiveBytes > 0 && $declared > 33554432 && ($declared / $archiveBytes) > $maxRatio) {
+      throw new ImportException('压缩包解压比例异常，已拒绝解压。');
+    }
+    $free = @disk_free_space($destination);
+    $need = $declared + 536870912;
+    if ($free !== FALSE && $free < $need) {
+      throw new ImportException('磁盘剩余空间不足，已停止解压。');
+    }
+  }
+
+  /**
+   * TRUE for an image candidate. Content is checked after extraction.
+   */
+  private function imageName(string $name): bool {
+    $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    return in_array($extension, self::IMAGE_EXTENSIONS, TRUE);
+  }
+
   private function limit(string $key, int $default): int {
     $value = (int) $this->configFactory->get('xedc_core.settings')->get($key);
     return $value > 0 ? $value : $default;

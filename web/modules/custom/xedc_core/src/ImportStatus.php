@@ -11,6 +11,8 @@ final class ImportStatus {
 
   public const QUEUED = 'queued';
 
+  public const UPLOADING = 'uploading';
+
   public const VALIDATING = 'validating';
 
   public const EXTRACTING = 'extracting';
@@ -43,6 +45,7 @@ final class ImportStatus {
    */
   public static function processing(): array {
     return [
+      self::UPLOADING,
       self::VALIDATING,
       self::EXTRACTING,
       self::SCANNING,
@@ -74,12 +77,49 @@ final class ImportStatus {
   }
 
   /**
+   * User-facing stage. Terminal statuses win over the in-progress phase.
+   *
+   * @return array{id: string, label: string}
+   *   Stable id and Chinese label.
+   */
+  public static function phase(string $status, string $stage): array {
+    $terminal = [
+      self::COMPLETED => ['done', '已完成'],
+      self::REVIEW => ['done', '已完成'],
+      self::PUBLISHED => ['done', '已完成'],
+      self::PARTIAL => ['partial', '部分失败'],
+      self::FAILED => ['failed', '全部失败'],
+      self::CANCELLED => ['cancelled', '已取消'],
+    ];
+    if (isset($terminal[$status])) {
+      return ['id' => $terminal[$status][0], 'label' => $terminal[$status][1]];
+    }
+    $map = [
+      self::UPLOADING => ['upload', '上传压缩包'],
+      'open' => ['upload', '上传压缩包'],
+      self::VALIDATING => ['validate', '校验压缩包'],
+      self::EXTRACTING => ['extract', '解压中'],
+      self::SCANNING => ['scan', '扫描图片'],
+      self::QUEUED => ['wait', '等待图片处理'],
+      self::IMPORTING => ['wait', '等待图片处理'],
+      'optimizing' => ['optimize', '图片优化中'],
+      self::CONVERTING => ['optimize', '图片优化中'],
+      'storing' => ['store', '上传 R2'],
+      self::VERIFYING => ['verify', '正在校验'],
+    ];
+    $key = $stage !== '' && isset($map[$stage]) ? $stage : $status;
+    $row = $map[$key] ?? ['wait', '等待图片处理'];
+    return ['id' => $row[0], 'label' => $row[1]];
+  }
+
+  /**
    * @return array<string, string>
    *   Status id to label.
    */
   public static function labels(): array {
     return [
       self::QUEUED => '等待处理',
+      self::UPLOADING => '正在接收文件',
       self::VALIDATING => '验证压缩包',
       self::EXTRACTING => '解压',
       self::SCANNING => '扫描图片',

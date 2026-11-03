@@ -22,9 +22,29 @@ class AltManager {
    * ALT text: title plus a 1-based sequence.
    */
   public function format(string $title, int $sequence, int $total): string {
-    $width = max(3, strlen((string) max(1, $total)));
-    $sequence = max(1, $sequence);
-    return trim($title) . ' 第' . str_pad((string) $sequence, $width, '0', STR_PAD_LEFT) . '张';
+    unset($total);
+    return $this->cleanTitle($title) . '_第' . max(1, $sequence) . '张图';
+  }
+
+  /**
+   * ALT for a cover that is not part of the gallery sequence.
+   */
+  public function cover(string $title): string {
+    return $this->cleanTitle($title) . '_封面';
+  }
+
+  /**
+   * Readable title with control characters and markup removed.
+   */
+  public function cleanTitle(string $title): string {
+    $title = preg_replace('/[\x00-\x1F\x7F]+/u', '', $title) ?? $title;
+    $title = str_replace(['<', '>', '"', "'", '\\'], '', $title);
+    $title = preg_replace('/\s+/u', ' ', trim($title)) ?? '';
+    $title = trim($title, " ._");
+    if ($title === '') {
+      return '图片';
+    }
+    return mb_substr($title, 0, 180);
   }
 
   /**

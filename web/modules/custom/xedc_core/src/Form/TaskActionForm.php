@@ -8,6 +8,7 @@ use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\xedc_core\ImportException;
+use Drupal\xedc_core\ImportKick;
 use Drupal\xedc_core\ImportProcessor;
 use Drupal\xedc_core\Publisher;
 use Drupal\xedc_core\TempCleaner;
@@ -26,6 +27,7 @@ class TaskActionForm extends ConfirmFormBase {
     protected ImportProcessor $processor,
     protected Publisher $publisher,
     protected TempCleaner $cleaner,
+    protected ImportKick $kick,
   ) {}
 
   /**
@@ -36,6 +38,7 @@ class TaskActionForm extends ConfirmFormBase {
       $container->get('xedc_core.processor'),
       $container->get('xedc_core.publisher'),
       $container->get('xedc_core.cleaner'),
+      $container->get('xedc_core.import_kick'),
     );
   }
 
@@ -104,7 +107,7 @@ class TaskActionForm extends ConfirmFormBase {
     try {
       match ($op) {
         'publish' => $this->publish($taskId),
-        'retry' => $this->processor->retry($taskId),
+        'retry' => $this->retry($taskId),
         'cancel' => $this->processor->cancel($taskId),
         'cleanup' => $this->cleanup($taskId),
         'reroll' => $this->publisher->rerollCover($taskId, $this->currentUser()),
@@ -123,6 +126,14 @@ class TaskActionForm extends ConfirmFormBase {
       \Drupal::logger('xedc_core')->error('@message', ['@message' => $e->getMessage()]);
     }
     $form_state->setRedirect('xedc_core.import_detail', ['task' => $taskId]);
+  }
+
+  /**
+   * Requeues a failed batch and continues it after this response.
+   */
+  private function retry(int $taskId): void {
+    $this->processor->retry($taskId);
+    $this->kick->schedule($taskId);
   }
 
   /**

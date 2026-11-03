@@ -1,0 +1,78 @@
+{
+  "pages": {
+    "runtime": {
+      "url": "https://gitxx.xyz/admin/config/media/object-storage/runtime",
+      "status": "open",
+      "local": true,
+      "r2": true,
+      "gib": true,
+      "kib": true,
+      "switches": true,
+      "perItem": true,
+      "vague": false,
+      "notExecuted": true,
+      "notAllowed": true,
+      "rawOnly": false,
+      "desktopOverflow": 0,
+      "reloadGib": true,
+      "reloadKib": true,
+      "reloadVague": false,
+      "mobileGib": true,
+      "mobileKib": true,
+      "mobileSwitches": true,
+      "mobileOverflow": 0
+    },
+    "inspect": {
+      "done": true,
+      "executeVisible": true,
+      "vague": false,
+      "rawByteHeader": false,
+      "cancelled": true
+    },
+    "readiness": {
+      "http": 200,
+      "url": "https://gitxx.xyz/admin/config/media/object-storage/readiness",
+      "gib": true,
+      "vague": false,
+      "rawDump": false
+    },
+    "health": {
+      "http": 200,
+      "url": "https://gitxx.xyz/admin/reports/xedc-storage-health",
+      "gib": true,
+      "vague": false,
+      "rawDump": false
+    },
+    "monitor": {
+      "http": 200,
+      "url": "https://gitxx.xyz/admin/config/media/object-storage/monitor",
+      "gib": true,
+      "vague": false,
+      "rawDump": false
+    },
+    "migration": {
+      "http": 200,
+      "url": "https://gitxx.xyz/admin/config/media/object-storage/migration",
+      "gib": true,
+      "vague": false,
+      "rawDump": false
+    },
+    "overview": {
+      "http": 200,
+      "url": "https://gitxx.xyz/admin/config/media/object-storage",
+      "gib": true,
+      "vague": false,
+      "rawDump": false
+    },
+    "files": {
+      "http": 200,
+      "url": "https://gitxx.xyz/admin/reports/xedc-files",
+      "gib": true,
+      "vague": false,
+      "rawDump": false
+    }
+  },
+  "notes": [
+    "确认并执行切换 appeared after the read-only check and was not clicked."
+  ]
+}

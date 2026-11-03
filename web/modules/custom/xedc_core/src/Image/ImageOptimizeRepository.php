@@ -114,6 +114,79 @@ final class ImageOptimizeRepository {
       ->fetchField();
   }
 
+  public function update(int $id, array $fields): void {
+    unset($fields['id'], $fields['created']);
+    $allowed = [
+      'fid', 'filename', 'source_mime', 'stored_mime', 'source_bytes', 'stored_bytes',
+      'source_sha256', 'stored_sha256', 'width', 'height', 'elapsed_ms', 'memory_bytes',
+      'status', 'r2_status', 'error', 'attempts', 'changed',
+    ];
+    $fields['changed'] = \Drupal::time()->getRequestTime();
+    $fields = array_intersect_key($fields, array_flip($allowed));
+    if ($fields === []) {
+      return;
+    }
+    $this->database->update('xedc_image_optimize')
+      ->fields($fields)
+      ->condition('id', $id)
+      ->execute();
+  }
+
+  /**
+   * Latest successful dimensions for the given file ids.
+   *
+   * @param list<int> $fids
+   *   File ids.
+   *
+   * @return array<int, array{width: int, height: int}>
+   *   Dimensions keyed by file id.
+   */
+  public function successDimensions(array $fids): array {
+    $fids = array_values(array_unique(array_filter(array_map('intval', $fids))));
+    if ($fids === []) {
+      return [];
+    }
+    $rows = $this->database->select('xedc_image_optimize', 'o')
+      ->fields('o', ['fid', 'width', 'height'])
+      ->condition('fid', $fids, 'IN')
+      ->condition('status', 'success')
+      ->orderBy('id', 'DESC')
+      ->execute();
+    $map = [];
+    foreach ($rows as $row) {
+      $fid = (int) $row->fid;
+      if (!isset($map[$fid])) {
+        $map[$fid] = ['width' => (int) $row->width, 'height' => (int) $row->height];
+      }
+    }
+    return $map;
+  }
+
+  /**
+   * Import task ids for files created by the archive importer.
+   *
+   * @param list<int> $fids
+   *   File ids.
+   *
+   * @return array<int, string>
+   *   Task id keyed by file id.
+   */
+  public function importTasks(array $fids): array {
+    $fids = array_values(array_unique(array_filter(array_map('intval', $fids))));
+    if ($fids === [] || !$this->database->schema()->tableExists('xedc_import_item')) {
+      return [];
+    }
+    $rows = $this->database->select('xedc_import_item', 'i')
+      ->fields('i', ['fid', 'task_id'])
+      ->condition('fid', $fids, 'IN')
+      ->execute();
+    $map = [];
+    foreach ($rows as $row) {
+      $map[(int) $row->fid] = (string) $row->task_id;
+    }
+    return $map;
+  }
+
   public function settled(int $fid, string $sha256): bool {
     $row = $this->latestForFid($fid);
     return is_array($row) && $row['status'] === 'success' && hash_equals((string) $row['stored_sha256'], $sha256);

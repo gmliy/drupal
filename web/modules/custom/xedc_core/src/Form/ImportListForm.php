@@ -10,6 +10,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Core\StringTranslation\ByteSizeMarkup;
 use Drupal\Core\Url;
+use Drupal\xedc_core\ArchiveManager;
 use Drupal\xedc_core\ImportStatus;
 use Drupal\xedc_core\Publisher;
 use Drupal\xedc_core\TaskRepository;
@@ -23,6 +24,7 @@ class ImportListForm extends FormBase {
   public function __construct(
     protected TaskRepository $tasks,
     protected Publisher $publisher,
+    protected ArchiveManager $archive,
   ) {}
 
   /**
@@ -32,6 +34,7 @@ class ImportListForm extends FormBase {
     return new static(
       $container->get('xedc_core.tasks'),
       $container->get('xedc_core.publisher'),
+      $container->get('xedc_core.archive'),
     );
   }
 
@@ -79,6 +82,48 @@ class ImportListForm extends FormBase {
 
     $form['#attributes']['class'][] = 'xedc-import-dashboard';
     $form['#attached']['library'][] = 'xedc_core/dashboard';
+    $form['#attached']['library'][] = 'xedc_core/asset_upload';
+    $settings = $this->config('xedc_core.settings');
+    $archiveLimit = (int) $settings->get('max_archive_bytes') ?: 209715200;
+    $imageLimit = (int) $settings->get('max_image_bytes') ?: 52428800;
+    if (!$account->hasPermission('administer xedc image imports')) {
+      $archiveLimit = (int) $settings->get('member_max_archive_bytes') ?: $archiveLimit;
+      $imageLimit = (int) $settings->get('member_max_image_bytes') ?: $imageLimit;
+    }
+    $chunkBytes = (int) $settings->get('upload_chunk_bytes') ?: 5242880;
+    $concurrency = (int) $settings->get('upload_chunk_concurrency') ?: 2;
+    $form['#attached']['drupalSettings']['xedcAsset'] = [
+      'archiveUrl' => Url::fromRoute('xedc_core.asset_archive')->toString(),
+      'imageUrl' => Url::fromRoute('xedc_core.asset_image')->toString(),
+      'draftUrl' => Url::fromRoute('xedc_core.asset_draft')->toString(),
+      'closeUrl' => Url::fromRoute('xedc_core.asset_close')->toString(),
+      'sessionsUrl' => Url::fromRoute('xedc_core.upload_sessions')->toString(),
+      'sessionUrl' => Url::fromRoute('xedc_core.upload_session_create')->toString(),
+      'sessionBase' => Url::fromRoute('xedc_core.import_list')->toString() . '/upload/session/',
+      'progressBase' => Url::fromRoute('xedc_core.import_list')->toString() . '/',
+      'maxArchive' => $archiveLimit,
+      'maxImage' => $imageLimit,
+      'chunkBytes' => $chunkBytes,
+      'headBytes' => 65536,
+      'concurrency' => max(1, min(3, $concurrency)),
+      'nid' => 0,
+      'titleSelector' => '[data-xedc-title]',
+    ];
+    $seven = $this->archive->sevenZipBinary() ? $this->t('服务器可以解压 ZIP 和 7z。') : $this->t('服务器目前没有 7z，7z 会被拒绝并说明原因。');
+    $form['upload'] = [
+      '#type' => 'inline_template',
+      '#weight' => -20,
+      '#template' => '<div class="xedc-upload" data-xedc-asset-upload data-nid="0"><h2>{{ title }}</h2><p>{{ help }} {{ seven }}</p><div class="xedc-upload__grid"><section><h3>ZIP / 7z</h3><label>{{ title_label }}<input type="text" data-xedc-title maxlength="255"></label><label>{{ archive_label }}<input type="file" data-xedc-archive accept=".zip,.7z,application/zip,application/x-7z-compressed" multiple></label></section><section><h3>{{ image_heading }}</h3><label>{{ image_label }}<input type="file" data-xedc-images accept="image/jpeg,image/png,image/gif,image/webp" multiple></label></section></div><div data-xedc-resume></div><p class="xedc-upload__note" data-xedc-note></p><ul data-xedc-list></ul></div>',
+      '#context' => [
+        'title' => $this->t('上传图片或压缩包'),
+        'help' => $this->t('文件按分块上传到私有目录。网络中断、刷新或重新打开页面后，可以用同一个文件继续，服务器已经确认的分块不会重传。全部到齐并校验通过后才创建导入任务。'),
+        'seven' => $seven,
+        'title_label' => $this->t('图集标题'),
+        'archive_label' => $this->t('选择压缩包'),
+        'image_heading' => $this->t('普通图片'),
+        'image_label' => $this->t('选择图片，可多选'),
+      ],
+    ];
     $form['#cache']['max-age'] = 0;
 
     $form['header'] = [

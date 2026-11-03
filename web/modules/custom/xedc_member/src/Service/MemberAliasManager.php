@@ -66,8 +66,78 @@ class MemberAliasManager {
   ) {}
 
   /**
-   * Returns the preferred single-segment alias, without a leading slash.
+   * Preferred slugs for many members, keyed by user ID.
+   *
+   * One user-data read and, only for members without a stored alias, one
+   * path-alias read. Missing members are returned as empty strings.
+   *
+   * @param int[] $uids
+   * @return array<int, string>
    */
+  public function slugsFor(array $uids): array {
+    $wanted = [];
+    foreach ($uids as $uid) {
+      $uid = (int) $uid;
+      if ($uid > 0) {
+        $wanted[$uid] = $uid;
+      }
+    }
+    $out = [];
+    $missing = [];
+    foreach ($wanted as $uid) {
+      if (array_key_exists($uid, $this->slugByUid)) {
+        $out[$uid] = $this->slugByUid[$uid];
+      }
+      else {
+        $missing[$uid] = $uid;
+      }
+    }
+    if ($missing) {
+      $stored = $this->userData->get('xedc_member', NULL, 'alias');
+      if (is_array($stored)) {
+        foreach ($missing as $uid) {
+          $value = $stored[$uid] ?? NULL;
+          if (is_string($value) && $value !== '' && !str_contains($value, '/')) {
+            $out[$uid] = $this->slugByUid[$uid] = $value;
+            unset($missing[$uid]);
+          }
+        }
+      }
+    }
+    if ($missing) {
+      $paths = [];
+      foreach ($missing as $uid) {
+        $paths['/user/' . $uid] = $uid;
+      }
+      $query = $this->database->select('path_alias', 'pa');
+      $query->fields('pa', ['path', 'alias', 'langcode']);
+      $query->condition('status', 1);
+      $query->condition('path', array_keys($paths), 'IN');
+      $langcode = $this->langcode();
+      $by_path = [];
+      foreach ($query->execute() as $row) {
+        $by_path[$row->path][] = $row;
+      }
+      foreach ($missing as $uid) {
+        $slug = '';
+        foreach ($by_path['/user/' . $uid] ?? [] as $row) {
+          if (($row->langcode ?? '') !== $langcode && ($row->langcode ?? '') !== LanguageInterface::LANGCODE_NOT_SPECIFIED) {
+            continue;
+          }
+          $candidate = rawurldecode(trim((string) $row->alias, '/'));
+          if ($candidate !== '' && !str_contains($candidate, '/')) {
+            $slug = $candidate;
+            if (($row->langcode ?? '') === $langcode) {
+              break;
+            }
+          }
+        }
+        $out[$uid] = $this->slugByUid[$uid] = $slug;
+      }
+    }
+    return $out;
+  }
+
   public function getSlug(int $uid): string {
     if ($uid <= 0) {
       return '';

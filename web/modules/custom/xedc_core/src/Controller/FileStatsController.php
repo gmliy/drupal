@@ -55,6 +55,7 @@ class FileStatsController extends ControllerBase {
       '#analysis' => $this->analysisCard(),
       '#form' => $this->formBuilder()->getForm(FileScanForm::class),
       '#analysis_form' => $this->formBuilder()->getForm(AnalysisScanForm::class),
+      '#gallery' => $this->galleryCard(),
       '#attached' => [
         'library' => ['xedc_core/ops'],
         'drupalSettings' => [
@@ -67,6 +68,33 @@ class FileStatsController extends ControllerBase {
         'max-age' => 0,
         'contexts' => ['user.permissions'],
       ],
+    ];
+  }
+
+  /**
+   * @return array<string, mixed>
+   *   Overview from the latest finished analysis only.
+   */
+  private function galleryCard(): array {
+    if (!\Drupal::hasService('xedc_core.gallery_metrics')) {
+      return [];
+    }
+    $site = \Drupal::service('xedc_core.gallery_metrics')->site();
+    $original = (int) $site['original_bytes'];
+    $optimized = (int) ($site['optimized_known'] ?? 0);
+    $saved = $original > $optimized ? $original - $optimized : 0;
+    return [
+      'files' => (int) $site['files'],
+      'known' => (int) $site['known'],
+      'unknown' => (int) $site['unknown'],
+      'original' => $original > 0 ? OpsFormat::bytes($original) : '原图大小未知',
+      'optimized' => OpsFormat::bytes($optimized),
+      'saved' => $original > 0 ? OpsFormat::bytes($saved) : '原图大小未知',
+      'failed' => (int) $site['failed'],
+      'archive_tasks' => (int) $site['archive_tasks'],
+      'image_tasks' => (int) $site['image_tasks'],
+      'zip_tasks' => (int) $site['zip_tasks'],
+      'seven_tasks' => (int) $site['seven_tasks'],
     ];
   }
 

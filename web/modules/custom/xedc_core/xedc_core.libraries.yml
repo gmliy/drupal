@@ -13,6 +13,17 @@ admin:
     - core/drupal
     - core/once
 
+asset_upload:
+  css:
+    theme:
+      css/asset-upload.css: {}
+  js:
+    js/asset-upload.js: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+    - core/once
+
 dashboard:
   css:
     theme:
@@ -23,6 +34,13 @@ dashboard:
 storage_credentials:
   js:
     js/storage-secret.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+
+storage_switch:
+  js:
+    js/storage-switch.js: {}
   dependencies:
     - core/drupal
     - core/once

@@ -57,14 +57,9 @@ class ImageOptimizeWorker extends QueueWorkerBase implements ContainerFactoryPlu
       return;
     }
     $limit = max(1, (int) ($this->repository->settings()['concurrency'] ?? 1));
-    if ($this->repository->runningCount() >= $limit) {
+    if ((string) ($row['status'] ?? '') !== 'running' && $this->repository->runningCount() >= $limit) {
       throw new RequeueException();
     }
-    $this->repository->record([
-      'fid' => $fid,
-      'filename' => (string) ($row['filename'] ?? ''),
-      'status' => 'running',
-    ]);
     $this->applier->process($fid, $id);
   }
 

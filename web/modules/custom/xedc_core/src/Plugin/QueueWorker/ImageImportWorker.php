@@ -19,7 +19,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 #[QueueWorker(
   id: 'xedc_image_import',
   title: new TranslatableMarkup('XEDC image import'),
-  cron: ['time' => 60],
+  cron: ['time' => 0],
 )]
 class ImageImportWorker extends QueueWorkerBase implements ContainerFactoryPluginInterface {
 
@@ -54,7 +54,7 @@ class ImageImportWorker extends QueueWorkerBase implements ContainerFactoryPlugi
       throw new RequeueException();
     }
     if ($result === 'busy') {
-      throw new DelayedRequeueException(20);
+      throw new DelayedRequeueException(2);
     }
   }
 

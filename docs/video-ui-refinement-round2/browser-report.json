@@ -1,0 +1,2059 @@
+{
+  "widths": [
+    {
+      "label": "home-375",
+      "href": "/video?round2=1",
+      "width": 375,
+      "cards": 7,
+      "first": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 343,
+        "height": 283,
+        "className": "vcard"
+      },
+      "second": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 343,
+        "height": 283,
+        "className": "vcard"
+      },
+      "hero": true,
+      "heroHref": "/videos/shipindianhuadejicunjiufujidejide",
+      "firstCardHref": "/videos/mimimamamaimaimai",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 375,
+      "clientWidth": 375,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 375,
+      "related": [],
+      "authorHref": "",
+      "videoSrc": "",
+      "theme": "light"
+    },
+    {
+      "label": "detail-375",
+      "href": "/videos/shipinlanmuziduandeceshineirong?round2=1",
+      "width": 375,
+      "cards": 0,
+      "first": null,
+      "second": null,
+      "hero": false,
+      "heroHref": "",
+      "firstCardHref": "",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 375,
+      "clientWidth": 375,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 375,
+      "related": [
+        {
+          "display": "grid",
+          "columns": "112px 201px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 112,
+            "h": 63
+          }
+        },
+        {
+          "display": "grid",
+          "columns": "112px 201px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 112,
+            "h": 63
+          }
+        }
+      ],
+      "authorHref": "/r/aa",
+      "videoSrc": "https://cdn.gitxx.xyz/public/2026-10/plel0QtzdBBA16i0w6fjpggSrVXB8c8c5IOZ7IXwP_EFYxKKyT_8jFphUD8zgyqvTe8QNyBHNK4VbYSWl1_v1rDOyl-d1eGjJWMzLyGwiDxyE8ozgVIVx2RXY1qkPJ3vkHolGA5tDI9vSm6iKtSvQoRLqxYHfdOqOpl1vIQUXI2TSmJ7bUGdc3EIZGRMQAir.mp4",
+      "theme": "light"
+    },
+    {
+      "label": "home-390",
+      "href": "/video?round2=1",
+      "width": 390,
+      "cards": 7,
+      "first": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 358,
+        "height": 292,
+        "className": "vcard"
+      },
+      "second": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 358,
+        "height": 292,
+        "className": "vcard"
+      },
+      "hero": true,
+      "heroHref": "/videos/shipindianhuadejicunjiufujidejide",
+      "firstCardHref": "/videos/mimimamamaimaimai",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 390,
+      "related": [],
+      "authorHref": "",
+      "videoSrc": "",
+      "theme": "light"
+    },
+    {
+      "label": "detail-390",
+      "href": "/videos/shipinlanmuziduandeceshineirong?round2=1",
+      "width": 390,
+      "cards": 0,
+      "first": null,
+      "second": null,
+      "hero": false,
+      "heroHref": "",
+      "firstCardHref": "",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 390,
+      "related": [
+        {
+          "display": "grid",
+          "columns": "112px 216px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 112,
+            "h": 63
+          }
+        },
+        {
+          "display": "grid",
+          "columns": "112px 216px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 112,
+            "h": 63
+          }
+        }
+      ],
+      "authorHref": "/r/aa",
+      "videoSrc": "https://cdn.gitxx.xyz/public/2026-10/plel0QtzdBBA16i0w6fjpggSrVXB8c8c5IOZ7IXwP_EFYxKKyT_8jFphUD8zgyqvTe8QNyBHNK4VbYSWl1_v1rDOyl-d1eGjJWMzLyGwiDxyE8ozgVIVx2RXY1qkPJ3vkHolGA5tDI9vSm6iKtSvQoRLqxYHfdOqOpl1vIQUXI2TSmJ7bUGdc3EIZGRMQAir.mp4",
+      "theme": "light"
+    },
+    {
+      "label": "home-430",
+      "href": "/video?round2=1",
+      "width": 430,
+      "cards": 7,
+      "first": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 398,
+        "height": 314,
+        "className": "vcard"
+      },
+      "second": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 398,
+        "height": 314,
+        "className": "vcard"
+      },
+      "hero": true,
+      "heroHref": "/videos/shipindianhuadejicunjiufujidejide",
+      "firstCardHref": "/videos/mimimamamaimaimai",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 430,
+      "related": [],
+      "authorHref": "",
+      "videoSrc": "",
+      "theme": "light"
+    },
+    {
+      "label": "detail-430",
+      "href": "/videos/shipinlanmuziduandeceshineirong?round2=1",
+      "width": 430,
+      "cards": 0,
+      "first": null,
+      "second": null,
+      "hero": false,
+      "heroHref": "",
+      "firstCardHref": "",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 430,
+      "related": [
+        {
+          "display": "grid",
+          "columns": "112px 256px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 112,
+            "h": 63
+          }
+        },
+        {
+          "display": "grid",
+          "columns": "112px 256px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 112,
+            "h": 63
+          }
+        }
+      ],
+      "authorHref": "/r/aa",
+      "videoSrc": "https://cdn.gitxx.xyz/public/2026-10/plel0QtzdBBA16i0w6fjpggSrVXB8c8c5IOZ7IXwP_EFYxKKyT_8jFphUD8zgyqvTe8QNyBHNK4VbYSWl1_v1rDOyl-d1eGjJWMzLyGwiDxyE8ozgVIVx2RXY1qkPJ3vkHolGA5tDI9vSm6iKtSvQoRLqxYHfdOqOpl1vIQUXI2TSmJ7bUGdc3EIZGRMQAir.mp4",
+      "theme": "light"
+    },
+    {
+      "label": "home-768",
+      "href": "/video?round2=1",
+      "width": 768,
+      "cards": 7,
+      "first": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 362,
+        "height": 294,
+        "className": "vcard"
+      },
+      "second": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 362,
+        "height": 294,
+        "className": "vcard"
+      },
+      "hero": true,
+      "heroHref": "/videos/shipindianhuadejicunjiufujidejide",
+      "firstCardHref": "/videos/mimimamamaimaimai",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 768,
+      "related": [],
+      "authorHref": "",
+      "videoSrc": "",
+      "theme": "light"
+    },
+    {
+      "label": "detail-768",
+      "href": "/videos/shipinlanmuziduandeceshineirong?round2=1",
+      "width": 768,
+      "cards": 0,
+      "first": null,
+      "second": null,
+      "hero": false,
+      "heroHref": "",
+      "firstCardHref": "",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 768,
+      "related": [
+        {
+          "display": "grid",
+          "columns": "148px 558px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 148,
+            "h": 83
+          }
+        },
+        {
+          "display": "grid",
+          "columns": "148px 558px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 148,
+            "h": 83
+          }
+        }
+      ],
+      "authorHref": "/r/aa",
+      "videoSrc": "https://cdn.gitxx.xyz/public/2026-10/plel0QtzdBBA16i0w6fjpggSrVXB8c8c5IOZ7IXwP_EFYxKKyT_8jFphUD8zgyqvTe8QNyBHNK4VbYSWl1_v1rDOyl-d1eGjJWMzLyGwiDxyE8ozgVIVx2RXY1qkPJ3vkHolGA5tDI9vSm6iKtSvQoRLqxYHfdOqOpl1vIQUXI2TSmJ7bUGdc3EIZGRMQAir.mp4",
+      "theme": "light"
+    },
+    {
+      "label": "home-1024",
+      "href": "/video?round2=1",
+      "width": 1024,
+      "cards": 7,
+      "first": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 483,
+        "height": 362,
+        "className": "vcard"
+      },
+      "second": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 483,
+        "height": 362,
+        "className": "vcard"
+      },
+      "hero": true,
+      "heroHref": "/videos/shipindianhuadejicunjiufujidejide",
+      "firstCardHref": "/videos/mimimamamaimaimai",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 1009,
+      "clientWidth": 1009,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 1009,
+      "related": [],
+      "authorHref": "",
+      "videoSrc": "",
+      "theme": "light"
+    },
+    {
+      "label": "detail-1024",
+      "href": "/videos/shipinlanmuziduandeceshineirong?round2=1",
+      "width": 1024,
+      "cards": 0,
+      "first": null,
+      "second": null,
+      "hero": false,
+      "heroHref": "",
+      "firstCardHref": "",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 1009,
+      "clientWidth": 1009,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 1009,
+      "related": [
+        {
+          "display": "grid",
+          "columns": "148px 799px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 148,
+            "h": 83
+          }
+        },
+        {
+          "display": "grid",
+          "columns": "148px 799px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 148,
+            "h": 83
+          }
+        }
+      ],
+      "authorHref": "/r/aa",
+      "videoSrc": "https://cdn.gitxx.xyz/public/2026-10/plel0QtzdBBA16i0w6fjpggSrVXB8c8c5IOZ7IXwP_EFYxKKyT_8jFphUD8zgyqvTe8QNyBHNK4VbYSWl1_v1rDOyl-d1eGjJWMzLyGwiDxyE8ozgVIVx2RXY1qkPJ3vkHolGA5tDI9vSm6iKtSvQoRLqxYHfdOqOpl1vIQUXI2TSmJ7bUGdc3EIZGRMQAir.mp4",
+      "theme": "light"
+    },
+    {
+      "label": "home-1280",
+      "href": "/video?round2=1",
+      "width": 1280,
+      "cards": 7,
+      "first": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 403,
+        "height": 317,
+        "className": "vcard"
+      },
+      "second": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 403,
+        "height": 317,
+        "className": "vcard"
+      },
+      "hero": true,
+      "heroHref": "/videos/shipindianhuadejicunjiufujidejide",
+      "firstCardHref": "/videos/mimimamamaimaimai",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 1265,
+      "clientWidth": 1265,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 1265,
+      "related": [],
+      "authorHref": "",
+      "videoSrc": "",
+      "theme": "light"
+    },
+    {
+      "label": "detail-1280",
+      "href": "/videos/shipinlanmuziduandeceshineirong?round2=1",
+      "width": 1280,
+      "cards": 0,
+      "first": null,
+      "second": null,
+      "hero": false,
+      "heroHref": "",
+      "firstCardHref": "",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 1265,
+      "clientWidth": 1265,
+      "pad": "16px",
+      "contentLeft": 0,
+      "contentWidth": 1265,
+      "related": [
+        {
+          "display": "grid",
+          "columns": "148px 153.375px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 148,
+            "h": 83
+          }
+        },
+        {
+          "display": "grid",
+          "columns": "148px 153.375px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 148,
+            "h": 83
+          }
+        }
+      ],
+      "authorHref": "/r/aa",
+      "videoSrc": "https://cdn.gitxx.xyz/public/2026-10/plel0QtzdBBA16i0w6fjpggSrVXB8c8c5IOZ7IXwP_EFYxKKyT_8jFphUD8zgyqvTe8QNyBHNK4VbYSWl1_v1rDOyl-d1eGjJWMzLyGwiDxyE8ozgVIVx2RXY1qkPJ3vkHolGA5tDI9vSm6iKtSvQoRLqxYHfdOqOpl1vIQUXI2TSmJ7bUGdc3EIZGRMQAir.mp4",
+      "theme": "light"
+    },
+    {
+      "label": "home-1440",
+      "href": "/video?round2=1",
+      "width": 1440,
+      "cards": 7,
+      "first": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 303,
+        "height": 283,
+        "className": "vcard"
+      },
+      "second": {
+        "display": "flex",
+        "border": "1px solid rgb(228, 228, 231)",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "width": 303,
+        "height": 283,
+        "className": "vcard"
+      },
+      "hero": true,
+      "heroHref": "/videos/shipindianhuadejicunjiufujidejide",
+      "firstCardHref": "/videos/mimimamamaimaimai",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 1425,
+      "clientWidth": 1425,
+      "pad": "16px",
+      "contentLeft": 73,
+      "contentWidth": 1280,
+      "related": [],
+      "authorHref": "",
+      "videoSrc": "",
+      "theme": "light"
+    },
+    {
+      "label": "detail-1440",
+      "href": "/videos/shipinlanmuziduandeceshineirong?round2=1",
+      "width": 1440,
+      "cards": 0,
+      "first": null,
+      "second": null,
+      "hero": false,
+      "heroHref": "",
+      "firstCardHref": "",
+      "members": [
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        },
+        {
+          "tag": "A",
+          "href": "/r/aa",
+          "name": "admin",
+          "avatar": "img",
+          "radius": "50%"
+        }
+      ],
+      "overflow": false,
+      "scrollWidth": 1425,
+      "clientWidth": 1425,
+      "pad": "16px",
+      "contentLeft": 73,
+      "contentWidth": 1280,
+      "related": [
+        {
+          "display": "grid",
+          "columns": "148px 157.562px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 148,
+            "h": 83
+          }
+        },
+        {
+          "display": "grid",
+          "columns": "148px 157.562px",
+          "border": "1px",
+          "radius": "8px",
+          "background": "rgb(255, 255, 255)",
+          "thumb": {
+            "w": 148,
+            "h": 83
+          }
+        }
+      ],
+      "authorHref": "/r/aa",
+      "videoSrc": "https://cdn.gitxx.xyz/public/2026-10/plel0QtzdBBA16i0w6fjpggSrVXB8c8c5IOZ7IXwP_EFYxKKyT_8jFphUD8zgyqvTe8QNyBHNK4VbYSWl1_v1rDOyl-d1eGjJWMzLyGwiDxyE8ozgVIVx2RXY1qkPJ3vkHolGA5tDI9vSm6iKtSvQoRLqxYHfdOqOpl1vIQUXI2TSmJ7bUGdc3EIZGRMQAir.mp4",
+      "theme": "light"
+    }
+  ],
+  "clicks": [
+    {
+      "selector": ".xv-hero .vmember__avatar",
+      "clicked": "/r/aa",
+      "landed": "/r/aa",
+      "result": "PASS",
+      "name": "home-hero-avatar"
+    },
+    {
+      "selector": ".xv-hero .vmember__name",
+      "clicked": "/r/aa",
+      "landed": "/r/aa",
+      "result": "PASS",
+      "name": "home-hero-name"
+    },
+    {
+      "selector": ".xv-grid .vmember__avatar",
+      "clicked": "/r/aa",
+      "landed": "/video",
+      "result": "FAIL",
+      "name": "home-card-avatar"
+    },
+    {
+      "selector": ".xv-grid .vmember__name",
+      "clicked": "/r/aa",
+      "landed": "/video",
+      "result": "FAIL",
+      "name": "home-card-name"
+    },
+    {
+      "selector": ".xv-grid .vmember__avatar",
+      "clicked": "/r/aa",
+      "landed": "/r/aa",
+      "result": "PASS",
+      "name": "category-avatar"
+    },
+    {
+      "selector": ".xv-grid .vmember__name",
+      "clicked": "/r/aa",
+      "landed": "/r/aa",
+      "result": "PASS",
+      "name": "category-name"
+    },
+    {
+      "selector": ".xv-grid .vmember__avatar",
+      "clicked": "/r/aa",
+      "landed": "/r/aa",
+      "result": "PASS",
+      "name": "tag-avatar"
+    },
+    {
+      "selector": ".xv-grid .vmember__name",
+      "clicked": "/r/aa",
+      "landed": "/r/aa",
+      "result": "PASS",
+      "name": "tag-name"
+    },
+    {
+      "selector": ".vd-by .vmember__avatar",
+      "clicked": "/r/aa",
+      "landed": "/r/aa",
+      "result": "PASS",
+      "name": "detail-author-avatar"
+    },
+    {
+      "selector": ".vd-by .vmember__name",
+      "clicked": "/r/aa",
+      "landed": "/r/aa",
+      "result": "PASS",
+      "name": "detail-author-name"
+    },
+    {
+      "selector": ".vd-related .vmember__avatar",
+      "clicked": "/r/aa",
+      "landed": "/r/aa",
+      "result": "PASS",
+      "name": "related-avatar"
+    },
+    {
+      "selector": ".vd-related .vmember__name",
+      "clicked": "/r/aa",
+      "landed": "/r/aa",
+      "result": "PASS",
+      "name": "related-name"
+    }
+  ],
+  "shots": [
+    "home-desktop-1440.png",
+    "member-avatar-name.png",
+    "home-mobile-375.png",
+    "category-1440.png",
+    "tag-1440.png",
+    "detail-1440.png",
+    "related-1440.png",
+    "dark-1440.png",
+    "dark-related-1440.png",
+    "public-profile.png"
+  ],
+  "home1440": {
+    "label": "home-1440",
+    "href": "/video?round2=1",
+    "width": 1440,
+    "cards": 7,
+    "first": {
+      "display": "flex",
+      "border": "1px solid rgb(228, 228, 231)",
+      "radius": "8px",
+      "background": "rgb(255, 255, 255)",
+      "width": 303,
+      "height": 283,
+      "className": "vcard"
+    },
+    "second": {
+      "display": "flex",
+      "border": "1px solid rgb(228, 228, 231)",
+      "radius": "8px",
+      "background": "rgb(255, 255, 255)",
+      "width": 303,
+      "height": 283,
+      "className": "vcard"
+    },
+    "hero": true,
+    "heroHref": "/videos/shipindianhuadejicunjiufujidejide",
+    "firstCardHref": "/videos/mimimamamaimaimai",
+    "members": [
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      }
+    ],
+    "overflow": false,
+    "scrollWidth": 1425,
+    "clientWidth": 1425,
+    "pad": "16px",
+    "contentLeft": 73,
+    "contentWidth": 1280,
+    "related": [],
+    "authorHref": "",
+    "videoSrc": "",
+    "theme": "light"
+  },
+  "home375": {
+    "label": "home-375",
+    "href": "/video?round2=1",
+    "width": 375,
+    "cards": 7,
+    "first": {
+      "display": "flex",
+      "border": "1px solid rgb(228, 228, 231)",
+      "radius": "8px",
+      "background": "rgb(255, 255, 255)",
+      "width": 343,
+      "height": 283,
+      "className": "vcard"
+    },
+    "second": {
+      "display": "flex",
+      "border": "1px solid rgb(228, 228, 231)",
+      "radius": "8px",
+      "background": "rgb(255, 255, 255)",
+      "width": 343,
+      "height": 283,
+      "className": "vcard"
+    },
+    "hero": true,
+    "heroHref": "/videos/shipindianhuadejicunjiufujidejide",
+    "firstCardHref": "/videos/mimimamamaimaimai",
+    "members": [
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      }
+    ],
+    "overflow": false,
+    "scrollWidth": 375,
+    "clientWidth": 375,
+    "pad": "16px",
+    "contentLeft": 0,
+    "contentWidth": 375,
+    "related": [],
+    "authorHref": "",
+    "videoSrc": "",
+    "theme": "light"
+  },
+  "category": {
+    "label": "category-1440",
+    "href": "/video/category/duanshipin?round2=1",
+    "width": 1440,
+    "cards": 1,
+    "first": {
+      "display": "flex",
+      "border": "1px solid rgb(228, 228, 231)",
+      "radius": "8px",
+      "background": "rgb(255, 255, 255)",
+      "width": 303,
+      "height": 283,
+      "className": "vcard"
+    },
+    "second": null,
+    "hero": false,
+    "heroHref": "",
+    "firstCardHref": "/videos/shipinneirongxiangqingyeceshineirongbiaoticeshi",
+    "members": [
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      }
+    ],
+    "overflow": false,
+    "scrollWidth": 1425,
+    "clientWidth": 1425,
+    "pad": "16px",
+    "contentLeft": 73,
+    "contentWidth": 1280,
+    "related": [],
+    "authorHref": "",
+    "videoSrc": "",
+    "theme": "light"
+  },
+  "tag": {
+    "label": "tag-1440",
+    "href": "/video/tag/71?round2=1",
+    "width": 1440,
+    "cards": 1,
+    "first": {
+      "display": "flex",
+      "border": "1px solid rgb(228, 228, 231)",
+      "radius": "8px",
+      "background": "rgb(255, 255, 255)",
+      "width": 303,
+      "height": 283,
+      "className": "vcard"
+    },
+    "second": null,
+    "hero": false,
+    "heroHref": "",
+    "firstCardHref": "/videos/mimimamamaimaimai",
+    "members": [
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      }
+    ],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "pad": "16px",
+    "contentLeft": 80,
+    "contentWidth": 1280,
+    "related": [],
+    "authorHref": "",
+    "videoSrc": "",
+    "theme": "light"
+  },
+  "detail": {
+    "label": "detail-1440",
+    "href": "/videos/shipinlanmuziduandeceshineirong?round2=1",
+    "width": 1440,
+    "cards": 0,
+    "first": null,
+    "second": null,
+    "hero": false,
+    "heroHref": "",
+    "firstCardHref": "",
+    "members": [
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      }
+    ],
+    "overflow": false,
+    "scrollWidth": 1425,
+    "clientWidth": 1425,
+    "pad": "16px",
+    "contentLeft": 73,
+    "contentWidth": 1280,
+    "related": [
+      {
+        "display": "grid",
+        "columns": "148px 157.562px",
+        "border": "1px",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "thumb": {
+          "w": 148,
+          "h": 83
+        }
+      },
+      {
+        "display": "grid",
+        "columns": "148px 157.562px",
+        "border": "1px",
+        "radius": "8px",
+        "background": "rgb(255, 255, 255)",
+        "thumb": {
+          "w": 148,
+          "h": 83
+        }
+      }
+    ],
+    "authorHref": "/r/aa",
+    "videoSrc": "https://cdn.gitxx.xyz/public/2026-10/plel0QtzdBBA16i0w6fjpggSrVXB8c8c5IOZ7IXwP_EFYxKKyT_8jFphUD8zgyqvTe8QNyBHNK4VbYSWl1_v1rDOyl-d1eGjJWMzLyGwiDxyE8ozgVIVx2RXY1qkPJ3vkHolGA5tDI9vSm6iKtSvQoRLqxYHfdOqOpl1vIQUXI2TSmJ7bUGdc3EIZGRMQAir.mp4",
+    "theme": "light"
+  },
+  "darkHome": {
+    "label": "dark-home",
+    "href": "/video?round2=1",
+    "width": 1440,
+    "cards": 7,
+    "first": {
+      "display": "flex",
+      "border": "1px solid rgb(63, 63, 70)",
+      "radius": "8px",
+      "background": "rgb(39, 39, 42)",
+      "width": 303,
+      "height": 283,
+      "className": "vcard"
+    },
+    "second": {
+      "display": "flex",
+      "border": "1px solid rgb(63, 63, 70)",
+      "radius": "8px",
+      "background": "rgb(39, 39, 42)",
+      "width": 303,
+      "height": 283,
+      "className": "vcard"
+    },
+    "hero": true,
+    "heroHref": "/videos/shipindianhuadejicunjiufujidejide",
+    "firstCardHref": "/videos/mimimamamaimaimai",
+    "members": [
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      }
+    ],
+    "overflow": false,
+    "scrollWidth": 1425,
+    "clientWidth": 1425,
+    "pad": "16px",
+    "contentLeft": 73,
+    "contentWidth": 1280,
+    "related": [],
+    "authorHref": "",
+    "videoSrc": "",
+    "theme": "dark"
+  },
+  "darkDetail": {
+    "label": "dark-detail",
+    "href": "/videos/shipinlanmuziduandeceshineirong?round2=1",
+    "width": 1440,
+    "cards": 0,
+    "first": null,
+    "second": null,
+    "hero": false,
+    "heroHref": "",
+    "firstCardHref": "",
+    "members": [
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      },
+      {
+        "tag": "A",
+        "href": "/r/aa",
+        "name": "admin",
+        "avatar": "img",
+        "radius": "50%"
+      }
+    ],
+    "overflow": false,
+    "scrollWidth": 1425,
+    "clientWidth": 1425,
+    "pad": "16px",
+    "contentLeft": 73,
+    "contentWidth": 1280,
+    "related": [
+      {
+        "display": "grid",
+        "columns": "148px 157.562px",
+        "border": "1px",
+        "radius": "8px",
+        "background": "rgb(39, 39, 42)",
+        "thumb": {
+          "w": 148,
+          "h": 83
+        }
+      },
+      {
+        "display": "grid",
+        "columns": "148px 157.562px",
+        "border": "1px",
+        "radius": "8px",
+        "background": "rgb(39, 39, 42)",
+        "thumb": {
+          "w": 148,
+          "h": 83
+        }
+      }
+    ],
+    "authorHref": "/r/aa",
+    "videoSrc": "https://cdn.gitxx.xyz/public/2026-10/plel0QtzdBBA16i0w6fjpggSrVXB8c8c5IOZ7IXwP_EFYxKKyT_8jFphUD8zgyqvTe8QNyBHNK4VbYSWl1_v1rDOyl-d1eGjJWMzLyGwiDxyE8ozgVIVx2RXY1qkPJ3vkHolGA5tDI9vSm6iKtSvQoRLqxYHfdOqOpl1vIQUXI2TSmJ7bUGdc3EIZGRMQAir.mp4",
+    "theme": "dark"
+  },
+  "profileShot": {
+    "path": "/r/aa",
+    "title": "会员 | DcLili",
+    "h1": "会员"
+  },
+  "playback": {
+    "status": "PASS",
+    "src": "https://cdn.gitxx.xyz/public/2026-10/plel0QtzdBBA16i0w6fjpggSrVXB8c8c5IOZ7IXwP_EFYxKKyT_8jFphUD8zgyqvTe8QNyBHNK4VbYSWl1_v1rDOyl-d1eGjJWMzLyGwiDxyE8ozgVIVx2RXY1qkPJ3vkHolGA5tDI9vSm6iKtSvQoRLqxYHfdOqOpl1vIQUXI2TSmJ7bUGdc3EIZGRMQAir.mp4",
+    "ready": 4,
+    "time": 1.311813,
+    "error": 0
+  },
+  "consoleErrors": []
+}

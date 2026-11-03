@@ -172,7 +172,7 @@ class QuickController extends ControllerBase {
     [, $media_type, $source] = $this->info();
     $uploaded = $request->files->get('file');
     if (!$uploaded || !$uploaded->isValid()) {
-      return new JsonResponse(['error' => 'bad file'], 400);
+      return new JsonResponse(['error' => '没有收到有效图片。'], 400);
     }
     if ($uploaded->getSize() > 25 * 1024 * 1024) {
       return new JsonResponse(['error' => '文件过大'], 400);
@@ -187,7 +187,7 @@ class QuickController extends ControllerBase {
       default => (defined('IMAGETYPE_AVIF') && $type === IMAGETYPE_AVIF) ? 'avif' : '',
     };
     if ($extension === '') {
-      return new JsonResponse(['error' => 'bad file'], 400);
+      return new JsonResponse(['error' => '不是受支持的图片，文件没有公开。'], 400);
     }
     $this->store->ensureTables();
     $hash = hash_file('sha256', $uploaded->getPathname());
@@ -203,6 +203,7 @@ class QuickController extends ControllerBase {
         return new JsonResponse(['error' => '请稍后重试'], 429);
       }
     }
+    $optimizedPath = NULL;
     try {
       $existing = $this->mediaForHash($hash);
       if ($existing) {
@@ -213,17 +214,40 @@ class QuickController extends ControllerBase {
       $n = max(1, (int) $request->request->get('n', 1));
       $slug = strtolower(trim((string) preg_replace('/[^a-z0-9]+/i', '-', \Drupal::service('transliteration')->transliterate($title, 'en')), '-'));
       $slug = substr($slug !== '' ? $slug : 'gallery', 0, 60);
+      $originalBytes = (int) $uploaded->getSize();
+      $sourcePath = $uploaded->getRealPath();
+      $optimizedMime = '';
+      if (!\Drupal::hasService('xedc_core.image_optimizer') || !\Drupal::hasService('xedc_core.image_optimize_repository')) {
+        return new JsonResponse(['error' => '图片优化服务不可用，文件没有公开'], 500);
+      }
+      $settings = \Drupal::service('xedc_core.image_optimize_repository')->settings();
+      $decision = \Drupal::service('xedc_core.image_optimizer')->optimize($sourcePath, $settings);
+      if ($decision->status === 'rejected') {
+        return new JsonResponse(['error' => $decision->error !== '' ? $decision->error : '图片未通过优化'], 400);
+      }
+      if (!$decision->keptOriginal && is_file($decision->path)) {
+        $sourcePath = $decision->path;
+        $optimizedPath = $decision->path;
+        $extension = $decision->extension !== '' ? $decision->extension : $extension;
+        $optimizedMime = $decision->mime;
+      }
+      if (\Drupal::state()->get('xedc_quick_fail_public_copy') === TRUE) {
+        throw new \RuntimeException('公开存储写入失败（测试模拟），文件没有公开。');
+      }
       $directory = 'public://gallery/' . date('Y-m');
       $filesystem = \Drupal::service('file_system');
       $filesystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
       $destination = sprintf('%s/%s-%03d.%s', $directory, $slug, $n, $extension);
-      $uri = $filesystem->copy($uploaded->getRealPath(), $destination, FileExists::Rename);
+      $uri = $filesystem->copy($sourcePath, $destination, FileExists::Rename);
       $file = File::create([
         'uri' => $uri,
         'uid' => $this->currentUser()->id(),
         'status' => FileInterface::STATUS_PERMANENT,
         'filename' => basename($uri),
       ]);
+      if ($optimizedMime !== '') {
+        $file->setMimeType($optimizedMime);
+      }
       $file->save();
       $media = Media::create([
         'bundle' => $media_type,
@@ -232,18 +256,33 @@ class QuickController extends ControllerBase {
         'status' => 1,
         $source => [
           'target_id' => $file->id(),
-          'alt' => $title . ' - 图' . $n,
+          'alt' => \Drupal::service('xedc_core.alt')->format($title, $n, $n),
         ],
       ]);
       $media->save();
-      $this->store->rememberUpload($hash, (int) $media->id(), (int) $request->request->get('orig', 0));
-      return new JsonResponse(['mid' => (int) $media->id()]);
+      $this->store->rememberUpload($hash, (int) $media->id(), $originalBytes);
+      if (\Drupal::hasService('xedc_core.alt')) {
+        \Drupal::service('xedc_core.alt')->remember((int) $media->id(), (string) $media->get($source)->alt, 'auto');
+      }
+      return new JsonResponse([
+        'mid' => (int) $media->id(),
+        'original_bytes' => $originalBytes,
+        'optimized_bytes' => (int) $file->getSize(),
+        'mime' => (string) $file->getMimeType(),
+        'public' => str_starts_with((string) $file->getFileUri(), 'public://') && !str_contains((string) $file->getFileUri(), 'public/public/'),
+      ]);
     }
     catch (\Throwable $e) {
       $this->getLogger('xedc_quick')->error('Gallery upload failed: @message', ['@message' => $e->getMessage()]);
-      return new JsonResponse(['error' => '上传失败'], 500);
+      $safe = str_contains($e->getMessage(), '公开存储') ? $e->getMessage() : '上传失败';
+      return new JsonResponse(['error' => $safe], 500);
     }
     finally {
+      if (is_string($optimizedPath) && is_file($optimizedPath)) {
+        $optimizedDir = dirname($optimizedPath);
+        @unlink($optimizedPath);
+        @rmdir($optimizedDir);
+      }
       $lock->release($lock_name);
     }
   }
@@ -295,6 +334,9 @@ class QuickController extends ControllerBase {
         'status' => $publish ? 1 : 0,
         'field_images' => array_map(static fn(int $mid): array => ['target_id' => $mid], $ordered),
       ]);
+      if (!$publish) {
+        $node->xedc_keep_unpublished = TRUE;
+      }
       if ($node->hasField('moderation_state')) {
         $node->set('moderation_state', $publish ? 'published' : 'draft');
       }
@@ -323,8 +365,20 @@ class QuickController extends ControllerBase {
         $node->set('field_categories', $this->terms($bundle, 'field_categories', $data['cats'] ?? []));
       }
       $node->save();
+      $node = Node::load((int) $node->id()) ?: $node;
+      $metrics = \Drupal::hasService('xedc_core.gallery_metrics') ? \Drupal::service('xedc_core.gallery_metrics')->forNode($node) : [];
       $url = $publish ? $node->toUrl()->toString() : $node->toUrl('edit-form')->toString();
-      return new JsonResponse(['edit' => $url]);
+      return new JsonResponse([
+        'edit' => $url,
+        'nid' => (int) $node->id(),
+        'published' => $node->isPublished(),
+        'moderation' => $node->hasField('moderation_state') ? (string) $node->get('moderation_state')->value : '',
+        'original_bytes' => $metrics['original_bytes'] ?? NULL,
+        'optimized_bytes' => $metrics['optimized_bytes'] ?? NULL,
+        'original_label' => $metrics['original_label'] ?? '',
+        'optimized_label' => $metrics['optimized_label'] ?? '',
+        'count' => $metrics['count'] ?? count($ordered),
+      ]);
     }
     catch (\Throwable $e) {
       $this->getLogger('xedc_quick')->error('Gallery create failed: @message', ['@message' => $e->getMessage()]);

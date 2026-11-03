@@ -63,7 +63,7 @@ class MonitorController extends ControllerBase {
             'dataUrl' => Url::fromRoute('xedc_core.monitor_data')->toString(),
             'section' => $section,
             'range' => $range,
-            'refresh' => (int) (($snapshot['detail']['refresh_seconds'] ?? 0) ?: ($snapshot['refresh_seconds'] ?? 3)),
+            'refresh' => (int) (($snapshot['detail']['refresh_seconds'] ?? 0) ?: ($snapshot['refresh_seconds'] ?? 10)),
             'detailCharts' => $snapshot['detail']['charts'] ?? [],
             'trafficChart' => $snapshot['detail']['traffic']['chart'] ?? NULL,
           ],

@@ -63,7 +63,7 @@ html-sitemap:
       css/sitemap.css: {}
 
 video-detail:
-  version: 2.3
+  version: 3.7.1
   css:
     theme:
       css/video-detail.css: {}
@@ -83,14 +83,14 @@ video-player:
     - core/once
 
 video_list:
-  version: 2.4
+  version: 3.6.2
   css:
     theme:
       css/video-list.css: {}
       css/video-card.css: {}
 
 video-card:
-  version: 2.3
+  version: 3.5
   css:
     theme:
       css/video-card.css: {}

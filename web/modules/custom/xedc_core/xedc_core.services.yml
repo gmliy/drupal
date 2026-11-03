@@ -34,9 +34,45 @@ services:
     class: Drupal\xedc_core\Image\ImageOptimizeApplier
     arguments: ['@xedc_core.image_optimizer', '@xedc_core.image_optimize_repository', '@file_system', '@entity_type.manager', '@queue', '@lock', '@logger.channel.xedc_core']
 
+  xedc_core.optimizing_file_repository:
+    class: Drupal\xedc_core\Image\OptimizingFileRepository
+    decorates: file.repository
+    arguments: ['@xedc_core.optimizing_file_repository.inner', '@xedc_core.image_optimize']
+
   xedc_core.publisher:
     class: Drupal\xedc_core\Publisher
     arguments: ['@xedc_core.tasks', '@entity_type.manager', '@content_moderation.moderation_information', '@database', '@xedc_core.alt']
+
+  xedc_core.import_kick:
+    class: Drupal\xedc_core\ImportKick
+    arguments: ['@xedc_core.processor']
+    tags:
+      - { name: needs_destruction }
+
+  xedc_core.image_batch:
+    class: Drupal\xedc_core\ImageBatchIntake
+    arguments: ['@xedc_core.tasks', '@file_system', '@queue', '@xedc_core.import_kick', '@config.factory']
+
+  xedc_core.upload_session:
+    class: Drupal\xedc_core\Upload\UploadSessionManager
+    arguments:
+      - '@database'
+      - '@file_system'
+      - '@config.factory'
+      - '@current_user'
+      - '@datetime.time'
+      - '@lock'
+      - '@logger.channel.xedc_core'
+      - '@entity_type.manager'
+      - '@xedc_core.archive'
+      - '@xedc_core.processor'
+      - '@xedc_core.image_batch'
+      - '@xedc_core.tasks'
+      - '@xedc_core.import_kick'
+
+  xedc_core.gallery_metrics:
+    class: Drupal\xedc_core\GalleryMetrics
+    arguments: ['@database']
 
   xedc_core.processor:
     class: Drupal\xedc_core\ImportProcessor
@@ -160,6 +196,9 @@ services:
     class: Drupal\xedc_core\Ops\Storage\TakeoverReadiness
     arguments: ['@database', '@xedc_core.storage_config', '@xedc_core.storage_uris', '@xedc_core.storage_journal']
 
+  xedc_core.storage_size:
+    class: Drupal\xedc_core\Ops\Storage\StorageSizeFormatter
+
   xedc_core.storage_cdn_inspector:
     class: Drupal\xedc_core\Ops\Storage\CdnInspector
     arguments: ['@xedc_core.storage_config', '@xedc_core.storage_credentials', '@xedc_core.storage_uris', '@xedc_core.storage_writer', '@xedc_core.storage_reader', '@xedc_core.storage_temp', '@http_client', '@xedc_core.storage_journal', '@datetime.time', '@logger.channel.xedc_core']
@@ -183,6 +222,10 @@ services:
   xedc_core.storage_journal:
     class: Drupal\xedc_core\Ops\Storage\StorageJournal
     arguments: ['@state', '@datetime.time']
+
+  xedc_core.storage_switch:
+    class: Drupal\xedc_core\Ops\Storage\StorageSwitchManager
+    arguments: ['@xedc_core.storage_config', '@xedc_core.storage_credentials', '@xedc_core.storage_reader', '@xedc_core.storage_writer', '@xedc_core.storage_journal', '@database', '@state', '@xedc_core.storage_uris']
 
   xedc_core.storage_tester:
     class: Drupal\xedc_core\Ops\Storage\ConnectionTester

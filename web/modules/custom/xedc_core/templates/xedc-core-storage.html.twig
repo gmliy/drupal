@@ -35,7 +35,7 @@
         <article class="xedc-ops-card"><h3>当前配置</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.active }}</p><p class="xedc-ops-detail">只表示对象存储中心的选定配置</p></article>
         <article class="xedc-ops-card"><h3>运行时</h3><p class="xedc-ops-value xedc-ops-value--small"><span class="xedc-ops-badge is-{{ data.runtime.tone }}">{{ data.runtime.summary }}</span></p></article>
         <article class="xedc-ops-card"><h3>Bucket</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.runtime.bucket ?: '未启用' }}</p><p class="xedc-ops-detail">{{ data.runtime.endpoint_host ?: '没有 API Endpoint' }}</p></article>
-        <article class="xedc-ops-card"><h3>Drupal 文件</h3><p class="xedc-ops-value">{{ data.census.files }}</p><p class="xedc-ops-detail">{{ data.census.bytes }}，来自文件实体</p></article>
+        <article class="xedc-ops-card"><h3>Drupal 文件</h3><p class="xedc-ops-value">{{ data.census.files }}</p><p class="xedc-ops-detail" title="{{ data.census.bytes_raw }} Bytes">{{ data.census.bytes }}，来自文件实体</p></article>
       </div>
     </section>
     {% if data.provider_cards %}
@@ -107,10 +107,10 @@
       <article class="xedc-ops-card"><h3>前缀</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.public_folder }} / {{ data.private_folder }}</p></article>
     </section>
     <section class="xedc-ops-cards">
-      <article class="xedc-ops-card"><h3>文件实体</h3><p class="xedc-ops-value">{{ data.census.files }}</p><p class="xedc-ops-detail">{{ data.bytes_label }}</p></article>
-      <article class="xedc-ops-card"><h3>公开 / 私有 / 对象</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.census.public_files }} / {{ data.census.private_files }} / {{ data.census.s3_files }}</p><p class="xedc-ops-detail">公开 {{ data.public_bytes_label }}，私有 {{ data.private_bytes_label }}</p></article>
+      <article class="xedc-ops-card"><h3>文件实体</h3><p class="xedc-ops-value">{{ data.census.files }}</p><p class="xedc-ops-detail" title="{{ data.bytes_exact }}">{{ data.bytes_label }}</p></article>
+      <article class="xedc-ops-card"><h3>公开 / 私有 / 对象</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.census.public_files }} / {{ data.census.private_files }} / {{ data.census.s3_files }}</p><p class="xedc-ops-detail" title="公开 {{ data.public_bytes_exact }}，私有 {{ data.private_bytes_exact }}">公开 {{ data.public_bytes_label }}，私有 {{ data.private_bytes_label }}</p></article>
       <article class="xedc-ops-card"><h3>图片 / 视频</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.census.image_files }} / {{ data.census.video_files }}</p></article>
-      <article class="xedc-ops-card"><h3>本进程开关</h3><p class="xedc-ops-value xedc-ops-value--small">见运行模式</p><p class="xedc-ops-detail">公开 {{ data.switches.public_takeover ? '开' : '关' }}，私有 {{ data.switches.private_takeover ? '开' : '关' }}，CDN {{ data.switches.cdn_rewrite ? '开' : '关' }}</p></article>
+      <article class="xedc-ops-card"><h3>本轮接管</h3><p class="xedc-ops-value xedc-ops-value--small">未执行</p><p class="xedc-ops-detail">{{ data.assessment.takeover_check == '通过' ? '开关与当前模式一致' : '开关与当前模式不一致' }}</p></article>
     </section>
     <section class="xedc-ops-panel">
       <h3>格式和样式</h3>
@@ -137,8 +137,9 @@
         </table>
       </div>
     </section>
+    {% include '@xedc_core/storage-takeover-status.html.twig' with { assessment: data.assessment, providers: data.providers } %}
     {% if data.blockers %}
-      <section class="xedc-ops-alert"><h3>还不能接管的原因</h3><ul class="xedc-ops-metrics">{% for blocker in data.blockers %}<li><strong>{{ blocker }}</strong></li>{% endfor %}</ul></section>
+      <section class="xedc-ops-alert"><h3>其他阻断</h3><p class="xedc-ops-note">这些项目不改变上面的开关判断。存在阻断时，本页仍然不允许执行接管。</p><ul class="xedc-ops-metrics">{% for blocker in data.blockers %}<li><strong>{{ blocker }}</strong></li>{% endfor %}</ul></section>
     {% endif %}
     <p class="xedc-ops-note">{{ data.note }}</p>
   {% endif %}
@@ -279,6 +280,7 @@
         </tbody>
       </table>
     </div>
+    {% include '@xedc_core/storage-takeover-status.html.twig' with { assessment: data.assessment, providers: data.providers } %}
     {{ form }}
   {% endif %}
 
@@ -350,7 +352,7 @@
   {% endif %}
 
   {% if page == 'migration' %}
-    <p class="xedc-ops-note">预检查只抽样。完整清单会逐个记录本地文件，并用对象头检查 s3fs-public/ 或 s3fs-private/ 上是否已有同名对象。它不复制、不覆盖、不改 URI、不删除源文件，也不会把任务标记为迁移完成。</p>
+    <p class="xedc-ops-note">预检查只抽样。完整清单会逐个记录本地文件，并用对象头检查当前公共文件夹或私有文件夹上是否已有同名对象。它不复制、不覆盖、不改 URI、不删除源文件，也不会把任务标记为迁移完成。</p>
     {{ form }}
     {% for task in data.tasks %}
       <section class="xedc-ops-panel">
@@ -381,7 +383,7 @@
               <thead><tr><th>FID</th><th>文件</th><th>大小</th><th>MIME</th><th>抽样</th></tr></thead>
               <tbody>
                 {% for row in task.sample %}
-                  <tr><td>{{ row.fid }}</td><td>{{ row.filename }}<br><span class="xedc-ops-detail">{{ row.uri }}</span></td><td>{{ row.bytes }}</td><td>{{ row.mime }}</td><td>{{ row.exists }}</td></tr>
+                  <tr><td>{{ row.fid }}</td><td>{{ row.filename }}<br><span class="xedc-ops-detail">{{ row.uri }}</span></td><td title="{{ row.bytes_exact }}">{{ row.bytes }}</td><td>{{ row.mime }}</td><td>{{ row.exists }}</td></tr>
                 {% endfor %}
               </tbody>
             </table>
@@ -412,7 +414,8 @@
       <h3>费用估算</h3>
       <p class="xedc-ops-note">{{ data.cost.disclaimer }}</p>
       <ul class="xedc-ops-metrics">
-        <li><span>对象存储容量</span><strong>{{ data.cost.storage_gb }} GB</strong></li>
+        <li><span>对象存储容量</span><strong title="{{ data.cost.storage_exact }}">{{ data.cost.storage_formatted }}</strong></li>
+        <li><span>计费用量</span><strong>{{ data.cost.storage_gb }} GiB</strong></li>
         <li><span>存储估算</span><strong>{{ data.cost.storage_cost }} {{ data.cost.currency }}</strong></li>
         <li><span>下载流量</span><strong>{{ data.cost.download }}</strong></li>
         <li><span>请求次数</span><strong>{{ data.cost.requests }}</strong></li>

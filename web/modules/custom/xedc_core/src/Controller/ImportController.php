@@ -107,20 +107,117 @@ class ImportController extends ControllerBase {
     if (!$row) {
       throw new NotFoundHttpException();
     }
+    $items = [];
+    foreach ($this->tasks->items($task) as $item) {
+      $items[] = [
+        'id' => (int) $item->id,
+        'name' => (string) ($item->original_name ?? ''),
+        'status' => (string) $item->status,
+        'bytes' => isset($item->original_bytes) ? (int) $item->original_bytes : 0,
+        'error' => (string) ($item->error ?? ''),
+      ];
+    }
+    $metrics = $this->progressMetrics($row);
+    $done = ImportStatus::isTerminal((string) $row->status);
+    $live = trim((string) ($row->phase ?? ''));
+    $phase = ImportStatus::phase((string) $row->status, $live !== '' ? $live : (string) $row->stage);
+    $total = (int) $row->total;
+    $processed = (int) $row->processed;
+    $percent = $done ? 100 : ($total > 0 ? (int) floor($processed / $total * 100) : (int) $row->progress);
     return new JsonResponse([
       'id' => (int) $row->id,
       'status' => (string) $row->status,
-      'label' => ImportStatus::label((string) $row->status),
-      'progress' => (int) $row->progress,
-      'total' => (int) $row->total,
-      'processed' => (int) $row->processed,
+      'stage' => (string) $row->stage,
+      'phase' => $phase['id'],
+      'label' => $phase['label'],
+      'progress' => $percent,
+      'percent' => $percent,
+      'total' => $total,
+      'processed' => $processed,
       'success' => (int) $row->success_count,
       'failed' => (int) $row->failed_count,
       'skipped' => (int) $row->skipped_count,
+      'current' => $metrics['current'],
+      'archive_bytes' => (int) ($row->archive_bytes ?? 0),
+      'archive_label' => $this->formatBytes((int) ($row->archive_bytes ?? 0)),
+      'done_bytes' => $metrics['done_bytes'],
+      'done_label' => $this->formatBytes($metrics['done_bytes']),
+      'eta_seconds' => $metrics['eta_seconds'],
+      'updated' => (int) $row->changed,
       'message' => (string) $row->message,
       'error' => (string) $row->error,
-      'done' => ImportStatus::isTerminal((string) $row->status),
+      'done' => $done,
+      'detail' => $this->progressDetail($row, $phase['label'], $percent, $metrics),
+      'items' => $items,
     ]);
+  }
+
+  /**
+   * Real counters from item rows. ETA stays null until five measured images exist.
+   *
+   * @return array{done_bytes: int, eta_seconds: int|null, current: int}
+   *   Measured progress.
+   */
+  private function progressMetrics(object $row): array {
+    $current = ImportStatus::isTerminal((string) $row->status) ? 0 : (in_array((string) $row->status, ImportStatus::processing(), TRUE) ? 1 : 0);
+    $doneBytes = 0;
+    $eta = NULL;
+    $database = \Drupal::database();
+    $schema = $database->schema();
+    if (!$schema->fieldExists('xedc_import_item', 'elapsed_ms')) {
+      return ['done_bytes' => $doneBytes, 'eta_seconds' => $eta, 'current' => $current];
+    }
+    $stats = $database->query("SELECT COALESCE(SUM(CASE WHEN status IN ('success', 'failed') THEN GREATEST(original_bytes, bytes) ELSE 0 END), 0) AS done_bytes, COALESCE(SUM(CASE WHEN elapsed_ms > 0 THEN elapsed_ms ELSE 0 END), 0) AS elapsed_ms, COALESCE(SUM(CASE WHEN elapsed_ms > 0 THEN 1 ELSE 0 END), 0) AS timed FROM {xedc_import_item} WHERE task_id = :id", [
+      ':id' => (int) $row->id,
+    ])->fetchAssoc();
+    $doneBytes = (int) ($stats['done_bytes'] ?? 0);
+    $timed = (int) ($stats['timed'] ?? 0);
+    $pending = max(0, (int) $row->total - (int) $row->processed);
+    if ($timed >= 5 && $pending > 0) {
+      $eta = (int) round(((int) $stats['elapsed_ms'] / $timed) * $pending / 1000);
+    }
+    return ['done_bytes' => $doneBytes, 'eta_seconds' => $eta, 'current' => $current];
+  }
+
+  /**
+   * One line built only from stored task data.
+   *
+   * @param array{id: string, label: string} $phase
+   *   Display phase.
+   * @param array{done_bytes: int, eta_seconds: int|null, current: int} $metrics
+   *   Measured counters.
+   */
+  private function progressDetail(object $row, string $label, int $percent, array $metrics): string {
+    $parts = [
+      $label,
+      '压缩包 ' . $this->formatBytes((int) ($row->archive_bytes ?? 0)),
+      '图片 ' . (int) $row->processed . '/' . (int) $row->total,
+      '成功 ' . (int) $row->success_count,
+      '失败 ' . (int) $row->failed_count,
+      '正在处理 ' . $metrics['current'],
+      $percent . '%',
+      '已处理 ' . $this->formatBytes($metrics['done_bytes']),
+    ];
+    if ($metrics['eta_seconds'] !== NULL) {
+      $parts[] = '预计剩余 ' . $this->etaLabel((int) $metrics['eta_seconds']);
+    }
+    $changed = (int) $row->changed;
+    if ($changed > 0) {
+      $parts[] = '更新于 ' . date('H:i:s', $changed);
+    }
+    return implode(' · ', $parts);
+  }
+
+  /**
+   * Short remaining-time text. Callers hide this when there is no sample.
+   */
+  private function etaLabel(int $seconds): string {
+    if ($seconds < 60) {
+      return $seconds . ' 秒';
+    }
+    $minutes = intdiv($seconds, 60);
+    $rest = $seconds % 60;
+    return $rest > 0 ? $minutes . ' 分 ' . $rest . ' 秒' : $minutes . ' 分';
   }
 
   /**
@@ -141,7 +238,7 @@ class ImportController extends ControllerBase {
         '@bad' => $row->failed_count,
         '@skip' => $row->skipped_count,
       ]),
-      (string) $this->t('原图总大小：@size', ['@size' => $this->formatBytes((int) $row->bytes)]),
+      (string) $this->t('原图总大小：@size', ['@size' => $this->originalLabel($row)]),
       (string) $this->t('方式：@mode', ['@mode' => $row->mode]),
     ];
     if (!$node) {
@@ -154,6 +251,22 @@ class ImportController extends ControllerBase {
     $items[] = (string) $this->t('标签：@value', ['@value' => $this->labels($node, 'field_tags')]);
     $items[] = (string) $this->t('内容图片 @count 张', ['@count' => $node->get('field_images')->count()]);
     return $items;
+  }
+
+  /**
+   * Formats a byte total. Zero stays zero under Chinese plural rules.
+   */
+  private function originalLabel(object $row): string {
+    $known = 0;
+    $bytes = 0;
+    foreach ($this->tasks->items((int) $row->id) as $item) {
+      $size = isset($item->original_bytes) ? (int) $item->original_bytes : 0;
+      if ($size > 0) {
+        $known++;
+        $bytes += $size;
+      }
+    }
+    return $known > 0 ? $this->formatBytes($bytes) : (string) $this->t('原图大小未知');
   }
 
   /**
@@ -235,6 +348,12 @@ class ImportController extends ControllerBase {
         '#tag' => 'p',
         '#value' => $label,
         '#attributes' => ['data-xedc-progress-label' => '1'],
+      ],
+      'detail' => [
+        '#type' => 'html_tag',
+        '#tag' => 'p',
+        '#value' => '',
+        '#attributes' => ['data-xedc-progress-detail' => '1', 'class' => ['xedc-import__detail']],
       ],
       'bar' => [
         '#type' => 'container',

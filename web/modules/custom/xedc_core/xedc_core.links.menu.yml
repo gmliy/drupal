@@ -1,6 +1,6 @@
 xedc_core.import_list:
-  title: '图片批量发布'
-  description: '导入任务、审核和批量发布图片内容。'
+  title: '图片导入'
+  description: '上传图片、ZIP/7z 导入和查看处理任务。'
   route_name: xedc_core.import_list
   parent: system.admin_content
   weight: 15

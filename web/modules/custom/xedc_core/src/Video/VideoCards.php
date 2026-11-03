@@ -9,6 +9,7 @@ use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Entity\EntityRepositoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileUrlGeneratorInterface;
+use Drupal\Core\Url;
 use Drupal\file\FileInterface;
 use Drupal\image\Entity\ImageStyle;
 use Drupal\media\MediaInterface;
@@ -46,9 +47,9 @@ final class VideoCards {
     }
     $nodes = $this->entities->getStorage('node')->loadMultiple($ordered);
     $counts = $this->stats->counts($ordered);
-    $owners = $this->owners($nodes);
-    $items = [];
     $tags = ['config:image.style.video_cover', 'config:image.style.xa_hero'];
+    $owners = $this->owners($nodes, $tags);
+    $items = [];
     foreach ($ordered as $nid) {
       $node = $nodes[$nid] ?? NULL;
       if (!$node instanceof NodeInterface || $node->bundle() !== 'video') {
@@ -76,6 +77,7 @@ final class VideoCards {
         'category' => $this->categoryLabel($node),
         'author' => $owners[(int) $node->getOwnerId()]['name'] ?? '',
         'author_url' => $owners[(int) $node->getOwnerId()]['url'] ?? '',
+        'author_avatar' => $owners[(int) $node->getOwnerId()]['avatar'] ?? '',
         'heading' => 'h2',
       ];
     }
@@ -83,14 +85,11 @@ final class VideoCards {
   }
 
   /**
-   * @param string[] $tags
-   * @return array{url: string, srcset: string, alt: string, width: int, height: int}
-   */
-  /**
    * @param array<int, \Drupal\node\NodeInterface> $nodes
-   * @return array<int, array{name: string, url: string}>
+   * @param string[] $tags
+   * @return array<int, array{name: string, url: string, avatar: string}>
    */
-  private function owners(array $nodes): array {
+  private function owners(array $nodes, array &$tags): array {
     $ids = [];
     foreach ($nodes as $node) {
       $uid = (int) $node->getOwnerId();
@@ -101,14 +100,46 @@ final class VideoCards {
     if (!$ids) {
       return [];
     }
+    $slugs = [];
+    if (\Drupal::moduleHandler()->moduleExists('xedc_member') && \Drupal::hasService('xedc_member.alias_manager')) {
+      $slugs = \Drupal::service('xedc_member.alias_manager')->slugsFor($ids);
+    }
     $owners = [];
     foreach ($this->entities->getStorage('user')->loadMultiple($ids) as $user) {
-      if (!(int) $user->id()) {
+      $uid = (int) $user->id();
+      if ($uid < 1) {
         continue;
       }
-      $owners[(int) $user->id()] = [
-        'name' => $user->getDisplayName(),
-        'url' => $user->toUrl()->toString(),
+      $tags = Cache::mergeTags($tags, $user->getCacheTags());
+      $name = $user->getDisplayName();
+      if ($user->hasField('field_xedc_nickname') && !$user->get('field_xedc_nickname')->isEmpty()) {
+        $nickname = trim((string) $user->get('field_xedc_nickname')->value);
+        if ($nickname !== '') {
+          $name = $nickname;
+        }
+      }
+      $avatar = '';
+      if ($user->hasField('user_picture') && !$user->get('user_picture')->isEmpty()) {
+        $picture = $user->get('user_picture')->entity;
+        if ($picture instanceof FileInterface) {
+          $avatar = $this->urls->generateString($picture->getFileUri());
+          $tags = Cache::mergeTags($tags, $picture->getCacheTags());
+        }
+      }
+      $url = '';
+      $slug = $slugs[$uid] ?? '';
+      if (is_string($slug) && $slug !== '' && !str_contains($slug, '/')) {
+        try {
+          $url = Url::fromRoute('xedc_member.public_profile', ['slug' => $slug])->toString();
+        }
+        catch (\Throwable) {
+          $url = '';
+        }
+      }
+      $owners[$uid] = [
+        'name' => $name,
+        'url' => $url,
+        'avatar' => $avatar,
       ];
     }
     return $owners;

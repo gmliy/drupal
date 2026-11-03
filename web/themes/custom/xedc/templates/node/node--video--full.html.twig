@@ -1,5 +1,6 @@
 {{ content|cache_metadata }}
 {{ attach_library('xedc/video-detail') }}
+{{ attach_library('xedc/video-card') }}
 {{ attach_library('xedc/video-player') }}
 {{ vd_cache }}
 <div class="vd-wrap">
@@ -16,7 +17,7 @@
   </nav>
   <div class="vd-layout">
     <article{{ attributes.addClass('vd') }}>
-      <div class="vd-player" data-xedc-player data-nid="{{ node.id }}" data-duration="{{ vd_seconds|default(0) }}" data-playback-state="{{ vd.playback_state|default('original') }}">
+      <div class="vd-player{{ vd.cover_height > vd.cover_width and vd.cover_width > 0 ? ' is-portrait' : '' }}" data-xedc-player data-nid="{{ node.id }}" data-duration="{{ vd_seconds|default(0) }}" data-playback-state="{{ vd.playback_state|default('original') }}">
         {% if vd.type == 'video' or vd.type == 'hls' %}
           <video class="vd-video" playsinline preload="metadata"{% if vd.cover %} poster="{{ vd.cover }}"{% endif %}{% if vd.type == 'hls' %} data-hls="{{ vd.src }}"{% endif %}>
             {% if vd.type == 'video' %}<source src="{{ vd.src }}"{% if vd.mime %} type="{{ vd.mime }}"{% endif %}>{% endif %}
@@ -58,9 +59,12 @@
           <span>{{ '@count 次播放'|t({'@count': vd_views|default(0)}) }}</span>
           {% if vd_date %}<span>{{ vd_date }}</span>{% endif %}
         </div>
-        {% if vd_author.name %}
-          <p class="vd-author"><a href="{{ vd_author.url }}">{{ vd_author.name }}</a></p>
-        {% endif %}
+        {% include '@xedc/templates/video/video-member.html.twig' with {
+          name: vd_author.name,
+          url: vd_author.url,
+          avatar: vd_author.avatar,
+          extra: 'vd-by'
+        } only %}
         <div class="vd-actions">{{ xedc_engagement }}</div>
         {% if vd_categories %}
           <div class="vd-classify">

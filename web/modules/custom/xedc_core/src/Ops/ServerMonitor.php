@@ -26,7 +26,7 @@ class ServerMonitor {
   ];
 
   public const SECTIONS = [
-    'overview' => ['label' => '实时总览', 'refresh' => 3],
+    'overview' => ['label' => '实时总览', 'refresh' => 10],
     'cpu' => ['label' => 'CPU', 'refresh' => 3],
     'memory' => ['label' => '内存', 'refresh' => 3],
     'disk' => ['label' => '磁盘', 'refresh' => 5],
@@ -69,7 +69,7 @@ class ServerMonitor {
    *   Display-ready snapshot. Missing metrics stay empty.
    */
   public function snapshot(bool $refresh = FALSE): array {
-    $cid = 'xedc_core:monitor:snapshot';
+    $cid = 'xedc_core:monitor:snapshot:' . date_default_timezone_get();
     if ($refresh) {
       $this->invalidate();
     }
@@ -78,7 +78,7 @@ class ServerMonitor {
       return $cached->data;
     }
     $snapshot = $this->buildSnapshot();
-    $expire = $this->time->getRequestTime() + ($snapshot['ok'] ? 3 : 15);
+    $expire = $this->time->getRequestTime() + ($snapshot['ok'] ? 8 : 15);
     $this->cache->set($cid, $snapshot, $expire);
     return $snapshot;
   }
@@ -95,7 +95,7 @@ class ServerMonitor {
         'range' => $range,
       ];
     }
-    $cid = 'xedc_core:monitor:history:' . $range;
+    $cid = 'xedc_core:monitor:history:' . $range . ':' . date_default_timezone_get();
     if (!$refresh) {
       $cached = $this->cache->get($cid);
       if ($cached && is_array($cached->data)) {
@@ -117,16 +117,21 @@ class ServerMonitor {
   }
 
   public function invalidate(): void {
+    $zone = date_default_timezone_get();
     $this->cache->delete('xedc_core:monitor:snapshot');
+    $this->cache->delete('xedc_core:monitor:snapshot:' . $zone);
     $this->cache->delete('xedc_core:monitor:charts');
     $this->catalog->invalidate();
     foreach (array_keys(self::RANGES) as $range) {
       $this->cache->delete('xedc_core:monitor:history:' . $range);
+      $this->cache->delete('xedc_core:monitor:history:' . $range . ':' . $zone);
     }
     foreach (array_keys(self::SECTIONS) as $section) {
       $this->cache->delete('xedc_core:monitor:section:' . $section);
+      $this->cache->delete('xedc_core:monitor:section:' . $section . ':' . $zone);
       foreach (array_keys(self::RANGES) as $range) {
         $this->cache->delete('xedc_core:monitor:section:' . $section . ':' . $range);
+        $this->cache->delete('xedc_core:monitor:section:' . $section . ':' . $range . ':' . $zone);
       }
     }
   }
@@ -252,7 +257,7 @@ class ServerMonitor {
       'io' => $this->ioSummary($io, $charts),
       'interfaces' => $this->interfaces($charts),
       'services' => $services,
-      'totals_note' => '累计流量未采集。Netdata 保存的是速率，没有网卡累计字节计数器，这里不会把速率积分成总流量。',
+      'totals_note' => '接口表只显示实时速率，累计字节列保持未采集。累计流量在网络分类，来自物理网卡计数器，不由这里的速率累加。',
       'cpu_rows' => $this->cpuRows($cpu),
       'refresh_seconds' => self::SECTIONS['overview']['refresh'],
       'nav' => $this->navigation(),
@@ -1050,6 +1055,7 @@ class ServerMonitor {
     if ($section === 'browser') {
       $cid .= ':' . substr(hash('sha256', $category . '|' . $query . '|' . $page), 0, 16);
     }
+    $cid .= ':' . date_default_timezone_get();
     if (!$refresh) {
       $cached = $this->cache->get($cid);
       if ($cached && is_array($cached->data)) {
@@ -1085,8 +1091,12 @@ class ServerMonitor {
       'stats' => $this->stats(),
     ];
     if ($section === 'alarms') {
-      $context['alarm_payload'] = $this->alarmPayload();
+      $alarmPayload = $this->alarmPayload();
+      $context['alarm_payload'] = $alarmPayload;
       $context['notes'][] = '这里只显示 Netdata 原生告警。页面没有另造阈值告警。';
+      if (!empty($alarmPayload['reachable']) && empty($alarmPayload['has_rows'])) {
+        $context['notes'][] = '告警接口没有返回告警定义。本机 Netdata 健康检查关闭时就是这样，空白不会被写成正常或警告。';
+      }
     }
     if ($section === 'collectors') {
       $context['collector_rows'] = $this->collectorRows();
@@ -1309,12 +1319,21 @@ class ServerMonitor {
         'color' => $colors[$index],
       ];
     }
+    // Area charts point outbound and writes downward. The live numbers already
+    // use the absolute rate, so the section chart uses that same direction.
+    $absolute = preg_match('/\/s|kilobit|kib/i', (string) ($chart['units'] ?? '')) === 1;
     $points = [];
     foreach ($series['rows'] as $row) {
       $point = ['t' => $this->dateFormatter->format($row['time'], 'custom', 'm-d H:i')];
       foreach ($names as $index => $name) {
         $value = $row['values'][$name] ?? NULL;
-        $point['d' . $index] = is_numeric($value) ? round((float) $value, 3) : NULL;
+        if (is_numeric($value)) {
+          $number = (float) $value;
+          $point['d' . $index] = round($absolute ? abs($number) : $number, 3);
+        }
+        else {
+          $point['d' . $index] = NULL;
+        }
       }
       $points[] = $point;
     }
@@ -1358,9 +1377,15 @@ class ServerMonitor {
   private function alarmPayload(): array {
     $current = $this->trackedGet('/api/v1/alarms', ['all' => '1']);
     $log = $this->trackedGet('/api/v1/alarm_log');
+    $currentData = $current['ok'] ? $current['data'] : [];
+    $logData = $log['ok'] ? $log['data'] : [];
+    $defined = is_array($currentData['alarms'] ?? NULL) ? $currentData['alarms'] : [];
+    $history = is_array($logData) ? $logData : [];
     return [
-      'current' => $current['ok'] ? $current['data'] : [],
-      'log' => $log['ok'] ? $log['data'] : [],
+      'current' => $currentData,
+      'log' => $logData,
+      'reachable' => $current['ok'] && $log['ok'],
+      'has_rows' => $defined !== [] || $history !== [],
     ];
   }
 

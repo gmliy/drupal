@@ -16,9 +16,11 @@
   {% endif %}
 </a>
 <p class="vcard__meta">
-  {% if card.author and card.author_url %}
-    <a class="vcard__author" href="{{ card.author_url }}">{{ card.author }}</a>
-  {% endif %}
+  {% include '@xedc/templates/video/video-member.html.twig' with {
+    name: card.author,
+    url: card.author_url,
+    avatar: card.author_avatar
+  } only %}
   {% if card.category %}<span>{{ card.category }}</span>{% endif %}
   <span>{{ '@count 次播放'|t({'@count': card.views|default(0)}) }}</span>
   {% if card.date %}<span>{{ card.date }}</span>{% endif %}

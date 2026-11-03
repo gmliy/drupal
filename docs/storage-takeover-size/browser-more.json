@@ -1,0 +1,58 @@
+{
+  "/admin/reports/xedc-files/duplicates": {
+    "http": 200,
+    "final": "https://gitxx.xyz/admin/reports/xedc-files/duplicates",
+    "human": true,
+    "gib": true,
+    "vague": false,
+    "raw": false
+  },
+  "/admin/reports/xedc-files/unused": {
+    "http": 200,
+    "final": "https://gitxx.xyz/admin/reports/xedc-files/unused",
+    "human": true,
+    "gib": true,
+    "vague": false,
+    "raw": false
+  },
+  "/admin/reports/xedc-files/tasks": {
+    "http": 200,
+    "final": "https://gitxx.xyz/admin/reports/xedc-files/tasks",
+    "human": false,
+    "gib": false,
+    "vague": false,
+    "raw": false
+  },
+  "/admin/reports/xedc-files/logs": {
+    "http": 200,
+    "final": "https://gitxx.xyz/admin/reports/xedc-files/logs",
+    "human": false,
+    "gib": false,
+    "vague": false,
+    "raw": false
+  },
+  "/admin/reports/xedc-files/references/894": {
+    "http": 404,
+    "final": "https://gitxx.xyz/admin/reports/xedc-files/references/894",
+    "human": false,
+    "gib": false,
+    "vague": false,
+    "raw": false
+  },
+  "/admin/config/media/object-storage/migration": {
+    "http": 200,
+    "final": "https://gitxx.xyz/admin/config/media/object-storage/migration",
+    "human": true,
+    "gib": true,
+    "vague": false,
+    "raw": false
+  },
+  "/admin/config/media/object-storage/monitor": {
+    "http": 200,
+    "final": "https://gitxx.xyz/admin/config/media/object-storage/monitor",
+    "human": true,
+    "gib": true,
+    "vague": false,
+    "raw": false
+  }
+}

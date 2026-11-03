@@ -41,6 +41,12 @@ class ImagePipeline {
     protected ?ImageVariantBuilder $variants = NULL,
   ) {}
 
+  private int $lastOptimizeMs = 0;
+
+  private int $lastStoreMs = 0;
+
+  private ?bool $timingColumns = NULL;
+
   /**
    * TRUE when remote originals are copied locally before GD runs.
    */
@@ -78,10 +84,14 @@ class ImagePipeline {
    * Imports one scanned image. A bad image is recorded and does not abort the task.
    */
   public function import(object $task, object $item, NodeInterface $node): void {
+    $started = hrtime(TRUE);
+    $this->lastOptimizeMs = 0;
+    $this->lastStoreMs = 0;
     try {
       $this->importBody($task, $item, $node);
     }
     finally {
+      $this->writeTiming((int) $item->id, (int) ((hrtime(TRUE) - $started) / 1000000));
       $this->files?->release();
     }
   }
@@ -101,6 +111,10 @@ class ImagePipeline {
       throw new ImportException('这张图片已达到重试次数上限。');
     }
     $this->tasks->markItem($itemId, ['attempts' => $attempts]);
+    if (\Drupal::state()->get('xedc_import_fail_next') === TRUE) {
+      \Drupal::state()->delete('xedc_import_fail_next');
+      throw new ImportException('模拟处理失败，可以重试。');
+    }
     $real = $this->fileSystem->realpath((string) $item->temp_uri);
     $work = $this->fileSystem->realpath((string) $task->work_uri);
     if (!$real || !$work || !is_file($real) || is_link($real) || !str_starts_with($real, $work . DIRECTORY_SEPARATOR)) {
@@ -123,6 +137,7 @@ class ImagePipeline {
     if ($existing && $this->reuseFile($task, $item, $node, $existing, $sourceHash, FALSE)) {
       return;
     }
+    $this->notePhase($taskId, 'optimizing', '正在优化图片');
     $checked = $this->validate($real);
     $optimized = $work . DIRECTORY_SEPARATOR . 'optimized';
     if (!is_dir($optimized) && !mkdir($optimized, 0775, TRUE) && !is_dir($optimized)) {
@@ -134,7 +149,9 @@ class ImagePipeline {
       $this->assertDisk($public, $need);
     }
     $this->assertDisk($work, $need);
+    $optimizeStarted = hrtime(TRUE);
     $built = $this->officialImage($real, $optimized, $itemId, $checked, $taskId, (string) $item->original_name);
+    $this->lastOptimizeMs += (int) ((hrtime(TRUE) - $optimizeStarted) / 1000000);
     $storedHash = hash_file('sha256', $built['path']);
     if (!is_string($storedHash) || !preg_match('/^[a-f0-9]{64}$/', $storedHash)) {
       throw new ImportException('无法计算正式图片 SHA-256。');
@@ -279,16 +296,29 @@ class ImagePipeline {
   /**
    * Remembers delivery flags and both SHA-256 fingerprints for a file.
    */
-  private function rememberFile(int $fid, bool $animated, string $webp, int $bytes, string $sourceHash, string $storedHash): void {
+  private function rememberFile(int $fid, bool $animated, string $webp, int $bytes, string $sourceHash, string $storedHash, array $original = []): void {
+    $fields = [
+      'animated' => $animated ? 1 : 0,
+      'webp' => $webp,
+      'bytes' => $bytes,
+      'source_sha256' => $sourceHash,
+      'stored_sha256' => $storedHash,
+    ];
+    $schema = \Drupal::database()->schema();
+    if ($schema->fieldExists('xedc_image_file', 'original_bytes')) {
+      $originalBytes = max(0, (int) ($original['original_bytes'] ?? 0));
+      $fields['original_bytes'] = $originalBytes;
+      $fields['original_mime'] = mb_substr((string) ($original['original_mime'] ?? ''), 0, 64);
+      $fields['original_extension'] = mb_substr((string) ($original['original_extension'] ?? ''), 0, 16);
+      $fields['optimized_bytes'] = $bytes;
+      $fields['optimized_mime'] = mb_substr((string) ($original['optimized_mime'] ?? ''), 0, 64);
+      $fields['optimized_extension'] = mb_substr((string) ($original['optimized_extension'] ?? ''), 0, 16);
+      $fields['optimization_status'] = $originalBytes > 0 ? 'success' : '';
+      $fields['processed'] = \Drupal::time()->getRequestTime();
+    }
     \Drupal::database()->merge('xedc_image_file')
       ->keys(['fid' => $fid])
-      ->fields([
-        'animated' => $animated ? 1 : 0,
-        'webp' => $webp,
-        'bytes' => $bytes,
-        'source_sha256' => $sourceHash,
-        'stored_sha256' => $storedHash,
-      ])
+      ->fields($fields)
       ->execute();
   }
 
@@ -393,7 +423,10 @@ class ImagePipeline {
     }
     $total = max((int) $item->weight, (int) $task->total);
     $filename = sprintf('n%d-%s.%s', (int) $node->id(), str_pad((string) $item->weight, max(3, strlen((string) $total)), '0', STR_PAD_LEFT), $built['extension']);
+    $this->notePhase((int) $task->id, 'storing', '正在上传到公开存储');
+    $storeStarted = hrtime(TRUE);
     $uri = $this->fileSystem->copy($built['path'], $directory . '/' . $filename, FileExists::Rename);
+    $this->lastStoreMs += (int) ((hrtime(TRUE) - $storeStarted) / 1000000);
     $file = File::create([
       'uri' => $uri,
       'uid' => (int) $task->uid,
@@ -417,7 +450,13 @@ class ImagePipeline {
     }
     $storedReal = $this->readablePath($file->getFileUri());
     $bytes = is_string($storedReal) ? (int) filesize($storedReal) : 0;
-    $this->rememberFile((int) $file->id(), $built['animated'], $built['delivery'], $bytes, $sourceHash, $storedHash);
+    $this->rememberFile((int) $file->id(), $built['animated'], $built['delivery'], $bytes, $sourceHash, $storedHash, [
+      'original_bytes' => (int) ($sourceInfo['bytes'] ?? 0),
+      'original_mime' => (string) ($sourceInfo['mime'] ?? ''),
+      'original_extension' => (string) ($sourceInfo['extension'] ?? ''),
+      'optimized_mime' => (string) ($built['mime'] ?? ''),
+      'optimized_extension' => (string) ($built['extension'] ?? ''),
+    ]);
     $alt = $this->altText($task, $item, $node);
     $this->tasks->markItem((int) $item->id, [
       'fid' => (int) $file->id(),
@@ -439,12 +478,14 @@ class ImagePipeline {
     }
     $this->markReady($item, $file, $media, $sourceHash, $storedHash, FALSE, 'success', $alt, $built);
     if ($this->variants instanceof ImageVariantBuilder) {
+      $variantStarted = hrtime(TRUE);
       try {
         $this->variants->keep($file, $sourcePath, $sourceInfo, $built);
       }
       catch (\Throwable $error) {
         $this->logger->warning('图片副本没有全部生成，正式文件已保留：@message', ['@message' => $error->getMessage()]);
       }
+      $this->lastStoreMs += (int) ((hrtime(TRUE) - $variantStarted) / 1000000);
     }
   }
 
@@ -903,6 +944,49 @@ class ImagePipeline {
     }
     fclose($handle);
     return FALSE;
+  }
+
+  /**
+   * Records the live stage without taking an open image batch out of upload mode.
+   */
+  private function notePhase(int $taskId, string $phase, string $message): void {
+    $fields = ['message' => $message];
+    $task = $this->tasks->load($taskId);
+    if ($task && (string) $task->stage !== 'open') {
+      $fields['stage'] = $phase;
+    }
+    if ($this->phaseColumn()) {
+      $fields['phase'] = $phase;
+    }
+    $this->tasks->update($taskId, $fields);
+  }
+
+  /**
+   * Persists one image's measured time after success or failure.
+   */
+  private function writeTiming(int $itemId, int $elapsedMs): void {
+    if ($itemId < 1 || !$this->timingColumns()) {
+      return;
+    }
+    $this->tasks->markItem($itemId, [
+      'elapsed_ms' => max(0, $elapsedMs),
+      'optimize_ms' => max(0, $this->lastOptimizeMs),
+      'store_ms' => max(0, $this->lastStoreMs),
+      'finished' => time(),
+    ]);
+  }
+
+  private function phaseColumn(): bool {
+    return $this->timingColumns();
+  }
+
+  private function timingColumns(): bool {
+    if ($this->timingColumns === NULL) {
+      $schema = \Drupal::database()->schema();
+      $this->timingColumns = $schema->fieldExists('xedc_import_item', 'elapsed_ms')
+        && $schema->fieldExists('xedc_import_task', 'phase');
+    }
+    return $this->timingColumns;
   }
 
   /**

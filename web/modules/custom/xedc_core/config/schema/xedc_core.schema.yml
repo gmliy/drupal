@@ -11,6 +11,9 @@ xedc_core.settings:
     max_files:
       type: integer
       label: 'Maximum file count'
+    max_compression_ratio:
+      type: integer
+      label: 'Maximum uncompressed to archive size ratio'
     max_depth:
       type: integer
       label: 'Maximum directory depth'
@@ -20,6 +23,30 @@ xedc_core.settings:
     max_image_bytes:
       type: integer
       label: 'Maximum image bytes'
+    member_max_image_bytes:
+      type: integer
+      label: 'Maximum image bytes for members'
+    member_max_archive_bytes:
+      type: integer
+      label: 'Maximum archive bytes for members'
+    upload_chunk_bytes:
+      type: integer
+      label: 'Upload chunk size'
+    upload_session_ttl:
+      type: integer
+      label: 'Upload session lifetime in seconds'
+    upload_max_active_user:
+      type: integer
+      label: 'Active upload sessions per user'
+    upload_max_active_site:
+      type: integer
+      label: 'Active upload sessions sitewide'
+    upload_max_disk_bytes:
+      type: integer
+      label: 'Disk quota for unfinished uploads'
+    upload_chunk_concurrency:
+      type: integer
+      label: 'Browser chunk concurrency'
     batch_size:
       type: integer
       label: 'Images per batch'
@@ -245,3 +272,47 @@ xedc_core.storage:
         other_monthly:
           type: float
           label: 'Other monthly cost'
+
+xedc_core.image_optimize:
+  type: config_object
+  label: 'XEDC image optimization'
+  mapping:
+    jpeg_quality:
+      type: integer
+      label: 'JPEG quality'
+    webp_quality:
+      type: integer
+      label: 'WebP quality'
+    avif_quality:
+      type: integer
+      label: 'AVIF quality'
+    allow_webp:
+      type: boolean
+      label: 'Allow WebP output'
+    allow_avif:
+      type: boolean
+      label: 'Allow AVIF output'
+    auto_format:
+      type: boolean
+      label: 'Choose the smaller format'
+    strip_metadata:
+      type: boolean
+      label: 'Strip privacy metadata'
+    sync_bytes:
+      type: integer
+      label: 'Synchronous size threshold'
+    max_bytes:
+      type: integer
+      label: 'Maximum image bytes'
+    max_pixels:
+      type: integer
+      label: 'Maximum decoded pixels'
+    timeout:
+      type: integer
+      label: 'Encoder timeout'
+    retries:
+      type: integer
+      label: 'Retry count'
+    concurrency:
+      type: integer
+      label: 'Queue concurrency'

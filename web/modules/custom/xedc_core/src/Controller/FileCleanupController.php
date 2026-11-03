@@ -15,6 +15,7 @@ use Drupal\xedc_core\Ops\Cleanup\CleanupRepository;
 use Drupal\xedc_core\Ops\Cleanup\FileAnalysisRunner;
 use Drupal\xedc_core\Ops\Cleanup\FileReferencePresenter;
 use Drupal\xedc_core\Ops\OpsFormat;
+use Drupal\xedc_core\Ops\Storage\StorageSizeFormatter;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -330,8 +331,8 @@ class FileCleanupController extends ControllerBase {
         'confirmed_uid' => (int) $row['confirmed_uid'],
         'error' => (string) $row['error'],
         'batch_id' => (int) $row['batch_id'],
-        'keep' => $payload['keep'] ?? NULL,
-        'drops' => $payload['drops'] ?? [],
+        'keep' => $this->presentFile($payload['keep'] ?? NULL),
+        'drops' => array_map($this->presentFile(...), is_array($payload['drops'] ?? NULL) ? $payload['drops'] : []),
         'migrations' => $payload['migrations'] ?? [],
         'blocked' => $payload['blocked'] ?? [],
         'rejected' => $payload['rejected'] ?? [],
@@ -582,6 +583,19 @@ class FileCleanupController extends ControllerBase {
       'temporary' => '临时文件',
       default => $category,
     };
+  }
+
+  /**
+   * Display copy. The stored payload keeps the original byte count.
+   */
+  private function presentFile(mixed $file): mixed {
+    if (!is_array($file) || !is_numeric($file['bytes'] ?? NULL)) {
+      return $file;
+    }
+    $copy = $file;
+    $copy['bytes_exact'] = StorageSizeFormatter::exactLabel($file['bytes']);
+    $copy['bytes'] = StorageSizeFormatter::formatBytes((int) $file['bytes']);
+    return $copy;
   }
 
   private function typeLabel(string $type): string {

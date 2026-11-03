@@ -1,8 +1,133 @@
+xedc_core.asset_archive:
+  path: '/admin/content/image-imports/archive'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\AssetUploadController::archive'
+  methods: [POST]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _csrf_request_header_token: 'TRUE'
+  options:
+    _admin_route: TRUE
+
+xedc_core.asset_image:
+  path: '/admin/content/image-imports/image'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\AssetUploadController::image'
+  methods: [POST]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _csrf_request_header_token: 'TRUE'
+  options:
+    _admin_route: TRUE
+
+xedc_core.asset_draft:
+  path: '/admin/content/image-imports/draft'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\AssetUploadController::draft'
+  methods: [POST]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _csrf_request_header_token: 'TRUE'
+  options:
+    _admin_route: TRUE
+
+xedc_core.asset_close:
+  path: '/admin/content/image-imports/close'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\AssetUploadController::close'
+  methods: [POST]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _csrf_request_header_token: 'TRUE'
+  options:
+    _admin_route: TRUE
+
+xedc_core.upload_sessions:
+  path: '/admin/content/image-imports/upload/sessions'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::listSessions'
+  methods: [GET]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _user_is_logged_in: 'TRUE'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.upload_session_create:
+  path: '/admin/content/image-imports/upload/session'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::createSession'
+  methods: [POST]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _csrf_request_header_token: 'TRUE'
+    _user_is_logged_in: 'TRUE'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.upload_session:
+  path: '/admin/content/image-imports/upload/session/{upload_session}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::show'
+  methods: [GET]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _user_is_logged_in: 'TRUE'
+    upload_session: '[a-f0-9]{32}'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.upload_chunk:
+  path: '/admin/content/image-imports/upload/session/{upload_session}/chunk/{chunk}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::chunk'
+  methods: [POST]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _csrf_request_header_token: 'TRUE'
+    _user_is_logged_in: 'TRUE'
+    upload_session: '[a-f0-9]{32}'
+    chunk: '\d+'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.upload_complete:
+  path: '/admin/content/image-imports/upload/session/{upload_session}/complete'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::complete'
+  methods: [POST]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _csrf_request_header_token: 'TRUE'
+    _user_is_logged_in: 'TRUE'
+    upload_session: '[a-f0-9]{32}'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.upload_cancel:
+  path: '/admin/content/image-imports/upload/session/{upload_session}/cancel'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::cancel'
+  methods: [POST]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _csrf_request_header_token: 'TRUE'
+    _user_is_logged_in: 'TRUE'
+    upload_session: '[a-f0-9]{32}'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
 xedc_core.import_list:
   path: '/admin/content/image-imports'
   defaults:
     _form: '\Drupal\xedc_core\Form\ImportListForm'
-    _title: '图片批量导入'
+    _title: '图片导入'
   requirements:
     _permission: 'import photo archives+administer xedc image imports'
   options:

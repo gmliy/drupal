@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\xedc_core\Ops;
 
-use Drupal\Core\StringTranslation\ByteSizeMarkup;
+use Drupal\xedc_core\Ops\Storage\StorageSizeFormatter;
 
 /**
  * Display helpers for operational numbers.
@@ -12,13 +12,12 @@ use Drupal\Core\StringTranslation\ByteSizeMarkup;
 final class OpsFormat {
 
   public static function bytes(int|float|null $bytes): string {
-    if ($bytes === NULL || !is_finite((float) $bytes) || $bytes < 0) {
+    if ($bytes === NULL || !is_finite((float) $bytes) || (float) $bytes < 0) {
       return '暂无数据';
     }
-    if ((float) $bytes === 0.0) {
-      return '0 B';
-    }
-    return (string) ByteSizeMarkup::create((int) round($bytes));
+    // Netdata averages and df output are fractional. The storage formatter
+    // only accepts whole bytes, so the display path rounds first.
+    return StorageSizeFormatter::formatBytes((int) round((float) $bytes));
   }
 
   public static function percent(int|float|null $value): string {

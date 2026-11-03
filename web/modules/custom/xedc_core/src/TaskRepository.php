@@ -21,6 +21,80 @@ class TaskRepository {
   ) {}
 
   /**
+   * Task created by one browser upload token.
+   */
+  public function findByUploadToken(string $token): ?object {
+    $token = trim($token);
+    if ($token === '' || !$this->database->schema()->fieldExists('xedc_import_task', 'upload_token')) {
+      return NULL;
+    }
+    $row = $this->database->select('xedc_import_task', 't')
+      ->fields('t')
+      ->condition('upload_token', $token)
+      ->orderBy('id', 'DESC')
+      ->range(0, 1)
+      ->execute()
+      ->fetchObject();
+    return $row ?: NULL;
+  }
+
+  /**
+   * Latest task that already stored this archive hash.
+   */
+  public function findByArchiveHash(string $hash): ?object {
+    $hash = strtolower(trim($hash));
+    if (!preg_match('/^[a-f0-9]{64}$/', $hash) || !$this->database->schema()->fieldExists('xedc_import_task', 'archive_sha256')) {
+      return NULL;
+    }
+    $row = $this->database->select('xedc_import_task', 't')
+      ->fields('t')
+      ->condition('archive_sha256', $hash)
+      ->condition('status', ImportStatus::CANCELLED, '<>')
+      ->orderBy('id', 'DESC')
+      ->range(0, 1)
+      ->execute()
+      ->fetchObject();
+    return $row ?: NULL;
+  }
+
+  /**
+   * One image row identified by the browser upload token.
+   */
+  public function itemByRelativePath(int $taskId, string $path): ?object {
+    $path = trim($path);
+    if ($taskId < 1 || $path === '') {
+      return NULL;
+    }
+    $row = $this->database->select('xedc_import_item', 'i')
+      ->fields('i')
+      ->condition('task_id', $taskId)
+      ->condition('relative_path', mb_substr($path, 0, 512))
+      ->range(0, 1)
+      ->execute()
+      ->fetchObject();
+    return $row ?: NULL;
+  }
+
+  /**
+   * Image batch that is still accepting browser uploads for this node.
+   */
+  public function openImageTask(int $nid): ?object {
+    if ($nid < 1) {
+      return NULL;
+    }
+    $row = $this->database->select('xedc_import_task', 't')
+      ->fields('t')
+      ->condition('nid', $nid)
+      ->condition('source', 'images')
+      ->condition('stage', 'open')
+      ->orderBy('id', 'DESC')
+      ->range(0, 1)
+      ->execute()
+      ->fetchObject();
+    return $row ?: NULL;
+  }
+
+  /**
    * Inserts a task and returns its id.
    *
    * @param array<string, mixed> $fields
@@ -99,7 +173,7 @@ class TaskRepository {
     if (!$files) {
       return;
     }
-    $query = $this->database->insert('xedc_import_item')->fields([
+    $columns = [
       'task_id',
       'weight',
       'original_name',
@@ -107,18 +181,28 @@ class TaskRepository {
       'temp_uri',
       'bytes',
       'status',
-    ]);
+    ];
+    $hasOriginal = $this->database->schema()->fieldExists('xedc_import_item', 'original_bytes');
+    if ($hasOriginal) {
+      $columns[] = 'original_bytes';
+    }
+    $query = $this->database->insert('xedc_import_item')->fields($columns);
     foreach (array_values($files) as $index => $file) {
       $relative = (string) $file['relative'];
-      $query->values([
+      $bytes = max(0, (int) $file['bytes']);
+      $values = [
         'task_id' => $taskId,
         'weight' => $start + $index,
-        'original_name' => mb_substr(basename($relative), 0, 512),
+        'original_name' => mb_substr((string) ($file['name'] ?? basename($relative)), 0, 512),
         'relative_path' => mb_substr($relative, 0, 512),
         'temp_uri' => mb_substr((string) $file['uri'], 0, 2048),
-        'bytes' => max(0, (int) $file['bytes']),
-        'status' => 'pending',
-      ]);
+        'bytes' => $bytes,
+        'status' => (string) ($file['status'] ?? 'pending'),
+      ];
+      if ($hasOriginal) {
+        $values['original_bytes'] = max(0, (int) ($file['original_bytes'] ?? $bytes));
+      }
+      $query->values($values);
     }
     $query->execute();
   }
@@ -229,7 +313,8 @@ class TaskRepository {
     $task = $this->load($taskId);
     $total = $task ? (int) $task->total : 0;
     $processed = $counts['success'] + $counts['failed'];
-    $progress = $total > 0 ? min(99, 30 + (int) floor($processed / $total * 65)) : (int) ($task->progress ?? 0);
+    $imagePercent = $total > 0 ? (int) floor($processed / $total * 100) : 0;
+    $progress = $total > 0 ? min(99, max($imagePercent, 30)) : (int) ($task->progress ?? 0);
     $this->update($taskId, [
       'processed' => $processed,
       'success_count' => $counts['success'],
@@ -437,6 +522,22 @@ class TaskRepository {
       ->fields('t', ['id'])
       ->condition('status', array_merge([ImportStatus::QUEUED], ImportStatus::processing()), 'IN')
       ->condition('changed', $before, '<')
+      ->range(0, 20)
+      ->execute()
+      ->fetchCol());
+  }
+
+  /**
+   * Tasks a background worker should keep moving.
+   *
+   * @return int[]
+   *   Task ids, oldest first.
+   */
+  public function activeIds(): array {
+    return array_map('intval', $this->database->select('xedc_import_task', 't')
+      ->fields('t', ['id'])
+      ->condition('status', array_merge([ImportStatus::QUEUED], ImportStatus::processing()), 'IN')
+      ->orderBy('id')
       ->range(0, 20)
       ->execute()
       ->fetchCol());

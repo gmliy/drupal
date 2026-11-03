@@ -14,3 +14,28 @@
   border: 1px solid var(--gin-border-color, #e2e2e6);
   border-radius: 8px;
 }
+
+.xedc-opt-detail {
+  margin: 0 0 20px;
+  padding: 16px 18px;
+  background: var(--gin-bg-layer, #fff);
+  color: var(--gin-color-text, #222);
+  border: 1px solid var(--gin-border-color, #e2e2e6);
+  border-radius: 8px;
+}
+
+.xedc-opt-detail dl {
+  display: grid;
+  grid-template-columns: 8em 1fr;
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.xedc-opt-detail dt {
+  margin: 0;
+  color: var(--gin-color-text-light, #555);
+}
+
+.xedc-opt-detail dd {
+  margin: 0;
+}

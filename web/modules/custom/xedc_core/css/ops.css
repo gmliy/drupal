@@ -262,6 +262,10 @@
   overflow-wrap: anywhere;
 }
 
+.xedc-ops-takeover td {
+  vertical-align: top;
+}
+
 .xedc-ops-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--ops-border);
@@ -772,4 +776,49 @@
   .xedc-ops[data-xedc-monitor] .xedc-ops-plot.is-loading {
     background: var(--xedc-admin-hover, #f4f4f5);
   }
+}
+
+.xedc-ops-switch-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: xedc-switch;
+}
+
+.xedc-ops-switch-steps li {
+  counter-increment: xedc-switch;
+  color: var(--ops-muted);
+  font-size: 13px;
+}
+
+.xedc-ops-switch-steps li::before {
+  content: counter(xedc-switch);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 6px;
+  border-radius: 999px;
+  background: var(--ops-bg);
+  color: var(--ops-text);
+  font-weight: 600;
+}
+
+.xedc-ops-switch td.is-ok {
+  color: var(--ops-ok);
+  font-weight: 600;
+}
+
+.xedc-ops-switch td.is-bad {
+  color: var(--ops-bad);
+  font-weight: 600;
+}
+
+.xedc-ops-switch td.is-warn {
+  color: #a16207;
+  font-weight: 600;
 }

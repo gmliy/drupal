@@ -1,0 +1,57 @@
+{#
+/**
+ * @file
+ * Per-switch takeover status. Included by the storage center.
+ */
+#}
+<section class="xedc-ops-panel" aria-label="接管检查">
+  <h3>接管检查</h3>
+  <p class="xedc-ops-note">{{ assessment.phase_note }}</p>
+  <p class="xedc-ops-note">适配器连接正常、文件系统可读、接管检查通过、接管可以执行、接管已执行，是五件不同的事。本页不执行接管，也不关闭任何开关。</p>
+  <div class="xedc-ops-table-wrap">
+    <table class="xedc-ops-table">
+      <thead><tr><th>结论</th><th>状态</th></tr></thead>
+      <tbody>
+        {% for row in assessment.summary %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td><span class="xedc-ops-badge is-{{ row.tone }}">{{ row.value }}</span></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="xedc-ops-detail">{{ assessment.execution_reason }}</p>
+  {% if assessment.observed_public_r2 %}
+    <p class="xedc-ops-note">观察到公开存储已经在 Cloudflare R2 上运行。这是现有生产状态，不是这次检查执行的接管。</p>
+  {% endif %}
+  <div class="xedc-ops-table-wrap">
+    <table class="xedc-ops-table xedc-ops-takeover">
+      <thead><tr><th>开关</th><th>当前状态</th><th>检查结果</th><th>实际配置来源</th><th>说明</th></tr></thead>
+      <tbody>
+        {% for row in assessment.rows %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.state }}</td>
+            <td><span class="xedc-ops-badge is-{{ row.tone }}">{{ row.result }}</span></td>
+            <td>{{ row.source }}</td>
+            <td>{{ row.explanation }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% if providers %}
+  <section class="xedc-ops-panel" aria-label="适配器连接">
+    <h3>适配器连接</h3>
+    <p class="xedc-ops-note">下面只证明目录可读或 Bucket 可读。它不表示接管检查通过，也不表示接管已执行。</p>
+    {% for provider in providers %}
+      <article class="xedc-ops-panel">
+        <h3>{{ provider.label }} <span class="xedc-ops-badge is-{{ provider.health.status == 'ok' ? 'ok' : (provider.health.status == 'bad' ? 'bad' : 'warn') }}">{{ provider.health.status }}</span></h3>
+        <p class="xedc-ops-detail">{{ provider.type }} · {{ provider.id }} · {{ provider.operational ? '适配器可用' : '适配器不可用' }}</p>
+        <p>{{ provider.health.detail }}</p>
+      </article>
+    {% endfor %}
+  </section>
+{% endif %}

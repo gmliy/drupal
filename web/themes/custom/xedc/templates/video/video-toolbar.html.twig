@@ -1,7 +1,7 @@
 <div class="xv-tools">
   {% if categories %}
     <nav class="xv-cats" aria-label="{{ '视频分类'|t }}">
-      <a class="xv-cats__all" href="{{ path('view.video_list.page_1') }}">{{ '全部'|t }}</a>
+      <a class="xv-cats__all is-active" href="{{ path('view.video_list.page_1') }}" aria-current="page">{{ '全部'|t }}</a>
       {% for cat in categories %}
         <a href="{{ cat.url }}">{{ cat.name }}<span>{{ cat.count }}</span></a>
       {% endfor %}

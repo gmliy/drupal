@@ -38,14 +38,14 @@
   {% if task.keep %}
     <article class="xedc-ops-panel">
       <h3>保留文件</h3>
-      <p class="xedc-ops-detail">{{ task.keep.fid }} · {{ task.keep.filename }} · {{ task.keep.uri }} · {{ task.keep.bytes }} 字节</p>
+      <p class="xedc-ops-detail">{{ task.keep.fid }} · {{ task.keep.filename }} · {{ task.keep.uri }} · <span title="{{ task.keep.bytes_exact }}">{{ task.keep.bytes }}</span></p>
     </article>
   {% endif %}
   {% if task.drops %}
     <h3 class="xedc-ops-section">待迁移文件</h3>
     <ul class="xedc-ops-paths">
       {% for drop in task.drops %}
-        <li><code>{{ drop.fid }} · {{ drop.uri }}</code><span>{{ drop.bytes }} 字节</span></li>
+        <li><code>{{ drop.fid }} · {{ drop.uri }}</code><span title="{{ drop.bytes_exact }}">{{ drop.bytes }}</span></li>
       {% endfor %}
     </ul>
   {% endif %}

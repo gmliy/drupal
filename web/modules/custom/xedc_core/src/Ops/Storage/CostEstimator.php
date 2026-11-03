@@ -34,6 +34,8 @@ final class CostEstimator {
     return [
       'currency' => $currency,
       'storage_gb' => number_format($storageGb, 4, '.', ''),
+      'storage_formatted' => \Drupal\xedc_core\Ops\Storage\StorageSizeFormatter::formatBytes($objectBytes),
+      'storage_exact' => \Drupal\xedc_core\Ops\Storage\StorageSizeFormatter::exactLabel($objectBytes),
       'storage_cost' => $this->money($storageCost),
       'download' => '未采集',
       'download_cost' => '未采集',

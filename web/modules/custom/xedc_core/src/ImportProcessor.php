@@ -7,7 +7,10 @@ namespace Drupal\xedc_core;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Lock\LockBackendInterface;
+use Drupal\Core\Queue\DelayableQueueInterface;
+use Drupal\Core\Queue\DelayedRequeueException;
 use Drupal\Core\Queue\QueueFactory;
+use Drupal\Core\Queue\RequeueException;
 use Drupal\Core\Session\AccountSwitcherInterface;
 use Drupal\Core\Session\UserSession;
 use Drupal\node\NodeInterface;
@@ -60,6 +63,9 @@ class ImportProcessor {
         'cover' => (int) $node->get('field_cover_image')->target_id,
       ], JSON_UNESCAPED_UNICODE),
       'message' => '等待处理',
+      'archive_bytes' => max(0, (int) ($payload['archive_bytes'] ?? 0)),
+      'archive_sha256' => $this->sha((string) ($payload['archive_sha256'] ?? '')),
+      'upload_token' => mb_substr(trim((string) ($payload['upload_token'] ?? '')), 0, 64),
     ]);
     try {
       $stored = $this->archive->intake($id, $payload);
@@ -92,7 +98,7 @@ class ImportProcessor {
       return 'done';
     }
     $lockName = 'xedc_import:' . $taskId;
-    if (!$this->lock->acquire($lockName, 300)) {
+    if (!$this->lock->acquire($lockName, 120.0)) {
       return 'busy';
     }
     $deadline = time() + ($budget ?: $this->budget());
@@ -102,7 +108,14 @@ class ImportProcessor {
       if (!$task || ImportStatus::isTerminal((string) $task->status)) {
         return 'done';
       }
-      if ($this->tasks->itemCount($taskId) === 0) {
+      $source = (string) $task->source;
+      if ($source === 'images' && $this->tasks->itemCount($taskId) === 0) {
+        if ((string) $task->stage === 'open') {
+          return 'done';
+        }
+        throw new ImportException('没有上传成功的图片。');
+      }
+      if ($source !== 'images' && $this->tasks->itemCount($taskId) === 0) {
         $this->prepare($task);
         $task = $this->tasks->load($taskId);
       }
@@ -119,8 +132,17 @@ class ImportProcessor {
       if (!$task || ImportStatus::isTerminal((string) $task->status)) {
         return 'done';
       }
+      $accepting = (string) $task->stage === 'open';
       $this->importSome($task, $deadline);
+      if ($accepting) {
+        $this->databaseUpdateOpen($taskId);
+      }
       if ($this->halted($taskId)) {
+        return 'done';
+      }
+      $fresh = $this->tasks->load($taskId);
+      if ($fresh && (string) $fresh->stage === 'open') {
+        $this->tasks->syncCounts($taskId);
         return 'done';
       }
       $counts = $this->tasks->syncCounts($taskId);
@@ -182,7 +204,8 @@ class ImportProcessor {
     if (!in_array((string) $task->status, [ImportStatus::FAILED, ImportStatus::PARTIAL], TRUE)) {
       throw new ImportException('当前状态不能重试。');
     }
-    if (!$this->archive->exists((string) $task->archive_uri)) {
+    $imageBatch = (string) $task->source === 'images';
+    if (!$imageBatch && !$this->archive->exists((string) $task->archive_uri)) {
       throw new ImportException('源压缩包已清理，无法重试。');
     }
     $reset = \Drupal::database()->update('xedc_import_item')
@@ -259,10 +282,134 @@ class ImportProcessor {
    */
   public function recover(): void {
     foreach ($this->tasks->stale(time() - 180) as $taskId) {
-      $this->queueFactory->get('xedc_image_import')->createItem(['task_id' => $taskId]);
-      $this->tasks->update($taskId, ['message' => '已恢复中断的任务']);
-      $this->tasks->log($taskId, 'warning', '任务长时间没有更新，已重新加入队列。');
+      $task = $this->tasks->load($taskId);
+      if ($task && (string) $task->source === 'images' && (string) $task->stage === 'open') {
+        $this->tasks->update($taskId, [
+          'status' => ImportStatus::QUEUED,
+          'stage' => ImportStatus::QUEUED,
+          'message' => '浏览器已离开，开始收尾已上传的图片',
+        ]);
+        $this->tasks->log($taskId, 'warning', '图片上传超过 3 分钟没有新文件，已开始处理已收到的图片。');
+      }
+      else {
+        $this->tasks->update($taskId, ['message' => '已恢复中断的任务']);
+      }
+      if ($this->enqueue($taskId)) {
+        $this->tasks->log($taskId, 'warning', '任务长时间没有更新，已重新加入队列。');
+      }
     }
+  }
+
+  /**
+   * Queues active tasks that have no waiting queue item.
+   */
+  public function ensureQueued(): int {
+    $added = 0;
+    foreach ($this->tasks->activeIds() as $taskId) {
+      $task = $this->tasks->load($taskId);
+      if (!$task || (string) $task->stage === 'open') {
+        continue;
+      }
+      if ($this->enqueue($taskId)) {
+        $added++;
+      }
+    }
+    return $added;
+  }
+
+  /**
+   * Returns queue rows whose lease has already ended.
+   *
+   * Drupal's queue garbage collection uses the request timestamp. A resident
+   * worker keeps that timestamp frozen, so a claim left behind by a killed
+   * process would stay invisible until the next cron.
+   */
+  public function releaseExpiredClaims(): void {
+    \Drupal::database()->update('queue')
+      ->fields(['expire' => 0])
+      ->condition('name', 'xedc_image_import')
+      ->condition('expire', 0, '<>')
+      ->condition('expire', \Drupal::time()->getCurrentTime(), '<')
+      ->execute();
+  }
+
+  /**
+   * Short slice used only when the resident worker is not running.
+   */
+  public function fallback(int $seconds): void {
+    $end = time() + max(1, $seconds);
+    $this->releaseExpiredClaims();
+    $this->ensureQueued();
+    $queue = $this->queueFactory->get('xedc_image_import');
+    $worker = \Drupal::service('plugin.manager.queue_worker')->createInstance('xedc_image_import');
+    while (time() < $end && ($item = $queue->claimItem(max(5, $end - time())))) {
+      try {
+        $worker->processItem($item->data);
+        $queue->deleteItem($item);
+      }
+      catch (DelayedRequeueException $e) {
+        if ($queue instanceof DelayableQueueInterface) {
+          $queue->delayItem($item, $e->getDelay());
+        }
+        else {
+          $queue->releaseItem($item);
+        }
+        break;
+      }
+      catch (RequeueException) {
+        $queue->releaseItem($item);
+      }
+      catch (\Throwable) {
+        $queue->releaseItem($item);
+        break;
+      }
+    }
+  }
+
+  /**
+   * Adds one queue item when this task is not already waiting.
+   */
+  private function enqueue(int $taskId): bool {
+    if ($taskId < 1 || $this->queued($taskId) > 0) {
+      return FALSE;
+    }
+    $this->queueFactory->get('xedc_image_import')->createItem(['task_id' => $taskId]);
+    return TRUE;
+  }
+
+  /**
+   * Queue rows for one task. Claimed rows still count.
+   */
+  private function queued(int $taskId): int {
+    return (int) \Drupal::database()->select('queue', 'q')
+      ->condition('name', 'xedc_image_import')
+      ->condition('data', serialize(['task_id' => $taskId]))
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+  }
+
+  /**
+   * Keeps an image batch open unless the client already asked to finish it.
+   */
+  private function databaseUpdateOpen(int $taskId): void {
+    \Drupal::database()->update('xedc_import_task')
+      ->fields([
+        'status' => ImportStatus::UPLOADING,
+        'stage' => 'open',
+        'changed' => time(),
+      ])
+      ->condition('id', $taskId)
+      ->condition('stage', 'open')
+      ->execute();
+  }
+
+  /**
+   * Keeps only a real SHA-256. Anything else is stored as empty.
+   */
+  private function sha(string $value): string {
+    $value = strtolower(trim($value));
+    return preg_match('/^[a-f0-9]{64}$/', $value) ? $value : '';
   }
 
   /**
@@ -288,7 +435,10 @@ class ImportProcessor {
       'progress' => 12,
       'message' => '正在解压',
     ]);
+    $this->tasks->log($id, 'info', '开始解压。');
+    $extractStarted = microtime(TRUE);
     $result = $this->archive->openAndExtract($task);
+    $this->tasks->log($id, 'info', '解压完成，耗时 ' . (int) round((microtime(TRUE) - $extractStarted) * 1000) . ' 毫秒。');
     if ($this->halted($id)) {
       return;
     }
@@ -334,40 +484,55 @@ class ImportProcessor {
     }
     $node = $this->node((int) $task->nid);
     $batch = max(1, (int) $this->configFactory->get('xedc_core.settings')->get('batch_size') ?: 5);
-    $this->tasks->update($id, [
-      'status' => ImportStatus::CONVERTING,
-      'stage' => ImportStatus::CONVERTING,
-      'message' => '正在转换并导入图片',
-    ]);
-    foreach ($this->tasks->pending($id, $batch) as $item) {
-      if (time() >= $deadline || $this->halted($id)) {
+    if ((string) $task->stage === 'open') {
+      $this->tasks->update($id, ['message' => '正在转换并导入图片']);
+    }
+    else {
+      $this->tasks->update($id, [
+        'status' => ImportStatus::CONVERTING,
+        'stage' => ImportStatus::CONVERTING,
+        'message' => '正在转换并导入图片',
+      ]);
+    }
+    while (time() < $deadline) {
+      if ($this->halted($id)) {
+        return;
+      }
+      $items = $this->tasks->pending($id, $batch);
+      if (!$items) {
         break;
       }
-      try {
-        $this->images->import($task, $item, $node);
-      }
-      catch (ImportAbortException $e) {
-        throw $e;
-      }
-      catch (ImportException $e) {
-        $this->tasks->markItem((int) $item->id, [
-          'status' => 'failed',
-          'error' => $e->getMessage(),
-        ]);
-        $this->tasks->log($id, 'error', (string) $item->original_name . '：' . $e->getMessage());
-      }
-      catch (\Throwable $e) {
-        $safe = $this->memberError($e);
-        $this->tasks->markItem((int) $item->id, [
-          'status' => 'failed',
-          'error' => $safe,
-        ]);
-        $this->logger->error('图片 @name 处理失败：@message', [
-          '@name' => $item->original_name,
-          '@message' => $e->getMessage(),
-          'exception' => $e,
-        ]);
-        $this->tasks->log($id, 'error', (string) $item->original_name . '：' . $safe);
+      foreach ($items as $item) {
+        if (time() >= $deadline || $this->halted($id) || !$this->lock->acquire('xedc_import:' . $id, 120.0)) {
+          break 2;
+        }
+        try {
+          $this->images->import($task, $item, $node);
+        }
+        catch (ImportAbortException $e) {
+          throw $e;
+        }
+        catch (ImportException $e) {
+          $this->tasks->markItem((int) $item->id, [
+            'status' => 'failed',
+            'error' => $e->getMessage(),
+          ]);
+          $this->tasks->log($id, 'error', (string) $item->original_name . '：' . $e->getMessage());
+        }
+        catch (\Throwable $e) {
+          $safe = $this->memberError($e);
+          $this->tasks->markItem((int) $item->id, [
+            'status' => 'failed',
+            'error' => $safe,
+          ]);
+          $this->logger->error('图片 @name 处理失败：@message', [
+            '@name' => $item->original_name,
+            '@message' => $e->getMessage(),
+            'exception' => $e,
+          ]);
+          $this->tasks->log($id, 'error', (string) $item->original_name . '：' . $safe);
+        }
+        $this->tasks->syncCounts($id);
       }
     }
   }
@@ -386,6 +551,7 @@ class ImportProcessor {
     $this->tasks->update($taskId, [
       'status' => ImportStatus::VERIFYING,
       'stage' => ImportStatus::VERIFYING,
+      'phase' => 'verifying',
       'message' => '正在校验数据',
     ]);
     $counts = $this->tasks->syncCounts($taskId);
@@ -474,13 +640,14 @@ class ImportProcessor {
     $fresh->setRevisionUserId((int) $task->uid);
     $fresh->setRevisionLogMessage('图片导入完成，等待审核');
     $fresh->save();
-    $this->tasks->update($taskId, [
-      'status' => ImportStatus::REVIEW,
-      'stage' => ImportStatus::COMPLETED,
-      'progress' => 100,
-      'message' => '导入完成，等待审核',
-      'error' => '',
-    ]);
+      $this->tasks->update($taskId, [
+        'status' => ImportStatus::REVIEW,
+        'stage' => ImportStatus::COMPLETED,
+        'phase' => 'completed',
+        'progress' => 100,
+        'message' => '导入完成，等待审核',
+        'error' => '',
+      ]);
     $this->tasks->log($taskId, 'info', '导入完成，进入待审核。图片 ' . $counts['success'] . ' 张，正式图片 ' . $counts['bytes'] . ' 字节。' . $this->reuseSummary($taskId));
     $this->cleaner->success($this->tasks->load($taskId));
   }
@@ -651,14 +818,18 @@ class ImportProcessor {
       throw new ImportException('图片 ALT 为空。');
     }
     $file = $media->get('field_media_image')->entity;
-    $real = ($file && method_exists($file, 'getFileUri')) ? $this->fileSystemReal($file->getFileUri()) : '';
-    if (!$file || $real === '' || !is_file($real)) {
+    $uri = ($file && method_exists($file, 'getFileUri')) ? (string) $file->getFileUri() : '';
+    $local = $uri !== '' ? $this->fileSystemReal($uri) : '';
+    // Public originals live on object storage. realpath() is empty there, but
+    // the stream wrapper can still see the object.
+    $target = ($local !== '' && is_file($local)) ? $local : $uri;
+    if (!$file || $target === '' || !is_file($target)) {
       throw new ImportException('正式图片文件缺失。');
     }
     if (str_starts_with($file->getFileUri(), 'private://xedc-import/')) {
       throw new ImportException('正式图片不应留在导入临时目录。');
     }
-    $stored = hash_file('sha256', $real);
+    $stored = hash_file('sha256', $target);
     $row = \Drupal::database()->select('xedc_image_file', 'h')
       ->fields('h', ['source_sha256', 'stored_sha256'])
       ->condition('fid', (int) $file->id())
@@ -683,7 +854,7 @@ class ImportProcessor {
         throw new ImportException('原始图片 SHA-256 和临时文件不一致。');
       }
     }
-    $size = (int) filesize($real);
+    $size = (int) filesize($target);
     if ($size < 1) {
       throw new ImportException('正式图片大小异常。');
     }

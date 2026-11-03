@@ -8,6 +8,7 @@ use Drupal\xedc_core\Ops\Storage\BootGuard;
 use Drupal\xedc_core\Ops\Storage\CredentialVault;
 use Drupal\xedc_core\Ops\Storage\RemoteFileReader;
 use Drupal\xedc_core\Ops\Storage\S3ClientFactory;
+use Drupal\xedc_core\Ops\Storage\StorageSizeFormatter;
 
 /**
  * Adapter over the existing R2 client. It does not open a second write path.
@@ -95,9 +96,14 @@ final class CloudflareR2Provider implements StorageProviderInterface {
       $head = $this->reader->head($connection, $sample);
       unset($connection, $secrets);
       if (!is_array($head)) {
-        return ['status' => 'warn', 'detail' => 'HeadBucket 成功。抽样对象不存在，没有写入。'];
+        return ['status' => 'warn', 'detail' => 'HeadBucket 成功。抽样对象不存在，没有写入。', 'sample_bytes' => NULL];
       }
-      return ['status' => 'ok', 'detail' => 'HeadBucket 成功。抽样对象 ' . (int) ($head['bytes'] ?? 0) . ' 字节。没有写入。'];
+      $sampleBytes = (int) ($head['bytes'] ?? 0);
+      return [
+        'status' => 'ok',
+        'detail' => 'HeadBucket 成功。抽样对象 ' . StorageSizeFormatter::formatBytes($sampleBytes) . '（' . StorageSizeFormatter::exactLabel($sampleBytes) . '）。没有写入。',
+        'sample_bytes' => $sampleBytes,
+      ];
     }
     catch (\Throwable $error) {
       $detail = BootGuard::safeError($error, $secrets);

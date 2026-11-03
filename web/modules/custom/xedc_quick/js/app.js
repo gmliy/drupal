@@ -126,8 +126,14 @@
             d.appendChild(ph);
           }
           const num = document.createElement('b');
-          num.textContent = String(i + 1);
+          num.textContent = it.st === 'up' && it.progress ? String(it.progress) + '%' : String(i + 1);
           d.appendChild(num);
+          if (it.err) {
+            const note = document.createElement('span');
+            note.className = 'xq-ph';
+            note.textContent = it.err;
+            d.appendChild(note);
+          }
           if (it === cover) {
             const mark = document.createElement('u');
             mark.textContent = '封面';
@@ -135,7 +141,9 @@
           }
           const actions = document.createElement('div');
           actions.className = 'xq-actions';
-          [['cover', '封面'], ['prev', '前移'], ['first', '最前'], ['del', '删除']].forEach(([act, label]) => {
+          const controls = [['cover', '封面'], ['prev', '前移'], ['first', '最前'], ['del', '删除']];
+          if (it.st === 'bad' && it.file) controls.unshift(['retry', '重试']);
+          controls.forEach(([act, label]) => {
             const b = document.createElement('button');
             b.type = 'button';
             b.textContent = label;
@@ -153,6 +161,22 @@
       function actOn(it, act) {
         const i = items.indexOf(it);
         if (i < 0) return;
+        if (act === 'retry') {
+          it.st = 'wait';
+          it.err = '';
+          draw();
+          csrf()
+            .then(() => up(it, items.indexOf(it) + 1, $('#xq-title').value.trim() || 'gallery'))
+            .catch((e) => {
+              it.st = 'bad';
+              it.err = e.message || '网络中断，服务器没有确认收到文件。';
+            })
+            .then(() => {
+              draw();
+              if (it.st === 'bad' && it.err) msg(it.err + ' 点图片上的重试，已成功的不会重传。');
+            });
+          return;
+        }
         if (act === 'cover') cover = it;
         else if (act === 'del') {
           if (it.thumb) URL.revokeObjectURL(it.thumb);
@@ -198,8 +222,23 @@
       });
 
       async function csrf() {
-        if (!token) token = await (await fetch('/session/token')).text();
-        return token;
+        if (token) return token;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        try {
+          const response = await fetch('/session/token', { signal: controller.signal });
+          if (!response.ok) throw new Error('token');
+          token = (await response.text()).trim();
+          if (!token) throw new Error('token');
+          return token;
+        }
+        catch (e) {
+          token = '';
+          throw new Error('网络中断，服务器没有确认收到文件。');
+        }
+        finally {
+          clearTimeout(timer);
+        }
       }
       async function postUpload(fd) {
         const headers = { 'X-CSRF-Token': await csrf() };
@@ -215,22 +254,38 @@
       async function up(it, n, title) {
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
-            const blob = await Promise.race([
-              scaled(it.file, 2000, 'image/webp', 0.82),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('压缩超时')), 30000)),
-            ]);
-            const fd = new FormData();
-            fd.append('file', blob, 'x.' + (blob.type === 'image/webp' ? 'webp' : 'jpg'));
-            fd.append('title', title);
-            fd.append('n', String(n));
-            fd.append('orig', String(it.file.size));
-            const response = await postUpload(fd);
-            if (!response.ok) throw new Error('HTTP ' + response.status);
-            const json = await response.json();
+            const json = await new Promise((resolve, reject) => {
+              const fd = new FormData();
+              fd.append('file', it.file, it.file.name);
+              fd.append('title', title);
+              fd.append('n', String(n));
+              fd.append('orig', String(it.file.size));
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', '/admin/quick-gallery/upload');
+              xhr.setRequestHeader('X-CSRF-Token', token);
+              xhr.upload.onprogress = (event) => {
+                if (!event.lengthComputable) return;
+                it.progress = Math.round(event.loaded / event.total * 100);
+                it.st = 'up';
+                draw();
+              };
+              xhr.onload = () => {
+                let body = {};
+                try { body = JSON.parse(xhr.responseText || '{}'); }
+                catch (e) { body = {}; }
+                if (xhr.status >= 200 && xhr.status < 300 && body.mid) resolve(body);
+                else reject(new Error(body.error || ('HTTP ' + xhr.status)));
+              };
+              xhr.onerror = () => reject(new Error('网络中断，服务器没有确认收到文件。'));
+              xhr.send(fd);
+            });
             it.mid = json.mid;
             it.dup = !!json.dup;
+            it.originalBytes = json.original_bytes || it.file.size;
+            it.optimizedBytes = json.optimized_bytes || 0;
             it.st = 'ok';
             it.err = '';
+            it.progress = 100;
             return;
           }
           catch (e) {
@@ -271,14 +326,33 @@
         const title = $('#xq-title').value.trim();
         if (!title || !items.length) return msg('请填标题并选择照片');
         if (items.some((it) => !it.file)) return msg('有无法读取的图片，请删除后重试');
+        if (btn.dataset.busy === '1') return;
+        btn.dataset.busy = '1';
         btn.disabled = true;
         msg('上传中…');
-        await run(title);
+        try {
+          await csrf();
+          await run(title);
+        }
+        catch (e) {
+          const reason = e.message || '网络中断，服务器没有确认收到文件。';
+          items.forEach((it) => {
+            if (it.st !== 'ok') {
+              it.st = 'bad';
+              it.err = it.err || reason;
+            }
+          });
+          draw();
+          btn.disabled = false;
+          btn.dataset.busy = '';
+          return msg(reason + ' 点图片上的重试，已成功的不会重传。');
+        }
         const dupes = items.filter((x) => x.dup).length;
         if (dupes) msg(dupes + ' 张已存在，已复用');
         if (items.some((x) => x.st !== 'ok')) {
           btn.disabled = false;
-          return msg('有失败的图：' + items.filter((x) => x.st !== 'ok').map((x) => x.err).filter(Boolean).join(' ') + ' 再点一次重试');
+          btn.dataset.busy = '';
+          return msg('有失败的图：' + items.filter((x) => x.st !== 'ok').map((x) => x.err).filter(Boolean).join(' ') + '。点图片上的重试，已成功的不会重传。');
         }
         try {
           const response = await fetch('/admin/quick-gallery/create', {
@@ -295,15 +369,25 @@
             }),
           });
           const json = await response.json();
-          if (response.ok && json.edit) location.href = json.edit;
+          if (response.ok && json.edit) {
+            const state = json.published ? '已发布' : ('未发布' + (json.moderation ? ' / ' + json.moderation : ''));
+            msg('处理完成。' + (json.count || items.length) + ' 张，原图 ' + (json.original_label || '未知') + '，优化后 ' + (json.optimized_label || '未知') + '。' + state + '。');
+            const link = document.createElement('a');
+            link.href = json.edit;
+            link.textContent = '打开内容';
+            $('#xq-msg').appendChild(document.createTextNode(' '));
+            $('#xq-msg').appendChild(link);
+          }
           else {
             msg(json.error || '创建失败');
             btn.disabled = false;
+            btn.dataset.busy = '';
           }
         }
         catch (e) {
           msg('创建失败');
           btn.disabled = false;
+          btn.dataset.busy = '';
         }
       });
     },

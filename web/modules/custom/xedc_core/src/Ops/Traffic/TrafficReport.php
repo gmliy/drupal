@@ -99,6 +99,15 @@ final class TrafficReport {
     }
     $points = $this->trend($iface, $today, $span, $zone);
     $rows = $day === '' ? $this->history($iface, $today, $span, $zone) : $this->historyDay($iface, $day);
+    $lastSample = '';
+    if ($last) {
+      $stamp = (int) $last['sampled'];
+      $lastSample = $this->dateFormatter->format($stamp, 'custom', 'Y-m-d H:i:s');
+      $businessClock = $this->dateFormatter->format($stamp, 'custom', 'Y-m-d H:i:s', $zone->getName());
+      if ($lastSample !== $businessClock) {
+        $notes[] = '累计流量按 ' . $zone->getName() . ' 划分日期。采集时间跟随当前账号时区。';
+      }
+    }
     return [
       'iface' => $iface,
       'choices' => $physical,
@@ -107,10 +116,10 @@ final class TrafficReport {
       'rx_rate' => $rxRate,
       'tx_rate' => $txRate,
       'rate_source' => $rxRate === '未采集' && $txRate === '未采集' ? '未采集' : 'Netdata',
-      'last_sample' => $last ? $this->dateFormatter->format((int) $last['sampled'], 'custom', 'Y-m-d H:i:s', $this->zone()->getName()) : '',
+      'last_sample' => $lastSample,
       'last_status' => $last ? (string) $last['status'] : '',
       'last_detail' => $last ? (string) $last['detail'] : '',
-      'started' => $started ? $this->dateFormatter->format((int) $this->startedStamp($iface), 'custom', 'Y-m-d H:i:s', $this->zone()->getName()) : '',
+      'started' => $started ? $this->dateFormatter->format((int) $this->startedStamp($iface), 'custom', 'Y-m-d H:i:s') : '',
       'integrity' => $integrity,
       'integrity_label' => self::LABELS[$integrity] ?? '未知',
       'span' => $span,

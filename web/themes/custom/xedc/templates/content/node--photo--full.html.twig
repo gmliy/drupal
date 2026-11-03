@@ -19,6 +19,18 @@
               <span class="img-detail__facts-sep" aria-hidden="true">·</span>
               <time datetime="{{ xedc_meta.date }}">{{ xedc_meta.date }}</time>
             </p>
+            {% if xedc_meta.gallery_stats %}
+              <p class="img-detail__facts">
+                <span>{{ '优化后'|t }} {{ xedc_meta.optimized }}</span>
+                <span class="img-detail__facts-sep" aria-hidden="true">·</span>
+                <span>{{ '节省'|t }} {{ xedc_meta.saved }}</span>
+                <span class="img-detail__facts-sep" aria-hidden="true">·</span>
+                <span>{{ '压缩率'|t }} {{ xedc_meta.ratio }}</span>
+                <span class="img-detail__facts-sep" aria-hidden="true">·</span>
+                <span>{{ xedc_meta.image_status }}</span>
+                {% if xedc_meta.note %}<span>{{ xedc_meta.note }}</span>{% endif %}
+              </p>
+            {% endif %}
             {% if gallery %}
               <button type="button" class="img-detail__all" data-img-all aria-label="{{ '全部'|t }}" aria-haspopup="dialog" aria-controls="img-sheet" aria-expanded="false">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>

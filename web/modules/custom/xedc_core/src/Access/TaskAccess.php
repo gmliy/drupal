@@ -36,7 +36,11 @@ class TaskAccess implements ContainerInjectionInterface {
   /**
    * View, retry, cancel, clean, reroll or roll back.
    */
-  public function view(AccountInterface $account, int $task): AccessResultInterface {
+  public function view(AccountInterface $account, int|string $task): AccessResultInterface {
+    if (!ctype_digit((string) $task)) {
+      return AccessResult::forbidden();
+    }
+    $task = (int) $task;
     $row = $this->tasks->load($task);
     if (!$row) {
       return AccessResult::forbidden()->cachePerPermissions();

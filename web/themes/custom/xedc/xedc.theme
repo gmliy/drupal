@@ -2098,11 +2098,17 @@ function _xedc_add_meta(array &$variables) {
       }
     }
   }
-  $orig = function_exists('xedc_quick_original_sizes') ? xedc_quick_original_sizes(array_values(array_unique($mediaOf))) : [];
-  $size = 0;
-  foreach ($files as $fid => $f) {
-    $mid = $mediaOf[$fid] ?? NULL;
-    $size += ($mid && !empty($orig[$mid])) ? (int) $orig[$mid] : (int) $f->getSize();
+  $galleryStats = NULL;
+  if ($node->bundle() === 'photo' && \Drupal::hasService('xedc_core.gallery_metrics')) {
+    $galleryStats = \Drupal::service('xedc_core.gallery_metrics')->forNode($node);
+  }
+  $sizeLabel = $galleryStats['original_label'] ?? '';
+  if ($sizeLabel === '') {
+    $size = 0;
+    foreach ($files as $f) {
+      $size += (int) $f->getSize();
+    }
+    $sizeLabel = (string) \Drupal\Core\StringTranslation\ByteSizeMarkup::create($size);
   }
   $terms = function ($field) use ($node) {
     $out = [];
@@ -2115,8 +2121,15 @@ function _xedc_add_meta(array &$variables) {
     return $out;
   };
   $variables['xedc_meta'] = [
-    'count' => count($files),
-    'size' => (string) \Drupal\Core\StringTranslation\ByteSizeMarkup::create($size),
+    'count' => $galleryStats['count'] ?? count($files),
+    'size' => $sizeLabel,
+    'original' => $galleryStats['original_label'] ?? '',
+    'optimized' => $galleryStats['optimized_label'] ?? '',
+    'saved' => $galleryStats['saved_label'] ?? '',
+    'ratio' => $galleryStats['ratio_label'] ?? '',
+    'image_status' => $galleryStats['status'] ?? '',
+    'note' => $galleryStats['partial_note'] ?? '',
+    'gallery_stats' => $galleryStats !== NULL,
     'date' => \Drupal::service('date.formatter')->format($node->getCreatedTime(), 'custom', 'Y-m-d'),
     'models' => $terms('field_model'),
     'tags' => $terms('field_tags'),
@@ -2410,11 +2423,14 @@ function _xedc_vd_preprocess(array &$variables) {
   $owner = $node->getOwner();
   $variables['vd_author'] = [];
   if ($owner && (int) $owner->id() > 0) {
-    $variables['vd_author'] = [
-      'name' => $owner->getDisplayName(),
-      'url' => $owner->toUrl()->toString(),
-    ];
-    $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $owner->getCacheTags());
+    $cards = _xedc_vd_cards([(int) $node->id()], $variables);
+    if (!empty($cards[0]['author'])) {
+      $variables['vd_author'] = [
+        'name' => $cards[0]['author'],
+        'url' => $cards[0]['author_url'] ?? '',
+        'avatar' => $cards[0]['author_avatar'] ?? '',
+      ];
+    }
   }
   $variables['vd'] = $vd;
   _xedc_video_breadcrumb($node, $variables);
@@ -2480,6 +2496,28 @@ require_once __DIR__ . '/xedc.search.inc';
 /**
  * 视频列表页加载网格样式。
  */
+/**
+ * Drops the featured video from the grid so it is not rendered twice.
+ *
+ * The view query and sort stay as they are. Only the already-built first row
+ * is omitted when the page shows that same video as the lead.
+ */
+function xedc_preprocess_views_view_unformatted__video_list(array &$variables): void {
+  $view = $variables['view'] ?? NULL;
+  if (!$view || empty($variables['rows']) || !is_array($variables['rows'])) {
+    return;
+  }
+  $request = \Drupal::request();
+  $keys = trim((string) $request->query->get('keys'));
+  $sort = $request->query->get('sort') === 'hot' ? 'hot' : 'new';
+  $page = (isset($view->pager) && method_exists($view->pager, 'getCurrentPage')) ? (int) $view->pager->getCurrentPage() : 0;
+  if ($sort === 'new' && $keys === '' && $page === 0) {
+    $rows = $variables['rows'];
+    array_shift($rows);
+    $variables['rows'] = $rows;
+  }
+}
+
 function xedc_preprocess_views_view__video_list(array &$variables): void {
   $variables['title'] = '';
   _xedc_video_page_attach($variables);
@@ -2487,6 +2525,21 @@ function xedc_preprocess_views_view__video_list(array &$variables): void {
   $view = $variables['view'] ?? NULL;
   $variables['video_total'] = $view ? (int) ($view->total_rows ?? 0) : 0;
   $variables['video_lead'] = ($variables['video_sort'] ?? '') === 'new' && ($variables['video_keys'] ?? '') === '';
+  $variables['video_hero'] = NULL;
+  $page = ($view && isset($view->pager) && method_exists($view->pager, 'getCurrentPage')) ? (int) $view->pager->getCurrentPage() : 0;
+  $row = ($view && !empty($view->result[0])) ? $view->result[0] : NULL;
+  $lead = (is_object($row) && isset($row->_entity)) ? $row->_entity : NULL;
+  if ($variables['video_lead'] && $page === 0 && $lead instanceof \Drupal\node\NodeInterface && $lead->bundle() === 'video') {
+    $cards = _xedc_vd_cards([(int) $lead->id()], $variables);
+    if (!empty($cards[0])) {
+      $text = '';
+      if ($lead->hasField('field_body') && !$lead->get('field_body')->isEmpty()) {
+        $text = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $lead->get('field_body')->value)));
+      }
+      $cards[0]['excerpt'] = $text !== '' ? mb_substr($text, 0, 96) : '';
+      $variables['video_hero'] = $cards[0];
+    }
+  }
   $variables['header'] = [];
   if (!empty($variables['empty'])) {
     $variables['empty'] = ['#markup' => '<div class="xv-empty">' . t('暂无视频') . '</div>'];

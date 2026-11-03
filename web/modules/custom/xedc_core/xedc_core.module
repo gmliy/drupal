@@ -8,11 +8,13 @@
 declare(strict_types=1);
 
 use Drupal\Core\Cache\Cache;
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Drupal\file\FileInterface;
+use Drupal\views\ViewExecutable;
 use Drupal\media\MediaInterface;
 use Drupal\node\NodeInterface;
 use Drupal\user\UserInterface;
@@ -59,17 +61,56 @@ function xedc_core_form_node_form_alter(array &$form, FormStateInterface $form_s
     return;
   }
   $archive = \Drupal::service('xedc_core.archive');
+  $limit = (int) \Drupal::config('xedc_core.settings')->get('max_archive_bytes') ?: 209715200;
+  $form['#attached']['library'][] = 'xedc_core/asset_upload';
+  $form['#attached']['drupalSettings']['xedcAsset'] = [
+    'archiveUrl' => Url::fromRoute('xedc_core.asset_archive')->toString(),
+    'imageUrl' => Url::fromRoute('xedc_core.asset_image')->toString(),
+    'draftUrl' => Url::fromRoute('xedc_core.asset_draft')->toString(),
+    'closeUrl' => Url::fromRoute('xedc_core.asset_close')->toString(),
+    'progressBase' => Url::fromRoute('xedc_core.import_list')->toString() . '/',
+    'maxArchive' => $limit,
+    'nid' => (int) $node->id(),
+    'titleSelector' => '#edit-title-0-value',
+  ];
   $form['xedc_import'] = [
     '#type' => 'details',
-    '#title' => t('ZIP / 7Z 批量导入'),
+    '#title' => t('图片上传 / ZIP / 7z'),
     '#open' => TRUE,
     '#tree' => TRUE,
     '#weight' => 8,
     '#attributes' => ['class' => ['xedc-import']],
-    '#attached' => ['library' => ['xedc_core/admin']],
+    '#attached' => ['library' => ['xedc_core/admin', 'xedc_core/asset_upload']],
+  ];
+  $readiness = \Drupal::service('xedc_core.gallery_metrics')->readiness($node);
+  $reason = $readiness['reasons'] ? implode('；', $readiness['reasons']) : (string) t('当前没有阻塞发布的图片问题。');
+  $form['xedc_import']['status'] = [
+    '#type' => 'inline_template',
+    '#template' => '<p>{{ count }}；{{ original }}；{{ optimized }}；{{ saved }}；{{ ratio }}。{{ note }} {{ status }}。{{ reason }}</p>',
+    '#context' => [
+      'count' => t('图片 @count 张', ['@count' => $readiness['count']]),
+      'original' => t('原图总大小 @size', ['@size' => $readiness['original_label']]),
+      'optimized' => t('优化后 @size', ['@size' => $readiness['optimized_label']]),
+      'saved' => t('节省 @size', ['@size' => $readiness['saved_label']]),
+      'ratio' => t('压缩率 @ratio', ['@ratio' => $readiness['ratio_label']]),
+      'note' => $readiness['partial_note'],
+      'status' => t('处理状态 @status', ['@status' => $readiness['status']]),
+      'reason' => $reason,
+    ],
+  ];
+  $form['xedc_import']['uploader'] = [
+    '#type' => 'inline_template',
+    '#template' => '<div class="xedc-upload" data-xedc-asset-upload data-nid="{{ nid }}"><div class="xedc-upload__grid"><section><h3>ZIP / 7z</h3><label>{{ archive_label }}<input type="file" data-xedc-archive accept=".zip,.7z,application/zip,application/x-7z-compressed"></label></section><section><h3>{{ image_heading }}</h3><label>{{ image_label }}<input type="file" data-xedc-images accept="image/jpeg,image/png,image/gif,image/webp" multiple></label></section></div><p class="xedc-upload__note" data-xedc-note>{{ help }}</p><ul data-xedc-list></ul></div>',
+    '#context' => [
+      'nid' => (int) $node->id(),
+      'archive_label' => t('选择压缩包，上传后自动开始导入'),
+      'image_heading' => t('普通图片'),
+      'image_label' => t('选择图片，上传后后台继续优化'),
+      'help' => t('新建内容会先保存草稿。已上传成功的任务不会因为离开页面而丢失；浏览器里还没传完的文件无法由服务器恢复。'),
+    ],
   ];
   $form['xedc_import']['help'] = [
-    '#markup' => '<p>' . t('这里导入压缩包。上方的图片集仍然可以单张上传。导入完成前，新建内容保持草稿，不会出现在前台。') . '</p>',
+    '#markup' => '<p>' . t('上方图片集仍可使用媒体库。大批量图片建议用这里的上传，避免一次提交超过服务器的文件数量限制。') . '</p>',
   ];
   if (!$archive->privateReady()) {
     $form['xedc_import']['missing'] = [
@@ -82,17 +123,6 @@ function xedc_core_form_node_form_alter(array &$form, FormStateInterface $form_s
       '#markup' => '<p>' . t('服务器没有 7z，目前只能导入 ZIP。安装：sudo apt-get install 7zip') . '</p>',
     ];
   }
-  $limit = (int) \Drupal::config('xedc_core.settings')->get('max_archive_bytes') ?: 209715200;
-  $form['xedc_import']['archive'] = [
-    '#type' => 'managed_file',
-    '#title' => t('上传 ZIP 或 7Z'),
-    '#upload_location' => 'private://xedc-import/inbox',
-    '#upload_validators' => [
-      'FileExtension' => ['extensions' => 'zip 7z'],
-      'FileSizeLimit' => ['fileLimit' => $limit],
-    ],
-    '#description' => t('只接受 ZIP 和 7Z。系统会检查文件头，不只看扩展名。'),
-  ];
   if ($account->hasPermission('administer xedc image imports')) {
     $options = $archive->inboxOptions();
     if ($options) {
@@ -212,6 +242,18 @@ function xedc_core_module_implements_alter(array &$implementations, string $hook
 }
 
 /**
+ * Uses the CDN-aware image restriction without disabling the core filter.
+ *
+ * basic_html keeps filter_html_image_secure enabled. Only the plugin class
+ * changes, so tag allowlists and filter order stay as configured.
+ */
+function xedc_core_filter_info_alter(array &$info): void {
+  if (isset($info['filter_html_image_secure']['class'])) {
+    $info['filter_html_image_secure']['class'] = \Drupal\xedc_core\Filter\TrustedHtmlImageSecure::class;
+  }
+}
+
+/**
  * Implements hook_node_presave().
  */
 function xedc_core_node_presave(NodeInterface $node): void {
@@ -267,9 +309,31 @@ function xedc_core_file_insert(FileInterface $file): void {
 }
 
 /**
+ * Optimizes an image that became public after it was first stored elsewhere.
+ */
+function xedc_core_file_update(FileInterface $file): void {
+  if (\Drupal::hasService('xedc_core.image_optimize')) {
+    \Drupal::service('xedc_core.image_optimize')->accept($file);
+  }
+}
+
+/**
+ * Keeps image field dimensions aligned with the optimized file.
+ */
+function xedc_core_entity_presave(EntityInterface $entity): void {
+  if ($entity instanceof ContentEntityInterface && \Drupal::hasService('xedc_core.image_optimize')) {
+    \Drupal::service('xedc_core.image_optimize')->syncImageDimensions($entity);
+  }
+}
+
+/**
  * Implements hook_node_insert().
  */
 function xedc_core_node_insert(NodeInterface $node): void {
+  if ($node->bundle() === 'photo' && empty($node->xedc_import_internal)) {
+    \Drupal::service('xedc_core.alt')->refresh($node);
+    xedc_core_cover_alt($node, 'field_cover_image');
+  }
   xedc_core_import_after_save($node);
   xedc_core_video_after_save($node);
 }
@@ -279,9 +343,12 @@ function xedc_core_node_insert(NodeInterface $node): void {
  */
 function xedc_core_node_update(NodeInterface $node): void {
   if ($node->bundle() === 'photo' && empty($node->xedc_import_internal) && $node->original instanceof NodeInterface) {
-    if ($node->original->label() !== $node->label()) {
+    $before = array_column($node->original->hasField('field_images') ? $node->original->get('field_images')->getValue() : [], 'target_id');
+    $after = array_column($node->hasField('field_images') ? $node->get('field_images')->getValue() : [], 'target_id');
+    if ($node->original->label() !== $node->label() || $before !== $after) {
       \Drupal::service('xedc_core.alt')->refresh($node);
     }
+    xedc_core_cover_alt($node, 'field_cover_image');
     if ($node->isPublished() && !$node->original->isPublished()) {
       \Drupal::service('xedc_core.tasks')->markNodePublished((int) $node->id(), (int) \Drupal::currentUser()->id());
     }
@@ -314,6 +381,58 @@ function xedc_core_import_after_save(NodeInterface $node): void {
 }
 
 /**
+ * Fills an empty cover ALT without using the gallery sequence.
+ */
+function xedc_core_cover_alt(NodeInterface $node, string $field): void {
+  if (!$node->hasField($field) || $node->get($field)->isEmpty()) {
+    return;
+  }
+  $media = $node->get($field)->entity;
+  if (!$media instanceof MediaInterface || !$media->hasField('field_media_image') || $media->get('field_media_image')->isEmpty()) {
+    return;
+  }
+  if ($node->hasField('field_images')) {
+    foreach ($node->get('field_images')->getValue() as $item) {
+      if ((int) ($item['target_id'] ?? 0) === (int) $media->id()) {
+        return;
+      }
+    }
+  }
+  $alt = \Drupal::service('xedc_core.alt');
+  $current = trim((string) $media->get('field_media_image')->alt);
+  $row = \Drupal::database()->select('xedc_image_alt', 'a')
+    ->fields('a', ['source'])
+    ->condition('mid', (int) $media->id())
+    ->execute()
+    ->fetchField();
+  if ($row === 'manual' || ($current !== '' && $row !== 'auto')) {
+    return;
+  }
+  $text = $alt->cover($node->label());
+  if ($current === $text) {
+    return;
+  }
+  $media->xedc_import_internal = TRUE;
+  $media->get('field_media_image')->first()->set('alt', $text);
+  $media->save();
+  $alt->remember((int) $media->id(), $text, 'auto');
+}
+
+/**
+ * Sets an avatar ALT only when the picture has none.
+ */
+function xedc_core_user_presave(UserInterface $user): void {
+  if (!$user->hasField('user_picture') || $user->get('user_picture')->isEmpty()) {
+    return;
+  }
+  $item = $user->get('user_picture')->first();
+  if (!$item || trim((string) $item->alt) !== '') {
+    return;
+  }
+  $item->set('alt', \Drupal::service('xedc_core.alt')->cleanTitle($user->getDisplayName()) . '_头像');
+}
+
+/**
  * Implements hook_media_presave().
  */
 function xedc_core_media_presave(MediaInterface $media): void {
@@ -331,6 +450,10 @@ function xedc_core_media_presave(MediaInterface $media): void {
  */
 function xedc_core_cron(): void {
   \Drupal::service('xedc_core.processor')->recover();
+  $runner = (int) \Drupal::keyValue('state')->get('xedc_import.runner', 0);
+  if ($runner < \Drupal::time()->getRequestTime() - 45) {
+    \Drupal::service('xedc_core.processor')->fallback(20);
+  }
   \Drupal::service('xedc_core.cleaner')->expire();
   \Drupal::service('xedc_core.file_analysis')->cron();
   try {
@@ -345,6 +468,14 @@ function xedc_core_cron(): void {
   if (\Drupal::hasService('xedc_core.membership')) {
     \Drupal::service('xedc_core.membership')->expireDue();
     \Drupal::service('xedc_core.zip_builder')->purgeExpired();
+  }
+  if (\Drupal::hasService('xedc_core.upload_session')) {
+    try {
+      \Drupal::service('xedc_core.upload_session')->purgeExpired();
+    }
+    catch (\Throwable $e) {
+      \Drupal::logger('xedc_core')->error('清理上传会话失败：@message', ['@message' => $e->getMessage()]);
+    }
   }
 }
 
@@ -368,6 +499,7 @@ function xedc_core_theme(): array {
         'form' => NULL,
         'analysis' => [],
         'analysis_form' => NULL,
+        'gallery' => [],
       ],
       'template' => 'xedc-core-files',
     ],
@@ -631,6 +763,68 @@ function xedc_core_entity_delete(EntityInterface $entity): void {
 }
 
 /**
+ * Adds photo processing status to the existing moderation view.
+ */
+function xedc_core_views_data_alter(array &$data): void {
+  foreach (['node_field_data', 'node_field_revision'] as $table) {
+    if (!isset($data[$table])) {
+      continue;
+    }
+    $data[$table]['xedc_gallery_status'] = [
+      'title' => t('图片处理'),
+      'help' => t('图片内容的处理状态。文章和视频不显示图集状态。'),
+      'field' => [
+        'id' => 'xedc_gallery_status',
+      ],
+    ];
+    $data[$table]['xedc_gallery_state'] = [
+      'title' => t('图片处理筛选'),
+      'filter' => [
+        'id' => 'xedc_gallery_state',
+      ],
+      'real field' => 'nid',
+    ];
+  }
+}
+
+/**
+ * Attaches the status field and filter without a new menu or config export.
+ */
+function xedc_core_views_pre_view(ViewExecutable $view, string $display_id, array &$args): void {
+  if ($view->id() !== 'moderated_content') {
+    return;
+  }
+  if (!$view->getHandler($display_id, 'field', 'xedc_gallery_status')) {
+    $view->setHandler($display_id, 'field', 'xedc_gallery_status', [
+      'id' => 'xedc_gallery_status',
+      'table' => 'node_field_revision',
+      'field' => 'xedc_gallery_status',
+      'plugin_id' => 'xedc_gallery_status',
+      'label' => '图片处理',
+      'element_label_colon' => FALSE,
+    ]);
+  }
+  if (!$view->getHandler($display_id, 'filter', 'xedc_gallery_state')) {
+    $view->setHandler($display_id, 'filter', 'xedc_gallery_state', [
+      'id' => 'xedc_gallery_state',
+      'table' => 'node_field_revision',
+      'field' => 'xedc_gallery_state',
+      'plugin_id' => 'xedc_gallery_state',
+      'exposed' => TRUE,
+      'expose' => [
+        'operator_id' => '',
+        'label' => '图片处理',
+        'identifier' => 'gallery_state',
+        'required' => FALSE,
+        'remember' => FALSE,
+        'multiple' => FALSE,
+      ],
+      'group' => 1,
+    ]);
+  }
+}
+
+/**
  * Implements hook_views_plugins_field_alter().
  *
  * The content list renders fifty operation menus on every request. Cache the
@@ -656,6 +850,7 @@ function xedc_core_video_after_save(NodeInterface $node): void {
   if ($node->bundle() !== 'video') {
     return;
   }
+  xedc_core_cover_alt($node, 'field_video_cover');
   try {
     \Drupal::service('xedc_core.video_duration')->onNodeSave($node);
   }

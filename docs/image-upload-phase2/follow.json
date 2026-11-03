@@ -1,0 +1,19 @@
+{
+  "steps": [
+    {
+      "name": "网络中断后点击重试",
+      "status": "FAIL",
+      "detail": "click=clicked uploaded=false done=false msg=网络中断，服务器没有确认收到文件。 点图片上的重试，已成功的不会重传。"
+    },
+    {
+      "name": "浏览器未上传的文件不会变成完成",
+      "status": "PASS",
+      "detail": "note=true nodes=0"
+    },
+    {
+      "name": "点击重试处理并确认后恢复",
+      "status": "FAIL",
+      "detail": "{\"submitted\":\"网站遇到意外错误。稍后再试。\",\"count\":0,\"attempts\":0}"
+    }
+  ]
+}

@@ -16,6 +16,7 @@ use Drupal\xedc_core\Form\StorageProviderOpsForm;
 use Drupal\xedc_core\Form\StorageSecurityForm;
 use Drupal\xedc_core\Ops\OpsFormat;
 use Drupal\xedc_core\Ops\Storage\CapabilityProbe;
+use Drupal\xedc_core\Ops\Storage\StorageSizeFormatter;
 use Drupal\xedc_core\Ops\Storage\CdnStatus;
 use Drupal\xedc_core\Ops\Storage\CostEstimator;
 use Drupal\xedc_core\Ops\Storage\MigrationPlanner;
@@ -85,8 +86,12 @@ class StorageController extends ControllerBase {
     $this->storageConfig->ensure();
     $report = $this->readinessReport->report();
     $report['bytes_label'] = OpsFormat::bytes((int) ($report['census']['bytes'] ?? 0));
+    $report['bytes_exact'] = StorageSizeFormatter::exactLabel($report['census']['bytes'] ?? NULL);
     $report['public_bytes_label'] = OpsFormat::bytes((int) ($report['census']['public_bytes'] ?? 0));
+    $report['public_bytes_exact'] = StorageSizeFormatter::exactLabel($report['census']['public_bytes'] ?? NULL);
     $report['private_bytes_label'] = OpsFormat::bytes((int) ($report['census']['private_bytes'] ?? 0));
+    $report['private_bytes_exact'] = StorageSizeFormatter::exactLabel($report['census']['private_bytes'] ?? NULL);
+    $report['providers'] = $this->providerHealth();
     return $this->page('readiness', '启用检查', $report);
   }
 
@@ -144,6 +149,8 @@ class StorageController extends ControllerBase {
       'consistency' => RuntimeConsistency::report(),
       'active' => $this->activeLabel(),
       'state' => \Drupal\xedc_core\Ops\Storage\RuntimeState::read(),
+      'assessment' => $this->readinessReport->switches(),
+      'providers' => $this->providerHealth(),
     ], $form);
   }
 
@@ -161,12 +168,8 @@ class StorageController extends ControllerBase {
       \Drupal::service('xedc_core.storage_credentials'),
       \Drupal::service('xedc_core.storage_reader'),
     );
-    $cards = [];
-    foreach ($registry->operational() as $provider) {
-      $cards[] = $registry->card($provider, TRUE);
-    }
     return $this->page('health', '存储健康检查', [
-      'providers' => $cards,
+      'providers' => $this->providerHealth(),
       'reserved' => $registry->reserved(),
       'checked' => \Drupal::service('date.formatter')->format(\Drupal::time()->getRequestTime(), 'short'),
     ]);
@@ -363,8 +366,46 @@ class StorageController extends ControllerBase {
         'source_retained' => !empty($task['source_retained']) ? '保留' : '未知',
         'uri_rewritten' => !empty($task['uri_rewritten']) ? '已改写' : '未改写',
         'warnings' => is_array($task['warnings'] ?? NULL) ? $task['warnings'] : [],
-        'sample' => is_array($task['sample'] ?? NULL) ? $task['sample'] : [],
+        'sample' => $this->sampleSizes(is_array($task['sample'] ?? NULL) ? $task['sample'] : []),
       ];
+    }
+    return $rows;
+  }
+
+  /**
+   * @return list<array<string, mixed>>
+   *   Read-only adapter cards. One HeadBucket and one sample head, no listing.
+   */
+  private function providerHealth(): array {
+    $registry = new StorageProviderRegistry(
+      $this->storageConfig,
+      \Drupal::service('xedc_core.storage_credentials'),
+      \Drupal::service('xedc_core.storage_reader'),
+    );
+    $cards = [];
+    foreach ($registry->operational() as $provider) {
+      $cards[] = $registry->card($provider, TRUE);
+    }
+    return $cards;
+  }
+
+  /**
+   * @param list<mixed> $sample
+   *   Stored sample rows. The stored byte count is left unchanged.
+   *
+   * @return list<array<string, mixed>>
+   *   Display copy.
+   */
+  private function sampleSizes(array $sample): array {
+    $rows = [];
+    foreach ($sample as $row) {
+      if (!is_array($row)) {
+        continue;
+      }
+      $bytes = $row['bytes'] ?? NULL;
+      $row['bytes_exact'] = is_numeric($bytes) ? StorageSizeFormatter::exactLabel($bytes) : '';
+      $row['bytes'] = StorageSizeFormatter::formatBytes(is_numeric($bytes) ? (int) $bytes : NULL);
+      $rows[] = $row;
     }
     return $rows;
   }

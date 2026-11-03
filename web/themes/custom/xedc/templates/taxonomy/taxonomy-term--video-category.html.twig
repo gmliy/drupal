@@ -1,5 +1,6 @@
 {{ content|cache_metadata }}
 <header class="vc-term">
+  <p class="xv-kicker">{{ '分类'|t }}</p>
   <h1 class="vc-term__title">{{ term.label }}</h1>
   {% if term.description.value %}
     <div class="vc-term__desc">{{ content.description }}</div>

@@ -3,12 +3,47 @@
   flex-direction: column;
   min-width: 0;
   height: 100%;
-  background: transparent;
   color: inherit;
 }
 
+.xv-grid .vcard {
+  background: var(--xv-card, #fff);
+  border: 1px solid var(--xv-line, #e4e4e7);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.xv-grid .vcard__thumb {
+  border-radius: 0;
+}
+
+.xv-grid .vcard__title {
+  margin: 10px 12px 0;
+}
+
+.xv-grid .vcard__meta {
+  margin: 4px 12px 12px;
+}
+
+:is([data-bs-theme=dark], [data-theme=dark]) .xv-grid .vcard {
+  background: #27272a;
+  border-color: #3f3f46;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .xv-grid .vcard {
+    transition: border-color 0.2s ease;
+  }
+
+  .xv-grid .vcard:hover {
+    border-color: #a1a1aa;
+  }
+}
+
 .vcard__hit {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   color: inherit;
   text-decoration: none;
 }
@@ -18,8 +53,8 @@
   display: block;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  border-radius: 2px;
-  background: #111;
+  border-radius: 4px;
+  background: #18181b;
 }
 
 .vcard__thumb img,
@@ -31,38 +66,31 @@
 }
 
 .vcard__placeholder {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 40%),
-    #1c1c1c;
+  background: #27272a;
 }
 
 .vcard__thumb img {
   transition: transform 0.35s ease;
 }
 
-.vcard:hover .vcard__thumb img {
-  transform: scale(1.03);
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .vcard:hover .vcard__thumb img,
+  .xv-hero__media:hover img {
+    transform: scale(1.03);
+  }
 }
 
 .vcard__dur {
   position: absolute;
-  right: 8px;
+  left: 8px;
   bottom: 8px;
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: 2px;
   background: rgba(0, 0, 0, 0.72);
-  color: #fff;
+  color: #fafafa;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   line-height: 1.4;
-  letter-spacing: 0.02em;
-}
-
-.vcard__body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 2px 0;
 }
 
 .vcard__title {
@@ -70,42 +98,93 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  margin: 10px 2px 0;
+  min-height: 2.9em;
+  margin: 12px 0 0;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   line-height: 1.45;
-}
-
-.vcard__author {
-  position: relative;
-  z-index: 1;
-  color: inherit;
-  text-decoration: none;
-}
-
-.vcard__author:hover {
-  text-decoration: underline;
 }
 
 .vcard__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 10px;
-  margin: 0;
-  color: var(--xv-muted, var(--bs-secondary-color, #6b6b6b));
+  gap: 4px 0;
+  margin: 8px 0 0;
+  color: var(--xv-muted, #71717a);
   font-size: 13px;
   line-height: 1.4;
 }
 
-.vcard__cat {
+.vcard__meta > :not(:last-child)::after {
+  content: "·";
+  margin: 0 8px;
+  color: var(--xv-line, #d4d4d8);
+}
+
+.vmember {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
   color: inherit;
+  text-decoration: none;
 }
 
-:is([data-bs-theme=dark], [data-theme=dark]) .vcard__thumb {
-  background: #000;
+.vmember__avatar {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #e4e4e7;
+  color: #71717a;
 }
 
-:is([data-bs-theme=dark], [data-theme=dark]) .vcard__placeholder {
-  background: #222;
+.vmember__avatar img,
+.vmember__avatar svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
+
+.vmember__avatar svg {
+  fill: currentColor;
+}
+
+.vmember__avatar svg circle:first-child {
+  fill: #d4d4d8;
+}
+
+.vmember__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.vmember:hover .vmember__name {
+  text-decoration: underline;
+}
+
+.vd-by.vmember .vmember__avatar {
+  flex-basis: 36px;
+  width: 36px;
+  height: 36px;
+}
+
+.vd-by.vmember {
+  margin: 0 0 18px;
+  font-size: 15px;
+}
+
+:is([data-bs-theme=dark], [data-theme=dark]) .vmember__avatar {
+  background: #3f3f46;
+  color: #a1a1aa;
+}
+
+:is([data-bs-theme=dark], [data-theme=dark]) .vmember__avatar svg circle:first-child {
+  fill: #52525b;
+}
+

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\xedc_core\Ops\Storage\Provider;
 
 use Drupal\Core\Site\Settings;
+use Drupal\xedc_core\Ops\Storage\StorageSizeFormatter;
 
 /**
  * Local public and private files. This does not delete or move them.
@@ -67,11 +68,38 @@ final class LocalStorageProvider implements StorageProviderInterface {
       $problems[] = '私有目录不可读';
     }
     $free = @disk_free_space($publicPath);
-    $freeLabel = is_int($free) || is_float($free) ? (string) $free : '未知';
+    $total = @disk_total_space($publicPath);
+    $freeBytes = is_int($free) || is_float($free) ? (int) $free : NULL;
+    $totalBytes = is_int($total) || is_float($total) ? (int) $total : NULL;
+    $usedBytes = ($freeBytes !== NULL && $totalBytes !== NULL && $totalBytes >= $freeBytes) ? $totalBytes - $freeBytes : NULL;
+    $space = self::spaceText($freeBytes, $totalBytes, $usedBytes);
     if ($problems !== []) {
-      return ['status' => 'bad', 'detail' => implode('；', $problems) . '。剩余字节 ' . $freeLabel . '。'];
+      return [
+        'status' => 'bad',
+        'detail' => implode('；', $problems) . '。' . $space,
+        'free_bytes' => $freeBytes,
+        'total_bytes' => $totalBytes,
+        'used_bytes' => $usedBytes,
+      ];
     }
-    return ['status' => 'ok', 'detail' => '公开和私有目录可读。剩余字节 ' . $freeLabel . '。没有删除文件。'];
+    return [
+      'status' => 'ok',
+      'detail' => '公开和私有目录可读。' . $space . '没有删除文件。',
+      'free_bytes' => $freeBytes,
+      'total_bytes' => $totalBytes,
+      'used_bytes' => $usedBytes,
+    ];
+  }
+
+  private static function spaceText(?int $free, ?int $total, ?int $used): string {
+    if ($free === NULL) {
+      return '剩余空间未知。';
+    }
+    $text = '剩余 ' . StorageSizeFormatter::formatBytes($free) . '（' . StorageSizeFormatter::exactLabel($free) . '）';
+    if ($used !== NULL && $total !== NULL) {
+      $text .= '，已用 ' . StorageSizeFormatter::formatBytes($used) . '，共 ' . StorageSizeFormatter::formatBytes($total);
+    }
+    return $text . '。';
   }
 
 }

@@ -1,0 +1,247 @@
+{
+  "steps": [
+    {
+      "name": "管理员登录",
+      "status": "PASS",
+      "detail": "/user/1/edit"
+    },
+    {
+      "name": "快速发布只选择未上传时刷新",
+      "status": "PASS",
+      "detail": "before=已选 1 张 selected=1 after=已选 0 张"
+    },
+    {
+      "name": "快速发布浏览器成功并写入公开存储",
+      "status": "FAIL",
+      "detail": "{\"text\":\"跳转到主要内容\\nDcLili\\n控制台\\n快捷方式\\n内容管理\\nAI 运营中心\\n内容分类\\n用户管理\\n站点管理\\n扩展\\n结构\\n外观\\n网站配置\\n管理中心\\n跳到主要内容\\nDcLili\\n开放 面包屑 配置选项\\n面包屑\\n首页\\n管理\\n快速发布图集\\n查看网站\\na\\nadmin\\n开放 配置选项\\n快速发布图集\\n选择照片\\n已传 1 / 1\\n1\\n封面\\n封面\\n前移\\n最前\\n删除\\n 直接发布（不勾选则存草稿）\\n上传并创建草稿\\n处理完成。1 张，原图 41.02 KiB，优化后 4.10 KiB。未发布 / draft。 打开内容\",\"uri\":\"public://gallery/2026-11/xedcshangchuanyanshoudierjieduan-kuaisufabu-001.webp\",\"original\":0,\"optimized\":4196,\"mime\":\"image/webp\",\"moderation\":\"draft\",\"alt\":\"XEDC上传验收第二阶段 快速发布_第1张图\"}"
+    },
+    {
+      "name": "重复图片复用且不新增文件",
+      "status": "PASS",
+      "detail": "text=跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n快速发布图集\n查看网站\na\nadmin\n开放 配置选项\n快速发布图集\n选择照片\n已传 2 / 2\n1\n封面\n封面\n前移\n最前\n删除\n2\n封面\n前移 files 199->199 count=1"
+    },
+    {
+      "name": "损坏图片返回真实错误且不创建内容",
+      "status": "PASS",
+      "detail": "跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n快速发布图集\n查看网站\na\nadmin\n开放 配置选项\n快速发布图集\n选择照片\n已选 1 张\n1\n不是受支持的图片，文件没有公开。\n封面\n重试\n封面\n前移\n最前\n删除\n 直接发布（不勾选则存草稿）\n上传并创建草稿\n有失败的图：不是受支持的图片，文件没有公开。。点图片"
+    },
+    {
+      "name": "不支持的格式在浏览器被拒绝",
+      "status": "PASS",
+      "detail": "跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n快速发布图集\n查看网站\na\nadmin\n开放 配置选项\n快速发布图集\n选择照片\n已选 1 张\n失败\n1\nquick-note.txt 不是图片\n重试\n封面\n前移\n最前\n删除\n 直接发布（不勾选则存草稿）\n上传并创建草稿\n上传中…"
+    },
+    {
+      "name": "超过大小限制返回真实错误",
+      "status": "PASS",
+      "detail": "跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n快速发布图集\n查看网站\na\nadmin\n开放 配置选项\n快速发布图集\n选择照片\n已选 1 张\n1%\n文件过大\n封面\n封面\n前移\n最前\n删除\n 直接发布（不勾选则存草稿）\n上传并创建草稿\n上传中…"
+    },
+    {
+      "name": "模拟公开存储失败不创建内容",
+      "status": "PASS",
+      "detail": "跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n快速发布图集\n查看网站\na\nadmin\n开放 配置选项\n快速发布图集\n选择照片\n已选 1 张\n100%\n公开存储写入失败（测试模拟），文件没有公开。\n封面\n封面\n前移\n最前\n删除\n 直接发布（不勾选则存草稿）\n上传并创建草稿\n上传中…"
+    },
+    {
+      "name": "模拟公开存储失败不新增公开文件",
+      "status": "PASS",
+      "detail": "61->61"
+    },
+    {
+      "name": "网络中断后点击重试可以完成",
+      "status": "FAIL",
+      "detail": "offline=跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n快速发布图集\n查看网站\na click=no-retry after=跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n快速发布图集\n查看网站\na\nadmin\n开放 配置选项\n快速发布图集\n选择照片\n已选 1 张\n1\n封面\n封面\n前移\n最前\n删除\n 直接发布（不勾选"
+    },
+    {
+      "name": "防止重复提交",
+      "status": "PASS",
+      "detail": "creates=1 nodes=1 fired"
+    },
+    {
+      "name": "快速发布手机布局",
+      "status": "PASS",
+      "detail": "overflow 0"
+    },
+    {
+      "name": "10 张图片上传处理",
+      "status": "PASS",
+      "detail": "{\"selected\":10,\"count\":10,\"status\":\"review\",\"success\":10,\"failed\":0,\"published\":false,\"moderation\":\"needs_review\",\"ms\":70091,\"min_avail_kb\":4056908,\"max_load\":1.13,\"leave_status\":\"queued\"}"
+    },
+    {
+      "name": "关闭页面后任务继续或已经完成",
+      "status": "PASS",
+      "detail": "leave=queued end=review"
+    },
+    {
+      "name": "30 张图片上传处理",
+      "status": "PASS",
+      "detail": "{\"selected\":30,\"count\":30,\"status\":\"review\",\"success\":30,\"failed\":0,\"published\":false,\"ms\":185221,\"min_avail_kb\":3972400,\"max_load\":0.98,\"original\":2253972,\"optimized\":227554}"
+    },
+    {
+      "name": "未上传成功的文件刷新后不显示完成",
+      "status": "FAIL",
+      "detail": "跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n内容\n图片导入\n查看网站\na\nadmin\n上传图片或压缩包\n\n文件先上传到私有目录并创建任务。优化、入库和关联在后台继续。浏览器还没传完的文件，刷新后不能自动恢复。 服务器可以解压 ZIP 和 7z。\n\nZIP / 7z\n图集"
+    },
+    {
+      "name": "刷新后已上传任务可以重新查询",
+      "status": "PASS",
+      "detail": "stored=39 nodes=1 phases=completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,completed,browser-failed,completed,completed,completed,completed,等待处理,completed,completed,等待处理,completed,completed,completed,completed,completed"
+    },
+    {
+      "name": "页面点击失败重试后恢复",
+      "status": "FAIL",
+      "detail": "{\"question\":\"跳转到主要内容\\nDcLili\\n控制台\\n快捷方式\\n内容管理\\nAI 运营中心\\n内容分类\\n用户管理\\n站点管理\\n扩展\\n结构\\n外观\\n网站配置\\n管理中心\\n跳到主要内容\\nDc\",\"href\":\"/admin/content/image-imports/169/retry\",\"status\":\"queued\",\"count\":0,\"attempts\":1}"
+    },
+    {
+      "name": "缺失 ALT 筛选能查到测试图片",
+      "status": "PASS",
+      "detail": "跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n内容\n等待审核的内容\n查看网站\na\nadmin\n开放 配置选项\n等待审核的内容\n开放 主标签 配置选项\n主标签\n内容\n区块\n评论\n文件\n媒体\n开放 次标签 配置选项\n次标签\n概述\n待审核内容\n预定内容\n开放 配置选项\n标题 \n内容类型 \n- 任意 -\n基本页面\n文章"
+    },
+    {
+      "name": "完成筛选显示图片处理状态",
+      "status": "PASS",
+      "detail": "types=内容类型|美图|美图|美图|美图|美图|美图|美图|美图 跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n内容\n等待审核的内容\n查看网站\na\nadmin\n开放 配置选项\n等待审核的内容\n开放 主标签 配置选项\n主标签\n内容\n区块\n评论\n文件\n媒体\n开放 次标签 配置选项\n次标签\n概述\n待审核内容\n预定内容\n开放 配置选项\n标题 \n"
+    },
+    {
+      "name": "审核列表没有明显横向溢出",
+      "status": "PASS",
+      "detail": "overflow 0"
+    },
+    {
+      "name": "失败筛选不把已完成测试图集算作失败",
+      "status": "PASS",
+      "detail": "跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n内容\n等待审核的内容\n查看网站\na\nadmin\n开放 配置选项\n等待审核的内容\n开放 主标签 配置选项\n主标签\n内容\n区块\n评论\n文件\n媒体\n开放 次标签 配置选项\n次标签\n概述\n待审核"
+    },
+    {
+      "name": "没有新增一级菜单",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "图片详情显示图集容量",
+      "status": "PASS",
+      "detail": "跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\ndclili\n首页\n美图\n美图2\n视频\n文章\n模特\n中文\n开放 配置选项\n首页\nXEDC上传验收第二阶段 十张\n主标签\n查看\n编辑\n删除\n修订版本\n翻译\nXEDC上传验收第二阶段 十张\n\n10 张\n·\n原图:395.28 KiB\n·\n2026-11-03\n\n优化后 34.79 KiB\n·\n节省 360.49 KiB\n·\n压缩率 91.2"
+    },
+    {
+      "name": "文件统计中心仍显示图片容量",
+      "status": "PASS",
+      "detail": "跳转到主要内容\nDcLili\n控制台\n快捷方式\n内容管理\nAI 运营中心\n内容分类\n用户管理\n站点管理\n扩展\n结构\n外观\n网站配置\n管理中心\n跳到主要内容\nDcLili\n开放 面包屑 配置选项\n面包屑\n首页\n管理\n报告\n文件统计\n查看网站\na\nadmin\n开放 配置选项\n文件统计\n开放 主标签 配置选项\n主标签\n统计\n重复文件\n未引用文件\n清理任务\n日志\n视频转码\n\n运维中心\n\n文件统计\n刷新统计"
+    },
+    {
+      "name": "完整 Gin 暗色模式",
+      "status": "FAIL",
+      "detail": "class=false bg=rgb(247, 247, 248)"
+    },
+    {
+      "name": "PHP-FPM 没有内存或致命错误",
+      "status": "PASS",
+      "detail": "none"
+    }
+  ],
+  "perf": [
+    {
+      "t": "2026-11-03T13:18:58.627Z",
+      "avail_kb": 4546684,
+      "load": 0.8
+    },
+    {
+      "t": "2026-11-03T13:21:46.978Z",
+      "avail_kb": 4126036,
+      "load": 1.05
+    },
+    {
+      "t": "2026-11-03T13:21:48.573Z",
+      "avail_kb": 4069116,
+      "load": 1.13
+    },
+    {
+      "t": "2026-11-03T13:21:51.575Z",
+      "avail_kb": 4077580,
+      "load": 1.13
+    },
+    {
+      "t": "2026-11-03T13:21:54.932Z",
+      "avail_kb": 4089844,
+      "load": 1.04
+    },
+    {
+      "t": "2026-11-03T13:21:58.285Z",
+      "avail_kb": 4143084,
+      "load": 1.04
+    },
+    {
+      "t": "2026-11-03T13:22:01.628Z",
+      "avail_kb": 4056908,
+      "load": 1.11
+    },
+    {
+      "t": "2026-11-03T13:22:48.551Z",
+      "avail_kb": 4115128,
+      "load": 0.7
+    },
+    {
+      "t": "2026-11-03T13:22:49.061Z",
+      "avail_kb": 4138620,
+      "load": 0.7
+    },
+    {
+      "t": "2026-11-03T13:22:51.760Z",
+      "avail_kb": 4081020,
+      "load": 0.7
+    },
+    {
+      "t": "2026-11-03T13:22:53.493Z",
+      "avail_kb": 3972400,
+      "load": 0.89
+    },
+    {
+      "t": "2026-11-03T13:22:56.494Z",
+      "avail_kb": 3995136,
+      "load": 0.89
+    },
+    {
+      "t": "2026-11-03T13:22:59.865Z",
+      "avail_kb": 3993020,
+      "load": 0.97
+    },
+    {
+      "t": "2026-11-03T13:23:03.258Z",
+      "avail_kb": 4019764,
+      "load": 0.97
+    },
+    {
+      "t": "2026-11-03T13:23:06.607Z",
+      "avail_kb": 4035768,
+      "load": 0.98
+    },
+    {
+      "t": "2026-11-03T13:23:09.951Z",
+      "avail_kb": 4049880,
+      "load": 0.9
+    },
+    {
+      "t": "2026-11-03T13:25:53.700Z",
+      "avail_kb": 4081580,
+      "load": 0.85
+    }
+  ],
+  "notes": [
+    "continued task 166 with existing processor",
+    "continued task 167 with existing processor"
+  ],
+  "hardware": {
+    "nproc": "4",
+    "mem": "MemTotal:        7917120 kB | MemFree:         1178692 kB | MemAvailable:    4546684 kB",
+    "sample": {
+      "t": "2026-11-03T13:18:58.627Z",
+      "avail_kb": 4546684,
+      "load": 0.8
+    }
+  },
+  "ginBefore": "{\"enable_darkmode\":\"0\"}",
+  "chromePid": 322977,
+  "thirty": {
+    "ms": 185221,
+    "minAvail": 3972400,
+    "samples": 7
+  },
+  "fpmBytes": 0
+}

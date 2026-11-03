@@ -5,16 +5,21 @@ declare(strict_types=1);
 namespace Drupal\xedc_core\Image;
 
 /**
- * Chooses one smaller, decodable image without changing the pixel grid.
+ * Chooses one smaller, decodable image without shrinking the pixel grid.
  *
- * GD is the only encoder. The source path is left in place.
+ * GD is the only encoder. The source path is left in place. AVIF is produced
+ * only when the caller enables it; WebP is the usual smaller alternative.
  */
 final class ImageOptimizer {
 
   /**
+   * Results from this request, keyed by output hash and by source hash.
+   *
    * @var array<string, ImageOptimizeResult>
    */
   private array $claims = [];
+
+  private bool $oriented = FALSE;
 
   /**
    * @param array<string, mixed> $settings
@@ -23,17 +28,22 @@ final class ImageOptimizer {
   public function optimize(string $path, array $settings): ImageOptimizeResult {
     $started = hrtime(TRUE);
     $memory = memory_get_usage(TRUE);
+    $this->oriented = FALSE;
     $bytes = is_file($path) ? filesize($path) : FALSE;
     $sourceSha = is_file($path) ? hash_file('sha256', $path) : FALSE;
     if ($bytes === FALSE || $bytes < 1 || !is_string($sourceSha)) {
       return $this->reject($path, '文件是空的或无法读取。', $started, $memory);
     }
+    $free = @disk_free_space(sys_get_temp_dir());
+    if (is_float($free) && $free < max(67108864, ((int) $bytes) * 3)) {
+      return $this->reject($path, '临时目录空间不足。', $started, $memory, (int) $bytes, $sourceSha);
+    }
     $maxBytes = (int) ($settings['max_bytes'] ?? 20971520);
     if ($bytes > $maxBytes) {
-      return $this->reject($path, '图片超过安全大小。', $started, $memory, $bytes, $sourceSha);
+      return $this->reject($path, '图片超过安全大小。', $started, $memory, (int) $bytes, $sourceSha);
     }
     if ($this->isSvg($path)) {
-      return $this->svg($path, $bytes, $sourceSha, $started, $memory);
+      return $this->svg($path, (int) $bytes, $sourceSha, $started, $memory);
     }
     $info = @getimagesize($path);
     $type = (int) ($info[2] ?? 0);
@@ -41,10 +51,8 @@ final class ImageOptimizer {
     if (!$info || !isset($map[$type])) {
       return $this->reject($path, '不是受支持的图片，或文件已损坏。', $started, $memory, (int) $bytes, $sourceSha);
     }
-    $finfo = new \finfo(FILEINFO_MIME_TYPE);
-    $mime = (string) $finfo->file($path);
-    if ($mime !== $map[$type]['mime']) {
-      return $this->reject($path, '文件内容与扩展名不一致。', $started, $memory, (int) $bytes, $sourceSha);
+    if (!$this->mimeAgrees($path, $map[$type]['mime'])) {
+      return $this->reject($path, '文件内容与识别出的类型不一致。', $started, $memory, (int) $bytes, $sourceSha);
     }
     $width = (int) $info[0];
     $height = (int) $info[1];
@@ -54,24 +62,24 @@ final class ImageOptimizer {
       return $this->keep($path, $map[$type], $width, $height, (int) $bytes, $sourceSha, $started, $memory, FALSE, FALSE, '超过安全像素，已保留原图。');
     }
     if ($type === IMAGETYPE_GIF && $this->animatedGif($path)) {
-      return $this->keep($path, $map[$type], $width, $height, (int) $bytes, $sourceSha, $started, $memory, TRUE, FALSE, '');
+      return $this->keep($path, $map[$type], $width, $height, (int) $bytes, $sourceSha, $started, $memory, TRUE, FALSE, '保留 GIF 动画。');
     }
-    $decoded = $width * $height * 5;
-    if ($decoded > 80 * 1024 * 1024) {
+    if ($width * $height * 5 > 80 * 1024 * 1024) {
       return $this->keep($path, $map[$type], $width, $height, (int) $bytes, $sourceSha, $started, $memory, FALSE, FALSE, '解码内存超过限制，已保留原图。');
     }
-    $image = $this->open($path, $type);
-    if (!$image instanceof \GdImage) {
+    $opened = $this->open($path, $type);
+    if ($opened === NULL) {
       return $this->reject($path, '图片无法解码。', $started, $memory, (int) $bytes, $sourceSha);
     }
+    $image = $opened['image'];
+    $gifTransparent = $opened['transparent'];
     if ($type === IMAGETYPE_JPEG) {
       $image = $this->orient($path, $image);
     }
     $width = imagesx($image);
     $height = imagesy($image);
-    $alpha = $this->hasAlpha($image, $path, $type);
+    $alpha = $gifTransparent || $this->hasAlpha($image, $path, $type);
     $points = $alpha ? $this->alphaPoints($image) : [];
-    $candidates = [];
     $sameFormat = empty($settings['auto_format']);
     $deadline = $started + max(5, (int) ($settings['timeout'] ?? 20)) * 1000000000;
     $dir = sys_get_temp_dir() . '/xedc-opt-' . bin2hex(random_bytes(6));
@@ -79,8 +87,9 @@ final class ImageOptimizer {
       imagedestroy($image);
       return $this->reject($path, '无法创建临时目录。', $started, $memory, (int) $bytes, $sourceSha);
     }
+    $candidates = [];
     try {
-      if (!$alpha && (!$sameFormat || $type === IMAGETYPE_JPEG) && hrtime(TRUE) < $deadline) {
+      if ($type === IMAGETYPE_JPEG && !$alpha && hrtime(TRUE) < $deadline) {
         $jpeg = $this->save($image, $dir . '/out.jpg', 'jpeg', (int) ($settings['jpeg_quality'] ?? 84));
         if ($jpeg) {
           $candidates[] = $jpeg;
@@ -98,37 +107,38 @@ final class ImageOptimizer {
           $candidates[] = $avif;
         }
       }
-      if (($type === IMAGETYPE_PNG || $alpha) && (!$sameFormat || $type === IMAGETYPE_PNG) && hrtime(TRUE) < $deadline) {
+      if (($type === IMAGETYPE_PNG || $alpha || $type === IMAGETYPE_GIF) && (!$sameFormat || $type === IMAGETYPE_PNG) && hrtime(TRUE) < $deadline) {
         $png = $this->save($image, $dir . '/out.png', 'png', 9);
         if ($png) {
           $candidates[] = $png;
         }
       }
-      imagedestroy($image);
-      $image = NULL;
-      $best = NULL;
+      if ($sameFormat && $type === IMAGETYPE_GIF && hrtime(TRUE) < $deadline) {
+        $gif = $this->save($image, $dir . '/out.gif', 'gif', 0);
+        if ($gif) {
+          $candidates[] = $gif;
+        }
+      }
+      $valid = [];
       foreach ($candidates as $candidate) {
         if (!$this->validCandidate($candidate, $width, $height, $alpha, $points)) {
           @unlink($candidate['path']);
           continue;
         }
-        if ($candidate['bytes'] >= (int) $bytes) {
-          @unlink($candidate['path']);
-          continue;
-        }
-        if ($best === NULL || $candidate['bytes'] < $best['bytes']) {
-          if ($best !== NULL) {
-            @unlink($best['path']);
-          }
-          $best = $candidate;
-        }
-        else {
+        $valid[] = $candidate;
+      }
+      $best = $this->choose($valid, (int) $bytes, $map[$type]['extension'], !empty($settings['strip_metadata']));
+      foreach ($valid as $candidate) {
+        if ($best === NULL || $candidate['path'] !== $best['path']) {
           @unlink($candidate['path']);
         }
       }
+      imagedestroy($image);
+      $image = NULL;
       if ($best === NULL) {
         $this->removeDir($dir);
-        return $this->keep($path, $map[$type], $width, $height, (int) $bytes, $sourceSha, $started, $memory, FALSE, $alpha, '');
+        $note = $this->oriented ? '' : '';
+        return $this->keep($path, $map[$type], $width, $height, (int) $bytes, $sourceSha, $started, $memory, FALSE, $alpha, $note);
       }
       $sha = hash_file('sha256', $best['path']);
       $result = new ImageOptimizeResult(
@@ -151,6 +161,7 @@ final class ImageOptimizer {
         $alpha,
         $this->elapsed($started),
         max(0, memory_get_peak_usage(TRUE) - $memory),
+        $this->oriented && $best['bytes'] >= (int) $bytes ? '已纠正方向。' : '',
       );
       $this->claim($result);
       return $result;
@@ -166,10 +177,47 @@ final class ImageOptimizer {
     if (preg_match('/^[a-f0-9]{64}$/', $result->sha256)) {
       $this->claims[$result->sha256] = $result;
     }
+    if (preg_match('/^[a-f0-9]{64}$/', $result->sourceSha256)) {
+      $this->claims['src:' . $result->sourceSha256] = $result;
+    }
   }
 
   public function claimFor(string $sha256): ?ImageOptimizeResult {
-    return $this->claims[$sha256] ?? NULL;
+    return $this->claims[$sha256] ?? $this->claims['src:' . $sha256] ?? NULL;
+  }
+
+  /**
+   * @param list<array{path: string, mime: string, extension: string, bytes: int}> $valid
+   * @return array{path: string, mime: string, extension: string, bytes: int}|null
+   */
+  private function choose(array $valid, int $sourceBytes, string $sourceExtension, bool $strip): ?array {
+    $best = NULL;
+    foreach ($valid as $candidate) {
+      if ($candidate['bytes'] >= $sourceBytes) {
+        continue;
+      }
+      if ($best === NULL || $candidate['bytes'] < $best['bytes']) {
+        $best = $candidate;
+      }
+    }
+    if ($best !== NULL) {
+      return $best;
+    }
+    if ($this->oriented) {
+      foreach ($valid as $candidate) {
+        if ($candidate['extension'] === 'jpg') {
+          return $candidate;
+        }
+      }
+    }
+    if ($strip) {
+      foreach ($valid as $candidate) {
+        if ($candidate['extension'] === $sourceExtension && $candidate['bytes'] <= $sourceBytes) {
+          return $candidate;
+        }
+      }
+    }
+    return NULL;
   }
 
   /**
@@ -188,7 +236,27 @@ final class ImageOptimizer {
     return $map;
   }
 
-  private function open(string $path, int $type): ?\GdImage {
+  private function mimeAgrees(string $path, string $expected): bool {
+    $finfo = new \finfo(FILEINFO_MIME_TYPE);
+    $mime = strtolower((string) $finfo->file($path));
+    $aliases = [
+      'image/jpg' => 'image/jpeg',
+      'image/pjpeg' => 'image/jpeg',
+      'image/x-png' => 'image/png',
+      'image/x-citrix-jpeg' => 'image/jpeg',
+      'image/x-citrix-png' => 'image/png',
+    ];
+    $mime = $aliases[$mime] ?? $mime;
+    if ($mime === '' || $mime === 'application/octet-stream' || $mime === 'binary/octet-stream') {
+      return TRUE;
+    }
+    return $mime === $expected;
+  }
+
+  /**
+   * @return array{image: \GdImage, transparent: bool}|null
+   */
+  private function open(string $path, int $type): ?array {
     $image = match ($type) {
       IMAGETYPE_JPEG => @imagecreatefromjpeg($path),
       IMAGETYPE_PNG => @imagecreatefrompng($path),
@@ -199,12 +267,13 @@ final class ImageOptimizer {
     if (!$image instanceof \GdImage) {
       return NULL;
     }
+    $transparent = $type === IMAGETYPE_GIF && imagecolortransparent($image) >= 0;
     if (function_exists('imagepalettetotruecolor') && !imageistruecolor($image)) {
       imagepalettetotruecolor($image);
     }
     imagealphablending($image, FALSE);
     imagesavealpha($image, TRUE);
-    return $image;
+    return ['image' => $image, 'transparent' => $transparent];
   }
 
   private function orient(string $path, \GdImage $image): \GdImage {
@@ -225,7 +294,9 @@ final class ImageOptimizer {
     $rotated = imagerotate($image, $angle, 0);
     if ($rotated instanceof \GdImage) {
       imagedestroy($image);
+      imagealphablending($rotated, FALSE);
       imagesavealpha($rotated, TRUE);
+      $this->oriented = TRUE;
       return $rotated;
     }
     return $image;
@@ -238,8 +309,9 @@ final class ImageOptimizer {
     $ok = match ($format) {
       'jpeg' => @imagejpeg($image, $path, max(82, min(88, $quality))),
       'webp' => @imagewebp($image, $path, max(80, min(84, $quality))),
-      'avif' => @imageavif($image, $path, max(68, min(75, $quality))),
+      'avif' => function_exists('imageavif') ? @imageavif($image, $path, max(68, min(75, $quality))) : FALSE,
       'png' => @imagepng($image, $path, max(0, min(9, $quality))),
+      'gif' => @imagegif($image, $path),
       default => FALSE,
     };
     $size = $ok && is_file($path) ? filesize($path) : FALSE;
@@ -251,12 +323,14 @@ final class ImageOptimizer {
       'jpeg' => 'image/jpeg',
       'webp' => 'image/webp',
       'avif' => 'image/avif',
+      'gif' => 'image/gif',
       default => 'image/png',
     };
     $extension = match ($format) {
       'jpeg' => 'jpg',
       'webp' => 'webp',
       'avif' => 'avif',
+      'gif' => 'gif',
       default => 'png',
     };
     return ['path' => $path, 'mime' => $mime, 'extension' => $extension, 'bytes' => (int) $size];
@@ -271,13 +345,23 @@ final class ImageOptimizer {
     if (!$info || (int) $info[0] !== $width || (int) $info[1] !== $height) {
       return FALSE;
     }
-    $type = (int) ($info[2] ?? 0);
-    $proof = $this->open($candidate['path'], $type);
-    if (!$proof instanceof \GdImage) {
+    $expected = match ($candidate['extension']) {
+      'jpg' => IMAGETYPE_JPEG,
+      'png' => IMAGETYPE_PNG,
+      'gif' => IMAGETYPE_GIF,
+      'webp' => IMAGETYPE_WEBP,
+      'avif' => defined('IMAGETYPE_AVIF') ? IMAGETYPE_AVIF : -1,
+      default => -1,
+    };
+    if ((int) ($info[2] ?? 0) !== $expected) {
       return FALSE;
     }
-    $ok = !$alpha || !$points || $this->alphaSurvived($proof, $points);
-    imagedestroy($proof);
+    $proof = $this->open($candidate['path'], (int) $info[2]);
+    if ($proof === NULL) {
+      return FALSE;
+    }
+    $ok = !$alpha || $points === [] || $this->alphaSurvived($proof['image'], $points);
+    imagedestroy($proof['image']);
     return $ok;
   }
 
@@ -293,12 +377,12 @@ final class ImageOptimizer {
     }
     $handle = fopen($path, 'rb');
     if (!$handle) {
-      return FALSE;
+      return TRUE;
     }
     $signature = fread($handle, 8);
     if ($signature !== "\x89PNG\r\n\x1a\n") {
       fclose($handle);
-      return FALSE;
+      return TRUE;
     }
     while (!feof($handle)) {
       $head = fread($handle, 8);
@@ -318,7 +402,9 @@ final class ImageOptimizer {
         fclose($handle);
         return TRUE;
       }
-      fseek($handle, $size + 4, SEEK_CUR);
+      if ($size < 0 || fseek($handle, $size + 4, SEEK_CUR) !== 0) {
+        break;
+      }
     }
     fclose($handle);
     return FALSE;
@@ -331,10 +417,10 @@ final class ImageOptimizer {
     $points = [];
     $width = imagesx($image);
     $height = imagesy($image);
-    $step = max(1, (int) floor(max($width, $height) / 32));
-    for ($y = 0; $y < $height && count($points) < 6; $y += $step) {
-      for ($x = 0; $x < $width && count($points) < 6; $x += $step) {
-        $color = imagecolorsforindex($image, imagecolorat($image, $x, $y));
+    $step = max(1, (int) floor(max($width, $height) / 48));
+    for ($y = 0; $y < $height && count($points) < 8; $y += $step) {
+      for ($x = 0; $x < $width && count($points) < 8; $x += $step) {
+        $color = $this->colorAt($image, $x, $y);
         if (($color['alpha'] ?? 0) >= 16) {
           $points[] = [$x, $y];
         }
@@ -351,12 +437,24 @@ final class ImageOptimizer {
       if ($point[0] >= imagesx($image) || $point[1] >= imagesy($image)) {
         continue;
       }
-      $color = imagecolorsforindex($image, imagecolorat($image, $point[0], $point[1]));
+      $color = $this->colorAt($image, $point[0], $point[1]);
       if (($color['alpha'] ?? 0) >= 16) {
         return TRUE;
       }
     }
     return FALSE;
+  }
+
+  /**
+   * @return array{red?: int, green?: int, blue?: int, alpha: int}
+   */
+  private function colorAt(\GdImage $image, int $x, int $y): array {
+    $index = imagecolorat($image, $x, $y);
+    if (imageistruecolor($image)) {
+      return ['alpha' => ($index >> 24) & 0x7F];
+    }
+    $color = imagecolorsforindex($image, $index);
+    return is_array($color) ? $color : ['alpha' => 0];
   }
 
   private function animatedGif(string $path): bool {
@@ -387,18 +485,19 @@ final class ImageOptimizer {
     if (!$handle) {
       return FALSE;
     }
-    $head = fread($handle, 256);
+    $head = fread($handle, 512);
     fclose($handle);
     if (!is_string($head)) {
       return FALSE;
     }
-    return str_contains(ltrim($head), '<svg') || str_contains($head, '<svg');
+    $start = ltrim($head);
+    return str_starts_with($start, '<svg') || str_starts_with($start, '<?xml') && str_contains($head, '<svg');
   }
 
   private function svg(string $path, int $bytes, string $sha, int $started, int $memory): ImageOptimizeResult {
     $body = file_get_contents($path, FALSE, NULL, 0, 200000);
     $text = is_string($body) ? strtolower($body) : '';
-    if ($text === '' || str_contains($text, '<script') || str_contains($text, 'javascript:') || str_contains($text, 'onload=') || str_contains($text, '<foreignobject') || str_contains($text, '<!entity')) {
+    if ($text === '' || str_contains($text, '<script') || str_contains($text, 'javascript:') || str_contains($text, 'onload=') || str_contains($text, '<foreignobject') || str_contains($text, '<!entity') || str_contains($text, 'xlink:href="data:') || str_contains($text, "xlink:href='data:")) {
       return $this->reject($path, 'SVG 含有不允许的内容。', $started, $memory, $bytes, $sha);
     }
     return $this->keep($path, ['mime' => 'image/svg+xml', 'extension' => 'svg'], 0, 0, $bytes, $sha, $started, $memory, FALSE, FALSE, '');

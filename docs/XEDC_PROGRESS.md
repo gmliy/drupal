@@ -445,3 +445,151 @@
 - [x] 游客和 uid 81 的续播提示出现后，`currentTime` 都落到 6 并继续播放。从头播放会清掉进度。nid 54 播放结束会清掉进度。
 - [!] 全屏在 Xvfb 里仍然进不去。
 - [x] 视频首页、分类、标签和详情按现有内容重排。暗色标题为 `rgb(228, 228, 231)`。图片标签 `/tags/haibian` 仍是美图列表。
+
+## 图片自动优化
+
+2026-11-03。报告是 `docs/XEDC_IMAGE_OPTIMIZATION_IMPLEMENTATION_REPORT.md`。
+
+- [x] 公开图片共用 `ImageOptimizer`。新文件保存和从临时目录移入 `public://` 都会处理。隔离 JPEG 写入 `public/xedc-opt-test-…/*.webp`，SHA256 与回读一致，CDN 200。样式在本地 `sites/default/files/styles/`，对应 R2 key 不存在。测试对象已删除。
+- [x] 媒体库式 `file.repository` 移动、快速发布控制器、队列、EXIF 方向 6、ZIP 路径穿越、ZIP/7z 逐张 `officialImage()` 已跑通。匿名访问后台页 403。Chromium 打开优化页能看到设置和空记录。
+- [!] 会员投稿、后台创建和编辑、媒体库、快速发布没有在浏览器里点选文件。完整导入队列没有新建草稿节点。故意制造的 R2、数据库和磁盘失败没有做。
+
+## 视频专区最终 UI
+
+2026-11-03。报告是 `docs/XEDC_VIDEO_FINAL_UI_ACCEPTANCE_REPORT.md`。截图在 `docs/video-final-ui/`。
+
+- [x] 首页、分类、标签、详情使用同一套视频样式。1440px 四列，1280px 三列，768px 和 1024px 两列，375/390/430 一列。浅色标题 `rgb(28, 25, 23)`，暗色标题 `rgb(228, 228, 231)`。七档都没有横向溢出。
+- [x] 详情竖屏按封面比例显示，播放实测 1080×1920。相关推荐是左图右文。`/tags/haibian` 仍是图片标签页。搜索和热门排序可用。Chromium 点击后视频在播放。
+- [!] 全屏被无头浏览器权限拦住。这条样本不是 HLS。分页、长简介、点赞、收藏、分享和下载没有点击。播放文件时长是 5.17 秒，页面时长字段仍是 04:43。
+
+## 视频专区间距精修
+
+2026-11-03。说明是 `docs/XEDC_VIDEO_UI_SPACING_输出说明.md`。截图在 `docs/video-ui-spacing/`。
+
+- [x] 375 和 390 上，美图网格、文章列表、视频首页、分类和标签的内容左缘都是 16px，和全站容器一致。原先视频页自己再加 16px，卡片从 32px 开始。
+- [x] 详情页标题和播放器也回到 16px。多出来的一圈来自窄屏正文样式 `article { padding: 24px 16px }`，只在视频详情里取消。
+- [x] 列表卡片改为细边框和 8px 圆角，封面贴齐卡片上沿，标题和辅助信息放在卡片里面。
+
+## 视频专区第三次 UI 精修
+
+2026-11-03。报告是 `docs/XEDC_VIDEO_UI_REFINEMENT_ROUND2_REPORT.md`。说明是 `docs/XEDC_VIDEO_UI_REFINEMENT_ROUND2_输出说明.md`。截图在 `docs/video-ui-refinement-round2/`。没有提交 Git。
+
+- [x] 首页推荐不再用 `:first-of-type` 把网格第一行藏起来。第一页最新列表只在预处理里去掉已经取作推荐的那一行。首页第一张和第二张卡片的边框、圆角、尺寸一致。分类和标签的卡片用同一套样式。
+- [x] 相关推荐改成左封面右文字。封面 148×83，窄屏 112px 宽。当前视频不在推荐里。
+- [x] 首页、分类、标签、详情发布者和相关推荐的头像、名称都链到 `/r/{slug}`。地址用 `xedc_member.public_profile` 生成。没有 slug 时不输出链接。uid 81 登录后看到的仍是 `/r/aa`。
+- [x] 8 条视频一起渲染时，用户数据查询是 1 条，用户表查询是 2 条。
+- [!] 续播本轮没有再测。HLS 没有样本。全屏仍受无头浏览器限制。
+
+## 图片优化补齐
+
+2026-11-03。同一份报告 `docs/XEDC_IMAGE_OPTIMIZATION_IMPLEMENTATION_REPORT.md`。
+
+- [x] 媒体库上传不再漏优化。临时文件移入公开目录前先优化，正式 key 使用 `public/`，不保留未优化 JPEG。
+- [x] 快速发布小图先优化再入库。控制器实测 WebP 在 `public/gallery/`，原 JPEG key 不存在，测完已删。
+- [!] 浏览器里的上传点击、完整 ZIP 导入草稿和故意失败注入仍然没有做。
+
+## 图片优化浏览器验收
+
+2026-11-03。报告是 `docs/XEDC_IMAGE_OPTIMIZATION_BROWSER_ACCEPTANCE_REPORT.md`。截图在 `docs/image-optimize-browser/`。测试 ID `bacc7ad0f2`。没有提交 Git。
+
+- [x] 用管理员和会员浏览器会话核过美图封面、媒体库、会员投稿、头像、快速发布和大图队列。优化结果在 R2，SHA256 与回读一致，CDN 200。样式在本地，对应 R2 Key 不存在。
+- [x] ZIP 和 7z 走完导入任务。第一次因 `realpath()` 把 R2 对象判缺失而失败，已改 `ImportProcessor.php`。复测后两条都是待审核，没有发布。
+- [!] 文章封面、视频封面、图集、GIF、正文图片和封面替换没有保存到节点。损坏图、空文件、SVG、失败重试和故障注入没有做。不能算全入口验收完成。
+- [x] 测试节点、媒体、文件、导入任务、会员 uid 310 和对应 R2 对象已删。uid 1 的原头像还在。
+
+## R2 前缀一致性审计
+
+2026-11-03 10:27 UTC。报告是 `docs/XEDC_R2_PREFIX_CONSISTENCY_AUDIT.md`。只读核对，没有改代码、配置、文件 URI 或 R2 对象，没有 commit。
+
+- [x] 生产对象前缀是 `public/` 和 `private/`。公开包装器是 `XedcPublicS3fsStream`，私有包装器仍是本地 `PrivateStream`。线上视频和头像的 CDN 地址使用 `https://cdn.gitxx.xyz/public/...`，抽查 200。图片样式在本站 `/sites/default/files/styles/`，`public/styles/` 下没有对象。
+- [x] `s3fs-public/` 仍有 133 个旧对象，旧地址抽查仍是 200。它不是当前写入前缀。Bucket 里没有 `public/public/` 或 `s3fs-public/s3fs-public/`。
+- [!] `StorageSwitchManager` 和 `MigrationExecutor::probeOne()` 仍写死 `s3fs-public/`、`s3fs-private/`。当前 Key 和这两处不一致。本次没有改代码。
+- [!] `/private/` 的匿名请求是 Cloudflare 403。`/s3fs-private/` 是 404，两个私有前缀都没有对象，没有上传探测文件。
+
+## 图片优化最后一轮补测
+
+2026-11-03。报告是 `docs/XEDC_IMAGE_OPTIMIZATION_FINAL_ACCEPTANCE_REPORT.md`。截图在 `docs/image-optimize-final-acceptance/`。测试 ID `xedc-final-20261103-3a67`。没有提交 Git。
+
+- [x] 后台文章封面、后台视频封面、会员文章封面替换、会员视频封面和美图三张图集都在浏览器里保存到节点。优化结果在 R2，SHA256 与回读一致。透明 PNG 四角仍是全透明。图集前台按上传顺序显示。
+- [x] 正文图片上传后编辑器曾写已删除的 JPEG 地址。`ImageOptimizeApplier::accept()` 现在把优化后的 URI 写回上传调用方。复测正文地址是 WebP，原 JPEG Key 为 404，CDN 200。
+- [!] 文章页的 `filter_html_image_secure` 会去掉 `cdn.gitxx.xyz` 上的正文图片，前台只剩 16×16 的“已移除图像”。这次没有改文本格式。
+- [!] 图集有“显示多媒体条目权重”，本轮没有改权重再保存。
+- [x] 测试节点 549–556、媒体、14 个文件、会员 uid 311 和对应 R2 对象已删。uid 1 的原头像还在。
+
+## 对象存储切换修复
+
+2026-11-03。报告是 `docs/XEDC_STORAGE_SWITCH_FIX_REPORT.md`。截图在 `docs/storage-switch-fix/`。没有提交 Git，没有执行生产切换。
+
+- [x] 本地一致性检查的白屏来自表单缓存反序列化后 `$switcher` 未初始化。切换管理器已注册为服务，属性改为 protected。
+- [x] 一致性检查和复制计划改用当前前缀 `public/`。旧前缀 `s3fs-public/` 只作为只读来源，不会被移动或删除。
+- [x] 管理员浏览器里选择本地存储后，检查表出现，并出现「确认并执行切换」。没有点击它。选择 Cloudflare R2 时因为已经是当前模式，显示禁止执行。
+- [!] 全量 SHA-256 仍是未执行。生产切换、失败回滚和执行按钮的真实点击没有做。
+
+## 正文 CDN 图片显示修复
+
+2026-11-03。报告是 `docs/XEDC_IMAGE_OPTIMIZE_FINAL_FIX_REPORT.md`。截图在 `docs/image-optimize-cdn-fix/`。测试 ID `xedc-body-cdn-final-20261103-7c2e`。没有提交 Git。
+
+- [x] `basic_html` 的 `filter_html_image_secure` 仍启用。自定义类只放行主机正好是 `cdn.gitxx.xyz`、路径在 `/public/` 下的 HTTPS 图片。其他域名、伪装域名、用户信息、非 HTTPS 和 `/private/` 仍换成 16×16 占位图。
+- [x] 管理员浏览器在正文用「从电脑上传图片」插入 JPEG 并保存。编辑页保存的是 WebP CDN 地址。前台图片 720×420，请求 200 `image/webp`，没有占位图。
+- [x] 美图三张图用「显示多媒体条目权重」改成 2、1、0 后保存。重新打开是 WebP、PNG、JPEG。前台顺序和尺寸一致，PNG 四角仍透明。
+- [x] 测试节点 557、558、媒体 587–589、文件 870–873 和对应 R2 对象已删。四种语言都先取消发布。uid 1 的原头像还在。首页、美图、视频、文章栏目不含测试 ID。
+
+## 对象存储接管检查与容量单位
+
+2026-11-03。报告是 `docs/XEDC_STORAGE_TAKEOVER_AND_SIZE_FORMAT_FIX_REPORT.md`。截图在 `docs/storage-takeover-size/`。没有提交 Git，没有执行生产接管或存储切换。
+
+- [x] 组合错误来自首次启用前的检查，被用在已经运行的 Cloudflare R2 上。公开接管和 CDN 改写打开是当前架构的正常状态。`runtime_applied` 固定为 false，不能当作运行时开关。
+- [x] 运行模式页逐项显示运行时、公开接管、私有接管和 CDN Rewrite。接管检查通过，但本轮未执行，页面也不允许执行。
+- [x] 容量改为 1024 进制的 KiB/MiB/GiB。163198 为 159.37 KiB。39380312064 按四舍五入是 36.68 GiB。原始字节仍保留。
+- [!] 启用检查页仍保留 AVIF 和 CDN 私有前缀两项其他阻断。PHPUnit 未安装，断言由 Drush 脚本通过。会员下载页和服务器监控页没有打开。
+
+## 图片上传、ZIP/7z 与图集 SEO
+
+2026-11-03。报告是 `docs/XEDC_IMAGE_UPLOAD_IMPORT_ASYNC_SEO_ACCEPTANCE_REPORT.md`。截图在 `docs/image-upload-browser/`。没有提交 Git，没有发布测试内容。
+
+- [x] ZIP/7z 先前失败是因为整张图片表单的 AJAX 上传。手机请求 HTTP 400 且响应为空，页面上的文件名不代表已保存。新接口只传压缩包，写入私有目录后再建任务。
+- [x] Drush 脚本 27 项通过：中文 ZIP、中文 7z、空包、损坏包、超限、重复 token、重复哈希、两张图片批次、人工 ALT、未知原图大小。
+- [x] 浏览器上传了 7z 和 ZIP。7z 图集详情显示原图 695 B、优化后 66 B、节省 629 B、压缩率 90.5%。匿名访问该未发布内容返回 403。
+- [x] 响应后自动处理原先没启动，因为 ImportKick 缺少 `needs_destruction`。补标签后，已保存的 ZIP 任务进入待审核。
+- [x] 数据库更新 10013 已执行。历史原图大小保持未知。测试节点和两个公开 WebP 已删除。
+- [!] 浏览器没有一次选 30 张，没有点快速发布，没有从用户菜单切换完整暗色模式。正文图片 ALT 没有改写。
+
+## 图片上传第二阶段
+
+2026-11-03。报告是 `docs/XEDC_IMAGE_UPLOAD_PHASE2_ACCEPTANCE_REPORT.md`。截图在 `docs/image-upload-phase2/`。没有提交 Git，没有发布测试内容，没有改生产 R2。
+
+- [x] 浏览器快速发布一张图。页面显示原图 41.02 KiB、优化后 4.10 KiB、未发布 / draft。公开文件是 WebP，没有 `public/public/`。
+- [x] 浏览器一次上传 10 张和 30 张不同图片。任务分别是 10/10 和 30/30，内容未发布。30 张原图 2,253,972 字节，优化后 227,554 字节。最低可用内存约 3.79 GiB。
+- [x] 离开页面时 10 张任务还是排队，之后进入待审核。刷新只保留已经到达服务器的图片。
+- [x] 浏览器打开「重试这个导入任务？」并确认。任务从失败回到待审核，尝试次数 2，只有 1 张媒体。断网后的快速发布重试也创建了未发布草稿。
+- [x] 审核列表增加图片处理列。完成、未完成、失败、缺失 ALT 四个筛选都参与查询。排队中的图片不能从编辑页直接发布。
+- [x] 第一阶段脚本复跑 27/27，第二阶段脚本 19/19。标题前缀「XEDC上传验收第二阶段」的 12 个节点和 47 个公开文件已删。
+- [!] 当前后台主题是 xedc_admin。它的深色开关已点过，背景为 #18181B。Gin 的暗色类没有单独测。优化中和写入 R2 这两个瞬间没有单独刷新。
+
+## 服务器监控故障诊断与修复
+
+2026-11-03。报告是 `docs/XEDC_MONITOR_DIAGNOSIS_AND_REPAIR_REPORT.md`。没有提交 Git，没有清空流量表或 Netdata 历史，没有打开健康检查。
+
+- [x] 大量「暂无数据」是因为字节格式化拒绝了 Netdata 的小数采样。显示前先四舍五入到字节。存储格式化仍只接受整数。
+- [x] Active / Inactive 和磁盘聚合吞吐按维度显示名重新对上。Buffer Pool 从约 106.77 TiB 改回约 106.8 MiB。
+- [x] 累计流量日汇总与已计入增量一致。报表本身不采样。3 次历史间隔偏长仍显示为缺口。
+- [x] Chromium 打开总览、内存、磁盘、网络、MariaDB、Redis、Docker、告警和完整指标。页面没有「暂无数据」。匿名访问监控页面和 JSON 都是 403。
+- [!] 浏览器里没有等到下一次自动刷新，也没有点「重新获取」。Nginx 请求数和 PHP-FPM 队列仍然未采集。
+
+## 服务器监控独立验收
+
+2026-11-03。报告是 `docs/XEDC_MONITOR_INDEPENDENT_ACCEPTANCE_REPORT.md`。截图在 `docs/monitor-independent-acceptance/`。没有提交 Git，没有清空流量表或 Netdata 历史。
+
+- [x] 第一阶段的小数格式化、维度显示名、Buffer Pool 字节解释和告警说明都对得上原始接口。内存、Swap、Redis、容器和 Buffer Pool 不再显示成「暂无数据」或 106 TiB。
+- [x] 自动刷新在 9 秒内又请求了 4 次数据，CPU 从 29.5% 变为 20.4%。「重新获取」会更新数字，并回到总览。
+- [x] 分类历史图的写入和发送原先是负数。缓存把另一个时区的时间文字发给了 UTC 账号。点击「网络」会把日流量图盖成「暂无数据」。这三处已修并复测。
+- [!] Nginx 请求数、PHP-FPM 队列、带宽使用率、温度和告警定义仍然没有采集器。流量日表仍是 partial。MariaDB 虚拟内存约 24 TiB 是三份 VSZ 合计。
+
+## 压缩包导入性能
+
+2026-11-03。报告是 `docs/XEDC_ARCHIVE_IMPORT_PERFORMANCE_REPORT.md`。没有提交 Git，没有改生产 R2，没有改任务 158 的记录。
+
+- [x] 任务 158（`gachig129.zip`，28,182,743 字节，137 张）从 13:08:20 到 15:07:04。解压和扫描在同一秒。之后每次 cron 15 张，再等 15 分钟。最后 15 张平均 4545 ms，其中写入 3180 ms，优化 148 ms。
+- [x] 常驻服务 `xedc-import-worker.service` 连续消费 `xedc_image_import`。Drupal cron 不再认领这个队列。心跳中断超过 45 秒时，15 分钟 cron 只兜底 20 秒。
+- [x] 隔离脚本 16/16。同一 ZIP 重解 97 ms。小 ZIP 后台完成 8002 ms。SIGKILL 后约 2 分钟恢复为 2/2。超限包在写出前拒绝。
+- [!] 没有在浏览器里看未完成任务的逐阶段刷新，没有把 137 张整包再导入一次，没有做 200 MB 实包。200 MB 只有在 1 GiB、2000 个文件、单张 50 MB、4000 万像素、压缩比 40 和磁盘余量之内才解压。
