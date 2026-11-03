@@ -125,8 +125,17 @@ def resolve_remote_package_name(names: list[str], spec: str) -> str:
         if spec not in archives:
             raise BackupError(f"远端没有恢复包 {spec}")
         return spec
+    backup_id = re.fullmatch(r"xedc-([0-9]{8}T[0-9]{6}Z)-([0-9a-f]{6})", spec)
+    if backup_id:
+        exact = f"xedc-full-{backup_id.group(1)}-{backup_id.group(2)}.tar.zst"
+        if exact in archives:
+            return exact
+        matched = [name for name in archives if name.endswith(f"-{backup_id.group(2)}.tar.zst")]
+        if len(matched) == 1:
+            return matched[0]
+        raise BackupError(f"远端没有匹配备份编号 {spec} 的恢复包")
     if not spec.startswith("xedc-full-"):
-        raise BackupError("备份名称必须以 xedc-full- 开头")
+        raise BackupError("备份名称必须以 xedc-full- 或备份编号开头")
     matched = [name for name in archives if name.startswith(spec)]
     if not matched:
         raise BackupError(f"远端没有匹配 {spec} 的恢复包")

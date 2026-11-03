@@ -1,5 +1,7 @@
 # 备份操作手册
 
+当前面向操作者的命令是 `xedc-backup` 和 `xedc-restore`，见仓库根目录 README。新备份不生成 `primary.key`。下面的分步命令仍可用于旧的目录备份和旧的加密包。
+
 备份命令：
 
 ```bash

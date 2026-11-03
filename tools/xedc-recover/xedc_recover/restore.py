@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 from .backup import BackupError, canonical, show_backup
-from .crypto import decrypt_file, load_key
+from .crypto import CryptoError, decrypt_file, load_key
 from .safety import ProductionGuard, assert_restore_target, lab_marker_present, production_webroot_present
 
 STRIP_LAB = ("xedc-storage-keys",)
@@ -109,13 +109,24 @@ def extract_archive(archive_path: Path, destination: Path) -> int:
     return len(regular) + _materialize_hardlinks(destination, hardlinks)
 
 
-def _decrypt_artifact(directory: Path, manifest: dict, name: str, key: bytes, key_id: str, plain_dir: Path) -> Path | None:
+def _client_encrypted(manifest: dict) -> bool:
+    return (manifest.get("encryption") or {}).get("alg") not in ("", "none")
+
+
+def _open_artifact(directory: Path, manifest: dict, name: str, key: bytes | None, key_id: str, plain_dir: Path) -> Path | None:
     artifact = manifest["artifacts"][name]
     if not artifact.get("plain_sha256"):
         return None
     source = directory / artifact["file"]
     suffix = ".sql.gz" if name == "database" else ".tar.gz" if name != "secrets" else ".json"
     target = plain_dir / f"{name}{suffix}"
+    if not _client_encrypted(manifest):
+        shutil.copyfile(source, target)
+        os.chmod(target, 0o600)
+        from .backup import sha256_file
+        if sha256_file(target) != artifact["plain_sha256"]:
+            raise BackupError(f"{name} 完整性校验失败")
+        return target
     digest = decrypt_file(source, target, key, key_id)
     if digest != artifact["plain_sha256"]:
         raise BackupError(f"{name} 解密后校验失败")
@@ -276,22 +287,28 @@ def restore_backup(config: dict, backup_id: str, target: str, *, role: str = "la
         return {"dry_run": True, "chain": ids, "target": str(destination), "role": role}
     if not yes:
         raise BackupError("恢复会写入目标目录，需要 --yes")
-    key_id, key = load_key(config["key_file"])
     destination.mkdir(parents=True, exist_ok=True)
     os.chmod(destination, 0o750)
     report = {"chain": ids, "extracted": [], "database_imported": False, "role": role}
     newest = show_backup(root, backup_id)
-    if newest["encryption"]["key_id"] != key_id:
-        raise BackupError("密钥编号与最新备份不一致")
+    if _client_encrypted(newest):
+        try:
+            key_id, key = load_key(config["key_file"])
+        except (OSError, json.JSONDecodeError, CryptoError) as exc:
+            raise BackupError("这份备份使用旧的加密格式，需要原来的 primary.key") from exc
+        if newest["encryption"]["key_id"] != key_id:
+            raise BackupError("这份备份使用旧的加密格式，需要原来的 primary.key")
+    else:
+        key_id, key = "", None
     for item_id in ids:
         manifest = show_backup(root, item_id)
         directory = root / item_id
         plain = Path(tempfile.mkdtemp(prefix="xedc-plain-"))
         os.chmod(plain, 0o700)
         try:
-            code = _decrypt_artifact(directory, manifest, "code", key, key_id, plain)
-            public = _decrypt_artifact(directory, manifest, "public", key, key_id, plain)
-            private = _decrypt_artifact(directory, manifest, "private", key, key_id, plain)
+            code = _open_artifact(directory, manifest, "code", key, key_id, plain)
+            public = _open_artifact(directory, manifest, "public", key, key_id, plain)
+            private = _open_artifact(directory, manifest, "private", key, key_id, plain)
             if code:
                 report["extracted"].append({"id": item_id, "code": extract_archive(code, destination / "code")})
             if public:
@@ -311,7 +328,7 @@ def restore_backup(config: dict, backup_id: str, target: str, *, role: str = "la
         plain = Path(tempfile.mkdtemp(prefix="xedc-plain-"))
         os.chmod(plain, 0o700)
         try:
-            database = _decrypt_artifact(directory, manifest, "database", key, key_id, plain)
+            database = _open_artifact(directory, manifest, "database", key, key_id, plain)
             if database:
                 sql_target = destination / "database.sql.gz"
                 shutil.copyfile(database, sql_target)

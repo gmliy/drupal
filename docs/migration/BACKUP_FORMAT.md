@@ -1,6 +1,30 @@
 # 备份格式
 
-每个备份是一个目录，权限 `700`。
+## 当前完整包（2.3.0）
+
+`xedc-backup` 生成一个 `xedc-full-YYYYMMDDTHHMMSSZ-6位.tar.zst`。文件名里的时间和末 6 位与备份编号 `xedc-YYYYMMDDTHHMMSSZ-6位` 对应。旁边有同名 `.sha256` 和 `.meta.json`。新包没有 `.credentials.enc`，也没有 `primary.key`。
+
+默认目录是 `/var/lib/xedc-recover/backups/`，可用 `package_dir` 或 `backup_root` 改掉。目录 `0700`，包和校验文件 `0600`。
+
+`PACKAGE.json` 的 `schema` 为 4。`encryption.alg` 为 `none`。同一份 tar.zst 放在本地和 R2 时，备份编号、Manifest、SHA256、Drupal 版本、Git 提交以及数据库和文件清单相同。`.meta.json` 只在本地记录 R2 状态，不改变包的 SHA256。
+
+包内 payload 是明文压缩文件：
+
+```text
+payload/database.sql.gz
+payload/code.tar.gz
+payload/public.tar.gz
+payload/private.tar.gz
+payload/secrets.json
+```
+
+`secrets.json` 仍在权限受控的包内，不单独再复制一份到包外。Manifest 记录每个文件的 SHA256，不记录口令、hash salt 或对象存储密钥的值。
+
+本地列表命令是 `xedc-backup list`。清理记录在备份目录的 `prune.log`。自动清理不会删除唯一一份备份，也不会删除尚未成功上传 R2 的唯一完整备份。
+
+## 旧的目录格式和加密包
+
+每个旧备份也可以是一个目录，权限 `700`。
 
 ```text
 BACKUP_ID/
@@ -25,9 +49,9 @@ BACKUP_ID/
 
 ## 完整恢复包
 
-`xedc-backup` 在上面的加密备份之外，再生成一个可以单独搬走的包。它不取代目录格式。文件名是 `xedc-full-YYYYMMDDTHHMMSSZ-备份编号末6位.tar.zst`。旁边有同名的 `.sha256`，以及 `.credentials.enc`。凭据文件是原来的 `secrets.json.enc` 副本，仍然是密文。解密密钥不在包里，也不在 `.sha256` 旁边。旧文件名 `xedc-full-YYYYMMDD-6位.tar.zst` 仍可恢复。
+旧的 `xedc-backup` 还会把加密目录打成 `xedc-full-*.tar.zst`。旁边有 `.sha256` 和 `.credentials.enc`。凭据文件是 `secrets.json.enc` 的副本，仍然是密文。解密密钥不在包里。旧文件名 `xedc-full-YYYYMMDD-6位.tar.zst` 仍可恢复。恢复这种包必须提供原来的 `primary.key`。
 
-包内是 schema 3 的 `PACKAGE.json`。schema 2 的旧包仍可恢复。清单包含：
+旧包内是 schema 3 的 `PACKAGE.json`。schema 2 的旧包仍可恢复。清单包含：
 
 ```text
 PACKAGE.json

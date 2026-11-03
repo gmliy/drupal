@@ -17,7 +17,7 @@ from pathlib import Path
 
 from . import __version__
 from .config import env_secret
-from .crypto import decrypt_file, encrypt_file, load_key
+from .crypto import CryptoError, decrypt_file, encrypt_file, load_key
 from .redact import redact
 from .safety import (
     ProductionGuard,
@@ -337,7 +337,26 @@ def resolve_file_map(backup_root: Path, backup_id: str) -> dict[str, str]:
     return files
 
 
-def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = False, allow_live_read: bool = False, resume: bool = False, backup_id: str = "", label: str = "") -> dict:
+def assert_free_space(free: int, estimate: int) -> None:
+    need = int(estimate * 2.2) + 512 * 1024 * 1024
+    if free < need:
+        raise BackupError(f"磁盘空间不足。估计源数据 {estimate} 字节，需要约 {need} 字节，可用 {free} 字节")
+
+
+def _store_artifact(source: Path, destination: Path, *, encrypt: bool, key: bytes | None, key_id: str) -> str:
+    if encrypt:
+        digest = encrypt_file(source, destination, key, key_id)
+        source.unlink(missing_ok=True)
+        return digest
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, destination)
+    os.chmod(destination, 0o600)
+    digest = sha256_file(destination)
+    source.unlink(missing_ok=True)
+    return digest
+
+
+def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = False, allow_live_read: bool = False, resume: bool = False, backup_id: str = "", label: str = "", client_encryption: bool = True) -> dict:
     if backup_type not in ("full", "incremental"):
         raise BackupError("备份类型只能是 full 或 incremental")
     root = assert_backup_destination(config["backup_root"])
@@ -359,8 +378,7 @@ def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = Fa
         paths.append(public_path)
     estimate = _estimate_bytes(paths)
     free = _disk_free(root)
-    if free < int(estimate * 2.2) + 512 * 1024 * 1024:
-        raise BackupError(f"磁盘空间不足。估计源数据 {estimate} 字节，可用 {free} 字节")
+    assert_free_space(free, estimate)
     parent_id = ""
     previous_map: dict[str, str] = {}
     if backup_type == "incremental":
@@ -378,13 +396,19 @@ def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = Fa
             "parent_id": parent_id,
             "would_write": str(root),
         }
-    key_id, key = load_key(config["key_file"])
     backup_id = backup_id or new_id()
     directory = assert_backup_destination(root / backup_id)
     directory.mkdir(parents=True, exist_ok=True)
     os.chmod(directory, 0o700)
     payload = directory / "payload"
     payload.mkdir(mode=0o700, exist_ok=True)
+    if resume and (payload / "database.sql.gz.enc").is_file():
+        client_encryption = True
+    if client_encryption:
+        key_id, key = load_key(config["key_file"])
+    else:
+        key_id, key = "", None
+    suffix = ".enc" if client_encryption else ""
     state_path = directory / "state.json"
     state = json.loads(state_path.read_text(encoding="utf-8")) if resume and state_path.is_file() else {"steps": {}}
     lock_path = root / ".lock"
@@ -401,8 +425,7 @@ def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = Fa
         db_plain = plain_dir / "database.sql.gz"
         if not step_done("database"):
             meta = dump_database(config, db_plain, allow_live_read)
-            db_sha = encrypt_file(db_plain, payload / "database.sql.gz.enc", key, key_id)
-            db_plain.unlink(missing_ok=True)
+            db_sha = _store_artifact(db_plain, payload / f"database.sql.gz{suffix}", encrypt=client_encryption, key=key, key_id=key_id)
             done("database", sha256=db_sha, meta=meta)
         code_records: list[dict] = []
         public_records: list[dict] = []
@@ -425,14 +448,12 @@ def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = Fa
                 deleted = sorted(path for path in previous_map if path not in current_map)
                 only = changed
             code_records = archive_tree(source, plain_dir / "code.tar.gz", exclude, _strip_prefix(only, "") if only is not None else None, file_drift)
-            code_sha = encrypt_file(plain_dir / "code.tar.gz", payload / "code.tar.gz.enc", key, key_id)
-            (plain_dir / "code.tar.gz").unlink(missing_ok=True)
+            code_sha = _store_artifact(plain_dir / "code.tar.gz", payload / f"code.tar.gz{suffix}", encrypt=client_encryption, key=key, key_id=key_id)
             public_records = []
             if public_path.exists():
                 public_only = _strip_prefix(only, "public/") if only is not None else None
                 public_records = archive_tree(public_path, plain_dir / "public.tar.gz", [], public_only, file_drift)
-                public_sha = encrypt_file(plain_dir / "public.tar.gz", payload / "public.tar.gz.enc", key, key_id)
-                (plain_dir / "public.tar.gz").unlink(missing_ok=True)
+                public_sha = _store_artifact(plain_dir / "public.tar.gz", payload / f"public.tar.gz{suffix}", encrypt=client_encryption, key=key, key_id=key_id)
             else:
                 public_sha = ""
             private_records = []
@@ -440,8 +461,7 @@ def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = Fa
             if private.exists():
                 private_only = _strip_prefix(only, "private/") if only is not None else None
                 private_records = archive_tree(private, plain_dir / "private.tar.gz", [], private_only, file_drift)
-                private_sha = encrypt_file(plain_dir / "private.tar.gz", payload / "private.tar.gz.enc", key, key_id)
-                (plain_dir / "private.tar.gz").unlink(missing_ok=True)
+                private_sha = _store_artifact(plain_dir / "private.tar.gz", payload / f"private.tar.gz{suffix}", encrypt=client_encryption, key=key, key_id=key_id)
             done("files", code_sha256=code_sha, public_sha256=public_sha, private_sha256=private_sha, deleted=deleted, file_drift=file_drift, code_records=code_records, public_records=public_records, private_records=private_records)
         else:
             code_sha = state["steps"]["files"]["code_sha256"]
@@ -461,8 +481,7 @@ def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = Fa
             secret_path = plain_dir / "secrets.json"
             secret_path.write_text(canonical(secret_doc), encoding="utf-8")
             os.chmod(secret_path, 0o600)
-            secret_sha = encrypt_file(secret_path, payload / "secrets.json.enc", key, key_id)
-            secret_path.unlink(missing_ok=True)
+            secret_sha = _store_artifact(secret_path, payload / f"secrets.json{suffix}", encrypt=client_encryption, key=key, key_id=key_id)
             done("secrets", sha256=secret_sha, trusted_hosts=settings.get("trusted_host_patterns", []), storage_mode=(secret_doc["storage"].get("public_mode") if isinstance(secret_doc["storage"], dict) else ""))
         secret_sha = state["steps"]["secrets"]["sha256"]
         files = []
@@ -484,13 +503,13 @@ def create_backup(config: dict, *, backup_type: str = "full", dry_run: bool = Fa
             "strategy": config.get("strategy", "pinned"),
             "source_root": str(source),
             "database": {k: v for k, v in db_meta.items() if k != "password"},
-            "encryption": {"alg": "AES-256-GCM", "key_id": key_id},
+            "encryption": {"alg": "AES-256-GCM", "key_id": key_id} if client_encryption else {"alg": "none", "key_id": "", "protection": "directory-mode-0700-and-private-bucket"},
             "artifacts": {
-                "database": {"file": "payload/database.sql.gz.enc", "plain_sha256": state["steps"]["database"]["sha256"]},
-                "code": {"file": "payload/code.tar.gz.enc", "plain_sha256": code_sha},
-                "public": {"file": "payload/public.tar.gz.enc", "plain_sha256": public_sha},
-                "private": {"file": "payload/private.tar.gz.enc", "plain_sha256": private_sha},
-                "secrets": {"file": "payload/secrets.json.enc", "plain_sha256": secret_sha},
+                "database": {"file": f"payload/database.sql.gz{suffix}", "plain_sha256": state["steps"]["database"]["sha256"]},
+                "code": {"file": f"payload/code.tar.gz{suffix}", "plain_sha256": code_sha},
+                "public": {"file": f"payload/public.tar.gz{suffix}", "plain_sha256": public_sha},
+                "private": {"file": f"payload/private.tar.gz{suffix}", "plain_sha256": private_sha},
+                "secrets": {"file": f"payload/secrets.json{suffix}", "plain_sha256": secret_sha},
             },
             "files": files,
             "deleted": deleted,
@@ -595,10 +614,14 @@ def verify_backup(config: dict, backup_id: str, deep: bool = True) -> dict:
     if manifest.get("parent_id"):
         resolve_file_map(root, backup_id)
     checked = []
+    encrypted = (manifest.get("encryption") or {}).get("alg") not in ("", "none")
     key = None
     key_id = ""
-    if deep:
-        key_id, key = load_key(config["key_file"])
+    if deep and encrypted:
+        try:
+            key_id, key = load_key(config["key_file"])
+        except (OSError, json.JSONDecodeError, CryptoError) as exc:
+            raise BackupError("这份备份使用旧的加密格式，需要原来的 primary.key") from exc
         if key_id != manifest["encryption"]["key_id"]:
             raise BackupError("密钥编号与 manifest 不一致")
     for name, artifact in manifest["artifacts"].items():
@@ -607,20 +630,23 @@ def verify_backup(config: dict, backup_id: str, deep: bool = True) -> dict:
         path = directory / artifact["file"]
         if not path.is_file():
             raise BackupError(f"缺少备份文件 {artifact['file']}")
-        cipher = sha256_file(path)
-        if cipher != artifact.get("cipher_sha256"):
-            raise BackupError(f"{name} 密文校验失败")
-        if deep and key is not None:
-            plain_dir = Path(tempfile.mkdtemp(prefix="xedc-verify-"))
-            plain = plain_dir / (Path(artifact["file"]).name + ".plain")
-            try:
-                digest = decrypt_file(path, plain, key, key_id)
-                if digest != artifact["plain_sha256"]:
-                    raise BackupError(f"{name} 明文校验失败")
-            finally:
-                shutil.rmtree(plain_dir, ignore_errors=True)
+        digest = sha256_file(path)
+        if encrypted:
+            if digest != artifact.get("cipher_sha256"):
+                raise BackupError(f"{name} 密文校验失败")
+            if deep and key is not None:
+                plain_dir = Path(tempfile.mkdtemp(prefix="xedc-verify-"))
+                plain = plain_dir / (Path(artifact["file"]).name + ".plain")
+                try:
+                    plain_digest = decrypt_file(path, plain, key, key_id)
+                    if plain_digest != artifact["plain_sha256"]:
+                        raise BackupError(f"{name} 明文校验失败")
+                finally:
+                    shutil.rmtree(plain_dir, ignore_errors=True)
+        elif digest != artifact.get("plain_sha256"):
+            raise BackupError(f"{name} 完整性校验失败")
         checked.append(name)
-    return {"id": backup_id, "status": "PASS", "checked": checked, "parent_id": manifest.get("parent_id", "")}
+    return {"id": backup_id, "status": "PASS", "checked": checked, "parent_id": manifest.get("parent_id", ""), "encryption": (manifest.get("encryption") or {}).get("alg", "")}
 
 
 def prune_backups(config: dict, *, dry_run: bool = False) -> dict:
