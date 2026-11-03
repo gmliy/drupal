@@ -35,17 +35,22 @@ def _guard_database(host: str, port: int, unix_socket: str, hostname: str) -> No
 
 
 def _client_file(user: str, password: str, host: str, port: int) -> Path:
-    import tempfile
-    handle = tempfile.NamedTemporaryFile("w", delete=False, prefix="xedc-db-", suffix=".cnf")
-    handle.write("[client]\n")
-    handle.write(f"user={user}\n")
-    handle.write(f"password={password}\n")
-    handle.write(f"host={host}\n")
-    handle.write(f"port={port}\n")
-    handle.write("protocol=tcp\n")
-    handle.close()
-    os.chmod(handle.name, 0o600)
-    return Path(handle.name)
+    from .workspace import work_root
+    path = work_root(None) / "domain-client.cnf"
+    path.write_text(
+        "\n".join([
+            "[client]",
+            f"user={user}",
+            f"password={password}",
+            f"host={host}",
+            f"port={port}",
+            "protocol=tcp",
+            "",
+        ]),
+        encoding="utf-8",
+    )
+    os.chmod(path, 0o600)
+    return path
 
 
 def migrate(*, host: str, port: int, user: str, password: str, database: str, source: str, target: str, dry_run: bool, unix_socket: str = "") -> dict:

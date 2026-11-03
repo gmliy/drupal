@@ -5,6 +5,8 @@ from __future__ import annotations
 import calendar
 import json
 import os
+import shutil
+import subprocess
 import time
 from pathlib import Path
 
@@ -202,15 +204,20 @@ def package_needs_legacy_key(archive: Path) -> bool:
     return True
 
 
-def assert_archive_manifest(archive: Path) -> dict:
-    from .bundle import _extract_package, verify_package
+def assert_archive_manifest(archive: Path, config: dict | None = None) -> dict:
+    from .bundle import verify_package
+    from .workspace import make_work_dir
 
     digest = verify_package(archive)
-    stage_parent = Path(os.environ.get("TMPDIR") or "/tmp")
-    import tempfile
-    stage = Path(tempfile.mkdtemp(prefix="xedc-manifest-", dir=str(stage_parent)))
+    stage = make_work_dir(config, "manifest-check")
     try:
-        _extract_package(archive, stage)
+        completed = subprocess.run(
+            ["tar", "--zstd", "-xf", str(archive), "-C", str(stage), "./manifest.json", "./manifest.sha256", "./PACKAGE.json"],
+            text=True,
+            capture_output=True,
+        )
+        if completed.returncode != 0:
+            raise BackupError("恢复包缺少 manifest，没有把整个备份解到临时目录。")
         manifest_path = stage / "manifest.json"
         checksum_path = stage / "manifest.sha256"
         if not manifest_path.is_file() or not checksum_path.is_file():
@@ -234,5 +241,4 @@ def assert_archive_manifest(archive: Path) -> dict:
             "database": manifest.get("database") or {},
         }
     finally:
-        import shutil
         shutil.rmtree(stage, ignore_errors=True)

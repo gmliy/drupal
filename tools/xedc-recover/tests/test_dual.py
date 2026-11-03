@@ -210,7 +210,7 @@ class DualStorageTests(unittest.TestCase):
         self.assertEqual(result["archive"], "")
         self.assertEqual(result["roundtrip"]["sha256"], result["sha256"])
         self.assertFalse(list(backups.glob("xedc-full-*.tar.zst")))
-        self.assertFalse((backups / ".r2-only-tmp").exists())
+        self.assertFalse((backups.parent / "work" / "r2-only").exists())
         fetched = download_package(config, result["id"], str(self.tmp / "r2-fetched"))
         self.assertEqual(fetched["sha256"], result["sha256"])
         failed = self._backups("r2-failed")
@@ -219,7 +219,7 @@ class DualStorageTests(unittest.TestCase):
         failed_result = run_backup(failed_config, mode="r2")
         self.assertEqual(failed_result["status"], "FAIL")
         self.assertTrue(Path(failed_result["archive"]).is_file())
-        self.assertTrue((failed / ".r2-only-tmp").is_dir())
+        self.assertTrue((failed.parent / "work" / "r2-only").is_dir())
 
     def test_old_encrypted_backup_still_needs_its_key(self):
         backups = self._backups("legacy")

@@ -11,7 +11,6 @@ import hashlib
 import os
 import shutil
 import subprocess
-import tempfile
 import urllib.parse
 from pathlib import Path
 
@@ -133,7 +132,7 @@ def collect_identity(source: Path) -> dict:
     return identity
 
 
-def align_code(code_dir: Path, git_info: dict | None) -> dict:
+def align_code(code_dir: Path, git_info: dict | None, work: Path | None = None) -> dict:
     """Use the recorded commit when it matches. Otherwise keep the package tree."""
     info = git_info or {}
     commit = str(info.get("commit") or "")
@@ -150,7 +149,9 @@ def align_code(code_dir: Path, git_info: dict | None) -> dict:
         return {"code_source": "package-fallback", "reason": "commit-unavailable", "commit": commit}
     if not Path(code_dir).is_dir():
         return {"code_source": "package-fallback", "reason": "code-dir-missing", "commit": commit}
-    stage = Path(tempfile.mkdtemp(prefix="xedc-git-"))
+    from .workspace import make_work_dir
+    stage = work if work is not None else make_work_dir(None, "git-align")
+    stage.mkdir(parents=True, exist_ok=True)
     try:
         cloned = stage / "src"
         try:

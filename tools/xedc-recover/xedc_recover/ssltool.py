@@ -15,7 +15,8 @@ class SslError(RuntimeError):
     exit_code = 1
 
 
-NGINX_TEMPLATE = """worker_processes 1;
+NGINX_TEMPLATE = """user nginx;
+worker_processes 1;
 error_log {prefix}/error.log;
 pid {prefix}/nginx.pid;
 events {{ worker_connections 128; }}

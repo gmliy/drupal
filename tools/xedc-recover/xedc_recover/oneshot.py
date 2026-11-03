@@ -14,14 +14,13 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__
-from .backup import BackupError, Lock, create_backup, new_id, prune_backups, verify_backup
+from .backup import BackupError, Lock, create_backup, new_id, verify_backup
 from .bundle import create_full_package, install_bundle, pack_backup, verify_package
 from .catalog import (
     assert_archive_manifest,
@@ -30,14 +29,13 @@ from .catalog import (
     list_local_packages,
     package_directory,
     package_needs_legacy_key,
-    prune_local_packages,
     write_meta,
 )
 from .config import load_config
 from .crypto import CryptoError
 from .gitmeta import collect_identity
 from .redact import redact
-from .remote import client_from_config, download_package, prune_remote_packages, upload_package
+from .remote import client_from_config, download_package, upload_package
 from .s3 import S3Error
 from .safety import ProductionGuard, production_webroot_present
 
@@ -219,8 +217,9 @@ def preflight(config: dict) -> dict:
 
 
 def _probe_database(config: dict) -> str:
+    from .workspace import work_root
     database = config["database"]
-    defaults = Path(tempfile.mkdtemp(prefix="xedc-db-")) / "client.cnf"
+    defaults = work_root(config) / "db-probe.cnf"
     lines = ["[client]"]
     if database.get("user"):
         lines.append(f"user={database['user']}")
@@ -245,7 +244,6 @@ def _probe_database(config: dict) -> str:
         raise BackupError(f"数据库连接检查失败: {exc.__class__.__name__}") from exc
     finally:
         defaults.unlink(missing_ok=True)
-        defaults.parent.rmdir()
     if completed.returncode != 0:
         raise BackupError("数据库连接检查失败。没有读取或修改数据。")
     return "connected"
@@ -289,10 +287,15 @@ def _write_state(config: dict, state: dict) -> None:
 
 def _verify_download(config: dict, archive: Path) -> dict:
     from .bundle import _extract_package, _install_material
+    from .workspace import WorkspaceError, assert_disk, make_work_dir
 
-    identity = assert_archive_manifest(archive)
+    identity = assert_archive_manifest(archive, config)
     digest = identity["sha256"]
-    stage = Path(tempfile.mkdtemp(prefix="xedc-roundtrip-"))
+    try:
+        assert_disk(Path(config["backup_root"]), archive.stat().st_size * 3, "校验备份")
+    except WorkspaceError as exc:
+        raise BackupError(str(exc)) from exc
+    stage = make_work_dir(config, "roundtrip")
     try:
         _extract_package(archive, stage)
         material = stage / "material"
@@ -302,7 +305,7 @@ def _verify_download(config: dict, archive: Path) -> dict:
         if checked.get("status") != "PASS":
             raise BackupError("备份包完整性校验没有通过")
         encrypted = identity.get("encryption") not in ("", "none")
-        return {
+        result = {
             "sha256": digest,
             "backup_id": backup_id,
             "integrity": "PASS",
@@ -313,8 +316,10 @@ def _verify_download(config: dict, archive: Path) -> dict:
             "drupal_version": identity.get("drupal_version") or "",
             "artifacts": identity.get("artifacts") or {},
         }
-    finally:
         shutil.rmtree(stage, ignore_errors=True)
+        return result
+    except Exception:
+        raise
 
 
 def _mode_name(mode: str) -> str:
@@ -324,8 +329,9 @@ def _mode_name(mode: str) -> str:
 
 
 def _publish_remote(config: dict, archive: Path, local_digest: str) -> dict:
+    from .workspace import download_root
     uploaded = upload_package(config, str(archive))
-    incoming = archive.parent / "roundtrip"
+    incoming = download_root(config) / "roundtrip"
     if incoming.exists():
         shutil.rmtree(incoming)
     try:
@@ -358,7 +364,8 @@ def run_backup(config: dict, *, dry_run: bool = False, resume: bool = False, out
     long_term = Path(output) if output else package_directory(config)
     long_term.mkdir(parents=True, exist_ok=True)
     os.chmod(long_term, 0o700)
-    output_dir = long_term / ".r2-only-tmp" if mode == "r2" else long_term
+    from .workspace import work_root
+    output_dir = work_root(config) / "r2-only" if mode == "r2" else long_term
     output_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(output_dir, 0o700)
     state = _read_state(config) if resume else {}
@@ -441,7 +448,7 @@ def run_backup(config: dict, *, dry_run: bool = False, resume: bool = False, out
                 shutil.rmtree(published["incoming"], ignore_errors=True)
                 _log(config, "R2 下载校验通过")
             except (BackupError, S3Error) as exc:
-                remote_error = redact(str(exc))
+                remote_error = explain_storage_error(exc)
                 meta["r2"] = "failed"
                 meta["r2_error"] = remote_error
                 write_meta(archive, meta)
@@ -450,21 +457,13 @@ def run_backup(config: dict, *, dry_run: bool = False, resume: bool = False, out
         if status == "PASS" and mode == "r2":
             for path in (archive, Path(str(archive) + ".sha256"), Path(str(archive) + ".meta.json")):
                 path.unlink(missing_ok=True)
-            if output_dir.is_dir() and output_dir.name == ".r2-only-tmp":
+            if output_dir.is_dir() and output_dir.name == "r2-only":
                 shutil.rmtree(output_dir, ignore_errors=True)
             archive_text = ""
         else:
             archive_text = str(archive)
-        prune = {"removed": [], "kept": []}
-        if mode != "r2" and status in {"PASS", "PARTIAL"}:
-            prune = prune_local_packages(config)
-            prune_backups(config)
-        if status == "PASS" and mode in {"both", "r2"}:
-            try:
-                remote_prune = prune_remote_packages(config, keep=int((config.get("retention") or {}).get("keep") or (config.get("retention") or {}).get("daily") or 7))
-            except (BackupError, S3Error) as exc:
-                remote_prune["error"] = redact(str(exc))
-                _log(config, f"远端保留策略清理没有完成：{remote_prune['error']}。已校验的备份仍然保留。")
+        prune = {"removed": [], "kept": [], "automatic": False}
+        remote_prune = {"kept": [], "removed": [], "automatic": False}
         _write_state(config, {"backup_id": backup_id, "packed": True, "archive": archive_text, "status": status, "finished": _now(), "mode": mode})
     return {
         "status": status,
@@ -502,7 +501,7 @@ def upload_existing(config: dict, spec: str) -> dict:
     item = find_local_package(config, spec)
     archive = Path(item["path"])
     before = archive.stat().st_mtime_ns
-    identity = assert_archive_manifest(archive)
+    identity = assert_archive_manifest(archive, config)
     prepare_remote(config, required=True)
     published = _publish_remote(config, archive, identity["sha256"])
     verified = published["verified"]
@@ -529,6 +528,20 @@ def upload_existing(config: dict, spec: str) -> dict:
         "roundtrip": verified,
         "uploaded": [row["key"] for row in published["uploaded"]["uploaded"]],
     }
+
+
+def explain_storage_error(exc: BaseException) -> str:
+    text = redact(str(exc))
+    lowered = text.lower()
+    if "403" in text or "invalidaccesskeyid" in lowered or "signaturedoesnotmatch" in lowered:
+        return "R2 拒绝访问。请检查 Access Key、Secret 和 Bucket 是否正确。"
+    if "nosuchbucket" in lowered or "404" in text:
+        return "没有找到这个 Bucket 或备份。请检查 Bucket 名称和备份编号。"
+    if "could not resolve" in lowered or "name or service not known" in lowered or "nodename nor servname" in lowered:
+        return "连不上 R2。请检查 Endpoint 是否正确，并且以 https:// 开头。"
+    if "connection refused" in lowered or "timed out" in lowered:
+        return f"连接 R2 失败。请检查 Endpoint、网络和 Bucket。{text[:180]}"
+    return text[:400]
 
 
 def _valid_domain(domain: str) -> bool:
@@ -599,12 +612,16 @@ def run_restore(config: dict, *, backup: str = "", file: str = "", domain: str =
         raise ProductionGuard("生产网站仍在本机，拒绝一键恢复")
     if role not in {"lab", "replacement"}:
         raise BackupError("role 只能是 lab 或 replacement")
+    if role == "replacement" and sys.stdin.isatty():
+        answer = _prompt("正式替换需要第二次确认。请输入：替换正式网站\n")
+        if answer != "替换正式网站":
+            raise BackupError("没有第二次确认，已停止。")
     if not domain:
         domain = _prompt("新域名: ")
     if not _valid_domain(domain):
         raise BackupError("域名无效")
     if not yes:
-        answer = _prompt("将安装运行环境并恢复网站。确认请输入 yes: ")
+        answer = _prompt("将安装 Nginx、PHP 和 MariaDB，并把网站恢复到指定目录。确认请输入 yes: ")
         if answer != "yes":
             raise BackupError("未确认，已停止")
     if file and source == "r2":
@@ -632,10 +649,15 @@ def run_restore(config: dict, *, backup: str = "", file: str = "", domain: str =
                 config.setdefault("remote", {})["endpoint"] = _prompt("R2 endpoint: ")
                 config["remote"]["bucket"] = _prompt("R2 bucket: ")
         prepare_remote(config, required=True)
-        destination = str(Path(config["backup_root"]).parent / "incoming")
-        fetched = download_package(config, backup or "latest", destination)
+        from .workspace import WorkspaceError, assert_disk, download_root
+        destination_path = download_root(config)
+        try:
+            assert_disk(destination_path, 1024 * 1024 * 1024, "下载备份")
+        except WorkspaceError as exc:
+            raise BackupError(str(exc)) from exc
+        fetched = download_package(config, backup or "latest", str(destination_path))
         archive = fetched["archive"]
-    identity = assert_archive_manifest(Path(archive))
+    identity = assert_archive_manifest(Path(archive), config)
     if package_needs_legacy_key(Path(archive)):
         key_path = Path(config["key_file"])
         if not key_path.is_file():
@@ -850,6 +872,45 @@ def main_backup(argv: list[str] | None = None) -> int:
         return 1
 
 
+def _collect_restore(config: dict) -> dict:
+    from .remote import list_remote_backups
+    from .workspace import WorkspaceError, assert_disk, download_root
+    from .installer import assert_restore_os
+
+    info = assert_restore_os()
+    print(f"操作系统: Ubuntu {info['version_id']} ({info['codename']})")
+    assert_disk(download_root(config), 8 * 1024 * 1024 * 1024, "恢复")
+    print("这次按测试恢复（lab）。网站会装到 /srv/xedc。")
+    print("程序会安装 Nginx、PHP 8.5 和 MariaDB，导入数据库和网站文件。")
+    print("不会修改 Cloudflare DNS，也不会删除已有备份。")
+    remote = config.setdefault("remote", {})
+    os.environ["XEDC_S3_ACCESS_KEY"] = _prompt("R2 Access Key: ", secret=True)
+    os.environ["XEDC_S3_SECRET_KEY"] = _prompt("R2 Secret: ", secret=True)
+    remote["endpoint"] = _prompt("R2 Endpoint: ")
+    remote["bucket"] = _prompt("Bucket: ")
+    if not str(remote.get("prefix") or "").strip():
+        remote["prefix"] = "xedc-recover/"
+    prepare_remote(config, required=True)
+    items = list_remote_backups(config)
+    if not items:
+        raise BackupError("R2 上没有可恢复的备份。")
+    print("可恢复的备份：")
+    for index, item in enumerate(items, start=1):
+        print(f"{index}. {item['backup_id']}  {item['created']}")
+    picked = _prompt("请输入序号: ")
+    if not picked.isdigit() or not 1 <= int(picked) <= len(items):
+        raise BackupError("没有选中有效的备份。")
+    domain = _prompt("新网站域名: ")
+    if not _valid_domain(domain):
+        raise BackupError("域名无效")
+    chosen = items[int(picked) - 1]
+    print(f"将下载 {chosen['backup_id']}，恢复到 /srv/xedc，域名为 {domain}。")
+    answer = _prompt("确认开始请输入 yes: ")
+    if answer != "yes":
+        raise BackupError("未确认，已停止")
+    return {"backup": chosen["backup_id"], "domain": domain}
+
+
 def main_restore(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] in {"install", "fetch"}:
@@ -876,8 +937,23 @@ def main_restore(argv: list[str] | None = None) -> int:
     if args.backup and args.file:
         print("不要同时指定 --backup 和 --file", file=sys.stderr)
         return 2
+    interactive = not any([args.file, args.backup, args.domain, args.source, args.yes, args.dry_run])
     try:
         config = load_runtime_config(args.config or None)
+        if interactive:
+            if production_webroot_present():
+                print("这台机器上还有生产网站，不能在这里恢复。", file=sys.stderr)
+                return 3
+            if not sys.stdin.isatty():
+                print("当前不是交互终端。从 R2 恢复请执行：", file=sys.stderr)
+                print("xedc-restore --source r2 --backup 备份编号 --domain 新域名 --role lab --yes", file=sys.stderr)
+                return 2
+            chosen = _collect_restore(config)
+            args.backup = chosen["backup"]
+            args.domain = chosen["domain"]
+            args.source = "r2"
+            args.yes = True
+            args.role = "lab"
         result = run_restore(
             config,
             backup=args.backup,
@@ -897,9 +973,17 @@ def main_restore(argv: list[str] | None = None) -> int:
     except CryptoError as exc:
         print(redact(str(exc)), file=sys.stderr)
         return 4
-    except (BackupError, S3Error) as exc:
+    except S3Error as exc:
+        print(explain_storage_error(exc), file=sys.stderr)
+        return 1
+    except BackupError as exc:
         print(redact(str(exc)), file=sys.stderr)
         return getattr(exc, "exit_code", 1)
     except Exception as exc:
+        from .installer import InstallError
+        from .workspace import WorkspaceError
+        if isinstance(exc, (InstallError, WorkspaceError)):
+            print(str(exc), file=sys.stderr)
+            return getattr(exc, "exit_code", 1)
         print(redact(f"{exc.__class__.__name__}: {exc}"), file=sys.stderr)
         return 1
