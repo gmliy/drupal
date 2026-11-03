@@ -2,7 +2,7 @@
 
 工作树：`/opt/xedc-migration`，分支 `feature/migration-v2`。生产仓库 `/var/www/drupal` 仍在 `main`，原有未提交修改没有被移动或清理。
 
-最后更新：2026-11-03 17:15 UTC。审计日志在 `/var/lib/xedc-recover/audit/`。
+最后更新：2026-11-03 18:10 UTC。审计日志在 `/var/lib/xedc-recover/audit/`。
 
 | 阶段 | 状态 |
 | --- | --- |
@@ -22,7 +22,9 @@
 | 全新容器恢复演练 | PASS。目录恢复和完整恢复包各有连续两轮 |
 | 连续两轮关键测试 | PASS。见 TEST_REPORT.md 的 16:13–16:18 记录 |
 | 文档 | 恢复包流程已写入手册和测试报告 |
-| 一键命令 | `xedc-backup` 与 `xedc-restore` 已接上现有加密备份和恢复。版本 2.2.0 |
+| 一键命令 | `xedc-backup` 与 `xedc-restore` 已接上现有备份和恢复。版本 2.3.0 |
+| 本地与 R2 双存储 | PASS。新包不生成 `primary.key`。隔离测试连续两轮 33 tests OK。真实 R2 只用 `xedc-recover/lab-dual/`，随后已删除 |
+| 旧加密包 | 仍然兼容。恢复旧包需要原来的 `primary.key`。已有生产包没有被这次测试改动 |
 | 生产备份并上传 R2 | PASS。`xedc-20261103T170434Z-764a29`，包 SHA256 `0ba8019cc3e2244f705e95a49c0f7ff2e6473d54e783ece464466f3edd1dcc0a`。前缀 `xedc-recover/`。回读解密 PASS |
 | 从 R2 恢复 | PASS。隔离容器没有挂载本地包，下载后 SHA256 一致，首页 200 |
 | 连续两轮本地包恢复 | PASS。两台全新 Ubuntu 24.04 容器，端口 18082 和 18083 |

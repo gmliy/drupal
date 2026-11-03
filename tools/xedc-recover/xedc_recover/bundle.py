@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import tempfile
@@ -123,29 +124,39 @@ def environment_document(private_files: str) -> dict:
     }
 
 
-def _restore_readme(backup_id: str, key_id: str) -> str:
+def _restore_readme(backup_id: str, key_id: str, alg: str = "AES-256-GCM") -> str:
+    if alg == "none":
+        secret_lines = [
+            "这份备份没有单独的解密密钥。",
+            "本地文件只靠目录权限保护（目录 0700，文件 0600），没有客户端加密。",
+            "R2 上的同一份文件放在私有桶里，通过 HTTPS 传输，并使用服务端静态加密。",
+            "这不是端到端加密。拿到服务器或 R2 凭据的人可以读取备份内容。",
+        ]
+    else:
+        secret_lines = [
+            "这个压缩包使用旧的 AES-256-GCM 格式，不包含解密密钥。",
+            f"密钥编号：{key_id}",
+            "恢复这份旧备份必须提供原来的 primary.key。",
+        ]
     return "\n".join([
         "XEDC 完整恢复包",
         "",
         f"备份编号：{backup_id}",
-        f"密钥编号：{key_id}",
         f"工具版本：{__version__}",
         "",
-        "这个压缩包里是加密后的网站数据，不包含解密密钥。",
-        "密钥必须单独保存。没有密钥就无法恢复。",
+        *secret_lines,
         "",
         "新服务器需要：",
         "1. Ubuntu 24.04。",
         "2. 本恢复程序（压缩包内的 tool/，或单独复制的 xedc-recover）。",
         "3. 本压缩包和旁边的 .sha256 文件。",
-        "4. 解密密钥。",
         "",
         "不要从 GitHub 重新克隆来代替数据库和媒体文件。仓库里没有这些数据。",
         "",
         "恢复命令：",
-        "  xedc-restore --file /path/to/xedc-full.tar.zst",
+        "  xedc-restore --file /path/to/xedc-full.tar.zst --domain 新域名",
         "或从 R2 取指定版本：",
-        "  xedc-restore --backup xedc-full-YYYYMMDD",
+        "  xedc-restore --source r2 --backup 备份编号 --domain 新域名",
         "",
         "程序不会修改 Cloudflare DNS。证书和域名指向需要你确认后再做。",
         "Matomo、Netdata、VPN 和代理不在这个包里。",
@@ -189,8 +200,12 @@ def pack_backup(config: dict, backup_id: str, output_dir: str) -> dict:
     destination_root = assert_backup_destination(output_dir)
     destination_root.mkdir(parents=True, exist_ok=True)
     os.chmod(destination_root, 0o700)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    base = f"xedc-full-{stamp}-{backup_id[-6:]}"
+    matched = re.fullmatch(r"xedc-([0-9]{8}T[0-9]{6}Z)-([0-9a-f]{6})", backup_id)
+    if matched:
+        base = f"xedc-full-{matched.group(1)}-{matched.group(2)}"
+    else:
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        base = f"xedc-full-{stamp}-{backup_id[-6:]}"
     archive = destination_root / f"{base}.tar.zst"
     stage = Path(tempfile.mkdtemp(prefix="xedc-pack-"))
     try:
@@ -207,8 +222,10 @@ def pack_backup(config: dict, backup_id: str, output_dir: str) -> dict:
         (stage / "manifest.sha256").write_text((source / "manifest.sha256").read_text(encoding="utf-8"), encoding="utf-8")
         environment = environment_document(config.get("private_files", ""))
         (stage / "environment.json").write_text(json.dumps(environment, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        key_id = manifest.get("encryption", {}).get("key_id", "")
-        (stage / "RESTORE.txt").write_text(_restore_readme(backup_id, key_id), encoding="utf-8")
+        encryption = manifest.get("encryption") or {}
+        key_id = encryption.get("key_id", "")
+        alg = encryption.get("alg") or "AES-256-GCM"
+        (stage / "RESTORE.txt").write_text(_restore_readme(backup_id, key_id, alg), encoding="utf-8")
         service = stage / "service"
         service.mkdir()
         (service / "nginx.conf.template").write_text(
@@ -230,8 +247,8 @@ def pack_backup(config: dict, backup_id: str, output_dir: str) -> dict:
             "database": (manifest.get("database") or {}).get("counts", {}),
         }
         package_manifest = {
-            "schema": 3,
-            "manifest_version": 3,
+            "schema": 4 if alg == "none" else 3,
+            "manifest_version": 4 if alg == "none" else 3,
             "package_format": "xedc-full-tar-zst",
             "backup_id": backup_id,
             "backup_type": manifest.get("type"),
@@ -239,6 +256,7 @@ def pack_backup(config: dict, backup_id: str, output_dir: str) -> dict:
             "tool_version": __version__,
             "key_id": key_id,
             "key_included": False,
+            "encryption": encryption,
             "counts": counts,
             "file_drift": manifest.get("file_drift") or [],
             "git": {
@@ -267,7 +285,7 @@ def pack_backup(config: dict, backup_id: str, output_dir: str) -> dict:
     credentials = destination_root / f"{base}.credentials.enc"
     secret_artifact = manifest["artifacts"].get("secrets", {})
     secret_src = source / secret_artifact.get("file", "")
-    if secret_src.is_file():
+    if alg != "none" and secret_src.is_file():
         shutil.copy2(secret_src, credentials)
         os.chmod(credentials, 0o600)
     return {

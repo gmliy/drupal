@@ -1,5 +1,6 @@
 {
   "backup_root": "/var/lib/xedc-recover/backups",
+  "package_dir": "",
   "key_file": "/var/lib/xedc-recover/keys/primary.key",
   "source_root": "/var/www/drupal",
   "public_files": "web/sites/default/files",
@@ -27,7 +28,7 @@
     "timeout": 60,
     "retries": 5
   },
-  "retention": {"daily": 7, "weekly": 4},
+  "retention": {"keep": 7, "days": 0, "daily": 7, "weekly": 4},
   "nice": 19,
   "strategy": "pinned"
 }

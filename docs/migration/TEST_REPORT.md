@@ -208,3 +208,42 @@ xedc-restore --backup xedc-full-20261103T170644Z-764a29 --domain lab.xedc.test -
 ```
 
 2026-11-03 17:10:38–17:14:42 UTC，退出码 0。日志 `r2-restore-round.log`。容器内下载文件的 SHA256 与上面一致。首页 200，登录 200，匿名后台 403，PNG 173184 字节。数据库 users 11、node 94、file_managed 334。代码来源 `package-snapshot`，原因 `working-tree-dirty`，提交号与备份一致。R2 检查为列出备份前缀，`writes` 为 false。对象存储密钥目录不存在。容器和临时凭据文件已删除。
+
+### 本地和 R2 双存储
+
+版本 2.3.0。测试只用临时目录和 `127.0.0.1` 上的内存对象存储，没有导出生产数据库，没有写入 `/var/www/drupal`，也没有写入 `/var/lib/xedc-recover/backups`。
+
+```bash
+cd /opt/xedc-migration/tools/xedc-recover
+python3 -m unittest tests.test_core tests.test_lab tests.test_oneshot tests.test_dual
+```
+
+| 轮次 | 时间 (UTC) | 结果 |
+| --- | --- | --- |
+| 1 | 18:06:18–18:06:30 | 33 tests OK，10.821 秒 |
+| 2 | 18:06:49–18:07:00 | 33 tests OK，10.680 秒 |
+
+两轮都覆盖这 12 项：
+
+| 项 | 结果 |
+| --- | --- |
+| 仅本地备份 | PASS。不连接对象存储。目录 `0700`，包 `0600`。没有生成密钥 |
+| 仅 R2 备份 | PASS。远端 SHA256 一致后删除临时文件。上传失败时临时文件仍在 |
+| 默认双存储 | PASS。本地和下载包的编号、SHA256、Manifest 一致 |
+| R2 不可达 | PASS。状态 `PARTIAL`，本地包保留，退出码不是成功 |
+| 重新上传 | PASS。没有调用打包。本地文件修改时间不变 |
+| 本地完整性 | PASS。`xedc-backup verify` 核对 SHA256 和 Manifest |
+| R2 下载 SHA256 | PASS |
+| 本地恢复 | PASS。在临时目录解出数据库压缩包和文件，没有导入生产 MariaDB |
+| R2 恢复 | PASS。同一夹具，独立于本地文件 |
+| 两处恢复结果 | PASS。`database.sql.gz`、public、private 和代码文件的 SHA256 相同 |
+| 自动清理 | PASS。唯一备份留下。尚未上传成功的唯一完整备份留下。删除写进 `prune.log` |
+| 旧加密包 | PASS。有原来的密钥可以恢复文件。没有密钥时要求 `primary.key` |
+
+本机存在生产网站目录，`xedc-restore` 仍直接拒绝。因此这两轮没有把新格式包安装成一个对外网站。更早的 Ubuntu 容器恢复仍然只证明旧的加密包。
+
+### 独立 R2 前缀
+
+2026-11-03 18:07:40 UTC，用夹具而不是生产库，向桶 `dclili` 的 `xedc-recover/lab-dual/` 上传一份 64592 字节的新格式包。编号 `xedc-20261103T180740Z-50c92a`。SHA256 `4a91f81523dd4504536614249663a0b80f9fc047d23f3b08cd8a4dbf64004d5d`。再次下载的 SHA256 相同。本地文件模式 `0600`。
+
+上传前、上传后和删除测试对象之后，`xedc-recover/packages/` 都是同样的 6 个对象，Content-Length 也没有变化。其中仍包括 `xedc-full-20261103T170644Z-764a29.tar.zst`（621434331 字节）和 `xedc-full-20261103T172512Z-445dba.tar.zst`（639875087 字节）。测试对象随后从 `xedc-recover/lab-dual/` 删除，该前缀已空。没有写入 `public/` 或 `private/`。

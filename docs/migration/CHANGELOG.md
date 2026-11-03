@@ -1,5 +1,12 @@
 # 变更记录
 
+## 2.3.0
+
+- 新的 `xedc-backup` 同时支持本地目录和 Cloudflare R2。默认先写本地包并核对 SHA256，再上传同一份文件，下载回来再次核对。
+- `--local-only` 不连接 R2。`--r2-only` 在远端校验通过后才删除临时文件。R2 失败时保留本地包，退出码不是成功，并用 `xedc-backup upload --backup` 重新上传。
+- `xedc-backup list`、`verify` 和 `delete` 管理本地包。保留策略不会删除唯一备份，也不会自动删除尚未上传成功的唯一完整包。
+- 新包 `encryption.alg` 为 `none`，schema 为 4，不生成单独的解密密钥。本地靠目录权限，R2 靠私有桶和 HTTPS。旧的 AES-256-GCM 包仍要原来的 `primary.key`。
+
 ## 2.2.0
 
 - `xedc-backup` 和 `xedc-restore` 成为两条完整命令。备份会加密、上传、回读并解密校验后才报告成功。

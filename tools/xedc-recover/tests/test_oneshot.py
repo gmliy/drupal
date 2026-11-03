@@ -37,6 +37,14 @@ class GuardTests(unittest.TestCase):
         ]
         self.assertEqual(resolve_remote_package_name(names, "xedc-full-20261104"), names[1])
         self.assertEqual(resolve_remote_package_name(names, "latest"), names[1])
+        self.assertEqual(
+            resolve_remote_package_name(["xedc-full-20261103T170434Z-764a29.tar.zst"], "xedc-20261103T170434Z-764a29"),
+            "xedc-full-20261103T170434Z-764a29.tar.zst",
+        )
+        self.assertEqual(
+            resolve_remote_package_name(["xedc-full-20261103-3cd3bf.tar.zst"], "xedc-20261103T135450Z-3cd3bf"),
+            "xedc-full-20261103-3cd3bf.tar.zst",
+        )
 
     def test_remote_url_loses_credentials(self):
         cleaned = sanitize_remote("https://xxedc:ghp_exampleexampleexampleex@github.com/xxedc/drupal.git")
@@ -111,7 +119,9 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(result["status"], "PASS")
             self.assertFalse(result["key_included"])
             self.assertTrue(result["archive"].endswith(".tar.zst"))
-            self.assertEqual(result["roundtrip"]["decrypt"], "PASS")
+            self.assertEqual(result["roundtrip"]["integrity"], "PASS")
+            self.assertEqual(result["encryption"], "none")
+            self.assertEqual(result["roundtrip"]["decrypt"], "not-required")
             self.assertTrue(all("xedc-recover/unit-oneshot/packages/" in item for item in result["uploaded"]))
             self.assertFalse(any(item.endswith(".key") for item in result["uploaded"]))
             client = S3Client(
@@ -137,7 +147,8 @@ class PipelineTests(unittest.TestCase):
             listing = subprocess.run(["tar", "--zstd", "-tf", result["archive"]], text=True, capture_output=True, check=True)
             member = next(line for line in listing.stdout.splitlines() if line.endswith("PACKAGE.json"))
             package = json.loads(subprocess.run(["tar", "--zstd", "-xOf", result["archive"], member], text=True, capture_output=True, check=True).stdout)
-            self.assertEqual(package["schema"], 3)
+            self.assertEqual(package["schema"], 4)
+            self.assertEqual(package["encryption"]["alg"], "none")
             self.assertFalse(package["key_included"])
             self.assertNotIn("key_b64", json.dumps(package))
 

@@ -1,8 +1,8 @@
 """One command to back up, and one command to restore.
 
-xedc-backup reads the live site, writes an encrypted package, uploads it, and
-downloads it again before reporting success. xedc-restore installs a new
-machine from that package. Neither command prints secret values.
+xedc-backup writes one tar.zst locally and can upload that same file to R2.
+New packages have no separate decryption key. Old AES packages still need
+primary.key. Neither command prints secret values.
 """
 
 from __future__ import annotations
@@ -23,6 +23,16 @@ from pathlib import Path
 from . import __version__
 from .backup import BackupError, Lock, create_backup, new_id, prune_backups, verify_backup
 from .bundle import create_full_package, install_bundle, pack_backup, verify_package
+from .catalog import (
+    assert_archive_manifest,
+    delete_local_package,
+    find_local_package,
+    list_local_packages,
+    package_directory,
+    package_needs_legacy_key,
+    prune_local_packages,
+    write_meta,
+)
 from .config import load_config
 from .crypto import CryptoError
 from .gitmeta import collect_identity
@@ -280,7 +290,8 @@ def _write_state(config: dict, state: dict) -> None:
 def _verify_download(config: dict, archive: Path) -> dict:
     from .bundle import _extract_package, _install_material
 
-    digest = verify_package(archive)
+    identity = assert_archive_manifest(archive)
+    digest = identity["sha256"]
     stage = Path(tempfile.mkdtemp(prefix="xedc-roundtrip-"))
     try:
         _extract_package(archive, stage)
@@ -289,91 +300,188 @@ def _verify_download(config: dict, archive: Path) -> dict:
         backup_id = _install_material(stage, material)
         checked = verify_backup({**config, "backup_root": str(material)}, backup_id)
         if checked.get("status") != "PASS":
-            raise BackupError("重新下载后的解密校验没有通过")
-        return {"sha256": digest, "backup_id": backup_id, "decrypt": "PASS"}
+            raise BackupError("备份包完整性校验没有通过")
+        encrypted = identity.get("encryption") not in ("", "none")
+        return {
+            "sha256": digest,
+            "backup_id": backup_id,
+            "integrity": "PASS",
+            "decrypt": "PASS" if encrypted else "not-required",
+            "encryption": identity.get("encryption") or "",
+            "manifest_sha256": identity.get("manifest_sha256") or "",
+            "git_commit": identity.get("git_commit") or "",
+            "drupal_version": identity.get("drupal_version") or "",
+            "artifacts": identity.get("artifacts") or {},
+        }
     finally:
         shutil.rmtree(stage, ignore_errors=True)
 
 
-def run_backup(config: dict, *, dry_run: bool = False, resume: bool = False, output: str = "") -> dict:
+def _mode_name(mode: str) -> str:
+    if mode not in {"both", "local", "r2"}:
+        raise BackupError("备份模式只能是 both、local 或 r2")
+    return mode
+
+
+def _publish_remote(config: dict, archive: Path, local_digest: str) -> dict:
+    uploaded = upload_package(config, str(archive))
+    incoming = archive.parent / "roundtrip"
+    if incoming.exists():
+        shutil.rmtree(incoming)
+    try:
+        fetched = download_package(config, archive.name, str(incoming))
+        if fetched["sha256"] != local_digest:
+            raise BackupError("从对象存储下载的 SHA256 与本地不一致，不标记成功")
+        verified = _verify_download(config, Path(fetched["archive"]))
+        if verified["sha256"] != local_digest:
+            raise BackupError("远端校验值与本地备份不一致")
+        return {"uploaded": uploaded, "verified": verified, "incoming": incoming}
+    except Exception:
+        shutil.rmtree(incoming, ignore_errors=True)
+        raise
+
+
+def run_backup(config: dict, *, dry_run: bool = False, resume: bool = False, output: str = "", mode: str = "both") -> dict:
     started = time.time()
+    mode = _mode_name(mode)
     Path(config["backup_root"]).mkdir(parents=True, exist_ok=True)
     os.chmod(Path(config["backup_root"]), 0o700)
-    key_path = Path(config["key_file"])
-    if not dry_run and not key_path.is_file():
-        from .credentials import init_key
-        created = init_key(str(key_path))
-        _log(config, f"已生成解密密钥 {created['path']}。请立刻把它复制到密码管理器。它不会上传，也不会进入 Git。")
     report = preflight(config)
     _log(config, f"系统 {report['os']}，磁盘可用 {_human(report['disk_free'])}，内存可用 {_human(report['memory_available'])}")
+    if report["disk_free"] < 8 * 1024 * 1024 * 1024:
+        _log(config, f"磁盘空间预警：可用 {_human(report['disk_free'])}。空间不足以容纳完整备份时会拒绝写入。")
     _log(config, f"数据库 {report['database']}，Drupal {report['drupal_version'] or '未知'}，提交 {report['git'].get('commit') or '无'}")
-    remote = prepare_remote(config, required=not dry_run)
-    if remote:
-        _log(config, f"检查对象存储 {remote['bucket']} 前缀 {remote['prefix']}")
-        client_from_config(config).list_keys("packages/")
     if dry_run:
-        planned = create_backup(config, dry_run=True, allow_live_read=False)
-        report.update({"status": "DRY-RUN", "planned": planned, "remote_ready": bool(remote)})
+        planned = create_backup(config, dry_run=True, allow_live_read=False, client_encryption=False)
+        report.update({"status": "DRY-RUN", "planned": planned, "mode": mode, "remote_ready": mode == "local"})
         return report
-    output_dir = output or str(Path(config["backup_root"]).parent / "packages")
+    long_term = Path(output) if output else package_directory(config)
+    long_term.mkdir(parents=True, exist_ok=True)
+    os.chmod(long_term, 0o700)
+    output_dir = long_term / ".r2-only-tmp" if mode == "r2" else long_term
+    output_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(output_dir, 0o700)
     state = _read_state(config) if resume else {}
     live = production_webroot_present() and Path(config["source_root"]).resolve() == Path("/var/www/drupal").resolve()
     lock = Lock(Path(config["backup_root"]) / ".oneshot.lock")
     with lock:
         if state.get("backup_id") and not state.get("packed"):
             _log(config, f"继续未完成的备份 {state['backup_id']}")
-            created = create_backup(config, allow_live_read=live, resume=True, backup_id=state["backup_id"], label="xedc-backup")
+            created = create_backup(
+                config,
+                allow_live_read=live,
+                resume=True,
+                backup_id=state["backup_id"],
+                label="xedc-backup",
+                client_encryption=False,
+            )
             backup_id = created["id"]
-        elif state.get("packed") and state.get("backup_id"):
+        elif state.get("packed") and state.get("backup_id") and state.get("archive") and Path(state["archive"]).is_file():
             backup_id = state["backup_id"]
-            _log(config, f"继续上传已打包的备份 {backup_id}")
+            _log(config, f"继续已打包的备份 {backup_id}")
         else:
             backup_id = new_id()
-            _write_state(config, {"backup_id": backup_id, "started": _now(), "packed": False})
+            _write_state(config, {"backup_id": backup_id, "started": _now(), "packed": False, "mode": mode})
             _log(config, f"开始完整备份 {backup_id}")
-            created = create_backup(config, allow_live_read=live, backup_id=backup_id, label="xedc-backup")
+            created = create_backup(config, allow_live_read=live, backup_id=backup_id, label="xedc-backup", client_encryption=False)
             backup_id = created["id"]
         if not (state.get("packed") and state.get("archive") and Path(state.get("archive", "")).is_file()):
-            _log(config, "生成压缩包、校验和与 manifest")
-            packed = pack_backup(config, backup_id, output_dir)
-            state = {"backup_id": backup_id, "packed": True, "archive": packed["archive"], "sha256": packed["sha256"]}
+            _log(config, "生成本地完整备份包并计算 SHA256")
+            packed = pack_backup(config, backup_id, str(output_dir))
+            state = {"backup_id": backup_id, "packed": True, "archive": packed["archive"], "sha256": packed["sha256"], "mode": mode}
             _write_state(config, state)
         else:
             packed = {"archive": state["archive"], "sha256": state["sha256"], "backup_id": backup_id, "bytes": Path(state["archive"]).stat().st_size}
         archive = Path(packed["archive"])
-        local_digest = verify_package(archive)
+        local_checked = _verify_download(config, archive)
+        local_digest = local_checked["sha256"]
         if local_digest != packed["sha256"]:
-            raise BackupError("本地恢复包在上传前校验失败，没有上传")
-        _log(config, f"上传 {_human(archive.stat().st_size)}")
-        uploaded = upload_package(config, str(archive))
-        incoming = Path(output_dir) / "roundtrip"
-        if incoming.exists():
-            shutil.rmtree(incoming)
-        fetched = download_package(config, archive.name, str(incoming))
-        if fetched["sha256"] != local_digest:
-            raise BackupError("从对象存储下载的 SHA256 与本地不一致，不标记成功")
-        verified = _verify_download(config, Path(fetched["archive"]))
-        prune = prune_backups(config)
+            raise BackupError("本地恢复包校验失败，没有上传")
+        directory = Path(config["backup_root"]) / backup_id
+        if directory.is_dir():
+            shutil.rmtree(directory)
+        meta = {
+            "backup_id": backup_id,
+            "archive": archive.name,
+            "sha256": local_digest,
+            "bytes": archive.stat().st_size,
+            "created": _now(),
+            "r2": "skipped" if mode == "local" else "pending",
+            "git_commit": (report.get("git") or {}).get("commit") or "",
+            "drupal_version": report.get("drupal_version") or "",
+            "encryption": "none",
+            "manifest_sha256": local_checked.get("manifest_sha256") or "",
+        }
+        write_meta(archive, meta)
+        uploaded_keys: list[str] = []
+        verified = {"integrity": "SKIPPED"}
+        remote_prefix = ""
+        bucket = ""
+        remote_error = ""
         remote_prune = {"kept": [], "removed": [], "error": ""}
-        try:
-            remote_prune = prune_remote_packages(config, keep=int(config.get("retention", {}).get("daily", 7)))
-        except (BackupError, S3Error) as exc:
-            remote_prune["error"] = redact(str(exc))
-            _log(config, f"保留策略清理没有完成：{remote_prune['error']}。已校验的备份仍然保留。")
-        _write_state(config, {"backup_id": backup_id, "packed": True, "archive": str(archive), "status": "PASS", "finished": _now()})
-        shutil.rmtree(incoming, ignore_errors=True)
+        status = "PASS"
+        if mode != "local":
+            try:
+                remote = prepare_remote(config, required=True)
+                remote_prefix = remote["prefix"]
+                bucket = remote["bucket"]
+                _log(config, f"上传 {_human(archive.stat().st_size)} 到 {bucket} {remote_prefix}")
+                published = _publish_remote(config, archive, local_digest)
+                verified = published["verified"]
+                if verified.get("backup_id") != backup_id or verified.get("sha256") != local_digest:
+                    raise BackupError("本地备份与 R2 备份的编号或 SHA256 不一致")
+                if verified.get("git_commit") != local_checked.get("git_commit") or verified.get("drupal_version") != local_checked.get("drupal_version"):
+                    raise BackupError("本地备份与 R2 备份的版本记录不一致")
+                if verified.get("manifest_sha256") != local_checked.get("manifest_sha256"):
+                    raise BackupError("本地备份与 R2 备份的 manifest 不一致")
+                uploaded_keys = [item["key"] for item in published["uploaded"]["uploaded"]]
+                meta["r2"] = "uploaded"
+                meta["r2_key"] = f"{remote_prefix}packages/{archive.name}"
+                write_meta(archive, meta)
+                shutil.rmtree(published["incoming"], ignore_errors=True)
+                _log(config, "R2 下载校验通过")
+            except (BackupError, S3Error) as exc:
+                remote_error = redact(str(exc))
+                meta["r2"] = "failed"
+                meta["r2_error"] = remote_error
+                write_meta(archive, meta)
+                status = "PARTIAL" if mode == "both" else "FAIL"
+                _log(config, f"R2 失败，本地文件保留在 {archive}。{remote_error}")
+        if status == "PASS" and mode == "r2":
+            for path in (archive, Path(str(archive) + ".sha256"), Path(str(archive) + ".meta.json")):
+                path.unlink(missing_ok=True)
+            if output_dir.is_dir() and output_dir.name == ".r2-only-tmp":
+                shutil.rmtree(output_dir, ignore_errors=True)
+            archive_text = ""
+        else:
+            archive_text = str(archive)
+        prune = {"removed": [], "kept": []}
+        if mode != "r2" and status in {"PASS", "PARTIAL"}:
+            prune = prune_local_packages(config)
+            prune_backups(config)
+        if status == "PASS" and mode in {"both", "r2"}:
+            try:
+                remote_prune = prune_remote_packages(config, keep=int((config.get("retention") or {}).get("keep") or (config.get("retention") or {}).get("daily") or 7))
+            except (BackupError, S3Error) as exc:
+                remote_prune["error"] = redact(str(exc))
+                _log(config, f"远端保留策略清理没有完成：{remote_prune['error']}。已校验的备份仍然保留。")
+        _write_state(config, {"backup_id": backup_id, "packed": True, "archive": archive_text, "status": status, "finished": _now(), "mode": mode})
     return {
-        "status": "PASS",
+        "status": status,
+        "mode": mode,
         "id": backup_id,
-        "archive": str(archive),
-        "bytes": archive.stat().st_size,
+        "archive": archive_text,
+        "bytes": meta["bytes"],
         "sha256": local_digest,
-        "remote_prefix": config["remote"]["prefix"],
-        "bucket": config["remote"]["bucket"],
-        "uploaded": [item["key"] for item in uploaded["uploaded"]],
+        "local_integrity": "PASS",
+        "remote_prefix": remote_prefix,
+        "bucket": bucket,
+        "r2_key": meta.get("r2_key") or "",
+        "r2_error": remote_error,
+        "uploaded": uploaded_keys,
         "roundtrip": verified,
-        "key_file": str(key_path),
         "key_included": False,
+        "encryption": "none",
         "git": report["git"],
         "drupal_version": report["drupal_version"],
         "php_version": report["php_version"],
@@ -387,6 +495,39 @@ def run_backup(config: dict, *, dry_run: bool = False, resume: bool = False, out
         "remote_prune": remote_prune,
         "elapsed_seconds": round(time.time() - started, 1),
         "finished": _now(),
+    }
+
+
+def upload_existing(config: dict, spec: str) -> dict:
+    item = find_local_package(config, spec)
+    archive = Path(item["path"])
+    before = archive.stat().st_mtime_ns
+    identity = assert_archive_manifest(archive)
+    prepare_remote(config, required=True)
+    published = _publish_remote(config, archive, identity["sha256"])
+    verified = published["verified"]
+    if verified.get("sha256") != identity["sha256"] or verified.get("backup_id") != identity["backup_id"]:
+        raise BackupError("重新上传后的远端备份与本地不一致")
+    if archive.stat().st_mtime_ns != before:
+        raise BackupError("重新上传改动了本地备份文件")
+    meta = dict(item)
+    meta["r2"] = "uploaded"
+    meta["r2_key"] = f"{config['remote']['prefix']}packages/{archive.name}"
+    meta["sha256"] = identity["sha256"]
+    write_meta(archive, meta)
+    shutil.rmtree(published["incoming"], ignore_errors=True)
+    return {
+        "status": "PASS",
+        "id": identity["backup_id"],
+        "archive": str(archive),
+        "bytes": archive.stat().st_size,
+        "sha256": identity["sha256"],
+        "repacked": False,
+        "bucket": config["remote"]["bucket"],
+        "remote_prefix": config["remote"]["prefix"],
+        "r2_key": meta["r2_key"],
+        "roundtrip": verified,
+        "uploaded": [row["key"] for row in published["uploaded"]["uploaded"]],
     }
 
 
@@ -453,7 +594,7 @@ def _extra_checks(domain: str, target: Path) -> dict:
     }
 
 
-def run_restore(config: dict, *, backup: str = "", file: str = "", domain: str = "", yes: bool = False, role: str = "lab", target: str = "/srv/xedc", dry_run: bool = False) -> dict:
+def run_restore(config: dict, *, backup: str = "", file: str = "", domain: str = "", yes: bool = False, role: str = "lab", target: str = "/srv/xedc", dry_run: bool = False, source: str = "") -> dict:
     if production_webroot_present():
         raise ProductionGuard("生产网站仍在本机，拒绝一键恢复")
     if role not in {"lab", "replacement"}:
@@ -466,15 +607,18 @@ def run_restore(config: dict, *, backup: str = "", file: str = "", domain: str =
         answer = _prompt("将安装运行环境并恢复网站。确认请输入 yes: ")
         if answer != "yes":
             raise BackupError("未确认，已停止")
-    key_path = Path(config["key_file"])
-    if not key_path.is_file():
-        typed = _prompt("解密密钥文件路径: ")
-        key_path = Path(typed)
-        if not key_path.is_file():
-            raise BackupError("找不到解密密钥")
-        config["key_file"] = str(key_path)
+    if file and source == "r2":
+        raise BackupError("指定了本地文件，不能同时从 R2 读取")
+    if not source:
+        source = "local" if file else "r2"
+    if source not in {"local", "r2"}:
+        raise BackupError("来源只能是 local 或 r2")
+    if source == "local" and not file:
+        if not backup:
+            raise BackupError("本地恢复需要 --backup 或 --file")
+        file = find_local_package(config, backup)["path"]
     if dry_run:
-        return {"status": "DRY-RUN", "domain": domain, "role": role, "target": target, "file": file, "backup": backup}
+        return {"status": "DRY-RUN", "domain": domain, "role": role, "target": target, "file": file, "backup": backup, "source": source}
     archive = ""
     if file:
         archive = str(Path(file))
@@ -491,6 +635,17 @@ def run_restore(config: dict, *, backup: str = "", file: str = "", domain: str =
         destination = str(Path(config["backup_root"]).parent / "incoming")
         fetched = download_package(config, backup or "latest", destination)
         archive = fetched["archive"]
+    identity = assert_archive_manifest(Path(archive))
+    if package_needs_legacy_key(Path(archive)):
+        key_path = Path(config["key_file"])
+        if not key_path.is_file():
+            typed = _prompt("这份旧备份需要原来的解密密钥。密钥文件路径: ")
+            key_path = Path(typed)
+            if not key_path.is_file():
+                raise BackupError("这份备份使用旧的加密格式，需要原来的 primary.key")
+            config["key_file"] = str(key_path)
+    else:
+        _log(config, "这份备份没有单独的解密密钥。")
     _ensure_db_password()
     report = install_bundle(
         config,
@@ -503,13 +658,18 @@ def run_restore(config: dict, *, backup: str = "", file: str = "", domain: str =
     )
     checks = _extra_checks(domain, Path(target))
     report["checks"] = checks
-    r2 = {"status": "NOT TESTED", "reason": "未提供对象存储凭据"}
-    try:
-        if prepare_remote(config, required=False):
-            client_from_config(config).list_keys("packages/")
-            r2 = {"status": "PASS", "mode": "list-backup-prefix", "writes": role == "replacement"}
-    except (BackupError, S3Error) as exc:
-        r2 = {"status": "FAIL", "reason": redact(str(exc))[:240]}
+    if source == "local":
+        r2 = {"status": "SKIPPED", "reason": "本地恢复不连接对象存储"}
+    else:
+        r2 = {"status": "NOT TESTED", "reason": "未提供对象存储凭据"}
+        try:
+            if prepare_remote(config, required=False):
+                client_from_config(config).list_keys("packages/")
+                r2 = {"status": "PASS", "mode": "list-backup-prefix", "writes": role == "replacement"}
+        except (BackupError, S3Error) as exc:
+            r2 = {"status": "FAIL", "reason": redact(str(exc))[:240]}
+    report["source"] = source
+    report["backup_identity"] = {key: identity.get(key) for key in ("backup_id", "sha256", "manifest_sha256", "encryption", "git_commit", "drupal_version")}
     report["r2"] = r2
     report["database_password_file"] = "/var/lib/xedc-recover/restore-db.password"
     report_path = Path(target) / "INSTALL_REPORT.json"
@@ -532,17 +692,36 @@ def _print_backup(result: dict, as_json: bool) -> None:
         print("检查完成，没有写入备份。")
         print(json.dumps({key: result[key] for key in ("os", "database", "site", "git", "disk_free", "remote_ready") if key in result}, ensure_ascii=False, indent=2))
         return
+    if result.get("repacked") is False and result.get("status") == "PASS" and result.get("mode") is None:
+        print("已重新上传现有本地备份，没有重新打包。")
+        print(f"编号: {result.get('id')}")
+        print(f"本地: {result.get('archive')}")
+        print(f"R2: {result.get('bucket')} / {result.get('r2_key')}")
+        print(f"大小: {_human(int(result.get('bytes') or 0))}")
+        print(f"SHA256: {result.get('sha256')}")
+        print("R2 校验: PASS")
+        return
     git = result.get("git") or {}
     dirty = "工作区有未提交改动，恢复时以备份包中的代码为准。" if git.get("dirty") else "工作区与这次提交一致。恢复时会优先取出这个提交。"
-    print("备份完成")
+    status = result.get("status")
+    if status == "PARTIAL":
+        print("本地备份成功，R2 上传失败。本次不是完全成功。")
+    elif status == "FAIL":
+        print("备份没有完成。")
+    else:
+        print("备份完成")
     print(f"编号: {result.get('id')}")
-    print(f"包: {result.get('archive')}")
+    print(f"本地: {result.get('archive') or '未保留长期副本'}")
+    print(f"R2: {result.get('r2_key') or result.get('r2_error') or '未上传'}")
     print(f"大小: {_human(int(result.get('bytes') or 0))}")
     print(f"SHA256: {result.get('sha256')}")
-    print(f"远端: {result.get('bucket')} / {result.get('remote_prefix')}")
+    print(f"本地校验: {result.get('local_integrity') or 'PASS'}")
+    roundtrip = result.get("roundtrip") or {}
+    print(f"R2 校验: {roundtrip.get('integrity') or ('FAIL' if result.get('r2_error') else 'SKIPPED')}")
     print(f"Git: {git.get('commit') or '无'}。{dirty}")
-    print(f"解密密钥: {result.get('key_file')}")
-    print("解密密钥不在备份包里，也没有上传。请单独保存。")
+    print("新备份没有单独的解密密钥。本地目录权限为 0700/0600。R2 使用私有桶、HTTPS 和服务端加密，这不是端到端加密。")
+    if status == "PARTIAL":
+        print(f"本地文件已保留。可以稍后执行: xedc-backup upload --backup {result.get('id')}")
     print(f"用时: {result.get('elapsed_seconds')} 秒")
 
 
@@ -562,27 +741,99 @@ def _print_restore(result: dict, as_json: bool) -> None:
         print(f"新数据库口令文件: {result['database_password_file']}（权限 600，不在报告正文中）")
 
 
+def _print_list(items: list[dict], as_json: bool) -> None:
+    if as_json:
+        print(json.dumps(items, ensure_ascii=False, indent=2))
+        return
+    if not items:
+        print("本地没有完整备份。")
+        return
+    print(f"{'编号':<32} {'时间':<22} {'大小':>10}  {'R2':<10} SHA256")
+    for item in items:
+        print(
+            f"{item.get('backup_id') or item['archive']:<32} "
+            f"{item.get('created', ''):<22} "
+            f"{_human(int(item.get('bytes') or 0)):>10}  "
+            f"{item.get('r2', ''):<10} "
+            f"{item.get('sha256', '')}"
+        )
+
+
+def _local_command(argv: list[str]) -> int:
+    command = argv[0]
+    parser = argparse.ArgumentParser(prog=f"xedc-backup {command}")
+    parser.add_argument("--config", default="")
+    parser.add_argument("--json", action="store_true")
+    if command != "list":
+        parser.add_argument("--backup", required=True)
+    args = parser.parse_args(argv[1:])
+    config = load_runtime_config(args.config or None)
+    if command == "list":
+        _print_list(list_local_packages(config), args.json)
+        return 0
+    if command == "verify":
+        item = find_local_package(config, args.backup)
+        checked = _verify_download(config, Path(item["path"]))
+        payload = {"status": "PASS", "archive": item["path"], **checked}
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            print(f"完整性: PASS")
+            print(f"编号: {checked.get('backup_id')}")
+            print(f"SHA256: {checked.get('sha256')}")
+            print(f"Manifest: {checked.get('manifest_sha256')}")
+        return 0
+    if command == "delete":
+        removed = delete_local_package(config, args.backup, automatic=False)
+        print(json.dumps(removed, ensure_ascii=False) if args.json else f"已删除 {removed['backup_id']}")
+        return 0
+    result = upload_existing(config, args.backup)
+    _print_backup(result, args.json)
+    return 0 if result.get("status") == "PASS" else 1
+
+
 def main_backup(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv and argv[0] in {"create", "upload", "fetch"}:
+    if argv and argv[0] == "upload" and "--archive" in argv:
         from .cli import main
         return main(["bundle", *argv])
-    parser = argparse.ArgumentParser(prog="xedc-backup", description="一键完整备份并上传到 Cloudflare R2")
+    if argv and argv[0] in {"list", "verify", "delete", "upload"}:
+        try:
+            return _local_command(argv)
+        except ProductionGuard as exc:
+            print(redact(str(exc)), file=sys.stderr)
+            return 3
+        except (BackupError, S3Error) as exc:
+            print(redact(str(exc)), file=sys.stderr)
+            return getattr(exc, "exit_code", 1)
+        except Exception as exc:
+            print(redact(f"{exc.__class__.__name__}: {exc}"), file=sys.stderr)
+            return 1
+    if argv and argv[0] in {"create", "fetch"}:
+        from .cli import main
+        return main(["bundle", *argv])
+    parser = argparse.ArgumentParser(prog="xedc-backup", description="生成本地完整备份，并可以上传到 Cloudflare R2")
     parser.add_argument("--version", action="store_true")
     parser.add_argument("--config", default="")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--output", default="")
+    parser.add_argument("--local-only", action="store_true")
+    parser.add_argument("--r2-only", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--force", action="store_true", help="接受该参数，但不能绕过生产环境保护")
     args = parser.parse_args(argv)
     if args.version:
         print(__version__)
         return 0
+    if args.local_only and args.r2_only:
+        print("不能同时使用 --local-only 和 --r2-only", file=sys.stderr)
+        return 2
+    mode = "local" if args.local_only else "r2" if args.r2_only else "both"
     try:
         config = load_runtime_config(args.config or None)
-        result = run_backup(config, dry_run=args.dry_run, resume=args.resume, output=args.output)
+        result = run_backup(config, dry_run=args.dry_run, resume=args.resume, output=args.output, mode=mode)
         _print_backup(result, args.json)
         return 0 if result.get("status") in {"PASS", "DRY-RUN"} else 1
     except ProductionGuard as exc:
@@ -609,7 +860,8 @@ def main_restore(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", default="")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--backup", default="", help="远端恢复包名称或前缀，例如 xedc-full-20261104")
+    parser.add_argument("--source", default="", choices=["", "local", "r2"], help="local 从本地备份恢复，r2 从 Cloudflare R2 恢复")
+    parser.add_argument("--backup", default="", help="备份编号或 xedc-full- 包名")
     parser.add_argument("--file", default="", help="本地 xedc-full-*.tar.zst")
     parser.add_argument("--domain", default="")
     parser.add_argument("--yes", action="store_true")
@@ -635,6 +887,7 @@ def main_restore(argv: list[str] | None = None) -> int:
             role=args.role,
             target=args.target,
             dry_run=args.dry_run,
+            source=args.source,
         )
         _print_restore(result, args.json)
         return 0 if result.get("status") in {"PASS", "DRY-RUN"} else 1
