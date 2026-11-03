@@ -1,0 +1,146 @@
+// Favorite controls are attached on public content pages as well as the
+// member center. Keep their existing look outside .xm.
+
+.xedc-favorite-wrap,
+.xedc-favorite-form,
+.xedc-favorite-login {
+  --xm-bg: var(--xa-bg, #fff);
+  --xm-fg: var(--xa-fg, #09090b);
+  --xm-mut: var(--xa-muted, #71717a);
+  --xm-soft: #f7f7f8;
+  --xm-bd: var(--xa-border, #e4e4e7);
+  --xm-primary: var(--xa-primary, #18181b);
+  --xm-primary-fg: var(--xa-primary-fg, #fafafa);
+  --xm-danger: var(--xa-danger, #dc2626);
+  --xm-danger-bg: color-mix(in srgb, var(--xm-danger) 12%, var(--xm-bg));
+  --xm-danger-border: color-mix(in srgb, var(--xm-danger) 42%, var(--xm-bd));
+}
+
+body.xm-page .xm :is(.xedc-favorite-wrap, .xedc-favorite-form, .xedc-history-delete-wrap, .xedc-history-delete-form) {
+  --xm-bg: unset;
+  --xm-fg: unset;
+  --xm-mut: unset;
+  --xm-soft: unset;
+  --xm-bd: unset;
+  --xm-primary: unset;
+  --xm-primary-fg: unset;
+  --xm-danger: unset;
+  --xm-danger-bg: unset;
+  --xm-danger-border: unset;
+}
+
+.xedc-favorite-wrap,
+.xedc-favorite-form,
+.xedc-history-delete-wrap,
+.xedc-history-delete-form {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+}
+
+.xedc-favorite-form,
+.xedc-history-delete-form {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.xedc-favorite-form .form-actions,
+.xedc-history-delete-form .form-actions {
+  margin: 0;
+}
+
+.xedc-favorite-btn,
+.xedc-favorite-login,
+.xedc-history-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--xm-bd, #e4e4e7);
+  border-radius: 999px;
+  background: var(--xm-bg, #fff);
+  color: var(--xm-fg, #18181b);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.xedc-favorite-form .xedc-favorite-btn.btn-primary,
+.xedc-favorite-form .xedc-favorite-btn.btn-secondary,
+.xedc-history-delete-form .xedc-history-delete-btn.btn {
+  border: 1px solid var(--xm-bd, #e4e4e7);
+  border-radius: 999px;
+  background: var(--xm-bg, #fff);
+  color: var(--xm-fg, #18181b);
+  box-shadow: none;
+}
+
+.xedc-favorite-btn:hover,
+.xedc-favorite-login:hover,
+.xedc-favorite-form .xedc-favorite-btn:hover {
+  border-color: var(--xm-fg, #18181b);
+  background: var(--xm-soft, #f4f4f5);
+  color: var(--xm-fg, #18181b);
+}
+
+.xedc-favorite-btn.is-favorite,
+.xedc-favorite-form .xedc-favorite-btn.is-favorite {
+  border-color: var(--xm-primary, #18181b);
+  background: var(--xm-soft, #f4f4f5);
+  color: var(--xm-fg, #18181b);
+}
+
+.xedc-history-delete-btn,
+.xedc-history-delete-form .xedc-history-delete-btn.btn {
+  border-color: var(--xm-danger-border, #fecaca);
+  background: var(--xm-bg, #fff);
+  color: var(--xm-danger, #dc2626);
+}
+
+.xedc-history-delete-btn:hover {
+  border-color: var(--xm-danger, #dc2626);
+  background: var(--xm-danger-bg, #fef2f2);
+  color: var(--xm-danger, #dc2626);
+}
+
+.xedc-favorite-btn:focus-visible,
+.xedc-favorite-login:focus-visible,
+.xedc-history-delete-btn:focus-visible {
+  outline: 2px solid var(--xm-ring, #a1a1aa);
+  outline-offset: 2px;
+}
+
+.xedc-favorite-form .xedc-favorite-btn.btn:focus,
+.xedc-favorite-form .xedc-favorite-btn.btn:focus-visible,
+.xedc-favorite-form .xedc-favorite-btn.btn:active,
+.xedc-history-delete-form .xedc-history-delete-btn.btn:focus,
+.xedc-history-delete-form .xedc-history-delete-btn.btn:focus-visible,
+.xedc-history-delete-form .xedc-history-delete-btn.btn:active {
+  outline: none;
+  box-shadow: none !important;
+}
+
+.xedc-favorite-form .ajax-progress,
+.xedc-history-delete-form .ajax-progress {
+  margin-left: 6px;
+}
+
+.vd-fav,
+.img-detail__fav {
+  margin: 10px 0 0;
+}
+
+.xa-art__actions .xedc-favorite-wrap {
+  margin: 0;
+}
+
+.img-detail__fav .xedc-favorite-form .xedc-favorite-btn {
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
+}

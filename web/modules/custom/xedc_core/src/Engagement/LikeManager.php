@@ -35,11 +35,22 @@ final class LikeManager {
   }
 
   public function isLiked(int $uid, int $nid): bool {
-    if ($uid < 1 || $nid < 1) {
+    return $uid > 0 && $this->isLikedBy($uid, '', $nid);
+  }
+
+  public function isLikedBy(int $uid, string $hash, int $nid): bool {
+    if ($nid < 1 || $uid < 0) {
+      return FALSE;
+    }
+    if ($uid > 0) {
+      $hash = '';
+    }
+    elseif (!preg_match('/^[a-f0-9]{64}$/', $hash)) {
       return FALSE;
     }
     $query = $this->database->select('xedc_like', 'l');
     $query->condition('uid', $uid);
+    $query->condition('actor_hash', $hash);
     $query->condition('entity_type', 'node');
     $query->condition('entity_id', $nid);
     $query->condition('status', 1);
@@ -68,24 +79,51 @@ final class LikeManager {
    *   The state after the change.
    */
   public function toggle(int $uid, NodeInterface $node): array {
-    if ($uid < 1 || !$this->isAllowedNode($node) || !$node->access('view')) {
+    if ($uid < 1) {
       throw new \InvalidArgumentException('当前用户不能点赞这篇内容。');
     }
+    return $this->toggleActor($uid, '', $node);
+  }
+
+  /**
+   * Adds or removes one member or guest like.
+   *
+   * Members always use an empty hash. Guests use uid 0 and the SHA-256 of
+   * their cookie secret. The two cannot overwrite each other.
+   *
+   * @return array{liked: bool, count: int}
+   *   The state after the change.
+   */
+  public function toggleActor(int $uid, string $hash, NodeInterface $node): array {
+    if ($uid > 0) {
+      $hash = '';
+    }
+    elseif (!preg_match('/^[a-f0-9]{64}$/', strtolower($hash))) {
+      throw new \InvalidArgumentException('游客身份无效。');
+    }
+    else {
+      $hash = strtolower($hash);
+    }
+    if (!$this->isAllowedNode($node) || !$node->access('view')) {
+      throw new \InvalidArgumentException('当前用户不能点赞这篇内容。');
+    }
+    $this->assertRate($uid, $hash);
     $nid = (int) $node->id();
     $now = $this->time->getRequestTime();
     $transaction = $this->database->startTransaction();
     try {
-      if ($this->isLiked($uid, $nid)) {
+      if ($this->isLikedBy($uid, $hash, $nid)) {
         $this->database->update('xedc_like')
           ->fields(['status' => 0, 'changed' => $now])
           ->condition('uid', $uid)
+          ->condition('actor_hash', $hash)
           ->condition('entity_type', 'node')
           ->condition('entity_id', $nid)
           ->execute();
         $liked = FALSE;
       }
       else {
-        $this->activate($uid, $node, $now);
+        $this->activate($uid, $hash, $node, $now);
         $liked = TRUE;
       }
     }
@@ -108,7 +146,7 @@ final class LikeManager {
     if ($uid < 1 || !$this->isAllowedNode($node)) {
       throw new \InvalidArgumentException('当前用户不能点赞这篇内容。');
     }
-    $added = $this->activate($uid, $node, $this->time->getRequestTime());
+    $added = $this->activate($uid, '', $node, $this->time->getRequestTime());
     if ($added) {
       $this->invalidate('node', (int) $node->id());
     }
@@ -116,9 +154,13 @@ final class LikeManager {
   }
 
   public function remove(int $uid, int $nid): bool {
+    if ($uid < 1) {
+      return FALSE;
+    }
     $updated = (int) $this->database->update('xedc_like')
       ->fields(['status' => 0, 'changed' => $this->time->getRequestTime()])
       ->condition('uid', $uid)
+      ->condition('actor_hash', '')
       ->condition('entity_type', 'node')
       ->condition('entity_id', $nid)
       ->condition('status', 1)
@@ -132,11 +174,12 @@ final class LikeManager {
   /**
    * Inserts an active like, or reactivates the same user's cancelled row.
    */
-  protected function activate(int $uid, NodeInterface $node, int $now): bool {
+  protected function activate(int $uid, string $hash, NodeInterface $node, int $now): bool {
     try {
       $this->database->insert('xedc_like')
         ->fields([
           'uid' => $uid,
+          'actor_hash' => $hash,
           'entity_type' => 'node',
           'entity_id' => (int) $node->id(),
           'bundle' => $node->bundle(),
@@ -156,11 +199,29 @@ final class LikeManager {
           'changed' => $now,
         ])
         ->condition('uid', $uid)
+        ->condition('actor_hash', $hash)
         ->condition('entity_type', 'node')
         ->condition('entity_id', (int) $node->id())
         ->condition('status', 0)
         ->execute();
       return $updated > 0;
+    }
+  }
+
+  protected function assertRate(int $uid, string $hash): void {
+    $flood = \Drupal::flood();
+    $actor = $uid > 0 ? 'uid:' . $uid : 'guest:' . $hash;
+    if (!$flood->isAllowed('xedc_like_actor', 40, 3600, $actor)) {
+      throw new \OverflowException('点赞过于频繁，请稍后再试。');
+    }
+    $request = \Drupal::requestStack()->getCurrentRequest();
+    $ip = $request ? (string) $request->getClientIp() : '';
+    if ($ip !== '' && !$flood->isAllowed('xedc_like_ip', 80, 600, $ip)) {
+      throw new \OverflowException('点赞过于频繁，请稍后再试。');
+    }
+    $flood->register('xedc_like_actor', 3600, $actor);
+    if ($ip !== '') {
+      $flood->register('xedc_like_ip', 600, $ip);
     }
   }
 
@@ -266,7 +327,7 @@ final class LikeManager {
 
   public function invalidate(string $entityType, int $entityId): void {
     $this->cache->delete('xedc_like_count:' . $entityType . ':' . $entityId);
-    Cache::invalidateTags([$this->tag($entityType, $entityId), $entityType . ':' . $entityId]);
+    Cache::invalidateTags([$this->tag($entityType, $entityId), $entityType . ':' . $entityId, 'xedc_engagement']);
   }
 
 }

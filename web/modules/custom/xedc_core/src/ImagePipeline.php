@@ -134,17 +134,7 @@ class ImagePipeline {
       $this->assertDisk($public, $need);
     }
     $this->assertDisk($work, $need);
-    if ($checked['animated']) {
-      $built = $this->copyOfficial($real, $optimized, $itemId, $checked, 'animated');
-    }
-    else {
-      $built = $this->tryWebp($real, $optimized, $itemId, $checked);
-      if (!$built) {
-        $this->logger->warning('图片压缩未采用，已保留可解码原图：@name', ['@name' => $item->original_name]);
-        $this->tasks->log($taskId, 'warning', (string) $item->original_name . ' 压缩未采用，已保留原始图片作为正式文件。');
-        $built = $this->copyOfficial($real, $optimized, $itemId, $checked, 'fallback');
-      }
-    }
+    $built = $this->officialImage($real, $optimized, $itemId, $checked, $taskId, (string) $item->original_name);
     $storedHash = hash_file('sha256', $built['path']);
     if (!is_string($storedHash) || !preg_match('/^[a-f0-9]{64}$/', $storedHash)) {
       throw new ImportException('无法计算正式图片 SHA-256。');
@@ -178,12 +168,7 @@ class ImagePipeline {
     }
     $info = @getimagesize($realpath);
     $type = (int) ($info[2] ?? 0);
-    $map = [
-      IMAGETYPE_JPEG => ['image/jpeg', 'jpg'],
-      IMAGETYPE_PNG => ['image/png', 'png'],
-      IMAGETYPE_GIF => ['image/gif', 'gif'],
-      IMAGETYPE_WEBP => ['image/webp', 'webp'],
-    ];
+    $map = $this->imageTypes();
     if (!$info || !isset($map[$type])) {
       throw new ImportException('不是受支持的图片，或文件已损坏。');
     }
@@ -258,6 +243,23 @@ class ImagePipeline {
   }
 
   /**
+   * @return array<int, array{0: string, 1: string}>
+   *   MIME and extension by IMAGETYPE constant.
+   */
+  private function imageTypes(): array {
+    $map = [
+      IMAGETYPE_JPEG => ['image/jpeg', 'jpg'],
+      IMAGETYPE_PNG => ['image/png', 'png'],
+      IMAGETYPE_GIF => ['image/gif', 'gif'],
+      IMAGETYPE_WEBP => ['image/webp', 'webp'],
+    ];
+    if (defined('IMAGETYPE_AVIF') && function_exists('imagecreatefromavif')) {
+      $map[IMAGETYPE_AVIF] = ['image/avif', 'avif'];
+    }
+    return $map;
+  }
+
+  /**
    * Confirms GD can decode the image, then frees it.
    */
   private function assertDecodable(string $realpath, int $type): void {
@@ -266,7 +268,7 @@ class ImagePipeline {
       IMAGETYPE_PNG => @imagecreatefrompng($realpath),
       IMAGETYPE_GIF => @imagecreatefromgif($realpath),
       IMAGETYPE_WEBP => @imagecreatefromwebp($realpath),
-      default => FALSE,
+      default => defined('IMAGETYPE_AVIF') && $type === IMAGETYPE_AVIF && function_exists('imagecreatefromavif') ? @imagecreatefromavif($realpath) : FALSE,
     };
     if (!$image) {
       throw new ImportException('图片无法解码。');
@@ -607,6 +609,51 @@ class ImagePipeline {
   }
 
   /**
+   * Builds the official image with the shared optimizer, falling back to WebP.
+   *
+   * @param array{mime: string, extension: string, width: int, height: int, bytes: int, animated: bool} $checked
+   *   Validated source.
+   *
+   * @return array{path: string, mime: string, extension: string, width: int, height: int, bytes: int, animated: bool, delivery: string}
+   *   File that can be copied into public storage.
+   */
+  private function officialImage(string $source, string $dir, int $itemId, array $checked, int $taskId, string $name): array {
+    if ($checked['animated']) {
+      return $this->copyOfficial($source, $dir, $itemId, $checked, 'animated');
+    }
+    if (\Drupal::hasService('xedc_core.image_optimizer') && \Drupal::hasService('xedc_core.image_optimize_repository')) {
+      $optimizer = \Drupal::service('xedc_core.image_optimizer');
+      $decision = $optimizer->optimize($source, \Drupal::service('xedc_core.image_optimize_repository')->settings());
+      if ($decision->status === 'rejected') {
+        throw new ImportException($decision->error !== '' ? $decision->error : '图片优化被拒绝。');
+      }
+      if (!$decision->keptOriginal && is_file($decision->path)) {
+        $dest = $dir . DIRECTORY_SEPARATOR . 'item-' . $itemId . '.' . $decision->extension;
+        if (!copy($decision->path, $dest)) {
+          throw new ImportException('无法保存优化后的图片。');
+        }
+        $described = $this->describe($dest);
+        $described['path'] = $dest;
+        $described['delivery'] = 'ok';
+        $described['animated'] = FALSE;
+        $dirName = dirname($decision->path);
+        @unlink($decision->path);
+        @rmdir($dirName);
+        return $described;
+      }
+      $this->tasks->log($taskId, 'info', $name . ' 没有更小的合格编码，已保留原始编码。');
+      return $this->copyOfficial($source, $dir, $itemId, $checked, 'fallback');
+    }
+    $built = $this->tryWebp($source, $dir, $itemId, $checked);
+    if ($built) {
+      return $built;
+    }
+    $this->logger->warning('图片压缩未采用，已保留可解码原图：@name', ['@name' => $name]);
+    $this->tasks->log($taskId, 'warning', $name . ' 压缩未采用，已保留原始图片作为正式文件。');
+    return $this->copyOfficial($source, $dir, $itemId, $checked, 'fallback');
+  }
+
+  /**
    * Writes a WebP when it is smaller and still decodes. NULL keeps the caller on the original.
    *
    * @param array{mime: string, extension: string, width: int, height: int, bytes: int, animated: bool} $checked
@@ -729,12 +776,7 @@ class ImagePipeline {
   private function describe(string $path): array {
     $info = @getimagesize($path);
     $type = (int) ($info[2] ?? 0);
-    $map = [
-      IMAGETYPE_JPEG => ['image/jpeg', 'jpg'],
-      IMAGETYPE_PNG => ['image/png', 'png'],
-      IMAGETYPE_GIF => ['image/gif', 'gif'],
-      IMAGETYPE_WEBP => ['image/webp', 'webp'],
-    ];
+    $map = $this->imageTypes();
     $bytes = filesize($path);
     if (!$info || !isset($map[$type]) || $bytes === FALSE || $bytes < 1) {
       throw new ImportException('正式图片无法读取。');
@@ -744,7 +786,7 @@ class ImagePipeline {
       IMAGETYPE_PNG => @imagecreatefrompng($path),
       IMAGETYPE_GIF => @imagecreatefromgif($path),
       IMAGETYPE_WEBP => @imagecreatefromwebp($path),
-      default => FALSE,
+      default => defined('IMAGETYPE_AVIF') && $type === IMAGETYPE_AVIF && function_exists('imagecreatefromavif') ? @imagecreatefromavif($path) : FALSE,
     };
     if (!$proof instanceof \GdImage) {
       throw new ImportException('正式图片无法解码。');

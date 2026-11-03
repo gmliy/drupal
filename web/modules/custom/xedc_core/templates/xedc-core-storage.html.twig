@@ -18,12 +18,14 @@
   <nav class="xedc-ops-subnav" aria-label="对象存储">
     <a href="{{ path('xedc_core.storage') }}" {% if page == 'overview' %}aria-current="page"{% endif %}>概览</a>
     <a href="{{ path('xedc_core.storage_providers') }}" {% if page == 'providers' or page == 'profile' %}aria-current="page"{% endif %}>供应商</a>
+    <a href="{{ path('xedc_core.storage_runtime') }}" {% if page == 'runtime' %}aria-current="page"{% endif %}>运行模式</a>
     <a href="{{ path('xedc_core.storage_policy') }}" {% if page == 'policy' %}aria-current="page"{% endif %}>存储策略</a>
     <a href="{{ path('xedc_core.storage_cdn') }}" {% if page == 'cdn' %}aria-current="page"{% endif %}>CDN</a>
     <a href="{{ path('xedc_core.storage_migration') }}" {% if page == 'migration' %}aria-current="page"{% endif %}>迁移</a>
     <a href="{{ path('xedc_core.storage_monitor') }}" {% if page == 'monitor' %}aria-current="page"{% endif %}>监控</a>
     <a href="{{ path('xedc_core.storage_security') }}" {% if page == 'security' %}aria-current="page"{% endif %}>安全</a>
     <a href="{{ path('xedc_core.storage_readiness') }}" {% if page == 'readiness' %}aria-current="page"{% endif %}>启用检查</a>
+    <a href="{{ path('xedc_core.storage_health') }}" {% if page == 'health' %}aria-current="page"{% endif %}>健康检查</a>
   </nav>
 
   {% if page == 'overview' %}
@@ -36,6 +38,29 @@
         <article class="xedc-ops-card"><h3>Drupal 文件</h3><p class="xedc-ops-value">{{ data.census.files }}</p><p class="xedc-ops-detail">{{ data.census.bytes }}，来自文件实体</p></article>
       </div>
     </section>
+    {% if data.provider_cards %}
+      <section class="xedc-ops-panel">
+        <h3>可用适配器</h3>
+        <div class="xedc-ops-table-wrap">
+          <table class="xedc-ops-table">
+            <thead><tr><th>名称</th><th>ID</th><th>类型</th><th>Endpoint</th><th>Bucket</th><th>CDN</th></tr></thead>
+            <tbody>
+              {% for provider in data.provider_cards %}
+                <tr>
+                  <td>{{ provider.label }}</td>
+                  <td>{{ provider.id }}</td>
+                  <td>{{ provider.type }}</td>
+                  <td>{{ provider.summary.endpoint }}</td>
+                  <td>{{ provider.summary.bucket }}</td>
+                  <td>{{ provider.summary.cdn }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="xedc-ops-detail">健康状态在健康检查页做只读检查。这里不连接 Bucket。</p>
+      </section>
+    {% endif %}
     <section class="xedc-ops-meta" aria-label="环境">
       <div><span>Drupal</span><strong>{{ data.versions.drupal }}</strong></div>
       <div><span>S3 File System</span><strong>{{ data.versions.s3fs }}</strong></div>
@@ -85,7 +110,7 @@
       <article class="xedc-ops-card"><h3>文件实体</h3><p class="xedc-ops-value">{{ data.census.files }}</p><p class="xedc-ops-detail">{{ data.bytes_label }}</p></article>
       <article class="xedc-ops-card"><h3>公开 / 私有 / 对象</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.census.public_files }} / {{ data.census.private_files }} / {{ data.census.s3_files }}</p><p class="xedc-ops-detail">公开 {{ data.public_bytes_label }}，私有 {{ data.private_bytes_label }}</p></article>
       <article class="xedc-ops-card"><h3>图片 / 视频</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.census.image_files }} / {{ data.census.video_files }}</p></article>
-      <article class="xedc-ops-card"><h3>接管</h3><p class="xedc-ops-value xedc-ops-value--small">未就绪</p><p class="xedc-ops-detail">公开 {{ data.switches.public_takeover ? '开' : '关' }}，私有 {{ data.switches.private_takeover ? '开' : '关' }}，CDN {{ data.switches.cdn_rewrite ? '开' : '关' }}</p></article>
+      <article class="xedc-ops-card"><h3>本进程开关</h3><p class="xedc-ops-value xedc-ops-value--small">见运行模式</p><p class="xedc-ops-detail">公开 {{ data.switches.public_takeover ? '开' : '关' }}，私有 {{ data.switches.private_takeover ? '开' : '关' }}，CDN {{ data.switches.cdn_rewrite ? '开' : '关' }}</p></article>
     </section>
     <section class="xedc-ops-panel">
       <h3>格式和样式</h3>
@@ -94,6 +119,23 @@
         <li><span>Imagick</span><strong>{{ data.formats.imagick ? '已安装' : '未安装，不是必需' }}</strong></li>
         <li><span>图片样式</span><strong>{{ data.styles|join('、') }}</strong></li>
       </ul>
+    </section>
+    <section class="xedc-ops-panel">
+      <h3>实际运行状态</h3>
+      <p class="xedc-ops-note">这些值来自当前 PHP 进程里的 Stream Wrapper 和一次只读 HeadBucket。配置已接受、Bucket 可访问、包装器已切换、实际上传进入 R2，是四件不同的事。CDN URL 改写只由 STORAGE_CDN_ENABLED 控制：关闭时公开原图地址留在本站，不会偷偷改成 cdn.gitxx.xyz，也不会使用 R2 API 主机。图片样式始终留在本地 /sites/default/files/styles/。没有写入探针时，实际写入显示为未验证。</p>
+      <div class="xedc-ops-table-wrap">
+        <table class="xedc-ops-table">
+          <thead><tr><th>项目</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr><td>R2 API / 凭证 / Bucket</td><td>{{ data.bucket_probe.status == 'verified' ? '已验证' : '未验证' }}<br><span class="xedc-ops-detail">{{ data.bucket_probe.detail }}</span></td></tr>
+            {% for row in data.observed.rows %}
+              <tr><td>{{ row.item }}</td><td>{{ row.status }}</td></tr>
+            {% endfor %}
+            <tr><td>当前 Public Wrapper 类</td><td>{{ data.observed.active_stream_wrapper_class }}</td></tr>
+            <tr><td>当前 Private Wrapper 类</td><td>{{ data.observed.private_stream_wrapper_class }}</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
     {% if data.blockers %}
       <section class="xedc-ops-alert"><h3>还不能接管的原因</h3><ul class="xedc-ops-metrics">{% for blocker in data.blockers %}<li><strong>{{ blocker }}</strong></li>{% endfor %}</ul></section>
@@ -104,18 +146,19 @@
   {% if page == 'providers' %}
     <p class="xedc-ops-note">保存或切换配置不会改写 settings.php，也不会移动已有文件。运行时连接只在服务器环境变量 XEDC_STORAGE_RUNTIME=1 且凭证完整时启用。</p>
     <section>
-      <h3 class="xedc-ops-section">可添加的供应商</h3>
+      <h3 class="xedc-ops-section">供应商类型模板</h3>
+      <p class="xedc-ops-note">除已保存的 Cloudflare R2 配置外，下表都是未接入的类型说明。填写模板不会建立可用连接。</p>
       <div class="xedc-ops-table-wrap">
         <table class="xedc-ops-table">
-          <thead><tr><th>供应商</th><th>Region 示例</th><th>Endpoint 示例</th><th>路径风格</th><th></th></tr></thead>
+          <thead><tr><th>供应商</th><th>状态</th><th>Region 示例</th><th>Endpoint 示例</th><th></th></tr></thead>
           <tbody>
             {% for item in data.catalog %}
               <tr>
                 <td>{{ item.label }}<br><span class="xedc-ops-detail">{{ item.note }}</span></td>
+                <td>{{ item.id == 'cloudflare_r2' ? '已有适配器' : '未实现' }}</td>
                 <td>{{ item.region_hint ?: '按文档填写' }}</td>
                 <td>{{ item.endpoint_hint ?: '使用 AWS 默认地址' }}</td>
-                <td>{{ item.path_style ? '通常 Path-style' : '通常 Virtual-hosted' }}</td>
-                <td><a href="{{ item.add_url }}">添加配置</a></td>
+                <td><a href="{{ item.add_url }}">填写模板</a></td>
               </tr>
             {% endfor %}
           </tbody>
@@ -145,7 +188,7 @@
         {% for profile in data.profiles %}
           <details class="xedc-ops-panel">
             <summary>环境变量示例：{{ profile.label }}</summary>
-            <p class="xedc-ops-detail">示例里的密钥是空的。把它放到服务器环境，不要写入配置或 Git。XEDC_STORAGE_RUNTIME 保持 0，直到迁移校验完成。</p>
+            <p class="xedc-ops-detail">示例里的密钥是空的，开关也是关闭示例。它不是当前生产环境。不要把示例抄进正在使用的 PHP-FPM 配置。</p>
             <pre>{{ profile.env_template }}</pre>
           </details>
         {% endfor %}
@@ -189,7 +232,80 @@
   {% endif %}
 
   {% if page == 'policy' %}
+    <p class="xedc-ops-note">下面的表单只保存策略配置。它不会把已有文件改到另一个供应商，也不会启用按文件类型分流。</p>
+    {% if data.effective %}
+      <div class="xedc-ops-table-wrap">
+        <table class="xedc-ops-table">
+          <thead><tr><th>范围</th><th>当前实际行为</th></tr></thead>
+          <tbody>
+            {% for row in data.effective %}
+              <tr><td>{{ row.label }}</td><td>{{ row.value }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
     {{ form }}
+  {% endif %}
+
+  {% if page == 'runtime' %}
+    <section class="xedc-ops-alert"><h3>切换会改变实际读写</h3><p>{{ data.consistency.switch_reason }}</p></section>
+    <section class="xedc-ops-cards">
+      <article class="xedc-ops-card"><h3>实际运行模式</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.state.public_mode }}</p><p class="xedc-ops-detail">版本 {{ data.state.version }} · {{ data.state.public_provider }} · {{ data.state.status }}</p></article>
+      <article class="xedc-ops-card"><h3>已保存的供应商</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.active }}</p><p class="xedc-ops-detail">配置值。只有运行模式与它一致时，新上传才会进入这里。</p></article>
+      <article class="xedc-ops-card"><h3>本进程</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.consistency.sapi }}</p><p class="xedc-ops-detail">{{ data.runtime.summary }}</p></article>
+      <article class="xedc-ops-card"><h3>公开包装器</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.consistency.public_class }}</p></article>
+      <article class="xedc-ops-card"><h3>私有包装器</h3><p class="xedc-ops-value xedc-ops-value--small">{{ data.consistency.private_class }}</p></article>
+    </section>
+    <div class="xedc-ops-table-wrap">
+      <table class="xedc-ops-table">
+        <thead><tr><th>本进程环境变量</th><th>值</th></tr></thead>
+        <tbody>
+          {% for name, value in data.consistency.flags %}
+            <tr><td>{{ name }}</td><td>{{ value }}</td></tr>
+          {% endfor %}
+          <tr><td>包装器与本进程开关一致</td><td>{{ data.consistency.wrapper_matches_process ? '是' : '否' }}</td></tr>
+          <tr><td>CDN 改写</td><td>{{ data.consistency.cdn_enabled ? '开启' : '关闭' }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="xedc-ops-table-wrap">
+      <table class="xedc-ops-table">
+        <thead><tr><th>维护配置</th><th>本进程能否读取</th><th>是否包含五个开关</th></tr></thead>
+        <tbody>
+          {% for row in data.consistency.maintenance %}
+            <tr><td>{{ row.file }}</td><td>{{ row.readable ? '能' : '不能' }}</td><td>{{ row.readable ? (row.flags_present ? '包含' : '不包含') : '未检查' }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ form }}
+  {% endif %}
+
+  {% if page == 'health' %}
+    <p class="xedc-ops-note">这次打开只做只读检查。没有写入探针，也没有列出或修改正式对象之外的抽样 Head。</p>
+    <p class="xedc-ops-detail">检查时间 {{ data.checked }}</p>
+    {% for provider in data.providers %}
+      <section class="xedc-ops-panel">
+        <h3>{{ provider.label }} <span class="xedc-ops-badge is-{{ provider.health.status == 'ok' ? 'ok' : (provider.health.status == 'bad' ? 'bad' : 'warn') }}">{{ provider.health.status }}</span></h3>
+        <p class="xedc-ops-detail">{{ provider.type }} · {{ provider.id }} · {{ provider.operational ? '适配器可用' : '适配器不可用' }}</p>
+        <p>{{ provider.health.detail }}</p>
+        <p class="xedc-ops-detail">{{ provider.summary.endpoint }} · {{ provider.summary.bucket }} · {{ provider.summary.cdn }}</p>
+      </section>
+    {% endfor %}
+    <section class="xedc-ops-panel">
+      <h3>尚未实现的供应商</h3>
+      <div class="xedc-ops-table-wrap">
+        <table class="xedc-ops-table">
+          <thead><tr><th>类型</th><th>状态</th><th>说明</th></tr></thead>
+          <tbody>
+            {% for row in data.reserved %}
+              <tr><td>{{ row.label }}</td><td>{{ row.status }}</td><td>{{ row.detail }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
   {% endif %}
 
   {% if page == 'cdn' %}

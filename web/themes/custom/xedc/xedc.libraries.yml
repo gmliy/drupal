@@ -32,7 +32,7 @@ meta:
       css/xedc-meta.css: {}
 
 engagement:
-  version: 1.4
+  version: 1.7
   css:
     theme:
       css/engagement.css: {}
@@ -63,12 +63,13 @@ html-sitemap:
       css/sitemap.css: {}
 
 video-detail:
-  version: 1.2
+  version: 2.3
   css:
     theme:
       css/video-detail.css: {}
 
 video-player:
+  version: 2.4
   css:
     theme:
       css/plyr.css: {}
@@ -78,15 +79,18 @@ video-player:
     js/video-detail.js: {}
   dependencies:
     - core/drupal
+    - core/drupalSettings
+    - core/once
 
 video_list:
-  version: 1.1
+  version: 2.4
   css:
     theme:
       css/video-list.css: {}
+      css/video-card.css: {}
 
 video-card:
-  version: 1.1
+  version: 2.3
   css:
     theme:
       css/video-card.css: {}
@@ -182,6 +186,17 @@ home:
   version: 1.1
   js:
     js/home-hero.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+
+public_profile:
+  version: 1.1
+  css:
+    theme:
+      css/public-profile.css: {}
+  js:
+    js/public-profile.js: {}
   dependencies:
     - core/drupal
     - core/once

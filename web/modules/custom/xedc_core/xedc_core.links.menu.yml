@@ -54,6 +54,13 @@ xedc_core.files_logs:
   parent: xedc_core.ops
   weight: 5
 
+xedc_core.video_transcode:
+  title: '视频转码'
+  description: '查看视频编码和播放副本任务。'
+  route_name: xedc_core.video_transcode
+  parent: xedc_core.ops
+  weight: 6
+
 xedc_core.storage:
   title: '对象存储'
   description: '管理 S3 兼容供应商、存储策略、CDN 和迁移预检查。'
@@ -96,6 +103,13 @@ xedc_core.download_stats:
   route_name: xedc_core.download_stats
   parent: xedc_core.engagement
   weight: 3
+
+xedc_core.image_optimize:
+  title: '图片优化'
+  description: '查看公开图片优化记录和编码设置。'
+  route_name: xedc_core.image_optimize
+  parent: system.admin_config_media
+  weight: 30
 
 xedc_core.share_stats:
   title: '分享统计'

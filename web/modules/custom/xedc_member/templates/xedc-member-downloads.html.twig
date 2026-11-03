@@ -4,7 +4,7 @@
     <p class="xm-sub">{{ '共 @count 条授权记录'|t({'@count': total}) }}</p>
   </div>
 </header>
-<p class="xm-sub">{{ '这里记录的是服务器已经授权的下载请求，不代表浏览器已经收完整个文件。'|t }}</p>
+<p class="xm-note">{{ '这里记录的是服务器已经授权的下载请求，不代表浏览器已经收完整个文件。'|t }}</p>
 {% if rows %}
   <div class="xm-table-wrap">
     <table class="xm-table">
@@ -22,13 +22,18 @@
       <tbody>
         {% for row in rows %}
           <tr>
-            <td>{% if row.cover %}<img class="xm-dl-cover" src="{{ row.cover }}" alt="" width="48" height="48" loading="lazy">{% endif %}{% if row.url %}<a href="{{ row.url }}">{{ row.content }}</a>{% else %}{{ row.content }}{% endif %}</td>
-            <td>{{ row.bundle }}</td>
-            <td>{{ row.title }}</td>
-            <td>{{ row.extension }}</td>
-            <td>{{ row.bytes }}</td>
-            <td>{{ row.time }}</td>
-            <td>{{ row.status }}</td>
+            <td data-label="{{ '内容'|t }}">
+              <span class="xm-dl-content">
+                {% if row.cover %}<img class="xm-dl-cover" src="{{ row.cover }}" alt="" width="40" height="40" loading="lazy">{% endif %}
+                {% if row.url %}<a href="{{ row.url }}">{{ row.content }}</a>{% else %}{{ row.content }}{% endif %}
+              </span>
+            </td>
+            <td data-label="{{ '类型'|t }}">{{ row.bundle }}</td>
+            <td data-label="{{ '资源'|t }}">{{ row.title }}</td>
+            <td data-label="{{ '格式'|t }}">{{ row.extension }}</td>
+            <td data-label="{{ '大小'|t }}">{{ row.bytes }}</td>
+            <td data-label="{{ '时间'|t }}">{{ row.time }}</td>
+            <td data-label="{{ '状态'|t }}"><span class="xm-badge xm-badge--{{ row.status_id|default('authorized') }}">{{ row.status }}</span></td>
           </tr>
         {% endfor %}
       </tbody>
@@ -36,5 +41,12 @@
   </div>
   {% if pager %}<div class="xm-pager">{{ pager }}</div>{% endif %}
 {% else %}
-  <div class="xm-empty"><strong>{{ '还没有下载记录。'|t }}</strong></div>
+  <div class="xm-empty">
+    <strong>{{ '还没有下载记录。'|t }}</strong>
+    <p>{{ '在内容页下载原图或视频后，授权记录会出现在这里。'|t }}</p>
+    <div class="xm-empty__links">
+      <a href="{{ path('view.image_gallery.page_1') }}">{{ '看看美图'|t }}</a>
+      <a href="{{ path('view.video_list.page_1') }}">{{ '看看视频'|t }}</a>
+    </div>
+  </div>
 {% endif %}

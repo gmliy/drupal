@@ -105,7 +105,7 @@ try {
   $settings = [];
   $config = [];
   BootGuard::apply($settings, $config);
-  $check('complete runtime applies', $settings['xedc_storage.runtime_applied'] === TRUE);
+  $check('complete runtime accepts settings without claiming the wrapper', $settings['xedc_storage.settings_accepted'] === TRUE && $settings['xedc_storage.runtime_applied'] === FALSE && $settings['xedc_storage.wrapper_verified'] === FALSE);
   $check('takeover needs the second flag', $settings['s3fs.use_s3_for_public'] === FALSE);
   $check('custom host is separate from cdn', ($config['s3fs.settings']['hostname'] ?? '') === 'https://example.r2.cloudflarestorage.com' && empty($config['s3fs.settings']['use_cname']));
   $check('upload stays private by default', $settings['s3fs.upload_as_private'] === TRUE);
@@ -150,7 +150,7 @@ try {
   $settings = ['file_private_path' => $private];
   $config = [];
   BootGuard::apply($settings, $config);
-  $check('profile runtime supplies bucket and endpoint', $settings['xedc_storage.runtime_applied'] === TRUE && ($settings['xedc_storage.bucket'] ?? '') === 'profile-bucket' && ($config['s3fs.settings']['hostname'] ?? '') === 'https://profile.example.r2.cloudflarestorage.com');
+  $check('profile runtime supplies bucket and endpoint', $settings['xedc_storage.settings_accepted'] === TRUE && $settings['xedc_storage.runtime_applied'] === FALSE && ($settings['xedc_storage.bucket'] ?? '') === 'profile-bucket' && ($config['s3fs.settings']['hostname'] ?? '') === 'https://profile.example.r2.cloudflarestorage.com');
   $check('profile runtime keeps takeover off', $settings['s3fs.use_s3_for_public'] === FALSE && $settings['s3fs.use_s3_for_private'] === FALSE);
   $check('profile runtime enables path style', ($config['s3fs.settings']['use_path_style_endpoint'] ?? FALSE) === TRUE);
   $check('profile runtime does not enable cdn rewrite', empty($config['s3fs.settings']['use_cname']) && ($settings['xedc_storage.connection_source'] ?? '') === 'profile');

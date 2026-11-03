@@ -1,0 +1,22 @@
+<div class="xv-tools">
+  {% if categories %}
+    <nav class="xv-cats" aria-label="{{ '视频分类'|t }}">
+      <a class="xv-cats__all" href="{{ path('view.video_list.page_1') }}">{{ '全部'|t }}</a>
+      {% for cat in categories %}
+        <a href="{{ cat.url }}">{{ cat.name }}<span>{{ cat.count }}</span></a>
+      {% endfor %}
+    </nav>
+  {% endif %}
+  <div class="xv-bar">
+    <div class="xv-sort" role="group" aria-label="{{ '排序'|t }}">
+      <a href="{{ sort_urls.new }}" class="{{ sort == 'new' ? 'is-active' }}">{{ '最新'|t }}</a>
+      <a href="{{ sort_urls.hot }}" class="{{ sort == 'hot' ? 'is-active' }}">{{ '热门'|t }}</a>
+    </div>
+    <form class="xv-search" method="get" action="{{ action }}">
+      {% if sort == 'hot' %}<input type="hidden" name="sort" value="hot">{% endif %}
+      <label class="visually-hidden" for="xv-keys">{{ '搜索视频'|t }}</label>
+      <input id="xv-keys" type="search" name="keys" value="{{ keys }}" placeholder="{{ '搜索标题'|t }}" maxlength="64">
+      <button type="submit">{{ '搜索'|t }}</button>
+    </form>
+  </div>
+</div>

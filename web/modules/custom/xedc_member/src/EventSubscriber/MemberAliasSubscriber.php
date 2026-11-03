@@ -16,7 +16,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
- * Sends legacy member URLs and the core user page to the vanity path.
+ * Sends /member and the core account URL to the member's own slug.
  */
 class MemberAliasSubscriber implements EventSubscriberInterface {
 
@@ -40,7 +40,7 @@ class MemberAliasSubscriber implements EventSubscriberInterface {
   }
 
   /**
-   * Redirects /member and the owner's user page to the custom alias.
+   * Redirects /member and the owner's user page to that member's slug.
    */
   public function onRequest(RequestEvent $event): void {
     if (!$event->isMainRequest() || !$this->currentUser->isAuthenticated()) {
@@ -69,14 +69,14 @@ class MemberAliasSubscriber implements EventSubscriberInterface {
 
     $route = $this->routeMatch->getRouteName();
     if ($route === 'user.page') {
-      $this->redirectIfDifferent($event, $request, $path, $this->aliasManager->publicBase($uid));
+      $this->redirectIfDifferent($event, $request, $path, $this->aliasManager->memberBase($uid));
       return;
     }
     if ($route === 'entity.user.canonical') {
       $account = $this->routeMatch->getParameter('user');
       $viewed = $account instanceof UserInterface ? (int) $account->id() : (int) $account;
       if ($viewed > 0 && $viewed === $uid) {
-        $this->redirectIfDifferent($event, $request, $path, $this->aliasManager->publicBase($uid));
+        $this->redirectIfDifferent($event, $request, $path, $this->aliasManager->memberBase($uid));
       }
     }
   }
@@ -90,7 +90,7 @@ class MemberAliasSubscriber implements EventSubscriberInterface {
       return;
     }
     $route = $this->routeMatch->getRouteName();
-    if (!is_string($route) || !str_starts_with($route, 'xedc_member.') || $route === 'xedc_member.alias_denied') {
+    if (!is_string($route) || !str_starts_with($route, 'xedc_member.') || $route === 'xedc_member.alias_denied' || $route === 'xedc_member.public_profile') {
       return;
     }
     $destination = $event->getRequest()->getRequestUri();

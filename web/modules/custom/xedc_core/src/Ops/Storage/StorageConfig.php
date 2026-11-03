@@ -183,6 +183,12 @@ final class StorageConfig {
   }
 
   public function deleteProfile(string $id): ?string {
+    if ($this->activeId() === $id) {
+      return '当前选定的供应商不能删除。文件和 Bucket 都没有变化。';
+    }
+    if ((string) \Drupal\Core\Site\Settings::get('xedc_storage.credential_profile', '') === $id) {
+      return '这个供应商正在被当前运行时使用，不能删除。';
+    }
     if (\Drupal::hasService('xedc_core.storage_credentials')) {
       \Drupal::service('xedc_core.storage_credentials')->purge($id);
     }

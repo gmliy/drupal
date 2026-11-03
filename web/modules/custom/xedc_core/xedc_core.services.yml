@@ -23,6 +23,17 @@ services:
     class: Drupal\xedc_core\ImagePipeline
     arguments: ['@file_system', '@config.factory', '@xedc_core.alt', '@xedc_core.tasks', '@logger.channel.xedc_core', '@xedc_core.storage_files', '@xedc_core.storage_variants']
 
+  xedc_core.image_optimizer:
+    class: Drupal\xedc_core\Image\ImageOptimizer
+
+  xedc_core.image_optimize_repository:
+    class: Drupal\xedc_core\Image\ImageOptimizeRepository
+    arguments: ['@database', '@config.factory']
+
+  xedc_core.image_optimize:
+    class: Drupal\xedc_core\Image\ImageOptimizeApplier
+    arguments: ['@xedc_core.image_optimizer', '@xedc_core.image_optimize_repository', '@file_system', '@entity_type.manager', '@queue', '@lock', '@logger.channel.xedc_core']
+
   xedc_core.publisher:
     class: Drupal\xedc_core\Publisher
     arguments: ['@xedc_core.tasks', '@entity_type.manager', '@content_moderation.moderation_information', '@database', '@xedc_core.alt']
@@ -220,13 +231,29 @@ services:
     class: Drupal\xedc_core\Engagement\MembershipManager
     arguments: ['@database', '@datetime.time', '@entity_type.manager']
 
+  xedc_core.guest_identity:
+    class: Drupal\xedc_core\Engagement\GuestIdentity
+    arguments: ['@request_stack', '@datetime.time']
+
+  xedc_core.guest_cookie:
+    class: Drupal\xedc_core\EventSubscriber\GuestCookieSubscriber
+    arguments: ['@xedc_core.guest_identity']
+    tags:
+      - { name: event_subscriber }
+
+  cache_context.xedc_guest:
+    class: Drupal\xedc_core\Cache\Context\XedcGuestCacheContext
+    arguments: ['@request_stack', '@current_user']
+    tags:
+      - { name: cache.context }
+
   xedc_core.like_manager:
     class: Drupal\xedc_core\Engagement\LikeManager
     arguments: ['@database', '@datetime.time', '@cache.default']
 
   xedc_core.engagement_report:
     class: Drupal\xedc_core\Engagement\EngagementReport
-    arguments: ['@database', '@datetime.time']
+    arguments: ['@database', '@datetime.time', '@cache.default']
 
   xedc_core.share_recorder:
     class: Drupal\xedc_core\Engagement\ShareRecorder
@@ -256,4 +283,45 @@ services:
 
   xedc_core.engagement_builder:
     class: Drupal\xedc_core\Engagement\EngagementBuilder
-    arguments: ['@current_user', '@entity_type.manager', '@xedc_core.like_manager', '@xedc_core.membership', '@xedc_core.download_presenter']
+    arguments: ['@current_user', '@entity_type.manager', '@xedc_core.like_manager', '@xedc_core.membership', '@xedc_core.download_presenter', '@xedc_core.guest_identity']
+
+  xedc_core.video_duration_formatter:
+    class: Drupal\xedc_core\Video\DurationFormatter
+
+  xedc_core.video_stats:
+    class: Drupal\xedc_core\Video\PlaybackStats
+    arguments: ['@database']
+
+  xedc_core.video_cards:
+    class: Drupal\xedc_core\Video\VideoCards
+    arguments: ['@entity_type.manager', '@entity.repository', '@file_url_generator', '@date.formatter', '@xedc_core.video_duration_formatter', '@xedc_core.video_stats']
+
+  xedc_core.video_playback:
+    class: Drupal\xedc_core\Video\PlaybackTranscoder
+    arguments: ['@stream_wrapper_manager', '@state', '@logger.channel.xedc_core']
+
+  xedc_core.video_probe:
+    class: Drupal\xedc_core\Video\MediaProbe
+
+  xedc_core.video_transcode:
+    class: Drupal\xedc_core\Video\TranscodeManager
+    arguments: ['@database', '@entity_type.manager', '@file.usage', '@file_system', '@lock', '@queue', '@logger.channel.xedc_core', '@xedc_core.video_playback', '@xedc_core.video_probe']
+
+  xedc_core.video_duration:
+    class: Drupal\xedc_core\Video\DurationManager
+    arguments: ['@entity_type.manager', '@database', '@file_system', '@stream_wrapper_manager', '@queue', '@state', '@logger.channel.xedc_core', '@xedc_core.video_transcode']
+
+  xedc_core.video_listing:
+    class: Drupal\xedc_core\Video\VideoListing
+    arguments: ['@entity_type.manager', '@entity.repository', '@database']
+
+  xedc_core.image_style_files:
+    class: Drupal\xedc_core\Ops\Storage\ImageStyleFileSystem
+    decorates: file_system
+    decoration_priority: -10
+    arguments: ['@xedc_core.image_style_files.inner']
+
+  xedc_core.image_style_routes:
+    class: Drupal\xedc_core\EventSubscriber\ImageStyleRouteSubscriber
+    tags:
+      - { name: event_subscriber }

@@ -95,7 +95,7 @@ class ProfileForm extends FormBase {
       '#default_value' => $this->aliasManager->getSlug($uid),
       '#maxlength' => 32,
       '#size' => 60,
-      '#description' => $this->t('留空则使用/member。可用字母、数字、下划线和连字符。'),
+      '#description' => $this->t('会员中心为 /别名，子页面自动使用同一前缀。公开主页为 /r/别名。留空则会员中心使用 /member。可用字母、数字、下划线和连字符。'),
       '#description_display' => 'after',
       '#attributes' => [
         'data-xm-alias' => '1',

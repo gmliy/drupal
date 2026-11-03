@@ -332,16 +332,10 @@ class HomeCards {
       return '';
     }
     $seconds = (int) $node->get('field_duration')->value;
-    if ($seconds < 1) {
-      return '';
+    if (\Drupal::hasService('xedc_core.video_duration_formatter')) {
+      return \Drupal::service('xedc_core.video_duration_formatter')->format($seconds);
     }
-    $hours = intdiv($seconds, 3600);
-    $minutes = intdiv($seconds % 3600, 60);
-    $remain = $seconds % 60;
-    if ($hours > 0) {
-      return sprintf('%d:%02d:%02d', $hours, $minutes, $remain);
-    }
-    return sprintf('%02d:%02d', $minutes, $remain);
+    return '';
   }
 
   /**

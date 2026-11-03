@@ -1,0 +1,35 @@
+{{ attach_library('xedc/video_list') }}
+{{ attach_library('xedc/video-card') }}
+<div class="xv-page xv-tag">
+  <nav class="xv-crumb" aria-label="{{ '面包屑'|t }}">
+    <a href="{{ home_url }}">{{ '首页'|t }}</a>
+    <span aria-hidden="true">/</span>
+    <a href="{{ video_home }}">{{ '视频'|t }}</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{{ term_name }}</span>
+  </nav>
+  <header class="xv-head">
+    <h1>{{ term_name }}</h1>
+    {% if description %}
+      <div class="xv-tag__desc">{{ description }}</div>
+    {% endif %}
+    <p class="xv-count">{{ '共 @count 个视频'|t({'@count': total|default(0)}) }}</p>
+  </header>
+  <div class="xv-tools">
+    <div class="xv-sort" role="group" aria-label="{{ '排序'|t }}">
+      <a href="{{ sort_urls.new }}" class="{{ sort == 'new' ? 'is-active' }}">{{ '最新'|t }}</a>
+      <a href="{{ sort_urls.hot }}" class="{{ sort == 'hot' ? 'is-active' }}">{{ '热门'|t }}</a>
+    </div>
+  </div>
+  {% if items %}
+    <div class="xv-grid">
+      {% for card in items %}
+        <article class="vcard">
+          {% include directory ~ '/templates/video/video-card.html.twig' with { card: card } only %}
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="xv-empty">{{ '这个标签下还没有视频'|t }}</div>
+  {% endif %}
+</div>

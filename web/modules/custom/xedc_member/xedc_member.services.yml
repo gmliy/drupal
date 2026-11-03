@@ -46,6 +46,26 @@ services:
       - { name: path_processor_inbound, priority: 150 }
       - { name: path_processor_outbound, priority: 50 }
 
+  xedc_member.center_access:
+    class: Drupal\xedc_member\Access\MemberCenterAccessCheck
+    arguments:
+      - '@xedc_member.alias_manager'
+    tags:
+      - { name: access_check, applies_to: _xedc_member_center }
+
+  xedc_member.public_profile:
+    class: Drupal\xedc_member\Service\PublicProfileBuilder
+    arguments:
+      - '@entity_type.manager'
+      - '@database'
+      - '@xedc_member.alias_manager'
+      - '@date.formatter'
+      - '@file_url_generator'
+      - '@xedc_core.video_duration_formatter'
+      - '@request_stack'
+      - '@entity.repository'
+      - '@current_user'
+
   xedc_member.alias_subscriber:
     class: Drupal\xedc_member\EventSubscriber\MemberAliasSubscriber
     arguments:

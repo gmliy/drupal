@@ -20,7 +20,9 @@ use Drupal\xedc_core\Ops\Storage\CdnStatus;
 use Drupal\xedc_core\Ops\Storage\CostEstimator;
 use Drupal\xedc_core\Ops\Storage\MigrationPlanner;
 use Drupal\xedc_core\Ops\Storage\ObjectMonitor;
+use Drupal\xedc_core\Ops\Storage\Provider\StorageProviderRegistry;
 use Drupal\xedc_core\Ops\Storage\ProviderCatalog;
+use Drupal\xedc_core\Ops\Storage\RuntimeConsistency;
 use Drupal\xedc_core\Ops\Storage\StorageConfig;
 use Drupal\xedc_core\Ops\Storage\TakeoverReadiness;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -59,6 +61,15 @@ class StorageController extends ControllerBase {
   public function overview(): array {
     $this->storageConfig->ensure();
     $tasks = $this->taskRows(1);
+    $registry = new StorageProviderRegistry(
+      $this->storageConfig,
+      \Drupal::service('xedc_core.storage_credentials'),
+      \Drupal::service('xedc_core.storage_reader'),
+    );
+    $providerCards = [];
+    foreach ($registry->operational() as $provider) {
+      $providerCards[] = $registry->card($provider, FALSE);
+    }
     return $this->page('overview', '概览', [
       'versions' => $this->monitor->versions(),
       'runtime' => $this->runtimeCard(),
@@ -66,6 +77,7 @@ class StorageController extends ControllerBase {
       'errors' => $this->monitor->errors(),
       'task' => $tasks[0] ?? NULL,
       'active' => $this->activeLabel(),
+      'provider_cards' => $providerCards,
     ]);
   }
 
@@ -108,9 +120,56 @@ class StorageController extends ControllerBase {
 
   public function policy(): array {
     $this->storageConfig->ensure();
+    $observed = \Drupal\xedc_core\Ops\Storage\RuntimeStatus::observe();
     return $this->page('policy', '存储策略', [
       'policy' => $this->storageConfig->data()['policy'],
+      'effective' => [
+        ['label' => '图片原图和视频', 'value' => \Drupal\xedc_core\Ops\Storage\RuntimeState::usesObjectStorage() ? '当前运行状态写入 Cloudflare R2' : '当前运行状态写入本地文件系统'],
+        ['label' => '图片样式', 'value' => '本地服务器。样式路径不进入 CDN，也不写入 R2。'],
+        ['label' => 'Private 和 Temporary', 'value' => '本地服务器。Private takeover 保持关闭。'],
+        ['label' => '按文件类型分到多个供应商', 'value' => '未启用。历史文件 URI 仍是 public:// 或 private://，不能按类型改写。'],
+      ],
     ], $this->formBuilder()->getForm(StoragePolicyForm::class));
+  }
+
+  public function runtime(): array {
+    $this->storageConfig->ensure();
+    $account = $this->currentUser();
+    $form = NULL;
+    if ($account->hasPermission('administer xedc object storage') || $account->hasPermission('switch xedc storage mode')) {
+      $form = $this->formBuilder()->getForm(\Drupal\xedc_core\Form\StorageSwitchForm::class);
+    }
+    return $this->page('runtime', '运行模式', [
+      'runtime' => $this->runtimeCard(),
+      'consistency' => RuntimeConsistency::report(),
+      'active' => $this->activeLabel(),
+      'state' => \Drupal\xedc_core\Ops\Storage\RuntimeState::read(),
+    ], $form);
+  }
+
+  public function accessRuntime(\Drupal\Core\Session\AccountInterface $account): \Drupal\Core\Access\AccessResultInterface {
+    $allowed = $account->hasPermission('administer xedc object storage')
+      || $account->hasPermission('view xedc storage status')
+      || $account->hasPermission('switch xedc storage mode');
+    return \Drupal\Core\Access\AccessResult::allowedIf($allowed)->cachePerPermissions();
+  }
+
+  public function health(): array {
+    $this->storageConfig->ensure();
+    $registry = new StorageProviderRegistry(
+      $this->storageConfig,
+      \Drupal::service('xedc_core.storage_credentials'),
+      \Drupal::service('xedc_core.storage_reader'),
+    );
+    $cards = [];
+    foreach ($registry->operational() as $provider) {
+      $cards[] = $registry->card($provider, TRUE);
+    }
+    return $this->page('health', '存储健康检查', [
+      'providers' => $cards,
+      'reserved' => $registry->reserved(),
+      'checked' => \Drupal::service('date.formatter')->format(\Drupal::time()->getRequestTime(), 'short'),
+    ]);
   }
 
   public function cdn(): array {
@@ -132,13 +191,18 @@ class StorageController extends ControllerBase {
   public function monitor(Request $request): array {
     $this->storageConfig->ensure();
     $refresh = $request->query->get('refresh') === '1';
+    $account = $this->currentUser();
+    $pricing = NULL;
+    if ($account->hasPermission('administer xedc object storage') || $account->hasPermission('manage xedc storage policy')) {
+      $pricing = $this->formBuilder()->getForm(StoragePricingForm::class);
+    }
     return $this->page('monitor', '监控', [
       'runtime' => $this->runtimeCard(),
       'census' => $this->monitor->census($refresh),
       'counters' => $this->monitor->counters(),
       'cost' => $this->costs->estimate(),
       'errors' => $this->monitor->errors(),
-    ], $this->formBuilder()->getForm(StoragePricingForm::class));
+    ], $pricing);
   }
 
   public function security(): array {
@@ -191,17 +255,31 @@ class StorageController extends ControllerBase {
    */
   private function runtimeCard(): array {
     $runtime = $this->monitor->runtime();
+    $observed = \Drupal\xedc_core\Ops\Storage\RuntimeStatus::observe();
+    $runtime['observed'] = $observed;
     if ($runtime['boot'] !== 'ok') {
       $runtime['summary'] = '运行时文件没有加载';
+      $runtime['tone'] = 'bad';
+    }
+    elseif ($observed['mismatch']) {
+      $runtime['summary'] = '已请求接管，但当前容器的 Stream Wrapper 仍不是对象存储';
       $runtime['tone'] = 'bad';
     }
     elseif ($runtime['error'] !== '') {
       $runtime['summary'] = $runtime['error'];
       $runtime['tone'] = 'warn';
     }
-    elseif ($runtime['applied']) {
-      $runtime['summary'] = '运行时连接已启用';
+    elseif ($observed['stream_wrapper_active'] === 'r2' && empty($observed['private_takeover_requested'])) {
+      $runtime['summary'] = '公开包装器是对象存储，私有包装器仍是本地。本请求没有执行写入。';
       $runtime['tone'] = 'ok';
+    }
+    elseif ($observed['stream_wrapper_active'] === 'r2') {
+      $runtime['summary'] = '公开和私有包装器都显示为对象存储。私有接管不应开启。';
+      $runtime['tone'] = 'bad';
+    }
+    elseif ($observed['settings_accepted']) {
+      $runtime['summary'] = '配置已接受，当前容器仍使用本地 Stream Wrapper';
+      $runtime['tone'] = 'warn';
     }
     else {
       $runtime['summary'] = '运行时未启用，文件仍在本地';

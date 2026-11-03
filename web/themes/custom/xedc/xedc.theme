@@ -130,6 +130,26 @@ function xedc_metatags_alter(array &$metatags, array &$context): void {
   elseif ($route === 'view.image_gallery.page_1') {
     $metatags['title'] = t('美图列表') . ' | DcLili';
   }
+  elseif ($route === 'view.video_list.page_1') {
+    $metatags['title'] = t('视频') . ' | DcLili';
+    $metatags['og_title'] = $metatags['title'];
+    $metatags['description'] = (string) t('浏览已发布的视频，按分类、热度和关键词查找。');
+    $metatags['og_description'] = $metatags['description'];
+    $metatags['canonical_url'] = \Drupal\Core\Url::fromRoute('view.video_list.page_1')->setAbsolute()->toString();
+  }
+  elseif ($route === 'xedc_core.video_tag') {
+    $tag = \Drupal::routeMatch()->getParameter('taxonomy_term');
+    if ($tag instanceof \Drupal\taxonomy\TermInterface && $tag->bundle() === 'tags') {
+      $tag = _xedc_translated($tag);
+      $metatags['title'] = t('@name 视频', ['@name' => $tag->label()]) . ' | DcLili';
+      $metatags['og_title'] = $metatags['title'];
+      $raw = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string) $tag->get('description')->value), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+      $metatags['description'] = $raw !== '' ? mb_substr($raw, 0, 160) : (string) t('浏览与“@name”相关的视频。', ['@name' => $tag->label()]);
+      $metatags['og_description'] = $metatags['description'];
+      $metatags['canonical_url'] = \Drupal\Core\Url::fromRoute('xedc_core.video_tag', ['taxonomy_term' => $tag->id()])->setAbsolute()->toString();
+    }
+    return;
+  }
   elseif ($route === 'xedc_models.detail') {
     $term = \Drupal::routeMatch()->getParameter('taxonomy_term');
     if ($term instanceof \Drupal\taxonomy\TermInterface) {
@@ -143,7 +163,14 @@ function xedc_metatags_alter(array &$metatags, array &$context): void {
   $entity = $context['entity'] ?? NULL;
   if ($entity instanceof \Drupal\taxonomy\TermInterface && $entity->bundle() !== 'models') {
     $term = _xedc_translated($entity);
-    $metatags['title'] = t('@name 列表页', ['@name' => $term->label()]) . ' | DcLili';
+    if ($term->bundle() === 'video_category') {
+      $metatags['title'] = t('@name - 视频分类', ['@name' => $term->label()]) . ' | DcLili';
+      $metatags['og_title'] = $metatags['title'];
+      $metatags['canonical_url'] = $term->toUrl('canonical', ['absolute' => TRUE])->toString();
+    }
+    else {
+      $metatags['title'] = t('@name 列表页', ['@name' => $term->label()]) . ' | DcLili';
+    }
     $raw = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string) $term->get('description')->value), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
     if ($raw !== '') {
       $metatags['description'] = mb_substr($raw, 0, 160);
@@ -324,6 +351,37 @@ function xedc_preprocess_page(&$variables) {
  *
  * Comment forms keep their own core/jquery dependency.
  */
+/**
+ * Sets the document title for the video list, category and tag pages.
+ *
+ * auth.inc owns hook_preprocess_html(). This helper keeps the video titles
+ * without declaring the hook a second time.
+ */
+function _xedc_preprocess_html_video(array &$variables): void {
+  $route_name = \Drupal::routeMatch()->getRouteName();
+  $title = '';
+  if ($route_name === 'view.video_list.page_1') {
+    $title = (string) t('视频');
+  }
+  else {
+    $term = \Drupal::routeMatch()->getParameter('taxonomy_term');
+    if ($term instanceof \Drupal\taxonomy\TermInterface) {
+      $term = _xedc_translated($term);
+      if ($route_name === 'xedc_core.video_tag' && $term->bundle() === 'tags') {
+        $title = (string) t('@name 视频', ['@name' => $term->label()]);
+      }
+      elseif ($term->bundle() === 'video_category') {
+        $title = (string) t('@name - 视频分类', ['@name' => $term->label()]);
+      }
+    }
+  }
+  if ($title === '') {
+    return;
+  }
+  $variables['head_title']['title'] = $title;
+  $variables['head_title']['name'] = (string) \Drupal::config('system.site')->get('name');
+}
+
 function xedc_library_info_alter(array &$libraries, $extension) {
   $targets = [
     'matomo' => ['matomo'],
@@ -358,11 +416,42 @@ function xedc_page_attachments_alter(array &$attachments) {
     ],
     'xedc_matomo_preconnect',
   ];
+  $route_name = \Drupal::routeMatch()->getRouteName();
+  if ($route_name === 'view.video_list.page_1') {
+    $attachments['#attached']['html_head'][] = [
+      [
+        '#tag' => 'meta',
+        '#attributes' => [
+          'name' => 'description',
+          'content' => (string) t('浏览已发布的视频，按分类、热度和关键词查找。'),
+        ],
+      ],
+      'xedc_video_list_description',
+    ];
+  }
+  if ($route_name === 'xedc_core.video_tag') {
+    foreach ($attachments['#attached']['html_head_link'] ?? [] as $key => $link) {
+      $rel = $link[0]['rel'] ?? '';
+      $href = $link[0]['href'] ?? '';
+      if ($rel === 'alternate' && is_string($href) && str_contains($href, '/tags/')) {
+        unset($attachments['#attached']['html_head_link'][$key]);
+      }
+    }
+  }
   $term = \Drupal::routeMatch()->getParameter('taxonomy_term');
   if ($term instanceof \Drupal\taxonomy\TermInterface) {
     $term = _xedc_translated($term);
-    $title = (string) t('@name 列表页', ['@name' => $term->label()]);
+    if ($route_name === 'xedc_core.video_tag' && $term->bundle() === 'tags') {
+      $title = (string) t('@name 视频', ['@name' => $term->label()]);
+    }
+    elseif ($term->bundle() === 'video_category') {
+      $title = (string) t('@name - 视频分类', ['@name' => $term->label()]);
+    }
+    else {
+      $title = (string) t('@name 列表页', ['@name' => $term->label()]);
+    }
     $full = $title . ' | DcLili';
+    $description_written = FALSE;
     foreach ($attachments['#attached']['html_head'] ?? [] as $key => $item) {
       $tag = $item[0]['#tag'] ?? '';
       $name = $item[1] ?? '';
@@ -371,10 +460,27 @@ function xedc_page_attachments_alter(array &$attachments) {
       }
       if (($item[0]['#attributes']['name'] ?? '') === 'description' && isset($item[0]['#attributes']['content'])) {
         $raw = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string) $term->get('description')->value), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+        if ($route_name === 'xedc_core.video_tag') {
+          $raw = $raw !== '' ? $raw : (string) t('浏览与“@name”相关的视频。', ['@name' => $term->label()]);
+        }
         if ($raw !== '') {
           $attachments['#attached']['html_head'][$key][0]['#attributes']['content'] = mb_substr($raw, 0, 160);
+          $description_written = TRUE;
         }
       }
+    }
+    if ($route_name === 'xedc_core.video_tag' && $term->bundle() === 'tags' && !$description_written) {
+      $raw = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string) $term->get('description')->value), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+      $attachments['#attached']['html_head'][] = [
+        [
+          '#tag' => 'meta',
+          '#attributes' => [
+            'name' => 'description',
+            'content' => $raw !== '' ? mb_substr($raw, 0, 160) : (string) t('浏览与“@name”相关的视频。', ['@name' => $term->label()]),
+          ],
+        ],
+        'xedc_video_tag_description',
+      ];
     }
   }
   if (\Drupal::service('path.matcher')->isFrontPage()) {
@@ -1331,6 +1437,17 @@ function _xedc_attach_route_breadcrumb(array &$attachments): void {
   elseif ($name === 'view.video_list.page_1') {
     $items[] = ['name' => t('视频'), 'item' => \Drupal\Core\Url::fromUserInput('/video')->setAbsolute()->toString()];
   }
+  elseif ($name === 'xedc_core.video_tag') {
+    $items[] = ['name' => t('视频'), 'item' => \Drupal\Core\Url::fromUserInput('/video')->setAbsolute()->toString()];
+    $tag = $route->getParameter('taxonomy_term');
+    if ($tag instanceof \Drupal\taxonomy\TermInterface) {
+      $tag = _xedc_translated($tag);
+      $items[] = [
+        'name' => $tag->label(),
+        'item' => \Drupal\Core\Url::fromRoute('xedc_core.video_tag', ['taxonomy_term' => $tag->id()])->setAbsolute()->toString(),
+      ];
+    }
+  }
   elseif ($name === 'xedc_models.page') {
     $items[] = ['name' => t('模特'), 'item' => \Drupal\Core\Url::fromUserInput('/models')->setAbsolute()->toString()];
   }
@@ -1352,6 +1469,9 @@ function _xedc_attach_route_breadcrumb(array &$attachments): void {
     $term = $route->getParameter('taxonomy_term');
     if ($term instanceof \Drupal\taxonomy\TermInterface) {
       $term = _xedc_translated($term);
+      if ($term->bundle() === 'video_category') {
+        $items[] = ['name' => t('视频'), 'item' => \Drupal\Core\Url::fromUserInput('/video')->setAbsolute()->toString()];
+      }
       $items[] = ['name' => $term->label(), 'item' => $term->toUrl()->setAbsolute()->toString()];
     }
   }
@@ -1436,8 +1556,8 @@ function xedc_preprocess_page_title(array &$variables) {
     $variables['title'] = '';
     return;
   }
-  if ($route_name === 'view.video_list.page_1') {
-    $variables['title'] = t('视频列表页');
+  if ($route_name === 'view.video_list.page_1' || $route_name === 'xedc_core.video_tag') {
+    $variables['title'] = '';
     return;
   }
   if ($route_name === 'view.article_list.page_1') {
@@ -1794,6 +1914,50 @@ function xedc_preprocess_views_view__image_gallery(array &$variables): void {
  * Translates the home crumb. Easy Breadcrumb stores the Chinese label as plain text.
  */
 function xedc_preprocess_breadcrumb(array &$variables): void {
+  $route = \Drupal::routeMatch();
+  $route_name = $route->getRouteName();
+  $home = [
+    'text' => t('首页'),
+    'url' => \Drupal\Core\Url::fromRoute('<front>'),
+  ];
+  $videos = [
+    'text' => t('视频'),
+    'url' => \Drupal\Core\Url::fromUserInput('/video'),
+  ];
+  if ($route_name === 'view.video_list.page_1') {
+    $variables['breadcrumb'] = [
+      $home,
+      ['text' => t('视频')],
+    ];
+    $variables['#cache']['contexts'][] = 'route';
+    return;
+  }
+  if ($route_name === 'xedc_core.video_tag') {
+    $tag = $route->getParameter('taxonomy_term');
+    $label = $tag instanceof \Drupal\taxonomy\TermInterface ? _xedc_translated($tag)->label() : t('视频');
+    $variables['breadcrumb'] = [
+      $home,
+      $videos,
+      ['text' => $label],
+    ];
+    $variables['#cache']['contexts'][] = 'route';
+    $variables['#cache']['contexts'][] = 'url';
+    return;
+  }
+  if ($route_name === 'entity.taxonomy_term.canonical') {
+    $term = $route->getParameter('taxonomy_term');
+    if ($term instanceof \Drupal\taxonomy\TermInterface && $term->bundle() === 'video_category') {
+      $term = _xedc_translated($term);
+      $variables['breadcrumb'] = [
+        $home,
+        $videos,
+        ['text' => $term->label()],
+      ];
+      $variables['#cache']['contexts'][] = 'route';
+      $variables['#cache']['contexts'][] = 'url';
+      return;
+    }
+  }
   if (empty($variables['breadcrumb']) || !is_array($variables['breadcrumb'])) {
     return;
   }
@@ -2153,7 +2317,25 @@ function _xedc_vd_preprocess(array &$variables) {
   if ($node->hasField('field_video_file') && !$node->get('field_video_file')->isEmpty()) {
     $e = $node->get('field_video_file')->entity;
     $src = _xedc_vd_file_url($e);
-    if ($e && $e->getEntityTypeId() === 'file') $vd['mime'] = $e->getMimeType();
+    $choice = \Drupal::service('xedc_core.video_transcode')->choice($e);
+    $vd['playback_state'] = (string) ($choice['state'] ?? 'original');
+    if ($choice['state'] === 'copy' && $choice['url'] !== '') {
+      $src = $choice['url'];
+      $vd['mime'] = 'video/mp4';
+    }
+    elseif ($e && $e->getEntityTypeId() === 'file') {
+      $vd['mime'] = $e->getMimeType();
+    }
+    $fileId = 0;
+    if ($e && $e->getEntityTypeId() === 'media') {
+      $fileId = (int) $e->getSource()->getSourceFieldValue($e);
+    }
+    elseif ($e && $e->getEntityTypeId() === 'file') {
+      $fileId = (int) $e->id();
+    }
+    if ($fileId > 0) {
+      $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], ['xedc_video_transcode:' . $fileId]);
+    }
   }
   if (!$src && $node->hasField('field_video_url') && !$node->get('field_video_url')->isEmpty()) {
     $item = $node->get('field_video_url')->first();
@@ -2183,66 +2365,114 @@ function _xedc_vd_preprocess(array &$variables) {
     }
   }
 
-  $cur = $node->id();
-  $base = function () use ($cur) {
-    return \Drupal::entityQuery('node')->accessCheck(TRUE)->condition('type', 'video')->condition('status', 1)->condition('nid', $cur, '<>')->sort('created', 'DESC');
-  };
-  $rel = [];
-  if ($node->hasField('field_categories') && !$node->get('field_categories')->isEmpty()) {
-    $tids = array_column($node->get('field_categories')->getValue(), 'target_id');
-    $rel = array_values($base()->condition('field_categories', $tids, 'IN')->range(0, 5)->execute());
+  $seconds = $node->hasField('field_duration') ? (int) $node->get('field_duration')->value : 0;
+  $variables['vd_seconds'] = $seconds;
+  $variables['vd_duration'] = \Drupal::service('xedc_core.video_duration_formatter')->format($seconds);
+  $counts = \Drupal::service('xedc_core.video_stats')->counts([(int) $node->id()]);
+  $variables['vd_views'] = $counts[(int) $node->id()] ?? 0;
+  $variables['vd_date'] = \Drupal::service('date.formatter')->format($node->getCreatedTime(), 'custom', 'Y-m-d');
+  $variables['vd_categories'] = [];
+  if ($node->hasField('field_categories')) {
+    foreach ($node->get('field_categories')->referencedEntities() as $term) {
+      if ($term instanceof \Drupal\taxonomy\TermInterface) {
+        $term = _xedc_translated($term);
+        $variables['vd_categories'][] = [
+          'name' => $term->label(),
+          'url' => $term->toUrl()->toString(),
+        ];
+        $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $term->getCacheTags());
+      }
+    }
   }
-  if (count($rel) < 5) {
-    $more = $base();
-    if ($rel) $more->condition('nid', $rel, 'NOT IN');
-    $rel = array_merge($rel, array_values($more->range(0, 5 - count($rel))->execute()));
+  $variables['vd_tags'] = [];
+  if ($node->hasField('field_tags')) {
+    foreach ($node->get('field_tags')->referencedEntities() as $tag) {
+      if ($tag instanceof \Drupal\taxonomy\TermInterface && $tag->bundle() === 'tags') {
+        $tag = _xedc_translated($tag);
+        $variables['vd_tags'][] = [
+          'name' => $tag->label(),
+          'url' => \Drupal\Core\Url::fromRoute('xedc_core.video_tag', ['taxonomy_term' => $tag->id()])->toString(),
+        ];
+        $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $tag->getCacheTags());
+      }
+    }
   }
-  $variables['vd_related'] = _xedc_vd_cards($rel, $variables);
-  $variables['vd_latest'] = _xedc_vd_cards(array_values($base()->range(0, 6)->execute()), $variables);
-  $cats = [];
-  foreach (\Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadTree('video_category', 0, 1, TRUE) as $t) {
-    $cats[] = ['name' => _xedc_translated($t)->label(), 'tid' => $t->id()];
-    $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $t->getCacheTags());
+  $related = _xedc_video_related_ids($node);
+  $variables['vd_related'] = _xedc_vd_cards($related, $variables);
+  foreach ($variables['vd_related'] as &$card) {
+    $card['heading'] = 'h3';
   }
-  $variables['vd_cats'] = $cats;
+  unset($card);
   $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], [
     'node_list:video',
-    'taxonomy_term_list:video_category',
   ]);
-  $variables['vd_cache'] = ['#cache' => ['tags' => ['node_list:video', 'taxonomy_term_list:video_category']]];
+  $variables['vd_cache'] = ['#cache' => ['tags' => ['node_list:video']]];
+  $owner = $node->getOwner();
+  $variables['vd_author'] = [];
+  if ($owner && (int) $owner->id() > 0) {
+    $variables['vd_author'] = [
+      'name' => $owner->getDisplayName(),
+      'url' => $owner->toUrl()->toString(),
+    ];
+    $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $owner->getCacheTags());
+  }
   $variables['vd'] = $vd;
   _xedc_video_breadcrumb($node, $variables);
 }
 
-function _xedc_vd_cards(array $nids, array &$variables = []) {
-  $out = [];
-  if (!$nids) return $out;
-  $nodes = \Drupal\node\Entity\Node::loadMultiple($nids);
-  _xedc_warm_media_files($nodes, ['field_video_cover']);
-  if ($variables) {
-    $variables['#cache']['tags'][] = 'config:image.style.video_cover';
-  }
-  foreach ($nids as $nid) {
-    $n = $nodes[$nid] ?? NULL;
-    if (!$n instanceof \Drupal\node\NodeInterface) {
-      continue;
-    }
-    $n = _xedc_translated($n);
-    if ($variables) {
-      $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $n->getCacheTags());
-    }
-    $cover = '';
-    if ($n->hasField('field_video_cover') && !$n->get('field_video_cover')->isEmpty()) {
-      $media = $n->get('field_video_cover')->entity;
-      if ($variables && $media) {
-        $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $media->getCacheTags());
+/**
+ * Related videos: same tags, then same category, then other videos.
+ *
+ * @return int[]
+ */
+function _xedc_video_related_ids(\Drupal\node\NodeInterface $node): array {
+  $cur = (int) $node->id();
+  $picked = [];
+  $take = static function (array $ids) use (&$picked): void {
+    foreach ($ids as $id) {
+      $id = (int) $id;
+      if ($id > 0 && !isset($picked[$id])) {
+        $picked[$id] = $id;
       }
-      $cover = _xedc_vd_image_url($media, 'video_cover');
+      if (count($picked) >= 8) {
+        break;
+      }
     }
-    $d = $n->hasField('field_duration') ? (int) $n->get('field_duration')->value : 0;
-    $out[] = ['title' => $n->label(), 'url' => $n->toUrl()->toString(), 'cover' => $cover, 'dur' => $d ? sprintf('%d:%02d', intdiv($d, 60), $d % 60) : '', 'alt' => $n->label()];
+  };
+  $base = static function () use ($cur) {
+    return \Drupal::entityQuery('node')->accessCheck(TRUE)->condition('type', 'video')->condition('status', 1)->condition('nid', $cur, '<>')->sort('created', 'DESC');
+  };
+  if ($node->hasField('field_tags') && !$node->get('field_tags')->isEmpty()) {
+    $tids = array_column($node->get('field_tags')->getValue(), 'target_id');
+    $take(array_values($base()->condition('field_tags', $tids, 'IN')->range(0, 8)->execute()));
   }
-  return $out;
+  if (count($picked) < 8 && $node->hasField('field_categories') && !$node->get('field_categories')->isEmpty()) {
+    $tids = array_column($node->get('field_categories')->getValue(), 'target_id');
+    $query = $base()->condition('field_categories', $tids, 'IN');
+    if ($picked) {
+      $query->condition('nid', array_values($picked), 'NOT IN');
+    }
+    $take(array_values($query->range(0, 8)->execute()));
+  }
+  if (count($picked) < 8) {
+    $query = $base();
+    if ($picked) {
+      $query->condition('nid', array_values($picked), 'NOT IN');
+    }
+    $take(array_values($query->range(0, 8 - count($picked))->execute()));
+  }
+  return array_values($picked);
+}
+
+function _xedc_vd_cards(array $nids, array &$variables = []): array {
+  if (!$nids) {
+    return [];
+  }
+  $built = \Drupal::service('xedc_core.video_cards')->build($nids);
+  if ($variables) {
+    $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $built['cache_tags']);
+  }
+  return $built['items'];
 }
 
 require_once __DIR__ . '/xedc.search.inc';
@@ -2251,15 +2481,15 @@ require_once __DIR__ . '/xedc.search.inc';
  * 视频列表页加载网格样式。
  */
 function xedc_preprocess_views_view__video_list(array &$variables): void {
-  $variables['title'] = t('视频列表页');
+  $variables['title'] = '';
   _xedc_video_page_attach($variables);
+  _xedc_video_toolbar($variables, TRUE);
   $view = $variables['view'] ?? NULL;
-  $total = $view ? (int) ($view->total_rows ?? 0) : 0;
-  if (!empty($variables['header'])) {
-    $variables['header'] = ['#markup' => t('共 @total 个视频', ['@total' => $total])];
-  }
+  $variables['video_total'] = $view ? (int) ($view->total_rows ?? 0) : 0;
+  $variables['video_lead'] = ($variables['video_sort'] ?? '') === 'new' && ($variables['video_keys'] ?? '') === '';
+  $variables['header'] = [];
   if (!empty($variables['empty'])) {
-    $variables['empty'] = ['#markup' => t('暂无视频')];
+    $variables['empty'] = ['#markup' => '<div class="xv-empty">' . t('暂无视频') . '</div>'];
   }
 }
 
@@ -2285,8 +2515,33 @@ function xedc_preprocess_taxonomy_term(array &$variables): void {
 
 function xedc_preprocess_views_view__taxonomy_term(array &$variables): void {
   _xedc_video_page_attach($variables);
+  _xedc_video_toolbar($variables, FALSE);
   if (!empty($variables['empty'])) {
-    $variables['empty'] = ['#markup' => t('该分类下暂无视频')];
+    $variables['empty'] = ['#markup' => '<div class="xv-empty">' . t('该分类下暂无视频') . '</div>'];
+  }
+}
+
+/**
+ * Sort, search and category links for video listings.
+ */
+function _xedc_video_toolbar(array &$variables, bool $with_categories): void {
+  $request = \Drupal::request();
+  $keys = mb_substr(trim((string) $request->query->get('keys')), 0, 64);
+  $sort = $request->query->get('sort') === 'hot' ? 'hot' : 'new';
+  $path = $request->getPathInfo();
+  $variables['video_keys'] = $keys;
+  $variables['video_sort'] = $sort;
+  $variables['video_action'] = $path;
+  $variables['video_sort_urls'] = [
+    'new' => \Drupal\Core\Url::fromUserInput($path, ['query' => array_filter(['keys' => $keys])])->toString(),
+    'hot' => \Drupal\Core\Url::fromUserInput($path, ['query' => array_filter(['keys' => $keys, 'sort' => 'hot'])])->toString(),
+  ];
+  $variables['video_categories'] = $with_categories ? \Drupal::service('xedc_core.video_listing')->categories() : [];
+  $variables['#cache']['contexts'][] = 'url.query_args:sort';
+  $variables['#cache']['contexts'][] = 'url.query_args:keys';
+  $variables['#cache']['tags'][] = 'node_list:video';
+  if ($with_categories) {
+    $variables['#cache']['tags'][] = 'taxonomy_term_list:video_category';
   }
 }
 
@@ -2307,76 +2562,20 @@ function _xedc_video_page_attach(array &$variables): void {
 function xedc_preprocess_node__video__teaser(array &$variables): void {
   $node = _xedc_translated($variables['node']);
   $variables['node'] = $node;
-  $variables['url'] = $node->toUrl()->toString();
-  $variables['label'] = $node->label();
-  $variables['vc_cover'] = '';
-  $variables['vc_cover_alt'] = $node->label();
-  $variables['vc_duration'] = '';
-  $variables['vc_category'] = NULL;
-  $variables['vc_tags'] = [];
-
-  $seconds = 0;
-  if ($node->hasField('field_duration') && !$node->get('field_duration')->isEmpty()) {
-    $seconds = (int) $node->get('field_duration')->value;
-  }
-  if ($seconds > 0) {
-    if ($seconds >= 3600) {
-      $variables['vc_duration'] = sprintf('%d:%02d:%02d', intdiv($seconds, 3600), intdiv($seconds % 3600, 60), $seconds % 60);
-    }
-    else {
-      $variables['vc_duration'] = sprintf('%d:%02d', intdiv($seconds, 60), $seconds % 60);
-    }
-  }
-
-  if ($node->hasField('field_video_cover') && !$node->get('field_video_cover')->isEmpty()) {
-    $media = $node->get('field_video_cover')->entity;
-    if ($media instanceof \Drupal\media\MediaInterface && $media->hasField('field_media_image') && !$media->get('field_media_image')->isEmpty()) {
-      $item = $media->get('field_media_image')->first();
-      $file = $item ? $item->entity : NULL;
-      if ($file instanceof \Drupal\file\FileInterface) {
-        $alt = trim((string) $item->alt);
-        if ($alt !== '') {
-          $variables['vc_cover_alt'] = $alt;
-        }
-        $style = \Drupal\image\Entity\ImageStyle::load('video_cover');
-        $gen = \Drupal::service('file_url_generator');
-        $uri = $file->getFileUri();
-        $url = $style ? $style->buildUrl($uri) : $gen->generateAbsoluteString($uri);
-        $variables['vc_cover'] = $gen->transformRelative($url);
-        $tags = \Drupal\Core\Cache\Cache::mergeTags($file->getCacheTags(), $media->getCacheTags());
-        if ($style) {
-          $tags = \Drupal\Core\Cache\Cache::mergeTags($tags, $style->getCacheTags());
-        }
-        $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $tags);
-      }
-    }
-  }
-
-  if ($node->hasField('field_categories') && !$node->get('field_categories')->isEmpty()) {
-    $term = $node->get('field_categories')->entity;
-    if ($term instanceof \Drupal\taxonomy\TermInterface) {
-      $term = _xedc_translated($term);
-      $variables['vc_category'] = [
-        'name' => $term->label(),
-        'url' => $term->toUrl()->toString(),
-      ];
-      $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $term->getCacheTags());
-    }
-  }
-
-  if ($node->hasField('field_tags') && !$node->get('field_tags')->isEmpty()) {
-    foreach ($node->get('field_tags')->referencedEntities() as $tag) {
-      if (!$tag instanceof \Drupal\taxonomy\TermInterface) {
-        continue;
-      }
-      $tag = _xedc_translated($tag);
-      $variables['vc_tags'][] = [
-        'name' => $tag->label(),
-        'url' => $tag->toUrl()->toString(),
-      ];
-      $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags($variables['#cache']['tags'] ?? [], $tag->getCacheTags());
-    }
-  }
+  $cards = _xedc_vd_cards([(int) $node->id()], $variables);
+  $variables['video_card'] = $cards[0] ?? [
+    'url' => $node->toUrl()->toString(),
+    'title' => $node->label(),
+    'cover' => '',
+    'srcset' => '',
+    'alt' => $node->label(),
+    'width' => 640,
+    'height' => 360,
+    'duration' => '',
+    'views' => 0,
+    'date' => '',
+    'heading' => 'h2',
+  ];
 }
 
 /**

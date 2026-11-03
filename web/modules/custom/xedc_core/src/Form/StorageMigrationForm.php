@@ -96,6 +96,11 @@ class StorageMigrationForm extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
+    $account = $this->currentUser();
+    if (!$account->hasPermission('administer xedc object storage') && !$account->hasPermission('migrate xedc storage')) {
+      $this->messenger()->addError('没有执行文件迁移的权限。');
+      return;
+    }
     $name = (string) ($form_state->getTriggeringElement()['#name'] ?? 'precheck');
     if (str_starts_with($name, 'cancel__')) {
       $error = $this->planner->cancel(substr($name, 8));

@@ -50,10 +50,10 @@ class SecurityHeaderSubscriber implements EventSubscriberInterface {
       "form-action 'self'",
       "script-src 'self' 'unsafe-inline' https://x.gitxx.xyz https://static.cloudflareinsights.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://gitxx.xyz https://www.gitxx.xyz https://x.gitxx.xyz",
+      "img-src 'self' data: blob: https://gitxx.xyz https://www.gitxx.xyz https://x.gitxx.xyz https://cdn.gitxx.xyz",
       "font-src 'self' data:",
       "connect-src 'self' https://x.gitxx.xyz https://cloudflareinsights.com https://static.cloudflareinsights.com",
-      "media-src 'self' blob:",
+      "media-src 'self' blob: https://cdn.gitxx.xyz",
       "worker-src 'self' blob:",
       "frame-src 'self' https://gitxx.xyz https://www.gitxx.xyz https://www.youtube.com https://player.bilibili.com https://platform.twitter.com https://www.instagram.com https://google.com https://www.google.com",
     ];

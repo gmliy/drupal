@@ -1,6 +1,12 @@
 # MP4 与图片 CDN 缓存头排查
 
-## 本轮：2026-11-02 18:18 UTC
+## 复制前复测：2026-11-02 19:06 UTC
+
+新的 PNG 和可播放 MP4 在 R2 上仍是 `public, max-age=60`，ETag 与 CDN 一致，正文一致。两次 CDN GET 都变成 `public, max-age=3600`。PNG 与 MP4 都是第一次 `MISS`、第二次 `HIT`，`Age: 2`。MP4 Range 为 206，`bytes 0-15/9829`，字节一致，但缓存头同样是 3600，所以缓存验收失败。没有改上传代码，没有复制历史文件。
+
+18:18 的历史值是 14400。本轮秒数变成 3600，仍然不是 60。通过标准不变：Browser Cache TTL 设为 Respect Existing Headers 之后，两次 GET 必须读回 `public, max-age=60`。
+
+## 历史：2026-11-02 18:18 UTC
 
 新的测试 PNG 和 MP4 上传头都是 `Cache-Control: public, max-age=60`。对象在 `s3fs-public/_xedc_storage_test/`，测完已删除。没有改生产对象，没有改代码。环境里没有 Cloudflare API Token，读不到控制台配置。
 

@@ -24,5 +24,10 @@
   <div class="xm-empty">
     <strong>{{ empty }}</strong>
     <p>{{ '在内容页点赞后，会出现在这里。'|t }}</p>
+    <div class="xm-empty__links">
+      <a href="{{ path('view.image_gallery.page_1') }}">{{ '看看美图'|t }}</a>
+      <a href="{{ path('view.video_list.page_1') }}">{{ '看看视频'|t }}</a>
+      <a href="{{ path('view.article_list.page_1') }}">{{ '看看文章'|t }}</a>
+    </div>
   </div>
 {% endif %}

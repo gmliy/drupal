@@ -10,3 +10,9 @@ services:
     arguments: ['@xedc_core.traffic']
     tags:
       - { name: drush.command }
+
+  xedc_core.video_duration_commands:
+    class: Drupal\xedc_core\Drush\Commands\VideoDurationCommands
+    arguments: ['@xedc_core.video_duration']
+    tags:
+      - { name: drush.command }

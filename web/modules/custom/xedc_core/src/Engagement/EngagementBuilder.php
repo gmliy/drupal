@@ -16,13 +16,32 @@ use Drupal\node\NodeInterface;
  */
 final class EngagementBuilder implements TrustedCallbackInterface {
 
+  protected GuestIdentity $guests;
+
   public function __construct(
     protected AccountProxyInterface $currentUser,
     protected EntityTypeManagerInterface $entityTypeManager,
     protected LikeManager $likes,
     protected MembershipManager $membership,
     protected ResourcePresenter $resources,
-  ) {}
+    ?GuestIdentity $guests = NULL,
+  ) {
+    // The compiled container may still pass the previous five arguments.
+    // Resolving the same service keeps guest likes working until that
+    // container is rebuilt. A rebuild is not performed from this request.
+    if (!$guests instanceof GuestIdentity) {
+      if (\Drupal::hasService('xedc_core.guest_identity')) {
+        $guests = \Drupal::service('xedc_core.guest_identity');
+      }
+      else {
+        $guests = new GuestIdentity(\Drupal::service('request_stack'), \Drupal::time());
+      }
+    }
+    if (!$guests instanceof GuestIdentity) {
+      throw new \InvalidArgumentException('游客身份服务不可用。');
+    }
+    $this->guests = $guests;
+  }
 
   /**
    * {@inheritdoc}
@@ -48,6 +67,7 @@ final class EngagementBuilder implements TrustedCallbackInterface {
       }
     }
     $uid = (int) $this->currentUser->id();
+    $guest = $uid > 0 ? '' : $this->guests->existingHash();
     $snapshot = $this->membership->snapshot($this->currentUser);
     $canonical = $node->toUrl('canonical', ['absolute' => TRUE])->toString();
     $maxAge = 0;
@@ -59,7 +79,7 @@ final class EngagementBuilder implements TrustedCallbackInterface {
       '#favorite' => $favorite,
       '#like' => [
         'count' => $this->likes->count('node', (int) $node->id()),
-        'liked' => $uid > 0 && $this->likes->isLiked($uid, (int) $node->id()),
+        'liked' => $uid > 0 ? $this->likes->isLiked($uid, (int) $node->id()) : ($guest !== '' && $this->likes->isLikedBy(0, $guest, (int) $node->id())),
         'url' => Url::fromRoute('xedc_core.like_toggle', ['node' => $node->id()])->toString(),
         'login' => Url::fromRoute('user.login', [], [
           'query' => ['destination' => $node->toUrl()->toString()],
@@ -77,7 +97,7 @@ final class EngagementBuilder implements TrustedCallbackInterface {
         'library' => ['xedc/engagement'],
       ],
       '#cache' => [
-        'contexts' => ['user', 'languages:language_interface', 'url'],
+        'contexts' => ['user', 'xedc_guest', 'languages:language_interface', 'url'],
         'tags' => [
           'node:' . $node->id(),
           $this->likes->tag('node', (int) $node->id()),

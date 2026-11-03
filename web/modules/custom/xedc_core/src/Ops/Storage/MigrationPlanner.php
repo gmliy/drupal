@@ -61,7 +61,7 @@ final class MigrationPlanner {
           $blockers[] = '源和目标看起来是同一个 Bucket，不能把预检查当成迁移完成。';
         }
       }
-      if ($source === 's3' && $counts['files'] > 0 && !(bool) Settings::get('xedc_storage.runtime_applied', FALSE)) {
+      if ($source === 's3' && $counts['files'] > 0 && !(bool) Settings::get('xedc_storage.settings_accepted', FALSE)) {
         $warnings[] = '存在 s3:// 文件，但运行时连接没有启用，不能判断它们当前指向哪个 Bucket。';
       }
       if ($source !== 's3') {

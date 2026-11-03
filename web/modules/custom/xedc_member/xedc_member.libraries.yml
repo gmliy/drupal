@@ -5,10 +5,10 @@ quiet:
       css/quiet.css: { weight: 100 }
 
 member:
-  version: 1.8
+  version: 2.0
   css:
     theme:
-      css/member.css: {}
+      css/member.css: { weight: 200 }
   js:
     js/member.js: {}
   dependencies:

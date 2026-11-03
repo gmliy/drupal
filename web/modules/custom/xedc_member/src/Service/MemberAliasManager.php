@@ -91,9 +91,20 @@ class MemberAliasManager {
   }
 
   /**
-   * Returns the public base path for a member, such as /nickname or /member.
+   * Returns the public profile path, such as /r/nickname.
+   *
+   * An empty string means the member has no custom public slug. This is not
+   * the member center. The member center lives at /{slug}.
    */
   public function publicBase(int $uid): string {
+    $slug = $this->getSlug($uid);
+    return $slug === '' ? '' : '/r/' . $slug;
+  }
+
+  /**
+   * Returns the member-center prefix, such as /nickname or /member.
+   */
+  public function memberBase(int $uid): string {
     $slug = $this->getSlug($uid);
     return $slug === '' ? '/member' : '/' . $slug;
   }
@@ -102,7 +113,7 @@ class MemberAliasManager {
    * Rewrites an internal /member path to the member's public path.
    */
   public function toPublicPath(int $uid, string $path): string {
-    $base = $this->publicBase($uid);
+    $base = $this->memberBase($uid);
     if ($base === '/member') {
       return $path;
     }
@@ -117,6 +128,40 @@ class MemberAliasManager {
       return $base . '/' . $rest;
     }
     return $path;
+  }
+
+  /**
+   * Maps /{slug} or /{slug}/section to an internal member path.
+   *
+   * The result depends only on the path. It is safe to store in the shared
+   * route-match cache.
+   */
+  public function vanityInternalPath(string $path): ?string {
+    $slug = $this->vanitySlug($path);
+    if ($slug === NULL) {
+      return NULL;
+    }
+    $suffix = $this->vanitySuffix($path);
+    $internal = $this->internalPath($suffix);
+    if ($internal === NULL || $this->findUidBySlug($slug) <= 0) {
+      return NULL;
+    }
+    return $internal;
+  }
+
+  /**
+   * Returns the owner of a vanity member path, or NULL when it is not one.
+   */
+  public function ownerForVanityPath(string $path): ?int {
+    if ($this->vanityInternalPath($path) === NULL) {
+      return NULL;
+    }
+    $slug = $this->vanitySlug($path);
+    if ($slug === NULL) {
+      return NULL;
+    }
+    $uid = $this->findUidBySlug($slug);
+    return $uid > 0 ? $uid : NULL;
   }
 
   /**
@@ -168,7 +213,7 @@ class MemberAliasManager {
       return [
         'ok' => TRUE,
         'status' => 'empty',
-        'message' => (string) t('留空则使用/member。可用字母、数字、下划线和连字符。'),
+        'message' => (string) t('留空则会员中心使用 /member。公开主页为 /r/别名。'),
         'slug' => '',
       ];
     }
@@ -247,8 +292,35 @@ class MemberAliasManager {
     }
     $this->slugByUid = [];
     $this->uidBySlug = [];
-    Cache::invalidateTags(['user:' . $uid, 'xedc_member:aliases']);
+    Cache::invalidateTags(['user:' . $uid, 'xedc_member:aliases', 'route_match']);
     return NULL;
+  }
+
+  /**
+   * Returns the first segment of a vanity path, or NULL when it cannot be one.
+   */
+  protected function vanitySlug(string $path): ?string {
+    if ($path === '/' || !str_starts_with($path, '/')) {
+      return NULL;
+    }
+    $trimmed = trim(rawurldecode($path), '/');
+    if ($trimmed === '') {
+      return NULL;
+    }
+    $slug = explode('/', $trimmed)[0];
+    if ($slug === '' || str_contains($slug, '.') || $this->isReservedSlug($slug)) {
+      return NULL;
+    }
+    return $slug;
+  }
+
+  /**
+   * Returns the member-center suffix after the slug.
+   */
+  protected function vanitySuffix(string $path): string {
+    $trimmed = trim(rawurldecode($path), '/');
+    $parts = explode('/', $trimmed);
+    return implode('/', array_slice($parts, 1));
   }
 
   /**
@@ -284,7 +356,7 @@ class MemberAliasManager {
       'file', 'ajax', 'sitemap', 'rss', 'index', 'update', 'meitu', 'video',
       'articles', 'tags', 'models', 'about', 'contact', 'history', 'views',
       'toolbar', 'editor', 'contextual', 'webform', 'image-style', 'styles',
-      'favicon.ico', 'robots.txt', 'sitemap.xml',
+      'favicon.ico', 'robots.txt', 'sitemap.xml', 'r',
     ];
     return in_array(mb_strtolower($slug), $reserved, TRUE);
   }

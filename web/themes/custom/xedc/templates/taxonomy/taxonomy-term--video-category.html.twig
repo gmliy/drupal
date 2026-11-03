@@ -1,13 +1,8 @@
-{#
-/**
- * @file
- * 视频栏目术语头部。名称是页面上唯一的 H1，描述完整输出，供抓取。
- */
-#}
 {{ content|cache_metadata }}
 <header class="vc-term">
   <h1 class="vc-term__title">{{ term.label }}</h1>
   {% if term.description.value %}
     <div class="vc-term__desc">{{ content.description }}</div>
   {% endif %}
+  <p class="vc-term__count">{{ '共 @count 个视频'|t({'@count': video_count|default(0)}) }}</p>
 </header>

@@ -10,7 +10,13 @@ use Drupal\xedc_member\Service\MemberAliasManager;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Maps a member vanity URL onto the member center, and back out again.
+ * Maps /{slug} and /{slug}/section onto the member center, and back out.
+ *
+ * Inbound mapping depends only on the slug, never on the current account.
+ * Drupal stores the processed path in cache.data under the request path, with
+ * no user cache context. A user-specific inbound result would be reused by
+ * every later visitor. Ownership is enforced afterwards by the route access
+ * check, which sees the original request path.
  */
 class MemberAliasPathProcessor implements InboundPathProcessorInterface, OutboundPathProcessorInterface {
 
@@ -26,37 +32,7 @@ class MemberAliasPathProcessor implements InboundPathProcessorInterface, Outboun
    * {@inheritdoc}
    */
   public function processInbound($path, Request $request) {
-    if ($path === '/' || !str_starts_with($path, '/')) {
-      return $path;
-    }
-    $trimmed = trim($path, '/');
-    if ($trimmed === '') {
-      return $path;
-    }
-    $parts = explode('/', $trimmed);
-    $slug = rawurldecode($parts[0]);
-    $lower = mb_strtolower($slug);
-    if ($slug === '' || str_contains($slug, '.') || $this->aliasManager->isReservedSlug($lower)) {
-      return $path;
-    }
-    // Member aliases are a single short path segment. Longer or invalid
-    // segments cannot match, so skip the lookup on ordinary content URLs.
-    if (mb_strlen($slug) > 32 || !preg_match('/^[\p{L}\p{N}][\p{L}\p{N}_-]*$/u', $slug)) {
-      return $path;
-    }
-    $uid = $this->aliasManager->findUidBySlug($slug);
-    if ($uid <= 0) {
-      return $path;
-    }
-    $suffix = implode('/', array_slice($parts, 1));
-    $internal = $this->aliasManager->internalPath($suffix);
-    if ($internal === NULL) {
-      return $path;
-    }
-    if ((int) $this->currentUser->id() !== $uid) {
-      return '/xedc-member/alias-denied';
-    }
-    return $internal;
+    return $this->aliasManager->vanityInternalPath($path) ?? $path;
   }
 
   /**
@@ -66,13 +42,16 @@ class MemberAliasPathProcessor implements InboundPathProcessorInterface, Outboun
     if ($path !== '/member' && !str_starts_with($path, '/member/')) {
       return $path;
     }
+    if ($bubbleable_metadata) {
+      $bubbleable_metadata->addCacheContexts(['user']);
+      $bubbleable_metadata->addCacheTags(['xedc_member:aliases']);
+    }
     $uid = (int) $this->currentUser->id();
     if ($uid <= 0) {
       return $path;
     }
     if ($bubbleable_metadata) {
-      $bubbleable_metadata->addCacheContexts(['user']);
-      $bubbleable_metadata->addCacheTags(['user:' . $uid, 'xedc_member:aliases']);
+      $bubbleable_metadata->addCacheTags(['user:' . $uid]);
     }
     return $this->aliasManager->toPublicPath($uid, $path);
   }

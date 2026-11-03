@@ -7,7 +7,7 @@
     if (csrf) {
       return Promise.resolve(csrf);
     }
-    return fetch(drupalSettings.path.baseUrl + 'session/token', { credentials: 'same-origin' }).then(function (response) {
+    return fetch(drupalSettings.path.baseUrl + 'xedc/like-token', { credentials: 'same-origin' }).then(function (response) {
       return response.text();
     }).then(function (value) {
       csrf = value;
@@ -118,13 +118,8 @@
       once('xedc-engagement', '[data-xedc-act]', context).forEach(function (root) {
         root.addEventListener('click', function (event) {
           var like = event.target.closest('[data-xedc-like]');
-          if (like && root.contains(like)) {
+            if (like && root.contains(like)) {
             event.preventDefault();
-            if (root.getAttribute('data-tier') === 'anonymous') {
-              showNote(root, '请先登录后再点赞。');
-              openLogin(root);
-              return;
-            }
             if (like.classList.contains('is-loading')) {
               return;
             }
@@ -141,13 +136,7 @@
                 return { status: response.status, data: data };
               });
             }).then(function (result) {
-              if (result.status === 401) {
-                paintLike(like, label, countNode, wasOn, wasCount);
-                showNote(root, '请先登录后再点赞。');
-                openLogin(root);
-                return;
-              }
-              if (!result.data || !result.data.ok) {
+              if (result.status === 401 || result.status === 429 || !result.data || !result.data.ok) {
                 paintLike(like, label, countNode, wasOn, wasCount);
                 showNote(root, (result.data && result.data.message) || '点赞没有成功，请再试一次。');
                 return;
@@ -180,32 +169,54 @@
           if (zipLink && root.parentElement.contains(zipLink)) {
             event.preventDefault();
             var zipNote = root.parentElement.querySelector('[data-xedc-download-note]');
+            if (zipLink.getAttribute('data-xedc-zip-busy') === '1') {
+              return;
+            }
+            zipLink.setAttribute('data-xedc-zip-busy', '1');
             if (zipNote) {
               zipNote.hidden = false;
               zipNote.textContent = '正在准备压缩包…';
             }
+            var started = Date.now();
             var statusUrl = zipLink.href + (zipLink.href.indexOf('?') === -1 ? '?' : '&') + 'status=1';
-            fetch(statusUrl, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } }).then(function (response) {
-              return response.json().then(function (data) {
-                return { status: response.status, data: data };
-              });
-            }).then(function (result) {
-              var data = result.data || {};
-              if (!data.ok || data.state === 'denied' || data.state === 'failed' || data.state === 'queued') {
+            var finish = function () {
+              zipLink.removeAttribute('data-xedc-zip-busy');
+            };
+            var poll = function () {
+              fetch(statusUrl, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } }).then(function (response) {
+                return response.json().then(function (data) {
+                  return { status: response.status, data: data };
+                });
+              }).then(function (result) {
+                var data = result.data || {};
                 if (zipNote) {
-                  zipNote.textContent = data.message || '暂时不能下载这个压缩包。';
+                  zipNote.textContent = data.message || '正在准备压缩包…';
                 }
-                return;
-              }
-              if (zipNote) {
-                zipNote.textContent = data.message || '正在生成压缩包…';
-              }
-              window.location.assign(zipLink.href);
-            }).catch(function () {
-              if (zipNote) {
-                zipNote.textContent = '无法确认压缩包状态，请稍后再试。';
-              }
-            });
+                if (data.state === 'ready' || data.state === 'sync' || data.state === 'build') {
+                  finish();
+                  window.location.assign(zipLink.href);
+                  return;
+                }
+                if (!data.ok || data.state === 'denied' || data.state === 'failed') {
+                  finish();
+                  return;
+                }
+                if (Date.now() - started > 120000) {
+                  if (zipNote) {
+                    zipNote.textContent = '仍在后台生成。请稍后再次点击下载，不会重新压缩已完成的文件。';
+                  }
+                  finish();
+                  return;
+                }
+                window.setTimeout(poll, 3000);
+              }).catch(function () {
+                if (zipNote) {
+                  zipNote.textContent = '无法确认压缩包状态，请稍后再试。';
+                }
+                finish();
+              });
+            };
+            poll();
             return;
           }
           var closer = event.target.closest('[data-xedc-close]');

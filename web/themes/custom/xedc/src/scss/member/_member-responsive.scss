@@ -1,0 +1,254 @@
+@media (max-width: 1023px) {
+  body.xm-page .page__content > .container,
+  body.xm-submission-page .page__content > .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .xm {
+    display: block;
+    padding-top: 0;
+  }
+
+  .xm-topbar {
+    position: static !important;
+    top: auto !important;
+    z-index: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 16px;
+    padding: 2px 0 12px;
+    border-bottom: 1px solid var(--xm-bd);
+    background: transparent;
+    backdrop-filter: none;
+    transform: none;
+  }
+
+  .xm-topbar__title {
+    overflow: hidden;
+    font-size: 15px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  body.xm-page .xm-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: block;
+    background: var(--xm-overlay);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  html.xm-nav-open .xm-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body.xm-page .xm-side {
+    position: fixed !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1110;
+    width: min(320px, 86vw);
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: auto;
+    border-right: 1px solid var(--xm-bd);
+    border-radius: 0;
+    box-shadow: var(--xm-shadow-pop);
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    transform: translate3d(-100%, 0, 0);
+    visibility: hidden;
+    transition: transform 0.22s ease, visibility 0s linear 0.22s;
+  }
+
+  html.xm-nav-open .xm-side {
+    transform: none;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  html.xm-nav-open,
+  html.xm-nav-open body {
+    overflow: hidden;
+  }
+
+  .xm-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .xm-account {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .xm-account dd {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 767px) {
+  .xm-head {
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .xm-head :is(.xm-btn, a.xm-btn) {
+    width: auto;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .xm-title {
+    font-size: 1.3rem;
+  }
+
+  .xm-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .xm-card__body {
+    padding: 10px;
+  }
+
+  .xm-card__foot {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .xm-profile-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .xm-profile-hero__meta span {
+    white-space: normal;
+  }
+
+  .xm-submit-actions,
+  .xm-submission-card__actions,
+  .xm-comment-card__actions,
+  .xm-profile-form .form-actions,
+  .xm-security-form .form-actions,
+  .xm-profile-form .xm-form-actions,
+  .xm-submission-form .form-actions,
+  .xm-confirm-form .form-actions,
+  .xm-empty__links {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .xm-submit-actions :is(a, button, input),
+  .xm-submission-card__actions :is(a, button),
+  .xm-comment-card__actions :is(a, button),
+  .xm-profile-form .form-actions :is(a, button, input),
+  .xm-security-form .form-actions :is(a, button, input),
+  .xm-submission-form .form-actions :is(a, button, input),
+  .xm-submission-form :is(.xm-media-open, .js-media-library-open-button),
+  .xm-confirm-form .form-actions :is(a, button, input),
+  .xm-empty__links a {
+    width: 100%;
+  }
+
+  .xm-history-form .form-type-checkbox .description {
+    flex-basis: 100%;
+    text-align: left;
+  }
+
+  .xm-table-wrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .xm-table {
+    min-width: 0;
+  }
+
+  .xm-table thead {
+    display: none;
+  }
+
+  .xm-table,
+  .xm-table tbody,
+  .xm-table tr,
+  .xm-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .xm-table tr {
+    margin-bottom: 12px;
+    padding: 4px 0;
+    border: 1px solid var(--xm-bd);
+    border-radius: var(--xm-radius);
+    background: var(--xm-surface);
+  }
+
+  .xm-table td {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--xm-bd);
+  }
+
+  .xm-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .xm-table td::before {
+    content: attr(data-label);
+    flex: 0 0 4.5em;
+    color: var(--xm-mut);
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  .xm-submission-form,
+  .xm-confirm-form,
+  .xm-profile,
+  .xm-profile-card,
+  .xm-security {
+    max-width: none;
+    padding: 16px;
+  }
+
+  .xm-panel {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 359px) {
+  .xm-grid,
+  .xm-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xm-side,
+  .xm-backdrop,
+  .xm-nav__item,
+  .xm-card,
+  .xm-stat,
+  .xm-btn,
+  .xm :is(.button, .btn, input[type="submit"]) {
+    transition: none !important;
+  }
+
+  .xm :is(.xm-btn, .button, .btn, input[type="submit"]):active {
+    transform: none;
+  }
+}

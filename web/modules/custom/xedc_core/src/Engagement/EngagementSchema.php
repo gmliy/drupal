@@ -18,10 +18,11 @@ final class EngagementSchema {
   public static function tables(): array {
     return [
       'xedc_like' => [
-        'description' => 'One row per member like. The unique key blocks duplicates.',
+        'description' => 'One active like per member or guest on a piece of content. Guests are stored as uid 0 plus a hash, never the cookie secret.',
         'fields' => [
           'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
           'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+          'actor_hash' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
           'entity_type' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'node'],
           'entity_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
           'bundle' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
@@ -31,7 +32,7 @@ final class EngagementSchema {
         ],
         'primary key' => ['id'],
         'unique keys' => [
-          'user_entity' => ['uid', 'entity_type', 'entity_id'],
+          'user_actor' => ['uid', 'actor_hash', 'entity_type', 'entity_id'],
         ],
         'indexes' => [
           'entity' => ['entity_type', 'entity_id', 'status'],

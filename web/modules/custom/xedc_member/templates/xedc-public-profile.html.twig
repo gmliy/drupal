@@ -1,0 +1,129 @@
+{#
+/**
+ * @file
+ * Public member profile at /r/{slug}.
+ */
+#}
+<article class="xp">
+  <header class="xp-hero">
+    <div class="xp-avatar">
+      {% if avatar %}
+        <img src="{{ avatar }}" alt="" width="72" height="72" loading="eager" decoding="async">
+      {% else %}
+        <svg class="xp-avatar__fallback" viewBox="0 0 72 72" aria-hidden="true">
+          <circle cx="36" cy="36" r="36"></circle>
+          <circle cx="36" cy="28" r="12"></circle>
+          <path d="M14 62c3.5-12 13-18 22-18s18.5 6 22 18"></path>
+        </svg>
+      {% endif %}
+    </div>
+
+    <div class="xp-id">
+      <h1 class="xp-name">{{ name }}</h1>
+    </div>
+
+    <button type="button" class="xp-share" data-xp-share="{{ share_url }}" data-xp-title="{{ name }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14 5.5a3.5 3.5 0 1 1 .9 2.3L9.7 11a3.5 3.5 0 0 1 0 2l5.2 3.2a3.5 3.5 0 1 1-.8 1.6L8.7 14.4a3.5 3.5 0 1 1 0-4.8l5.4-3.4A3.5 3.5 0 0 1 14 5.5Z"></path>
+      </svg>
+      <span>{{ '分享'|t }}</span>
+    </button>
+
+    {% if bio %}
+      <p class="xp-bio">{{ bio|nl2br }}</p>
+    {% endif %}
+    <p class="xp-joined">{{ '加入于 @date'|t({'@date': joined}) }}</p>
+
+    <div class="xp-stats">
+      {% for stat in stats %}
+        <a class="xp-stat" href="{{ stat.url }}">
+          <strong>{{ stat.count }}</strong>
+          <span>{{ stat.label }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </header>
+
+  <div class="xp-toolbar">
+    <nav class="xp-filters" aria-label="{{ '作品分类'|t }}">
+      {% for filter in filters %}
+        <a class="xp-filter{{ filter.active ? ' is-active' }}" href="{{ filter.url }}"{% if filter.active %} aria-current="page"{% endif %}>
+          <span>{{ filter.label }}</span>
+          <span class="xp-filter__count">{{ filter.count }}</span>
+        </a>
+      {% endfor %}
+    </nav>
+    <div class="xp-sorts" role="group" aria-label="{{ '排序'|t }}">
+      {% for sort in sorts %}
+        <a class="xp-sort{{ sort.active ? ' is-active' }}" href="{{ sort.url }}"{% if sort.active %} aria-current="true"{% endif %}>{{ sort.label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if cards %}
+    <div class="xp-grid">
+      {% for card in cards %}
+        <article class="xp-card xp-card--{{ card.type }}">
+          <a class="xp-card__media" href="{{ card.url }}">
+            {% if card.cover %}
+              <img src="{{ card.cover }}" alt="{{ card.title }}"{% if card.width %} width="{{ card.width }}"{% endif %}{% if card.height %} height="{{ card.height }}"{% endif %}{% if card.srcset %} srcset="{{ card.srcset }}" sizes="(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"{% endif %} loading="lazy" decoding="async">
+            {% else %}
+              <span class="xp-card__placeholder"></span>
+            {% endif %}
+            {% if card.type == 'video' %}
+              <span class="xp-play" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5-11-6.5Z"></path></svg>
+              </span>
+            {% endif %}
+            {% if card.duration %}
+              <span class="xp-badge">{{ card.duration }}</span>
+            {% elseif card.image_count > 1 %}
+              <span class="xp-badge">{{ '@count 张'|t({'@count': card.image_count}) }}</span>
+            {% endif %}
+          </a>
+          <h2 class="xp-card__title"><a href="{{ card.url }}">{{ card.title }}</a></h2>
+          {% if card.summary %}
+            <p class="xp-card__summary">{{ card.summary }}</p>
+          {% endif %}
+          {% if card.type != 'video' and card.date %}
+            <p class="xp-card__date">{{ card.date }}</p>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="xp-empty">
+      <p>{{ empty }}</p>
+      {% if offer_submission %}
+        {{ owner_link }}
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if pager %}
+    <nav class="xp-pager" aria-label="{{ '分页'|t }}">
+      {% if pager.prev %}
+        <a class="xp-pager__btn" href="{{ pager.prev }}" rel="prev">{{ '上一页'|t }}</a>
+      {% else %}
+        <span class="xp-pager__btn is-disabled">{{ '上一页'|t }}</span>
+      {% endif %}
+      <span class="xp-pager__nums">
+        {% for item in pager.items %}
+          {% if item.gap %}
+            <span class="xp-pager__gap">…</span>
+          {% else %}
+            <a class="xp-pager__num{{ item.active ? ' is-active' }}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.n }}</a>
+          {% endif %}
+        {% endfor %}
+      </span>
+      <span class="xp-pager__info">{{ pager.current }} / {{ pager.last }}</span>
+      {% if pager.next %}
+        <a class="xp-pager__btn" href="{{ pager.next }}" rel="next">{{ '下一页'|t }}</a>
+      {% else %}
+        <span class="xp-pager__btn is-disabled">{{ '下一页'|t }}</span>
+      {% endif %}
+    </nav>
+  {% endif %}
+
+  <div class="xp-toast" data-xp-toast hidden></div>
+</article>

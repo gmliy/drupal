@@ -56,6 +56,7 @@ final class ShareRecorder {
       'outcome' => $outcome,
       'created' => $this->time->getRequestTime(),
     ])->execute();
+    \Drupal\Core\Cache\Cache::invalidateTags(['xedc_engagement']);
     return TRUE;
   }
 

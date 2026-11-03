@@ -6,6 +6,7 @@ namespace Drupal\xedc_core\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\node\NodeInterface;
+use Drupal\xedc_core\Engagement\GuestIdentity;
 use Drupal\xedc_core\Engagement\LikeManager;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,21 +17,46 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class EngagementController extends ControllerBase {
 
-  public function toggleLike(NodeInterface $node): JsonResponse {
-    if (!$this->currentUser()->isAuthenticated()) {
-      return new JsonResponse([
-        'ok' => FALSE,
-        'message' => '请先登录后再点赞。',
-        'login' => \Drupal\Core\Url::fromRoute('user.login', [], [
-          'query' => ['destination' => $node->toUrl()->toString()],
-        ])->toString(),
-      ], 401);
+  public function likeToken(Request $request): Response {
+    $session = $request->getSession();
+    if (!$session->has('xedc_like_csrf')) {
+      $session->set('xedc_like_csrf', 1);
+    }
+    // Authenticated routes also require the core header token. Anonymous
+    // requests keep the same seed so the value survives the next POST.
+    $token = \Drupal::csrfToken()->get(\Drupal\Core\Access\CsrfRequestHeaderAccessCheck::TOKEN_KEY);
+    $response = new Response($token, 200, [
+      'Content-Type' => 'text/plain; charset=UTF-8',
+      'Cache-Control' => 'no-store, private',
+    ]);
+    return $response;
+  }
+
+  public function toggleLike(NodeInterface $node, Request $request): JsonResponse {
+    $token = (string) $request->headers->get('X-CSRF-Token', '');
+    $csrf = \Drupal::csrfToken();
+    $valid = $csrf->validate($token, 'xedc-like')
+      || $csrf->validate($token, \Drupal\Core\Access\CsrfRequestHeaderAccessCheck::TOKEN_KEY)
+      || $csrf->validate($token, 'rest');
+    if (!$valid) {
+      return new JsonResponse(['ok' => FALSE, 'message' => '请求未通过安全验证。'], 403);
     }
     if (!in_array($node->bundle(), LikeManager::ALLOWED_BUNDLES, TRUE) || !$node->isPublished()) {
       return new JsonResponse(['ok' => FALSE, 'message' => '这篇内容不能点赞。'], 404);
     }
+    if (!$node->access('view', $this->currentUser())) {
+      return new JsonResponse(['ok' => FALSE, 'message' => '不能点赞这篇内容。'], 403);
+    }
     try {
-      $state = $this->likes()->toggle((int) $this->currentUser()->id(), $node);
+      if ($this->currentUser()->isAuthenticated()) {
+        $state = $this->likes()->toggle((int) $this->currentUser()->id(), $node);
+      }
+      else {
+        $state = $this->likes()->toggleActor(0, $this->guests()->issueHash(), $node);
+      }
+    }
+    catch (\OverflowException $e) {
+      return new JsonResponse(['ok' => FALSE, 'message' => $e->getMessage()], 429);
     }
     catch (\InvalidArgumentException $e) {
       return new JsonResponse(['ok' => FALSE, 'message' => $e->getMessage()], 403);
@@ -68,6 +94,10 @@ final class EngagementController extends ControllerBase {
     $response->headers->set('Cache-Control', 'public, max-age=300');
     $response->headers->set('X-Content-Type-Options', 'nosniff');
     return $response;
+  }
+
+  protected function guests(): GuestIdentity {
+    return \Drupal::service('xedc_core.guest_identity');
   }
 
   protected function likes(): LikeManager {

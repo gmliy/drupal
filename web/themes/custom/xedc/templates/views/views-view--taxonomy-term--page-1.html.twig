@@ -1,0 +1,19 @@
+{{ attach_library('xedc/video_list') }}
+<div class="xv-page">
+  {{ header }}
+  {% include directory ~ '/templates/video/video-toolbar.html.twig' with {
+    categories: video_categories,
+    sort_urls: video_sort_urls,
+    sort: video_sort,
+    keys: video_keys,
+    action: video_action
+  } only %}
+  {% if rows %}
+    <div class="xv-grid">{{ rows }}</div>
+  {% elseif empty %}
+    {{ empty }}
+  {% endif %}
+  {% if pager %}
+    <div class="xv-pager">{{ pager }}</div>
+  {% endif %}
+</div>

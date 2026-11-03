@@ -22,6 +22,7 @@ use Drupal\xedc_member\Form\ProfileForm;
 use Drupal\xedc_member\Service\FavoriteManager;
 use Drupal\xedc_member\Service\HistoryManager;
 use Drupal\xedc_member\Service\MemberAliasManager;
+use Drupal\xedc_member\Service\PublicProfileBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -44,6 +45,7 @@ class MemberController extends ControllerBase {
     protected DateFormatterInterface $dateFormatter,
     protected RequestStack $requestStack,
     protected MemberAliasManager $aliasManager,
+    protected PublicProfileBuilder $publicProfiles,
   ) {}
 
   /**
@@ -56,7 +58,8 @@ class MemberController extends ControllerBase {
       $container->get('file_url_generator'),
       $container->get('date.formatter'),
       $container->get('request_stack'),
-      $container->get('xedc_member.alias_manager')
+      $container->get('xedc_member.alias_manager'),
+      $container->get('xedc_member.public_profile'),
     );
   }
 
@@ -227,6 +230,7 @@ class MemberController extends ControllerBase {
         'bytes' => \Drupal\xedc_core\Ops\OpsFormat::bytes((int) $row->bytes),
         'time' => $this->dateFormatter->format((int) $row->created, 'custom', 'Y-m-d H:i'),
         'status' => $states[(string) $row->status] ?? $this->t('已授权'),
+        'status_id' => (string) $row->status,
       ];
     }
     return $this->shell('downloads', [
@@ -444,6 +448,31 @@ class MemberController extends ControllerBase {
   }
 
   /**
+   * Public member profile at /r/{slug}.
+   *
+   * This is not the member center. Email, favorites, downloads, history and
+   * account forms are not included.
+   */
+  public function publicProfile(string $slug): array {
+    $account = $this->loadPublicAccount($slug);
+    $build = $this->publicProfiles->build($account, $slug);
+    $build['#title'] = $this->publicName($account);
+    return $build;
+  }
+
+  /**
+   * Title for the public profile route.
+   */
+  public function publicProfileTitle(string $slug): string {
+    try {
+      return $this->publicName($this->loadPublicAccount($slug));
+    }
+    catch (NotFoundHttpException) {
+      return (string) $this->t('会员主页');
+    }
+  }
+
+  /**
    * Blocks a vanity URL that belongs to another member.
    */
   public function aliasDenied() {
@@ -550,6 +579,38 @@ class MemberController extends ControllerBase {
         'max-age' => 0,
       ],
     ];
+  }
+
+  /**
+   * Loads the active user that owns a public slug.
+   */
+  protected function loadPublicAccount(string $slug): UserInterface {
+    $slug = rawurldecode(trim($slug));
+    if ($slug === '' || str_contains($slug, '/') || str_contains($slug, '.') || mb_strlen($slug) > 32 || !preg_match('/^[\p{L}\p{N}][\p{L}\p{N}_-]*$/u', $slug)) {
+      throw new NotFoundHttpException();
+    }
+    $uid = $this->aliasManager->findUidBySlug($slug);
+    if ($uid <= 0) {
+      throw new NotFoundHttpException();
+    }
+    $account = $this->entityTypeManager()->getStorage('user')->load($uid);
+    if (!$account instanceof UserInterface || !$account->isActive()) {
+      throw new NotFoundHttpException();
+    }
+    return $account;
+  }
+
+  /**
+   * Public display name. The login email is never used.
+   */
+  protected function publicName(UserInterface $account): string {
+    if ($account->hasField('field_xedc_nickname') && !$account->get('field_xedc_nickname')->isEmpty()) {
+      $nickname = trim((string) $account->get('field_xedc_nickname')->value);
+      if ($nickname !== '') {
+        return $nickname;
+      }
+    }
+    return (string) $this->t('会员');
   }
 
   /**

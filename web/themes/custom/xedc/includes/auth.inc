@@ -146,6 +146,9 @@ function xedc_preprocess_html(array &$variables): void {
       $variables['head_title'] .= $suffix;
     }
   }
+  if (function_exists('_xedc_preprocess_html_video')) {
+    _xedc_preprocess_html_video($variables);
+  }
 }
 
 /**

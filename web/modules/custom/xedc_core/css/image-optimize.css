@@ -1,0 +1,16 @@
+.xedc-opt-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.xedc-opt-summary li {
+  list-style: none;
+  margin: 0;
+  padding: 14px 16px;
+  background: var(--gin-bg-layer, #fff);
+  color: var(--gin-color-text, #222);
+  border: 1px solid var(--gin-border-color, #e2e2e6);
+  border-radius: 8px;
+}

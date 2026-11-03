@@ -117,7 +117,6 @@ final class DownloadDeliveryController extends ControllerBase {
     $filename = $this->safeName((string) $xedc_download->label()) . '.zip';
     $response = $this->sendFile($uri, $filename, 'application/zip', $size);
     if ($response->getStatusCode() === 200) {
-      $this->zip()->note($xedc_download, 'ready', '压缩包已生成。');
       $this->log()->record((int) $this->currentUser()->id(), $xedc_download, 'zip', $size, 'authorized', 'zip');
     }
     else {
@@ -132,25 +131,29 @@ final class DownloadDeliveryController extends ControllerBase {
    *   ZIP state without building a new archive.
    */
   protected function zipState(DownloadResource $resource): array {
-    $node = $resource->get('parent')->entity;
-    if ($node instanceof \Drupal\node\NodeInterface) {
-      $uri = $this->zip()->readyUri($resource, $node);
-      if (is_file($uri)) {
-        return ['ok' => TRUE, 'state' => 'ready', 'message' => '压缩包已准备好，即将开始下载。'];
-      }
+    $state = $this->zip()->inspect($resource);
+    if ($state['state'] === 'queued') {
+      $this->zip()->enqueue($resource);
+      $this->zip()->note($resource, 'queued', $state['message']);
     }
-    if (\Drupal::database()->schema()->tableExists('xedc_zip_job')) {
+    if ($state['state'] === 'failed' && \Drupal::database()->schema()->tableExists('xedc_zip_job')) {
       $job = \Drupal::database()->select('xedc_zip_job', 'z')
         ->fields('z', ['status', 'message'])
         ->condition('resource_id', (int) $resource->id())
         ->execute()
         ->fetchObject();
-      if ($job && in_array((string) $job->status, ['queued', 'running', 'failed'], TRUE)) {
-        $message = (string) $job->message !== '' ? (string) $job->message : '压缩包正在排队。';
-        return ['ok' => $job->status !== 'failed', 'state' => (string) $job->status, 'message' => $message];
+      if ($job && (string) $job->status === 'failed' && (string) $job->message !== '') {
+        $state['message'] = (string) $job->message;
       }
     }
-    return ['ok' => TRUE, 'state' => 'build', 'message' => '正在生成压缩包。'];
+    return [
+      'ok' => $state['state'] !== 'failed',
+      'state' => $state['state'],
+      'message' => $state['message'],
+      'count' => $state['count'],
+      'bytes' => $state['bytes'],
+      'cached' => $state['cached'],
+    ];
   }
 
   public function toggle(DownloadResource $xedc_download, Request $request): RedirectResponse {

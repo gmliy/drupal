@@ -75,6 +75,11 @@ class StoragePricingForm extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
+    $account = $this->currentUser();
+    if (!$account->hasPermission('administer xedc object storage') && !$account->hasPermission('manage xedc storage policy')) {
+      $this->messenger()->addError('没有管理存储策略的权限。');
+      return;
+    }
     $values = [];
     foreach ([
       'currency',

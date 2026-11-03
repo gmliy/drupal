@@ -283,7 +283,7 @@ final class MembershipManager {
   }
 
   public function invalidate(int $uid): void {
-    Cache::invalidateTags([$this->tag($uid), 'user:' . $uid]);
+    Cache::invalidateTags([$this->tag($uid), 'user:' . $uid, 'xedc_engagement']);
   }
 
 }

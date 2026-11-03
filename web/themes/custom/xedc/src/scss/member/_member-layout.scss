@@ -1,0 +1,359 @@
+html:has(body.xm-page),
+html:has(body.xm-submission-page) {
+  overflow-x: clip;
+  scrollbar-gutter: stable;
+}
+
+body.xm-page,
+body.xm-submission-page {
+  overflow-anchor: none;
+  background: var(--xm-canvas);
+  color: var(--xm-fg);
+  font-family: var(--xm-font);
+}
+
+body.xm-page .page__content > .container,
+body.xm-submission-page .page__content > .container {
+  max-width: 1180px;
+}
+
+body.xm-page main.xedc-main {
+  padding-top: 8px;
+}
+
+body.xm-page :is(.breadcrumb, .page__header, .xedc-page-head, .xm-topbar) {
+  position: static;
+  top: auto;
+}
+
+body.xm-page:not(.xm-page--confirm) :is(h1.page-title, .page-title, .block-page-title-block),
+body.xm-page .block-local-tasks-block,
+body.xm-page nav.tabs,
+body.xm-page ul.tabs {
+  display: none !important;
+}
+
+body.xm-page.xm-page--confirm .block-page-title-block {
+  display: block !important;
+}
+
+body.xm-page.xm-page--confirm h1.page-title,
+body.xm-page.xm-page--confirm .block-page-title-block h1,
+body.xm-submission-page h1.page-title,
+body.xm-submission-page .block-page-title-block h1 {
+  color: var(--xm-fg);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) :is(body.xm-page, body.xm-submission-page) .xedc-footer {
+  border-top-color: var(--xm-bd);
+  background: var(--xm-canvas);
+  color: var(--xm-mut);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) :is(body.xm-page, body.xm-submission-page) .xedc-footer a {
+  color: var(--xm-mut);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) :is(body.xm-page, body.xm-submission-page) .xedc-footer a:hover {
+  color: var(--xm-fg);
+}
+
+.xm {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+  width: 100%;
+  margin: 0;
+  padding: 12px 0 48px;
+  color: var(--xm-fg);
+}
+
+.xm *,
+.xm *::before,
+.xm *::after,
+.xm-side *,
+.xm-side *::before,
+.xm-side *::after {
+  box-sizing: border-box;
+}
+
+.xm a,
+.xm-side a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.xm h1,
+.xm h2,
+.xm h3,
+.xm p {
+  margin-top: 0;
+}
+
+.xm-topbar {
+  position: static !important;
+  top: auto !important;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  z-index: auto;
+  display: none;
+  transform: none;
+}
+
+.xm-side {
+  position: sticky;
+  top: 84px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--xm-bd);
+  border-radius: 16px;
+  background: var(--xm-surface);
+  box-shadow: var(--xm-shadow);
+}
+
+.xm-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.xm-brand__mark {
+  display: inline-flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--xm-primary);
+  color: var(--xm-primary-fg);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.xm-brand strong,
+.xm-brand small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xm-brand strong {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.xm-brand small {
+  color: var(--xm-mut);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.xm-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px;
+  border-radius: var(--xm-radius-sm);
+  background: var(--xm-surface-muted);
+}
+
+.xm-user:hover {
+  background: var(--xm-hover);
+}
+
+.xm-avatar {
+  display: inline-flex;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--xm-surface);
+  color: var(--xm-mut);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.xm-avatar :is(.field, .field__item),
+.xm-profile-avatar :is(.field, .field__item) {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.xm-avatar img,
+.xm-profile-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+}
+
+.xm-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.xm-user-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.xm-user-name > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xm-user-mail,
+.xm-user-since {
+  overflow: hidden;
+  color: var(--xm-mut);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xm-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.xm-nav__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.xm-nav__group-label {
+  margin: 0 0 4px;
+  padding: 0 10px;
+  color: var(--xm-mut);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.xm-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: var(--xm-radius-sm);
+  color: var(--xm-mut);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.xm-nav__item:hover {
+  background: var(--xm-hover);
+  color: var(--xm-fg);
+}
+
+.xm-nav__item.is-active {
+  background: var(--xm-hover);
+  color: var(--xm-fg);
+  font-weight: 650;
+  box-shadow: inset 2px 0 0 var(--xm-primary);
+}
+
+.xm-side-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--xm-bd);
+}
+
+.xm-side-foot__link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: var(--xm-radius-sm);
+  color: var(--xm-mut);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.xm-side-foot__link:hover {
+  background: var(--xm-hover);
+  color: var(--xm-fg);
+}
+
+.xm-main {
+  min-width: 0;
+}
+
+.xm-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.xm-title {
+  margin-bottom: 4px;
+  color: var(--xm-fg);
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+}
+
+.xm-sub,
+.xm-note {
+  margin: 0 0 16px;
+  color: var(--xm-mut);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.xm-head .xm-sub {
+  margin-bottom: 0;
+}
+
+.xm-icon {
+  display: block;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.xm-backdrop {
+  display: none;
+}

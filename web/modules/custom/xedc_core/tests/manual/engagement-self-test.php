@@ -136,20 +136,87 @@ try {
   $check('duplicate like is rejected', $duplicate === FALSE);
   $check('like count stays one', $likes->count('node', (int) $article->id()) === 1);
 
-  $anonLiked = FALSE;
+  $plain = FALSE;
   try {
     $likes->toggle(0, $article);
-    $anonLiked = TRUE;
+    $plain = TRUE;
   }
   catch (\InvalidArgumentException) {
-    $anonLiked = FALSE;
+    $plain = FALSE;
   }
-  $check('anonymous cannot like', $anonLiked === FALSE);
+  $check('empty guest identity cannot like', $plain === FALSE);
+  $guestA = hash('sha256', str_repeat('a', 64));
+  $guestB = hash('sha256', str_repeat('b', 64));
+  $guestLike = $likes->toggleActor(0, $guestA, $article);
+  $guestAgain = $likes->toggleActor(0, $guestA, $article);
+  $guestThird = $likes->toggleActor(0, $guestA, $article);
+  $check('guest like starts on', $guestLike['liked'] === TRUE && $guestLike['count'] === 2, json_encode($guestLike));
+  $check('guest unlike turns off', $guestAgain['liked'] === FALSE && $guestAgain['count'] === 1, json_encode($guestAgain));
+  $check('guest repeat like does not go negative', $guestThird['liked'] === TRUE && $guestThird['count'] === 2, json_encode($guestThird));
+  $check('same guest is still recognized', $likes->isLikedBy(0, $guestA, (int) $article->id()) === TRUE);
+  $check('another guest is separate', $likes->isLikedBy(0, $guestB, (int) $article->id()) === FALSE);
+  $otherGuest = $likes->toggleActor(0, $guestB, $article);
+  $check('second guest increments the count', $otherGuest['liked'] === TRUE && $otherGuest['count'] === 3, json_encode($otherGuest));
+  $check('member like was not replaced', $likes->isLiked((int) $member->id(), (int) $article->id()) === TRUE);
+  $check('member list ignores guest likes', $likes->countVisible((int) $member->id()) === 1);
+  $badHash = FALSE;
+  try {
+    $likes->toggleActor(0, 'not-a-token', $article);
+    $badHash = TRUE;
+  }
+  catch (\InvalidArgumentException) {
+    $badHash = FALSE;
+  }
+  $check('invalid guest token is rejected', $badHash === FALSE);
+  $floodHash = hash('sha256', str_repeat('c', 64));
+  $flood = \Drupal::flood();
+  for ($i = 0; $i < 40; $i++) {
+    $flood->register('xedc_like_actor', 3600, 'guest:' . $floodHash);
+  }
+  $limited = FALSE;
+  try {
+    $likes->toggleActor(0, $floodHash, $article);
+  }
+  catch (\OverflowException) {
+    $limited = TRUE;
+  }
+  $check('guest flood limit blocks another like', $limited === TRUE);
+  $identity = \Drupal::service('xedc_core.guest_identity');
+  $stack = \Drupal::requestStack();
+  $secret = str_repeat('d', 64);
+  $request = \Symfony\Component\HttpFoundation\Request::create('/');
+  $request->cookies->set('xedc_guest', $secret);
+  $stack->push($request);
+  $seen = $identity->existingHash();
+  $request->cookies->set('xedc_guest', 'short');
+  $invalidCookie = $identity->existingHash();
+  $stack->pop();
+  $check('guest cookie maps to a hash', $seen === hash('sha256', $secret) && $invalidCookie === '');
+  $guestRows = \Drupal::service('xedc_core.engagement_report')->likeRows([
+    'bundle' => 'article',
+    'q' => 'XEDC engage article ' . $stamp,
+    'user' => '',
+    'from' => '',
+    'to' => '',
+    'state' => '1',
+    'source' => '',
+    'sort' => '',
+    'who' => 'guest',
+    'tier' => '',
+  ]);
+  $guestListed = FALSE;
+  foreach ($guestRows as $guestRow) {
+    $text = implode(' ', array_map(static fn($cell): string => (string) $cell, $guestRow));
+    if (str_contains($text, '访客 ·') && !preg_match('/[a-f0-9]{64}/', $text)) {
+      $guestListed = TRUE;
+    }
+  }
+  $check('guest likes are listed without the secret', $guestListed);
 
   $switcher->switchTo($vipUser);
   $other = $likes->toggle((int) $vipUser->id(), $article);
   $switcher->switchBack();
-  $check('second member like increments count', $other['count'] === 2, json_encode($other));
+  $check('second member like increments count', $other['count'] === 4, json_encode($other));
   $check('my likes lists the article', $likes->countVisible((int) $member->id()) === 1);
 
   $membership = \Drupal::service('xedc_core.membership');
@@ -345,6 +412,50 @@ try {
   $zipBody = ob_get_clean();
   $zipOk = $zipResponse->getStatusCode() === 200 && is_string($zipBody) && str_starts_with($zipBody, 'PK');
   $check('zip of originals is generated', $zipOk, (string) $zipResponse->getStatusCode() . ' ' . substr((string) $zipBody, 0, 20));
+  $opened = FALSE;
+  $names = [];
+  $stored = FALSE;
+  $bytesOk = FALSE;
+  $zipFile = new ZipArchive();
+  $zipTemp = tempnam(sys_get_temp_dir(), 'xedc-zip');
+  if (is_string($zipTemp) && is_string($zipBody)) {
+    file_put_contents($zipTemp, $zipBody);
+    $opened = $zipFile->open($zipTemp) === TRUE;
+    if ($opened) {
+      $stored = TRUE;
+      $bytesOk = $zipFile->numFiles === 2;
+      for ($i = 0; $i < $zipFile->numFiles; $i++) {
+        $stat = $zipFile->statIndex($i);
+        $names[] = (string) ($stat['name'] ?? '');
+        if ((int) ($stat['comp_method'] ?? -1) !== ZipArchive::CM_STORE) {
+          $stored = FALSE;
+        }
+        if ($zipFile->getFromIndex($i) !== $jpeg) {
+          $bytesOk = FALSE;
+        }
+      }
+      $zipFile->close();
+    }
+    @unlink($zipTemp);
+  }
+  $check('zip extracts both original bytes without recompressing', $opened && $names === ['a.jpg', 'a_2.jpg'] && $stored && $bytesOk, implode(',', $names));
+  $switcher->switchTo($anonymous);
+  $zipAgain = $controller->archive($zipResource);
+  $switcher->switchBack();
+  ob_start();
+  $zipAgain->sendContent();
+  $zipAgainBody = ob_get_clean();
+  $check('second zip request reuses the finished archive', $zipAgain->getStatusCode() === 200 && $zipAgainBody === $zipBody);
+  $builder = \Drupal::service('xedc_core.zip_builder');
+  $check('ten files at 32MB stay synchronous', $builder->shouldQueue(10, 33554432) === FALSE);
+  $check('eleven files are queued', $builder->shouldQueue(11, 1000) === TRUE);
+  $check('more than 32MB is queued', $builder->shouldQueue(2, 33554433) === TRUE);
+  $check('unknown size is queued', $builder->shouldQueue(2, 0) === TRUE);
+  $finished = $builder->readyUri($zipResource, $photo);
+  $finishedReal = \Drupal::service('file_system')->realpath($finished);
+  if (is_string($finishedReal) && is_file($finishedReal)) {
+    @unlink($finishedReal);
+  }
 
   $shares = \Drupal::service('xedc_core.share_recorder');
   $switcher->switchTo($anonymous);
@@ -367,6 +478,18 @@ try {
   $created['resources'] = array_values(array_filter($created['resources'], static function (int $id) use ($memberResource): bool {
     return $id !== (int) $memberResource->id();
   }));
+
+  $editor = \Drupal\user\Entity\Role::load('content_editor');
+  if (!$editor) {
+    $skip('content editor permissions', '没有 content_editor 角色。');
+  }
+  else {
+    $check('content editor cannot administer engagement', !$editor->hasPermission('view xedc engagement statistics') && !$editor->hasPermission('administer xedc engagement') && !$editor->hasPermission('administer xedc vip') && !$editor->hasPermission('administer xedc downloads'));
+  }
+  $access = \Drupal::accessManager();
+  $anonymousAccount = new UserSession(['uid' => 0]);
+  $check('anonymous cannot open the engagement center', $access->checkNamedRoute('xedc_core.engagement_hub', [], $anonymousAccount) === FALSE);
+  $check('anonymous cannot export engagement csv', $access->checkNamedRoute('xedc_core.engagement_export', [], $anonymousAccount) === FALSE);
 
   $schemes = \Drupal::database()->query("SELECT SUBSTRING_INDEX(uri, ':', 1) AS scheme, COUNT(*) AS total FROM {file_managed} GROUP BY scheme")->fetchAllKeyed();
   echo 'INFO file schemes ' . json_encode($schemes) . "\n";

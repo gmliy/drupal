@@ -1,0 +1,91 @@
+// Member center tokens. Light is the default. Dark follows the existing
+// html[data-bs-theme="dark"] / html[data-theme="dark"] switch.
+
+@mixin xm-tokens-light {
+  --xm-canvas: #f4f5f7;
+  --xm-surface: #fff;
+  --xm-surface-muted: #f4f4f5;
+  --xm-fg: #18181b;
+  --xm-mut: #71717a;
+  --xm-bd: #e4e4e7;
+  --xm-bd-strong: #d4d4d8;
+  --xm-hover: #f4f4f5;
+  --xm-primary: #18181b;
+  --xm-primary-fg: #fafafa;
+  --xm-danger: #dc2626;
+  --xm-danger-fg: #fff;
+  --xm-danger-bg: #fef2f2;
+  --xm-danger-border: #fecaca;
+  --xm-success: #166534;
+  --xm-success-bg: #dcfce7;
+  --xm-warning: #92400e;
+  --xm-warning-bg: #fef3c7;
+  --xm-warning-border: #fde68a;
+  --xm-info: #1e40af;
+  --xm-info-bg: #dbeafe;
+  --xm-radius: 12px;
+  --xm-radius-sm: 8px;
+  --xm-shadow: 0 1px 2px rgb(24 24 27 / 4%);
+  --xm-shadow-pop: 0 18px 40px rgb(24 24 27 / 14%);
+  --xm-ring: #a1a1aa;
+  --xm-overlay: rgb(9 9 11 / 46%);
+  --xm-control-h: 36px;
+  --xm-btn-h: 36px;
+  --xm-btn-h-sm: 30px;
+  --xm-space-1: 4px;
+  --xm-space-2: 8px;
+  --xm-space-3: 12px;
+  --xm-space-4: 16px;
+  --xm-space-5: 24px;
+  --xm-font: ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --xm-card-pad: 16px;
+  --xm-focus: 0 0 0 3px rgb(24 24 27 / 12%);
+  --xm-bg: var(--xm-surface);
+  --xm-soft: var(--xm-surface-muted);
+  --xm-radius-control: var(--xm-radius-sm);
+  color-scheme: light;
+}
+
+@mixin xm-tokens-dark {
+  --xm-canvas: #09090b;
+  --xm-surface: #18181b;
+  --xm-surface-muted: #27272a;
+  --xm-fg: #fafafa;
+  --xm-mut: #a1a1aa;
+  --xm-bd: #3f3f46;
+  --xm-bd-strong: #52525b;
+  --xm-hover: #27272a;
+  --xm-primary: #fafafa;
+  --xm-primary-fg: #18181b;
+  --xm-danger: #f87171;
+  --xm-danger-fg: #fff;
+  --xm-danger-bg: rgb(248 113 113 / 14%);
+  --xm-danger-border: rgb(248 113 113 / 45%);
+  --xm-success: #86efac;
+  --xm-success-bg: rgb(34 197 94 / 16%);
+  --xm-warning: #fcd34d;
+  --xm-warning-bg: rgb(245 158 11 / 16%);
+  --xm-warning-border: rgb(245 158 11 / 42%);
+  --xm-info: #93c5fd;
+  --xm-info-bg: rgb(59 130 246 / 16%);
+  --xm-shadow: 0 1px 2px rgb(0 0 0 / 35%);
+  --xm-shadow-pop: 0 18px 40px rgb(0 0 0 / 48%);
+  --xm-ring: #d4d4d8;
+  --xm-overlay: rgb(0 0 0 / 62%);
+  --xm-focus: 0 0 0 3px rgb(250 250 250 / 16%);
+  --xm-bg: var(--xm-surface);
+  --xm-soft: var(--xm-surface-muted);
+  color-scheme: dark;
+}
+
+body.xm-page,
+body.xm-submission-page,
+.xm,
+.xm-submission-form,
+.xm-confirm-form {
+  @include xm-tokens-light;
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) :is(body.xm-page, body.xm-submission-page, .xm, .xm-submission-form, .xm-confirm-form) {
+  @include xm-tokens-dark;
+}

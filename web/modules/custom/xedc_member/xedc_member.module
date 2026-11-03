@@ -143,6 +143,24 @@ function xedc_member_theme($existing, $type, $theme, $path) {
       ],
       'template' => 'xedc-member-submissions',
     ],
+    'xedc_public_profile' => [
+      'variables' => [
+        'name' => '',
+        'bio' => '',
+        'joined' => '',
+        'avatar' => '',
+        'stats' => [],
+        'filters' => [],
+        'sorts' => [],
+        'cards' => [],
+        'pager' => [],
+        'empty' => '',
+        'share_url' => '',
+        'offer_submission' => FALSE,
+        'owner_link' => [],
+      ],
+      'template' => 'xedc-public-profile',
+    ],
   ];
 }
 
@@ -782,7 +800,7 @@ function xedc_member_path_alias_delete(EntityInterface $entity) {
 function xedc_member_alias_cache_clear(EntityInterface $entity): void {
   $path = method_exists($entity, 'getPath') ? (string) $entity->getPath() : '';
   if (preg_match('#^/user/(\d+)$#', $path, $matches)) {
-    Cache::invalidateTags(['user:' . $matches[1], 'xedc_member:aliases']);
+    Cache::invalidateTags(['user:' . $matches[1], 'xedc_member:aliases', 'route_match']);
   }
 }
 
@@ -794,14 +812,51 @@ function xedc_member_preprocess_html(array &$variables) {
   if (xedc_member_should_quiet_status()) {
     $variables['attributes']['class'][] = 'xm-quiet-status';
   }
-  if (is_string($route) && str_starts_with($route, 'xedc_member.')) {
+  if ($route === 'xedc_member.public_profile') {
+    $variables['attributes']['class'][] = 'xp-page';
+  }
+  if (is_string($route) && str_starts_with($route, 'xedc_member.') && $route !== 'xedc_member.public_profile') {
     $variables['attributes']['class'][] = 'xm-page';
     if ($route === 'xedc_member.history_clear') {
       $variables['attributes']['class'][] = 'xm-page--confirm';
     }
   }
+  if (xedc_member_is_submission_page($route)) {
+    $variables['attributes']['class'][] = 'xm-submission-page';
+  }
   $variables['#cache']['contexts'][] = 'route';
   $variables['#cache']['contexts'][] = 'user.permissions';
+}
+
+/**
+ * Whether the current route is a member submission editor.
+ *
+ * Presentation only: adds a page class so the existing submission form
+ * can use the member center canvas. Admins and other bundles are skipped.
+ */
+function xedc_member_is_submission_page(?string $route): bool {
+  if (!is_string($route) || $route === '') {
+    return FALSE;
+  }
+  $account = \Drupal::currentUser();
+  if (!$account->isAuthenticated() || $account->hasPermission('administer nodes') || $account->hasPermission('administer media')) {
+    return FALSE;
+  }
+  if (!\Drupal::moduleHandler()->moduleExists('content_moderation')) {
+    return FALSE;
+  }
+  $bundle = '';
+  if (str_starts_with($route, 'node.add')) {
+    $node_type = \Drupal::routeMatch()->getParameter('node_type');
+    $bundle = is_object($node_type) && method_exists($node_type, 'id') ? (string) $node_type->id() : (string) $node_type;
+  }
+  elseif ($route === 'entity.node.edit_form') {
+    $node = \Drupal::routeMatch()->getParameter('node');
+    if ($node instanceof NodeInterface) {
+      $bundle = $node->bundle();
+    }
+  }
+  return in_array($bundle, FavoriteManager::ALLOWED_BUNDLES, TRUE);
 }
 
 /**
@@ -815,7 +870,7 @@ function xedc_member_page_attachments_alter(array &$attachments) {
     'entity.user.canonical',
     'entity.user.edit_form',
   ];
-  $is_member = is_string($route) && str_starts_with($route, 'xedc_member.');
+  $is_member = is_string($route) && str_starts_with($route, 'xedc_member.') && $route !== 'xedc_member.public_profile';
   if ($is_member || in_array($route, $private_routes, TRUE)) {
     $attachments['#attached']['html_head'][] = [
       [

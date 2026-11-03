@@ -41,7 +41,7 @@ final class ProtectedDownloader {
     if ($mapped === NULL) {
       return $this->deny(403, '此入口只接受对象存储中的受保护文件，不会读取本地私有文件。');
     }
-    if (!(bool) Settings::get('xedc_storage.runtime_applied', FALSE)) {
+    if (!(bool) Settings::get('xedc_storage.settings_accepted', FALSE)) {
       return $this->deny(503, '对象存储运行时未启用，不能生成下载地址。');
     }
     $bucket = (string) Settings::get('xedc_storage.bucket', '');

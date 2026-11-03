@@ -38,11 +38,8 @@ final class StorageUriResolver {
     if ($scheme === 's3') {
       return TRUE;
     }
-    if ($scheme === 'public' && (bool) Settings::get('s3fs.use_s3_for_public', FALSE)) {
-      return TRUE;
-    }
-    if ($scheme === 'private' && (bool) Settings::get('s3fs.use_s3_for_private', FALSE)) {
-      return TRUE;
+    if ($scheme === 'public' || $scheme === 'private') {
+      return WrapperStatus::schemeUsesObjectStorage($scheme);
     }
     return FALSE;
   }
@@ -109,7 +106,7 @@ final class StorageUriResolver {
    *   Folder names.
    */
   public function folders(?array $profile = NULL): array {
-    if ((bool) Settings::get('xedc_storage.runtime_applied', FALSE)) {
+    if ((bool) Settings::get('xedc_storage.settings_accepted', FALSE)) {
       return [
         'public' => (string) Settings::get('xedc_storage.public_folder', 's3fs-public'),
         'private' => (string) Settings::get('xedc_storage.private_folder', 's3fs-private'),

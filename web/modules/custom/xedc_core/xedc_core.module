@@ -215,6 +215,16 @@ function xedc_core_module_implements_alter(array &$implementations, string $hook
  * Implements hook_node_presave().
  */
 function xedc_core_node_presave(NodeInterface $node): void {
+  if (\Drupal::hasService('xedc_core.image_optimize') && \Drupal::service('xedc_core.image_optimize')->blocksPublish($node)) {
+    $publishing = $node->isPublished() || ($node->hasField('moderation_state') && $node->get('moderation_state')->value === 'published');
+    if ($publishing) {
+      if ($node->hasField('moderation_state')) {
+        $node->set('moderation_state', 'draft');
+      }
+      $node->setUnpublished();
+      \Drupal::messenger()->addWarning(t('有图片还在优化或优化失败，内容已保持为草稿。'));
+    }
+  }
   if ($node->bundle() !== 'photo') {
     return;
   }
@@ -248,10 +258,20 @@ function xedc_core_node_presave(NodeInterface $node): void {
 }
 
 /**
+ * Optimizes a new public image before it is treated as the stored original.
+ */
+function xedc_core_file_insert(FileInterface $file): void {
+  if (\Drupal::hasService('xedc_core.image_optimize')) {
+    \Drupal::service('xedc_core.image_optimize')->accept($file);
+  }
+}
+
+/**
  * Implements hook_node_insert().
  */
 function xedc_core_node_insert(NodeInterface $node): void {
   xedc_core_import_after_save($node);
+  xedc_core_video_after_save($node);
 }
 
 /**
@@ -267,6 +287,7 @@ function xedc_core_node_update(NodeInterface $node): void {
     }
   }
   xedc_core_import_after_save($node);
+  xedc_core_video_after_save($node);
 }
 
 /**
@@ -447,6 +468,19 @@ function xedc_core_theme(): array {
       ],
       'template' => 'xedc-engagement-bar',
     ],
+    'xedc_video_tag' => [
+      'variables' => [
+        'term_name' => '',
+        'description' => [],
+        'total' => 0,
+        'items' => [],
+        'sort' => 'new',
+        'sort_urls' => [],
+        'video_home' => '',
+        'home_url' => '',
+      ],
+      'template' => 'xedc-video-tag',
+    ],
   ];
 }
 
@@ -554,6 +588,7 @@ function xedc_core_entity_delete(EntityInterface $entity): void {
     }
     \Drupal::service('xedc_core.like_manager')->deleteForEntity('node', (int) $entity->id());
     \Drupal::service('xedc_core.download_recorder')->deleteForContent((int) $entity->id());
+    xedc_core_video_after_delete($entity);
     Cache::invalidateTags(['xedc_download_list']);
     return;
   }
@@ -565,6 +600,10 @@ function xedc_core_entity_delete(EntityInterface $entity): void {
     \Drupal::service('xedc_core.share_recorder')->anonymizeUser($uid);
     \Drupal::service('xedc_core.download_recorder')->deleteForUser($uid);
     \Drupal::service('xedc_core.membership')->invalidate($uid);
+    return;
+  }
+  if ($entity instanceof FileInterface) {
+    xedc_core_video_after_delete($entity);
     return;
   }
   if (!$entity instanceof DownloadResource) {
@@ -601,5 +640,96 @@ function xedc_core_entity_delete(EntityInterface $entity): void {
 function xedc_core_views_plugins_field_alter(array &$plugins): void {
   if (isset($plugins['entity_operations']['class'])) {
     $plugins['entity_operations']['class'] = 'Drupal\\xedc_core\\Plugin\\views\\field\\ContentEntityOperations';
+  }
+}
+
+/**
+ * Implements hook_file_url_alter().
+ *
+ * Does nothing while public:// is still the local stream wrapper. After a
+ * compiled takeover, original files use the CDN and image styles stay local.
+ */
+/**
+ * Queues duration detection after a video node is saved.
+ */
+function xedc_core_video_after_save(NodeInterface $node): void {
+  if ($node->bundle() !== 'video') {
+    return;
+  }
+  try {
+    \Drupal::service('xedc_core.video_duration')->onNodeSave($node);
+  }
+  catch (\Throwable $e) {
+    \Drupal::logger('xedc_video')->error('视频保存后未能加入时长队列：@message', ['@message' => $e->getMessage()]);
+  }
+}
+
+/**
+ * Implements hook_media_update().
+ */
+function xedc_core_media_update(MediaInterface $media): void {
+  if ($media->bundle() !== 'video') {
+    return;
+  }
+  try {
+    \Drupal::service('xedc_core.video_duration')->onMediaUpdate($media);
+  }
+  catch (\Throwable $e) {
+    \Drupal::logger('xedc_video')->error('视频文件替换后未能加入时长队列：@message', ['@message' => $e->getMessage()]);
+  }
+}
+
+/**
+ * Drops queued duration work when the file or video is deleted.
+ */
+function xedc_core_video_after_delete(EntityInterface $entity): void {
+  try {
+    if ($entity instanceof NodeInterface) {
+      \Drupal::service('xedc_core.video_duration')->onNodeDelete($entity);
+    }
+    elseif ($entity instanceof FileInterface) {
+      \Drupal::service('xedc_core.video_duration')->onFileDelete($entity);
+    }
+  }
+  catch (\Throwable $e) {
+    \Drupal::logger('xedc_video')->error('清理视频时长任务失败：@message', ['@message' => $e->getMessage()]);
+  }
+}
+
+/**
+ * Implements hook_views_query_alter().
+ */
+function xedc_core_views_query_alter(\Drupal\views\ViewExecutable $view, \Drupal\views\Plugin\views\query\QueryPluginBase $query): void {
+  \Drupal::service('xedc_core.video_listing')->alter($view, $query);
+}
+
+/**
+ * Implements hook_preprocess_taxonomy_term().
+ */
+function xedc_core_preprocess_taxonomy_term(array &$variables): void {
+  $term = $variables['term'] ?? NULL;
+  if (!$term instanceof \Drupal\taxonomy\TermInterface || $term->bundle() !== 'video_category') {
+    return;
+  }
+  $variables['video_count'] = (int) \Drupal::entityQuery('node')
+    ->accessCheck(TRUE)
+    ->condition('type', 'video')
+    ->condition('status', 1)
+    ->condition('field_categories', $term->id())
+    ->count()
+    ->execute();
+  $variables['#cache']['tags'][] = 'node_list:video';
+}
+
+/**
+ * Implements hook_file_url_alter().
+ *
+ * Does nothing while public:// is still the local stream wrapper. After a
+ * compiled takeover, original files use the CDN and image styles stay local.
+ */
+function xedc_core_file_url_alter(string &$uri): void {
+  $rewritten = \Drupal\xedc_core\Ops\Storage\PublicUrl::alter($uri);
+  if (is_string($rewritten) && $rewritten !== '') {
+    $uri = $rewritten;
   }
 }

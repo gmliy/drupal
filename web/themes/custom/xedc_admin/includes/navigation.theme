@@ -171,6 +171,7 @@ function _xedc_admin_navigation_definitions(): array {
             '/admin/xedc/shares',
             '/admin/xedc/zip',
             '/admin/xedc/downloads',
+            '/admin/xedc/engagement',
           ],
         ],
       ],

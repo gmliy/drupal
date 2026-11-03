@@ -21,14 +21,14 @@
             <span>{{ item.parent_title }}</span>
           {% endif %}
           <span class="xm-comment-card__actions">
-            {% if item.comment_url %}<a href="{{ item.comment_url }}">{{ '查看评论'|t }}</a>{% endif %}
-            {% if item.edit_url %}<a href="{{ item.edit_url }}">{{ '编辑'|t }}</a>{% endif %}
+            {% if item.comment_url %}<a class="xm-btn xm-btn--ghost" href="{{ item.comment_url }}">{{ '查看评论'|t }}</a>{% endif %}
+            {% if item.edit_url %}<a class="xm-btn xm-btn--ghost" href="{{ item.edit_url }}">{{ '编辑'|t }}</a>{% endif %}
           </span>
         </div>
       </article>
     {% endfor %}
   </div>
-  {{ pager }}
+  {% if pager %}<div class="xm-pager">{{ pager }}</div>{% endif %}
 {% else %}
   <div class="xm-empty">
     <strong>{{ empty }}</strong>

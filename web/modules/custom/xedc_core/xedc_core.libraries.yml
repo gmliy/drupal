@@ -1,3 +1,8 @@
+image_optimize:
+  css:
+    theme:
+      css/image-optimize.css: {}
+
 admin:
   css:
     component:

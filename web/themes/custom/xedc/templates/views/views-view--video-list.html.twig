@@ -1,9 +1,23 @@
-{#
-/**
- * @file
- * 视频列表页外壳。当前 View 没有 Banner、热门榜、featured_video 等区域，
- * 这里只保留 Views 自己的标题区、结果、空结果和分页。卡片在 node--video--teaser。
- */
-#}
 {{ attach_library('xedc/video_list') }}
-{% include 'radix:views-view' %}
+<div class="xv-page">
+  <header class="xv-head">
+    <h1>{{ '视频'|t }}</h1>
+    <p>{{ '浏览已发布的视频，按分类、热度和关键词查找。'|t }}</p>
+    <p class="xv-count">{{ '共 @count 个视频'|t({'@count': video_total|default(0)}) }}</p>
+  </header>
+  {% include directory ~ '/templates/video/video-toolbar.html.twig' with {
+    categories: video_categories,
+    sort_urls: video_sort_urls,
+    sort: video_sort,
+    keys: video_keys,
+    action: video_action
+  } only %}
+  {% if rows %}
+    <div class="xv-grid{{ video_lead ? ' xv-grid--lead' : '' }}">{{ rows }}</div>
+  {% elseif empty %}
+    {{ empty }}
+  {% endif %}
+  {% if pager %}
+    <div class="xv-pager">{{ pager }}</div>
+  {% endif %}
+</div>

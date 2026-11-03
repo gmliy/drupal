@@ -28,6 +28,12 @@ xedc_core.files_logs_tab:
   base_route: xedc_core.files
   weight: 4
 
+xedc_core.video_transcode_tab:
+  route_name: xedc_core.video_transcode
+  title: '视频转码'
+  base_route: xedc_core.files
+  weight: 5
+
 xedc_core.storage_tab:
   route_name: xedc_core.storage
   title: '概览'
@@ -89,31 +95,43 @@ xedc_core.downloads_tab:
   weight: 1
 
 xedc_core.overview_tab:
-  route_name: xedc_core.engagement_overview
+  route_name: xedc_core.engagement_hub
   title: '互动总览'
   base_route: xedc_core.vip_admin
   weight: 2
 
 xedc_core.like_stats_tab:
-  route_name: xedc_core.like_stats
-  title: '点赞明细'
+  route_name: xedc_core.engagement_likes
+  title: '点赞管理'
   base_route: xedc_core.vip_admin
   weight: 3
 
 xedc_core.download_stats_tab:
-  route_name: xedc_core.download_stats
-  title: '下载明细'
+  route_name: xedc_core.engagement_downloads
+  title: '下载管理'
   base_route: xedc_core.vip_admin
   weight: 4
 
 xedc_core.share_stats_tab:
-  route_name: xedc_core.share_stats
-  title: '分享统计'
+  route_name: xedc_core.engagement_shares
+  title: '分享管理'
   base_route: xedc_core.vip_admin
   weight: 5
+
+xedc_core.members_tab:
+  route_name: xedc_core.engagement_members
+  title: '会员互动'
+  base_route: xedc_core.vip_admin
+  weight: 6
+
+xedc_core.statistics_tab:
+  route_name: xedc_core.engagement_statistics
+  title: '互动数据'
+  base_route: xedc_core.vip_admin
+  weight: 7
 
 xedc_core.zip_jobs_tab:
   route_name: xedc_core.zip_jobs
   title: 'ZIP 任务'
   base_route: xedc_core.vip_admin
-  weight: 6
+  weight: 8

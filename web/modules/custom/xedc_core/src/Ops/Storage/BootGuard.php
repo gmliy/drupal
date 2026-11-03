@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\xedc_core\Ops\Storage;
 
+require_once __DIR__ . '/RuntimeState.php';
+
 /**
  * Environment and address checks that can run before Drupal is bootstrapped.
  *
@@ -62,14 +64,32 @@ final class BootGuard {
   public static function apply(array &$settings, array &$config): void {
     $settings['xedc_storage.boot'] = 'ok';
     $settings['xedc_storage.runtime_requested'] = self::flag('XEDC_STORAGE_RUNTIME');
+    $settings['xedc_storage.runtime_eligible'] = FALSE;
+    $settings['xedc_storage.settings_accepted'] = FALSE;
+    // runtime_applied used to mean "the settings array was accepted". That
+    // value is available before Drupal compiles the container, so it cannot
+    // prove which stream wrapper this process will actually use.
     $settings['xedc_storage.runtime_applied'] = FALSE;
+    $settings['xedc_storage.wrapper_verified'] = FALSE;
+    $settings['xedc_storage.takeover_verified'] = FALSE;
     $settings['xedc_storage.runtime_error'] = '';
     $settings['xedc_storage.public_takeover'] = FALSE;
     $settings['xedc_storage.private_takeover'] = FALSE;
     $settings['s3fs.use_s3_for_public'] = FALSE;
     $settings['s3fs.use_s3_for_private'] = FALSE;
-
-    if (!$settings['xedc_storage.runtime_requested']) {
+    $privatePath = isset($settings['file_private_path']) && is_string($settings['file_private_path']) ? $settings['file_private_path'] : NULL;
+    $runtime = RuntimeState::read($privatePath);
+    $settings['xedc_storage.public_mode'] = (string) $runtime['public_mode'];
+    $settings['xedc_storage.public_provider'] = (string) $runtime['public_provider'];
+    $settings['xedc_storage.runtime_version'] = (int) $runtime['version'];
+    if ($runtime['public_mode'] === 'local') {
+      $settings['xedc_storage.cdn_enabled'] = FALSE;
+      $settings['xedc_storage.public_takeover'] = FALSE;
+      $settings['xedc_storage.private_takeover'] = FALSE;
+      return;
+    }
+    $fromRuntime = $runtime['public_mode'] === 'cloudflare_r2';
+    if (!$settings['xedc_storage.runtime_requested'] && !$fromRuntime) {
       return;
     }
 
@@ -119,6 +139,9 @@ final class BootGuard {
     }
     $cdnFlag = self::env('STORAGE_CDN_ENABLED');
     $cdnEnabled = $cdnFlag !== NULL ? $cdnFlag === '1' : (is_array($fileRuntime) && !empty($fileRuntime['cdn_enabled']));
+    if ($fromRuntime && is_bool($runtime['cdn_enabled'])) {
+      $cdnEnabled = $runtime['cdn_enabled'];
+    }
     $cdn = $cdnEnabled ? (self::env('STORAGE_CDN_BASE_URL') ?? (is_array($fileRuntime) ? self::blankToNull($fileRuntime['cdn_base_url'] ?? NULL) : NULL)) : NULL;
     if ($cdn !== NULL && self::publicUrlError($cdn) !== NULL) {
       $problems[] = 'STORAGE_CDN_BASE_URL 无效';
@@ -141,7 +164,9 @@ final class BootGuard {
     $settings['s3fs.access_key'] = $access;
     $settings['s3fs.secret_key'] = $secret;
     $settings['s3fs.upload_as_private'] = $uploadPrivate;
-    $settings['xedc_storage.runtime_applied'] = TRUE;
+    $settings['xedc_storage.runtime_eligible'] = TRUE;
+    $settings['xedc_storage.settings_accepted'] = TRUE;
+    $settings['xedc_storage.runtime_applied'] = FALSE;
     $settings['xedc_storage.connection_source'] = self::connectionSource($fileRuntime);
     $settings['xedc_storage.provider'] = self::env('STORAGE_PROVIDER') ?? (is_array($fileRuntime) ? (string) $fileRuntime['provider'] : '');
     $settings['xedc_storage.bucket'] = $bucket;
@@ -183,8 +208,8 @@ final class BootGuard {
     }
 
     $takeover = self::flag('STORAGE_I_UNDERSTAND_TAKEOVER');
-    $publicTakeover = $takeover && self::flag('STORAGE_PUBLIC_TAKEOVER');
-    $privateTakeover = $takeover && self::flag('STORAGE_PRIVATE_TAKEOVER');
+    $publicTakeover = $fromRuntime || ($takeover && self::flag('STORAGE_PUBLIC_TAKEOVER'));
+    $privateTakeover = FALSE;
     $settings['s3fs.use_s3_for_public'] = $publicTakeover;
     $settings['s3fs.use_s3_for_private'] = $privateTakeover;
     $settings['xedc_storage.public_takeover'] = $publicTakeover;

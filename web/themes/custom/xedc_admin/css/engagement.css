@@ -1,0 +1,201 @@
+/**
+ * @file
+ * Engagement operations center. Uses the admin theme tokens, including dark mode.
+ */
+
+.xedc-ops {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: var(--xedc-admin-foreground);
+  font-family: var(--xedc-admin-font);
+}
+
+.xedc-ops__lead,
+.xedc-ops__meta,
+.xedc-ops__empty {
+  margin: 0;
+  color: var(--xedc-admin-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.xedc-ops__section {
+  margin: 8px 0 0;
+  font-size: 16px;
+}
+
+.xedc-ops__cards,
+.xedc-ops__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.xedc-ops__card,
+.xedc-ops__chart,
+.xedc-ops form,
+.xedc-ops table {
+  background: var(--xedc-admin-surface);
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-lg);
+  box-shadow: var(--xedc-admin-shadow);
+}
+
+.xedc-ops__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+}
+
+.xedc-ops__card span,
+.xedc-ops__card em {
+  color: var(--xedc-admin-muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.xedc-ops__card strong {
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 650;
+}
+
+.xedc-ops__chart {
+  padding: 14px 16px;
+}
+
+.xedc-ops__chart h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.xedc-ops__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 112px;
+}
+
+.xedc-ops__bars span {
+  flex: 1 1 0;
+  min-width: 4px;
+  border-radius: 4px 4px 0 0;
+  background: var(--xedc-admin-primary);
+}
+
+.xedc-ops__split {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--xedc-admin-surface-secondary);
+}
+
+.xedc-ops__split i {
+  display: block;
+  height: 100%;
+  background: var(--xedc-admin-primary);
+}
+
+.xedc-ops__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+}
+
+.xedc-ops__filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--xedc-admin-secondary);
+  font-size: 12px;
+}
+
+.xedc-ops__filters input,
+.xedc-ops__filters select,
+.xedc-ops__filters button,
+.xedc-ops .form-text,
+.xedc-ops .form-select,
+.xedc-ops .button {
+  border: 1px solid var(--xedc-admin-border);
+  border-radius: var(--xedc-admin-radius-md);
+  background: var(--xedc-admin-surface);
+  color: var(--xedc-admin-foreground);
+}
+
+.xedc-ops__filters input,
+.xedc-ops__filters select {
+  min-height: 36px;
+  padding: 6px 8px;
+}
+
+.xedc-ops__filters button,
+.xedc-ops .button {
+  min-height: 36px;
+  padding: 6px 12px;
+  background: var(--xedc-admin-primary);
+  color: var(--xedc-admin-primary-foreground);
+  cursor: pointer;
+}
+
+.xedc-ops__filters button:focus-visible,
+.xedc-ops a:focus-visible,
+.xedc-ops button:focus-visible {
+  outline: 2px solid var(--xedc-admin-focus);
+  outline-offset: 2px;
+}
+
+.xedc-ops .table-responsive,
+.xedc-ops table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.xedc-ops table {
+  border-collapse: collapse;
+}
+
+.xedc-ops th,
+.xedc-ops td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--xedc-admin-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.xedc-ops th {
+  background: var(--xedc-admin-table-head);
+  color: var(--xedc-admin-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.xedc-ops tr:hover td {
+  background: var(--xedc-admin-hover);
+}
+
+.xedc-ops a {
+  color: var(--xedc-admin-link);
+}
+
+@media (max-width: 1099.98px) {
+  .xedc-ops__cards,
+  .xedc-ops__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .xedc-ops__cards,
+  .xedc-ops__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .xedc-ops {
+    overflow-x: hidden;
+  }
+}

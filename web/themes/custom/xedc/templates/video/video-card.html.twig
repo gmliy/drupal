@@ -1,0 +1,25 @@
+<a class="vcard__hit" href="{{ card.url }}">
+  <span class="vcard__thumb">
+    {% if card.cover %}
+      <img src="{{ card.cover }}" alt="{{ card.alt }}" width="{{ card.width|default(640) }}" height="{{ card.height|default(360) }}" loading="lazy" decoding="async"{% if card.srcset %} srcset="{{ card.srcset }}" sizes="(max-width: 599px) 100vw, (max-width: 1199px) 50vw, 33vw"{% endif %}>
+    {% else %}
+      <span class="vcard__placeholder" aria-hidden="true"></span>
+    {% endif %}
+    {% if card.duration %}
+      <span class="vcard__dur">{{ card.duration }}</span>
+    {% endif %}
+  </span>
+  {% if card.heading == 'h3' %}
+    <h3 class="vcard__title">{{ card.title }}</h3>
+  {% else %}
+    <h2 class="vcard__title">{{ card.title }}</h2>
+  {% endif %}
+</a>
+<p class="vcard__meta">
+  {% if card.author and card.author_url %}
+    <a class="vcard__author" href="{{ card.author_url }}">{{ card.author }}</a>
+  {% endif %}
+  {% if card.category %}<span>{{ card.category }}</span>{% endif %}
+  <span>{{ '@count 次播放'|t({'@count': card.views|default(0)}) }}</span>
+  {% if card.date %}<span>{{ card.date }}</span>{% endif %}
+</p>

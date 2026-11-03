@@ -65,6 +65,8 @@ final class TakeoverReadiness {
     elseif ($exposed !== FALSE && $exposed !== 0) {
       $blockers[] = 'CDN 私有前缀还没有被匿名访问测试证明已拒绝。自定义域名目前面向整个 Bucket。';
     }
+    $observed = RuntimeStatus::observe();
+    $bucket = RuntimeStatus::bucketProbe();
     return [
       'active_profile' => $active,
       'bucket' => is_array($profile) ? (string) ($profile['bucket'] ?? '') : '',
@@ -80,7 +82,9 @@ final class TakeoverReadiness {
       'blockers' => $blockers,
       'public_ready' => FALSE,
       'private_ready' => FALSE,
-      'note' => '隔离集成测试通过之前，公开和私有接管都保持未就绪。本页不打开任何开关。',
+      'note' => '隔离集成测试通过之前，公开和私有接管都保持未就绪。本页不打开任何开关。配置被接受不等于 Stream Wrapper 已切换，也不等于上传已经进入 R2。',
+      'observed' => $observed,
+      'bucket_probe' => $bucket,
     ];
   }
 

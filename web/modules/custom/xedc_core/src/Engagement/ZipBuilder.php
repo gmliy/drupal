@@ -15,11 +15,17 @@ use Drupal\xedc_core\Entity\DownloadResource;
  */
 final class ZipBuilder {
 
-  public const SYNC_BYTES = 268435456;
+  public const SYNC_BYTES = 33554432;
 
-  public const SYNC_FILES = 80;
+  public const SYNC_FILES = 10;
 
-  public const READY_TTL = 21600;
+  public const CACHE_TTL = 604800;
+
+  public const TEMP_TTL = 21600;
+
+  public const PARTIAL_TTL = 7200;
+
+  public const READY_TTL = self::CACHE_TTL;
 
   public function __construct(
     protected OriginalFiles $originals,
@@ -47,7 +53,7 @@ final class ZipBuilder {
 
   public function readyUri(DownloadResource $resource, NodeInterface $node): string {
     $plan = $this->plan($node);
-    $stamp = substr(hash('sha256', json_encode(array_map(static fn(array $file): string => $file['fid'] . ':' . $file['size'] . ':' . $file['filename'], $plan['files'])) ?: ''), 0, 16);
+    $stamp = substr(hash('sha256', json_encode(array_map(static fn(array $file): string => $file['fid'] . ':' . $file['size'] . ':' . ($file['changed'] ?? 0) . ':' . $file['filename'], $plan['files'])) ?: ''), 0, 16);
     return 'private://xedc-zips/' . (int) $resource->id() . '-' . $stamp . '.zip';
   }
 
@@ -63,67 +69,82 @@ final class ZipBuilder {
     if ($plan['count'] < 1) {
       throw new \RuntimeException('这篇内容没有可打包的原图。');
     }
-    if ($plan['bytes'] > self::SYNC_BYTES || $plan['count'] > self::SYNC_FILES) {
-      throw new ZipPendingException('图片较多，已改为后台打包。请稍后再次下载。');
+    $uri = $this->readyUri($resource, $node);
+    if ($this->freshArchive($uri, $plan['count']) !== NULL) {
+      $this->note($resource, 'ready', '缓存命中，未重新压缩。');
+      $this->logPack($plan, 0, 0, 0, 0, TRUE);
+      return $uri;
     }
-    if (!class_exists(\ZipArchive::class)) {
-      throw new \RuntimeException('服务器没有启用 ZIP 扩展。');
+    if ($this->shouldQueue($plan['count'], $plan['bytes'])) {
+      throw new ZipPendingException($this->progressMessage($plan, '图片较多，已改为后台打包。'));
+    }
+    return $this->assemble($resource, $plan, $uri);
+  }
+
+  public function shouldQueue(int $count, int $bytes): bool {
+    if ($count < 1) {
+      return FALSE;
+    }
+    if ($bytes < 1) {
+      return TRUE;
+    }
+    return $count > self::SYNC_FILES || $bytes > self::SYNC_BYTES;
+  }
+
+  /**
+   * @return array{state: string, message: string, count: int, bytes: int, cached: bool}
+   *   Read-only status. Does not build or enqueue.
+   */
+  public function inspect(DownloadResource $resource): array {
+    $node = $resource->get('parent')->entity;
+    if (!$node instanceof NodeInterface) {
+      return ['state' => 'failed', 'message' => '内容不存在，无法打包。', 'count' => 0, 'bytes' => 0, 'cached' => FALSE];
+    }
+    $plan = $this->plan($node);
+    $base = ['count' => $plan['count'], 'bytes' => $plan['bytes'], 'cached' => FALSE];
+    if ($plan['count'] < 1) {
+      return array_merge($base, ['state' => 'failed', 'message' => '这篇内容没有可打包的原图。']);
     }
     $uri = $this->readyUri($resource, $node);
-    if (is_file($uri) && filemtime($uri) >= (time() - self::READY_TTL)) {
-      return $uri;
+    if ($this->freshArchive($uri, $plan['count']) !== NULL) {
+      return array_merge($base, ['state' => 'ready', 'cached' => TRUE, 'message' => '压缩包已准备好，即将开始下载。']);
     }
-    $name = 'xedc_zip_' . (int) $resource->id();
-    if (!$this->lock->acquire($name, 180)) {
-      throw new ZipPendingException('压缩包正在准备，请稍后再次下载。');
+    if (!$this->lock->lockMayBeAvailable('xedc_zip_' . (int) $resource->id())) {
+      return array_merge($base, ['state' => 'running', 'message' => $this->progressMessage($plan, '正在生成压缩包。')]);
     }
-    $tempFiles = [];
-    try {
-      $realZip = $this->writableDir('private://xedc-zips');
-      $realDir = $this->writableDir('private://xedc-download-tmp/' . $name . '-' . bin2hex(random_bytes(4)));
-      $partial = $realZip . '/' . (int) $resource->id() . '-' . bin2hex(random_bytes(4)) . '.partial.zip';
-      $zip = new \ZipArchive();
-      if ($zip->open($partial, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== TRUE) {
-        throw new \RuntimeException('无法创建压缩包。');
-      }
-      $used = [];
-      foreach ($plan['files'] as $file) {
-        $local = $this->localPath((string) $file['uri'], $realDir, $tempFiles);
-        $entry = $this->entryName((string) $file['filename'], $used);
-        if (!$zip->addFile($local, $entry)) {
-          $zip->close();
-          @unlink($partial);
-          throw new \RuntimeException('无法把原图写入压缩包。');
-        }
-      }
-      if (!$zip->close()) {
-        @unlink($partial);
-        throw new \RuntimeException('压缩包没有写完。压缩目录需要允许网站进程创建临时文件。');
-      }
-      $destination = $this->fileSystem->realpath($uri);
-      if (!is_string($destination)) {
-        $destination = $realZip . '/' . basename($uri);
-      }
-      if (is_file($destination)) {
-        @unlink($destination);
-      }
-      if (!@rename($partial, $destination)) {
-        throw new \RuntimeException('压缩包无法保存。');
-      }
-      return $uri;
+    if ($this->shouldQueue($plan['count'], $plan['bytes'])) {
+      return array_merge($base, ['state' => 'queued', 'message' => $this->progressMessage($plan, '图片较多，已改为后台打包。')]);
     }
-    finally {
-      foreach ($tempFiles as $path) {
-        if (is_file($path)) {
-          @unlink($path);
-        }
-      }
-      $this->lock->release($name);
-    }
+    return array_merge($base, ['state' => 'sync', 'message' => $this->progressMessage($plan, '正在准备压缩包。')]);
   }
 
   public function enqueue(DownloadResource $resource): void {
-    $this->queueFactory->get('xedc_download_zip')->createItem(['id' => (int) $resource->id()]);
+    $id = (int) $resource->id();
+    if (!$this->lock->lockMayBeAvailable('xedc_zip_' . $id)) {
+      return;
+    }
+    $gate = 'xedc_zip_enqueue_' . $id;
+    if (!$this->lock->acquire($gate, 10)) {
+      return;
+    }
+    try {
+      $database = \Drupal::database();
+      if ($database->schema()->tableExists('xedc_zip_job')) {
+        $row = $database->select('xedc_zip_job', 'z')
+          ->fields('z', ['status', 'changed'])
+          ->condition('resource_id', $id)
+          ->execute()
+          ->fetchObject();
+        $now = \Drupal::time()->getRequestTime();
+        if ($row && in_array((string) $row->status, ['queued', 'running'], TRUE) && (int) $row->changed >= ($now - 900)) {
+          return;
+        }
+      }
+      $this->queueFactory->get('xedc_download_zip')->createItem(['id' => $id]);
+    }
+    finally {
+      $this->lock->release($gate);
+    }
   }
 
   /**
@@ -150,7 +171,6 @@ final class ZipBuilder {
       catch (ZipPendingException) {
         $this->buildForced($resource);
       }
-      $this->note($resource, 'ready', '压缩包已生成。');
     }
     catch (\Throwable $e) {
       $this->note($resource, 'failed', $e->getMessage());
@@ -169,16 +189,42 @@ final class ZipBuilder {
       return 0;
     }
     $removed = 0;
-    $cutoff = time() - self::READY_TTL;
+    $now = time();
+    $touched = [];
     foreach (scandir($real) ?: [] as $name) {
-      if ($name === '.' || $name === '..') {
+      if ($name === '.' || $name === '..' || !preg_match('/^(\d+)-.+\.zip$/', $name, $match)) {
+        continue;
+      }
+      $id = (int) $match[1];
+      if (!$this->lock->lockMayBeAvailable('xedc_zip_' . $id)) {
         continue;
       }
       $path = $real . '/' . $name;
-      if (is_file($path) && filemtime($path) < $cutoff) {
-        if (@unlink($path)) {
-          $removed++;
+      if (!is_file($path)) {
+        continue;
+      }
+      $partial = str_ends_with($name, '.partial.zip');
+      $limit = $partial ? self::PARTIAL_TTL : self::CACHE_TTL;
+      if (filemtime($path) >= ($now - $limit)) {
+        continue;
+      }
+      if (@unlink($path)) {
+        $removed++;
+        if (!$partial) {
+          $touched[$id] = TRUE;
         }
+      }
+    }
+    foreach (array_keys($touched) as $id) {
+      $still = FALSE;
+      foreach (scandir($real) ?: [] as $name) {
+        if (str_starts_with($name, $id . '-') && str_ends_with($name, '.zip') && !str_ends_with($name, '.partial.zip')) {
+          $still = TRUE;
+          break;
+        }
+      }
+      if (!$still) {
+        $this->markExpired($id);
       }
     }
     $temp = $this->fileSystem->realpath('private://xedc-download-tmp');
@@ -188,10 +234,15 @@ final class ZipBuilder {
           continue;
         }
         $path = $temp . '/' . $name;
-        if (is_dir($path) && filemtime($path) < $cutoff) {
-          $this->fileSystem->deleteRecursive($path);
-          $removed++;
+        if (!is_dir($path) || filemtime($path) >= ($now - self::TEMP_TTL)) {
+          continue;
         }
+        $resourceId = (int) $name;
+        if ($resourceId > 0 && !$this->lock->lockMayBeAvailable('xedc_zip_' . $resourceId)) {
+          continue;
+        }
+        $this->fileSystem->deleteRecursive($path);
+        $removed++;
       }
     }
     return $removed;
@@ -205,20 +256,36 @@ final class ZipBuilder {
     if (!$node instanceof NodeInterface) {
       throw new \RuntimeException('内容不存在，无法打包。');
     }
+    $plan = $this->plan($node);
+    if ($plan['count'] < 1 || $plan['bytes'] > 2147483648) {
+      throw new \RuntimeException('图片数量或大小不适合打包。');
+    }
     $uri = $this->readyUri($resource, $node);
-    if (is_file($uri) && filemtime($uri) >= (time() - self::READY_TTL)) {
+    if ($this->freshArchive($uri, $plan['count']) !== NULL) {
+      $this->note($resource, 'ready', '缓存命中，未重新压缩。');
+      $this->logPack($plan, 0, 0, 0, 0, TRUE);
       return $uri;
     }
-    $plan = $this->plan($node);
+    return $this->assemble($resource, $plan, $uri);
+  }
+
+  /**
+   * @param array{files: list<array<string, mixed>>, bytes: int, count: int} $plan
+   *   Originals already counted for this content.
+   */
+  protected function assemble(DownloadResource $resource, array $plan, string $uri): string {
     if (!class_exists(\ZipArchive::class)) {
       throw new \RuntimeException('服务器没有启用 ZIP 扩展。');
     }
     @set_time_limit(300);
     $name = 'xedc_zip_' . (int) $resource->id();
     if (!$this->lock->acquire($name, 300)) {
-      throw new ZipPendingException('压缩包正在准备，请稍后再次下载。');
+      throw new ZipPendingException($this->progressMessage($plan, '压缩包正在准备。'));
     }
     $tempFiles = [];
+    $realDir = '';
+    $started = microtime(TRUE);
+    $read = 0.0;
     try {
       $realZip = $this->writableDir('private://xedc-zips');
       $realDir = $this->writableDir('private://xedc-download-tmp/' . $name . '-' . bin2hex(random_bytes(4)));
@@ -229,24 +296,38 @@ final class ZipBuilder {
       }
       $used = [];
       foreach ($plan['files'] as $file) {
+        $readStarted = microtime(TRUE);
         $local = $this->localPath((string) $file['uri'], $realDir, $tempFiles);
-        if (!$zip->addFile($local, $this->entryName((string) $file['filename'], $used))) {
+        $read += microtime(TRUE) - $readStarted;
+        $entry = $this->entryName((string) $file['filename'], $used);
+        if (!$zip->addFile($local, $entry) || !$zip->setCompressionName($entry, \ZipArchive::CM_STORE)) {
           $zip->close();
           @unlink($partial);
-          throw new \RuntimeException('无法把原图写入压缩包。');
+          throw new \RuntimeException('无法把原图写入压缩包：' . $entry);
         }
       }
+      $writeStarted = microtime(TRUE);
       if (!$zip->close()) {
         @unlink($partial);
         throw new \RuntimeException('压缩包没有写完。压缩目录需要允许网站进程创建临时文件。');
       }
+      $write = microtime(TRUE) - $writeStarted;
       $destination = $realZip . '/' . basename($uri);
       if (is_file($destination)) {
         @unlink($destination);
       }
       if (!@rename($partial, $destination)) {
+        @unlink($partial);
         throw new \RuntimeException('压缩包无法保存。');
       }
+      $verifyStarted = microtime(TRUE);
+      if ($this->freshArchive($destination, $plan['count']) === NULL) {
+        @unlink($destination);
+        throw new \RuntimeException('压缩包校验没有通过。');
+      }
+      $verify = microtime(TRUE) - $verifyStarted;
+      $this->logPack($plan, $read, $write, $verify, microtime(TRUE) - $started, FALSE);
+      $this->note($resource, 'ready', $this->progressMessage($plan, '已生成，未再次压缩图片。'));
       return $uri;
     }
     finally {
@@ -254,6 +335,9 @@ final class ZipBuilder {
         if (is_file($path)) {
           @unlink($path);
         }
+      }
+      if ($realDir !== '' && is_dir($realDir)) {
+        @rmdir($realDir);
       }
       $this->lock->release($name);
     }
@@ -316,6 +400,89 @@ final class ZipBuilder {
       'resource_id' => (int) $resource->id(),
       'created' => $now,
     ])->execute();
+  }
+
+  protected function freshArchive(string $uri, int $expectedCount): ?string {
+    $path = $this->fileSystem->realpath($uri);
+    if (!is_string($path) || !is_file($path) || is_link($path)) {
+      $path = is_file($uri) && !is_link($uri) ? $uri : '';
+    }
+    if ($path === '' || filesize($path) < 22 || filemtime($path) < (time() - self::CACHE_TTL)) {
+      return NULL;
+    }
+    $header = file_get_contents($path, FALSE, NULL, 0, 4);
+    if ($header !== "PK\x03\x04") {
+      return NULL;
+    }
+    $zip = new \ZipArchive();
+    if ($zip->open($path) !== TRUE) {
+      return NULL;
+    }
+    $count = $zip->numFiles;
+    $zip->close();
+    if ($expectedCount > 0 && $count !== $expectedCount) {
+      return NULL;
+    }
+    return $uri;
+  }
+
+  /**
+   * @param array{count: int, bytes: int} $plan
+   *   Counted originals.
+   */
+  protected function progressMessage(array $plan, string $lead): string {
+    $size = $plan['bytes'] > 0 ? \Drupal\xedc_core\Ops\OpsFormat::bytes($plan['bytes']) : '大小待确认';
+    return $lead . '共 ' . $plan['count'] . ' 张，约 ' . $size . '。';
+  }
+
+  /**
+   * @param array{files: list<array<string, mixed>>, bytes: int, count: int} $plan
+   *   Originals used for this pack.
+   */
+  protected function logPack(array $plan, float $read, float $write, float $verify, float $total, bool $cached): void {
+    $schemes = [];
+    foreach ($plan['files'] as $file) {
+      $scheme = strstr((string) ($file['uri'] ?? ''), '://', TRUE);
+      $scheme = is_string($scheme) && $scheme !== '' ? $scheme : 'unknown';
+      $schemes[$scheme] = ($schemes[$scheme] ?? 0) + 1;
+    }
+    $remote = 0;
+    foreach ($schemes as $scheme => $count) {
+      if (!in_array($scheme, ['public', 'private'], TRUE)) {
+        $remote += $count;
+      }
+    }
+    $labels = [];
+    foreach ($schemes as $scheme => $count) {
+      $labels[] = $scheme . ':' . $count;
+    }
+    \Drupal::logger('xedc_zip')->info('count=@count bytes=@bytes read_ms=@read write_ms=@write verify_ms=@verify total_ms=@total memory_mb=@memory remote=@remote cache=@cache schemes=@schemes', [
+      '@count' => $plan['count'],
+      '@bytes' => $plan['bytes'],
+      '@read' => (int) round($read * 1000),
+      '@write' => (int) round($write * 1000),
+      '@verify' => (int) round($verify * 1000),
+      '@total' => (int) round($total * 1000),
+      '@memory' => round(memory_get_peak_usage(TRUE) / 1048576, 1),
+      '@remote' => $remote,
+      '@cache' => $cached ? 1 : 0,
+      '@schemes' => implode(',', $labels),
+    ]);
+  }
+
+  protected function markExpired(int $resourceId): void {
+    $database = \Drupal::database();
+    if ($resourceId < 1 || !$database->schema()->tableExists('xedc_zip_job')) {
+      return;
+    }
+    $database->update('xedc_zip_job')
+      ->fields([
+        'status' => 'expired',
+        'message' => '成功缓存已超过 7 天，下次下载会重新生成。',
+        'changed' => \Drupal::time()->getRequestTime(),
+      ])
+      ->condition('resource_id', $resourceId)
+      ->execute();
   }
 
   /**

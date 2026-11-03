@@ -1,41 +1,4 @@
-{#
-/**
- * @file
- * 视频卡片。列表页和视频分类页都用 teaser 显示模式渲染这一份。
- */
-#}
-{{ attach_library('xedc/video-card') }}
+{{ content|cache_metadata }}
 <article{{ attributes.addClass('vcard') }}>
-  {{ title_prefix }}
-  <a class="vcard__thumb" href="{{ url }}">
-    {% if vc_cover %}
-      <img src="{{ vc_cover }}" alt="{{ vc_cover_alt }}" width="640" height="360" loading="lazy" decoding="async">
-    {% else %}
-      <span class="vcard__placeholder"></span>
-    {% endif %}
-    <span class="vcard__play" aria-hidden="true">
-      <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
-    </span>
-    {% if vc_duration %}
-      <span class="vcard__dur">{{ vc_duration }}</span>
-    {% endif %}
-  </a>
-  <div class="vcard__body">
-    <div class="vcard__cat">
-      {% if vc_category %}
-        <a href="{{ vc_category.url }}">{{ vc_category.name }}</a>
-      {% else %}
-        <span>{{ '未分类'|t }}</span>
-      {% endif %}
-    </div>
-    <h2 class="vcard__title"><a href="{{ url }}">{{ node.label }}</a></h2>
-    {% if vc_tags %}
-      <div class="vcard__tags">
-        {% for tag in vc_tags %}
-          <a href="{{ tag.url }}">{{ tag.name }}</a>
-        {% endfor %}
-      </div>
-    {% endif %}
-  </div>
-  {{ title_suffix }}
+  {% include directory ~ '/templates/video/video-card.html.twig' with { card: video_card } only %}
 </article>

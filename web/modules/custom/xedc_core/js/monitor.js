@@ -336,6 +336,122 @@
           draw(panel, chart.points ? chart : null);
         }
 
+        function renderCatalog(section, browser) {
+          if (!browser || !browser.rows) {
+            return;
+          }
+          const form = element('form', 'xedc-ops-filters');
+          form.method = 'get';
+          const sectionInput = element('input');
+          sectionInput.type = 'hidden';
+          sectionInput.name = 'section';
+          sectionInput.value = 'browser';
+          form.appendChild(sectionInput);
+          const query = element('input');
+          query.type = 'search';
+          query.name = 'q';
+          query.value = browser.query || '';
+          query.placeholder = '图表、维度或采集器';
+          form.appendChild(query);
+          const category = element('select');
+          category.name = 'category';
+          const all = element('option', '', '全部分类');
+          all.value = '';
+          category.appendChild(all);
+          Object.keys(browser.categories || {}).forEach(function (name) {
+            const option = element('option', '', name + '（' + browser.categories[name] + '）');
+            option.value = name;
+            if (browser.category === name) {
+              option.selected = true;
+            }
+            category.appendChild(option);
+          });
+          form.appendChild(category);
+          const submit = element('button', 'xedc-ops-button', '筛选');
+          submit.type = 'submit';
+          form.appendChild(submit);
+          section.appendChild(form);
+          section.appendChild(element('p', 'xedc-ops-note', browser.total + ' 个图表，第 ' + (Number(browser.page) + 1) + ' / ' + browser.pages + ' 页。当前页数值来自最近一次采样。'));
+          const wrap = element('div', 'xedc-ops-table-wrap');
+          const table = element('table', 'xedc-ops-table');
+          const head = document.createElement('tr');
+          ['图表', '分类', '单位', '维度', '当前值', '状态', ''].forEach(function (header) {
+            head.appendChild(element('th', '', header));
+          });
+          const thead = document.createElement('thead');
+          thead.appendChild(head);
+          table.appendChild(thead);
+          const body = document.createElement('tbody');
+          browser.rows.forEach(function (row) {
+            const tr = document.createElement('tr');
+            const name = document.createElement('td');
+            name.appendChild(document.createTextNode(row.title || ''));
+            name.appendChild(document.createElement('br'));
+            const code = element('code', '', row.id || '');
+            name.appendChild(code);
+            tr.appendChild(name);
+            tr.appendChild(element('td', '', row.category || ''));
+            tr.appendChild(element('td', '', row.units || ''));
+            tr.appendChild(element('td', '', row.dimensions || ''));
+            tr.appendChild(element('td', '', row.value || ''));
+            tr.appendChild(element('td', '', [row.status, row.updated].filter(Boolean).join(' · ')));
+            const action = document.createElement('td');
+            const button = element('button', '', '趋势');
+            button.type = 'button';
+            button.setAttribute('data-chart-id', row.id || '');
+            action.appendChild(button);
+            tr.appendChild(action);
+            body.appendChild(tr);
+          });
+          table.appendChild(body);
+          wrap.appendChild(table);
+          section.appendChild(wrap);
+          const pager = element('p', 'xedc-ops-pager');
+          const page = Number(browser.page) || 0;
+          const queryText = encodeURIComponent(browser.query || '');
+          const categoryText = encodeURIComponent(browser.category || '');
+          if (page > 0) {
+            const previous = element('a', '', '上一页');
+            previous.href = '?section=browser&page=' + (page - 1) + '&q=' + queryText + '&category=' + categoryText;
+            pager.appendChild(previous);
+          }
+          if (page + 1 < Number(browser.pages)) {
+            const next = element('a', '', '下一页');
+            next.href = '?section=browser&page=' + (page + 1) + '&q=' + queryText + '&category=' + categoryText;
+            pager.appendChild(next);
+          }
+          section.appendChild(pager);
+        }
+
+        function renderCollectors(section, collectors) {
+          if (!collectors || !collectors.length) {
+            return;
+          }
+          const panel = element('article', 'xedc-ops-panel');
+          panel.appendChild(element('h3', '', '已发现采集器'));
+          const wrap = element('div', 'xedc-ops-table-wrap');
+          const table = element('table', 'xedc-ops-table');
+          const head = document.createElement('tr');
+          ['采集器', '图表数', '状态'].forEach(function (header) {
+            head.appendChild(element('th', '', header));
+          });
+          const thead = document.createElement('thead');
+          thead.appendChild(head);
+          table.appendChild(thead);
+          const body = document.createElement('tbody');
+          collectors.forEach(function (row) {
+            const tr = document.createElement('tr');
+            tr.appendChild(element('td', '', row.name || ''));
+            tr.appendChild(element('td', '', row.charts || ''));
+            tr.appendChild(element('td', '', row.state || ''));
+            body.appendChild(tr);
+          });
+          table.appendChild(body);
+          wrap.appendChild(table);
+          panel.appendChild(wrap);
+          section.appendChild(panel);
+        }
+
         function renderDetail(payload) {
           if (!detail) {
             return;
@@ -395,11 +511,13 @@
             });
             section.appendChild(panel);
           });
-          if (payload.alarms) {
+          renderCatalog(section, payload.browser);
+          renderCollectors(section, payload.collectors);
+          if (payload.section === 'alarms' || (payload.alarms && payload.alarms.length)) {
             const panel = element('article', 'xedc-ops-panel');
             panel.appendChild(element('h3', '', 'Netdata 告警'));
-            if (!payload.alarms.length) {
-              panel.appendChild(element('p', 'xedc-ops-note', '当前没有 Netdata 原生告警。'));
+            if (!payload.alarms || !payload.alarms.length) {
+              panel.appendChild(element('p', 'xedc-ops-note', '当前没有 Netdata 原生告警。没有活动告警时不会显示为正常或警告。'));
             }
             else {
               payload.alarms.forEach(function (alarm) {

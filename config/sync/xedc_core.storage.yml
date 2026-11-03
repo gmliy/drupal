@@ -12,8 +12,8 @@ profiles:
     path_style: true
     public_base_url: 'https://cdn.gitxx.xyz'
     cdn_base_url: ''
-    public_folder: s3fs-public
-    private_folder: s3fs-private
+    public_folder: public
+    private_folder: private
     root_folder: ''
     cache_control: 'public, max-age=31536000, immutable'
     disable_version_sync: true

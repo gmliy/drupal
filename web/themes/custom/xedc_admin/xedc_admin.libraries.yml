@@ -46,3 +46,10 @@ dashboard:
   dependencies:
     - xedc_admin/global
     - xedc_admin_ui/dashboard
+
+engagement:
+  css:
+    theme:
+      css/engagement.css: {}
+  dependencies:
+    - xedc_admin/global

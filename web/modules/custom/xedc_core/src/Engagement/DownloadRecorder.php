@@ -46,6 +46,7 @@ final class DownloadRecorder {
         'status' => mb_substr($status, 0, 16) ?: 'authorized',
         'created' => $this->time->getRequestTime(),
       ])->execute();
+      \Drupal\Core\Cache\Cache::invalidateTags(['xedc_engagement']);
     }
     catch (\Throwable) {
       // A log failure must not block the file that was already authorized.

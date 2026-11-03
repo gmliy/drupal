@@ -96,7 +96,7 @@ final class DownloadGate {
       $this->log($fid, (int) $account->id(), $tier, 'local');
       return $this->deny(503, '私有文件仍在服务器本地。私有接管未开启，因此不会生成对象存储签名。', $tier, $required);
     }
-    if ($this->uris->scheme($uri) === 's3' && !(bool) \Drupal\Core\Site\Settings::get('xedc_storage.runtime_applied', FALSE)) {
+    if ($this->uris->scheme($uri) === 's3' && !(bool) \Drupal\Core\Site\Settings::get('xedc_storage.settings_accepted', FALSE)) {
       $this->log($fid, (int) $account->id(), $tier, 'runtime');
       return $this->deny(503, '对象存储运行时未启用，不能生成下载地址。', $tier, $required);
     }

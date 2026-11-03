@@ -406,12 +406,43 @@ function xedc_core_schema(): array {
     ],
   ];
 
+  $optimize = [
+    'description' => 'Audit rows for newly optimized public images.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'filename' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'source_mime' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'stored_mime' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'source_bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'stored_bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'source_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'stored_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'width' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'height' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'elapsed_ms' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'memory_bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'queued'],
+      'r2_status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'error' => ['type' => 'text', 'not null' => FALSE],
+      'attempts' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'fid' => ['fid'],
+      'status' => ['status'],
+    ],
+  ];
+
   return [
     'xedc_import_task' => $task,
     'xedc_import_item' => $item,
     'xedc_import_log' => $log,
     'xedc_image_alt' => $alt,
     'xedc_image_file' => $file,
+    'xedc_image_optimize' => $optimize,
     'xedc_file_batch' => $batch,
     'xedc_file_hash_work' => $work,
     'xedc_file_dup_group' => $group,
@@ -425,7 +456,8 @@ function xedc_core_schema(): array {
     'xedc_storage_download_log' => $downloadLog,
     'xedc_storage_migration_item' => $migrationItem,
   ] + \Drupal\xedc_core\Engagement\EngagementSchema::tables()
-    + \Drupal\xedc_core\Ops\Traffic\TrafficSchema::tables();
+    + \Drupal\xedc_core\Ops\Traffic\TrafficSchema::tables()
+    + ['xedc_video_transcode' => \Drupal\xedc_core\Video\TranscodeSchema::table()];
 }
 
 /**
@@ -719,4 +751,53 @@ function xedc_core_update_10009(): string {
     }
   }
   return $created === [] ? '网络流量统计表已存在，未改动。' : '已创建：' . implode('、', $created) . '。';
+}
+
+/**
+ * Lets guests like without sharing one uid 0 row. Existing member rows stay.
+ */
+function xedc_core_update_10010(): string {
+  $schema = \Drupal::database()->schema();
+  if (!$schema->tableExists('xedc_like')) {
+    return '点赞表不存在，未改动。';
+  }
+  if (!$schema->fieldExists('xedc_like', 'actor_hash')) {
+    $schema->addField('xedc_like', 'actor_hash', [
+      'type' => 'varchar',
+      'length' => 64,
+      'not null' => TRUE,
+      'default' => '',
+    ]);
+  }
+  if ($schema->indexExists('xedc_like', 'user_entity')) {
+    $schema->dropUniqueKey('xedc_like', 'user_entity');
+  }
+  if (!$schema->indexExists('xedc_like', 'user_actor')) {
+    $schema->addUniqueKey('xedc_like', 'user_actor', ['uid', 'actor_hash', 'entity_type', 'entity_id']);
+  }
+  return '已为点赞表增加游客身份哈希。原有会员点赞记录已保留。';
+}
+
+/**
+ * Stores one playback-copy job per source file.
+ */
+function xedc_core_update_10011(): string {
+  $schema = \Drupal::database()->schema();
+  if ($schema->tableExists('xedc_video_transcode')) {
+    return '播放副本任务表已存在，未改动。';
+  }
+  $schema->createTable('xedc_video_transcode', \Drupal\xedc_core\Video\TranscodeSchema::table());
+  return '已创建播放副本任务表。原视频和已有播放副本均未改动。';
+}
+
+/**
+ * Adds the image optimization audit table. Existing files are not scanned.
+ */
+function xedc_core_update_10012(): string {
+  $schema = \Drupal::database()->schema();
+  if ($schema->tableExists('xedc_image_optimize')) {
+    return '图片优化记录表已存在，未改动历史文件。';
+  }
+  $schema->createTable('xedc_image_optimize', xedc_core_schema()['xedc_image_optimize']);
+  return '已创建图片优化记录表。历史图片没有批量处理。';
 }

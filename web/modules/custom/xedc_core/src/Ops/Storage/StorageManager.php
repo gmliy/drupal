@@ -82,7 +82,7 @@ final class StorageManager {
    *   Runtime connection from settings. NULL while runtime is off.
    */
   public function runtimeConnection(): ?array {
-    if (!(bool) Settings::get('xedc_storage.runtime_applied', FALSE)) {
+    if (!(bool) Settings::get('xedc_storage.settings_accepted', FALSE)) {
       return NULL;
     }
     $access = (string) Settings::get('s3fs.access_key', '');

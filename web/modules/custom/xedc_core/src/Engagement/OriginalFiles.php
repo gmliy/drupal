@@ -14,7 +14,7 @@ use Drupal\node\NodeInterface;
 final class OriginalFiles {
 
   /**
-   * @return list<array{fid: int, filename: string, uri: string, size: int, extension: string, mime: string}>
+   * @return list<array{fid: int, filename: string, uri: string, size: int, extension: string, mime: string, changed: int}>
    *   Original managed files in gallery order.
    */
   public function forNode(NodeInterface $node): array {
@@ -60,6 +60,7 @@ final class OriginalFiles {
         'size' => (int) $entity->getSize(),
         'extension' => strtolower(pathinfo($name, PATHINFO_EXTENSION)),
         'mime' => (string) ($entity->getMimeType() ?: 'application/octet-stream'),
+        'changed' => (int) $entity->getChangedTime(),
       ];
     }
     return $items;

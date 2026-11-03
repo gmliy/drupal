@@ -1,6 +1,10 @@
 # Cloudflare R2 最终验收
 
-## 本轮整改复测：2026-11-02 18:18 UTC
+## 复制前门禁：2026-11-02 19:06 UTC
+
+WAF 复测通过。PNG 和 MP4 的 CDN GET 是 `public, max-age=3600`，不是对象上的 `public, max-age=60`，缓存不通过。因此没有复制 128 个公开文件。详见 `docs/object-storage-r2-pre-copy-retest.md` 和 `docs/object-storage-r2-public-migration-report.md`。五个开关仍关闭。`r2.dev` 记为 Disabled（管理员人工确认，未通过程序独立验证）。
+
+## 整改复测：2026-11-02 18:18 UTC
 
 没有部署 WAF，没有改缓存配置，没有改上传代码，没有复制历史文件。五个开关仍关闭，`public://` 仍是 `PublicStream`，文件实体仍是 137。
 
