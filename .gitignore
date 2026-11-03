@@ -6,3 +6,11 @@ web/sites/*/files/
 /private/
 .env
 .env.local
+
+# xedc-recover must never commit backups, keys, or database dumps.
+*.enc
+*.sql
+*.sql.gz
+/tools/xedc-recover/**/*.key
+__pycache__/
+*.pyc
