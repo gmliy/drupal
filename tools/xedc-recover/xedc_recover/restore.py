@@ -194,7 +194,7 @@ def rewrite_settings(text: str, *, database: str, username: str, password: str, 
     return text
 
 
-def _chmod_tree(root: Path, dir_mode: int, file_mode: int) -> None:
+def _chmod_tree(root: Path, dir_mode: int, file_mode: int, executable_mode: int) -> None:
     if not root.exists():
         return
     for dirpath, _dirnames, filenames in os.walk(root):
@@ -203,7 +203,10 @@ def _chmod_tree(root: Path, dir_mode: int, file_mode: int) -> None:
             path = Path(dirpath) / name
             if path.is_symlink():
                 continue
-            os.chmod(path, file_mode)
+            if path.stat().st_mode & 0o111:
+                os.chmod(path, executable_mode)
+            else:
+                os.chmod(path, file_mode)
 
 
 def apply_deletions(target: Path, deleted: list[str]) -> None:
@@ -344,9 +347,9 @@ def restore_backup(config: dict, backup_id: str, target: str, *, role: str = "la
         settings.write_text(text, encoding="utf-8")
         os.chmod(settings, 0o440)
     os.chmod(destination, 0o755)
-    _chmod_tree(destination / "code", 0o755, 0o644)
-    _chmod_tree(destination / "public", 0o755, 0o644)
-    _chmod_tree(destination / "private", 0o750, 0o640)
+    _chmod_tree(destination / "code", 0o755, 0o644, 0o755)
+    _chmod_tree(destination / "public", 0o755, 0o644, 0o755)
+    _chmod_tree(destination / "private", 0o750, 0o640, 0o750)
     if settings.is_file():
         os.chmod(settings, 0o440)
     if import_database_now:
