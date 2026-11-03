@@ -177,6 +177,30 @@ def upload_package(config: dict, archive_path: str) -> dict:
     return {"archive": archive.name, "uploaded": uploaded, "local_kept": True, "key_included": False}
 
 
+def list_remote_backups(config: dict) -> list[dict]:
+    client = client_from_config(config)
+    prefix = client.prefix
+    found = []
+    for key in client.list_keys("packages/"):
+        relative = key[len(prefix):] if key.startswith(prefix) else key
+        if relative.startswith("packages/"):
+            relative = relative[len("packages/"):]
+        if not _PACKAGE_NAME.fullmatch(relative):
+            continue
+        matched = re.fullmatch(r"xedc-full-([0-9]{8}T[0-9]{6}Z)-([0-9a-f]{6})\.tar\.zst", relative)
+        if matched:
+            stamp = matched.group(1)
+            found.append({
+                "name": relative,
+                "backup_id": f"xedc-{stamp}-{matched.group(2)}",
+                "created": f"{stamp[0:4]}-{stamp[4:6]}-{stamp[6:8]} {stamp[9:11]}:{stamp[11:13]}:{stamp[13:15]} UTC",
+            })
+        else:
+            found.append({"name": relative, "backup_id": relative, "created": ""})
+    found.sort(key=lambda item: item["name"])
+    return found
+
+
 def download_package(config: dict, name: str, destination: str) -> dict:
     target = assert_backup_destination(destination)
     target.mkdir(parents=True, exist_ok=True)

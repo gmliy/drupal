@@ -236,6 +236,7 @@ $databases['default']['default'] = array (
   'port' => '3306',
 );
 # $settings['file_private_path'] = '';
+# $settings['file_temp_path'] = '/tmp';
 $settings['file_private_path'] = '/var/www/drupal/private';
  * $settings['trusted_host_patterns'] = [
  *   '^www\\.example\\.com$',
@@ -260,6 +261,8 @@ $settings['trusted_host_patterns'] = [
         self.assertIn("'database' => 'database_name'", rewritten)
         self.assertIn("'database' => 'xedc_restore'", rewritten)
         self.assertIn("$settings['file_private_path'] = '/srv/xedc/private';", rewritten)
+        self.assertIn("# $settings['file_temp_path'] = '/tmp';", rewritten)
+        self.assertIn("$settings['file_temp_path'] = '/srv/xedc/tmp';", rewritten)
         self.assertIn("# $settings['file_private_path'] = '';", rewritten)
         self.assertIn("'^lab\\.test$'", rewritten)
         self.assertIn("'^www\\.example\\.com$'", rewritten)

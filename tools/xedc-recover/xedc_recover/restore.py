@@ -7,7 +7,6 @@ import json
 import os
 import shutil
 import tarfile
-import tempfile
 from pathlib import Path
 
 from .backup import BackupError, canonical, show_backup
@@ -202,6 +201,17 @@ def rewrite_settings(text: str, *, database: str, username: str, password: str, 
         )
         if count != 1:
             text += f"\n$settings['file_private_path'] = '{private_path}';\n"
+    temp_path = str(Path(private_path).parent / "tmp") if private_path else ""
+    if temp_path:
+        if "'" in temp_path or temp_path.endswith("\\"):
+            raise BackupError("临时目录含有不允许写入的字符")
+        text, count = _replace_last(
+            r"(?m)^(?![ \t]*[#*])([ \t]*\$settings\['file_temp_path'\]\s*=\s*')[^']*(')",
+            text,
+            lambda match, replacement=temp_path: match.group(1) + replacement + match.group(2),
+        )
+        if count != 1:
+            text += f"\n$settings['file_temp_path'] = '{temp_path}';\n"
     return text
 
 
@@ -303,8 +313,8 @@ def restore_backup(config: dict, backup_id: str, target: str, *, role: str = "la
     for item_id in ids:
         manifest = show_backup(root, item_id)
         directory = root / item_id
-        plain = Path(tempfile.mkdtemp(prefix="xedc-plain-"))
-        os.chmod(plain, 0o700)
+        from .workspace import keep_message, make_work_dir
+        plain = make_work_dir(config, f"plain-{item_id}")
         try:
             code = _open_artifact(directory, manifest, "code", key, key_id, plain)
             public = _open_artifact(directory, manifest, "public", key, key_id, plain)
@@ -318,15 +328,16 @@ def restore_backup(config: dict, backup_id: str, target: str, *, role: str = "la
             apply_deletions(destination / "code", [path for path in manifest.get("deleted", []) if not path.startswith("public/") and not path.startswith("private/")])
             apply_deletions(destination / "public", [path.removeprefix("public/") for path in manifest.get("deleted", []) if path.startswith("public/")])
             apply_deletions(destination / "private", [path.removeprefix("private/") for path in manifest.get("deleted", []) if path.startswith("private/")])
-        finally:
-            shutil.rmtree(plain, ignore_errors=True)
+        except Exception as exc:
+            raise BackupError(f"{exc}\n{keep_message(plain)}") from exc
+        shutil.rmtree(plain, ignore_errors=True)
     if role == "lab":
         isolate_storage(destination)
     if not skip_database:
         manifest = newest
         directory = root / backup_id
-        plain = Path(tempfile.mkdtemp(prefix="xedc-plain-"))
-        os.chmod(plain, 0o700)
+        from .workspace import keep_message, make_work_dir
+        plain = make_work_dir(config, f"database-{backup_id}")
         try:
             database = _open_artifact(directory, manifest, "database", key, key_id, plain)
             if database:
@@ -335,8 +346,9 @@ def restore_backup(config: dict, backup_id: str, target: str, *, role: str = "la
                 os.chmod(sql_target, 0o600)
                 report["database_sql"] = str(sql_target)
                 report["database_imported"] = False
-        finally:
-            shutil.rmtree(plain, ignore_errors=True)
+        except Exception as exc:
+            raise BackupError(f"{exc}\n{keep_message(plain)}") from exc
+        shutil.rmtree(plain, ignore_errors=True)
     public_rel = config.get("public_files", "web/sites/default/files")
     public_link = destination / "code" / public_rel
     if (destination / "public").is_dir():
@@ -363,6 +375,9 @@ def restore_backup(config: dict, backup_id: str, target: str, *, role: str = "la
         )
         settings.write_text(text, encoding="utf-8")
         os.chmod(settings, 0o440)
+        temp_dir = destination / "tmp"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        os.chmod(temp_dir, 0o770)
     os.chmod(destination, 0o755)
     _chmod_tree(destination / "code", 0o755, 0o644, 0o755)
     _chmod_tree(destination / "public", 0o755, 0o644, 0o755)

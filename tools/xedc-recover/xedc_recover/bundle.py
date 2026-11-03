@@ -9,7 +9,6 @@ import platform
 import re
 import shutil
 import subprocess
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -207,7 +206,13 @@ def pack_backup(config: dict, backup_id: str, output_dir: str) -> dict:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         base = f"xedc-full-{stamp}-{backup_id[-6:]}"
     archive = destination_root / f"{base}.tar.zst"
-    stage = Path(tempfile.mkdtemp(prefix="xedc-pack-"))
+    from .workspace import WorkspaceError, assert_disk, make_work_dir
+    try:
+        assert_disk(destination_root, 64 * 1024 * 1024, "打包")
+    except WorkspaceError as exc:
+        raise BackupError(str(exc)) from exc
+    stage = make_work_dir(config, "pack")
+    packed = False
     try:
         payload = stage / "payload"
         payload.mkdir()
@@ -229,7 +234,7 @@ def pack_backup(config: dict, backup_id: str, output_dir: str) -> dict:
         service = stage / "service"
         service.mkdir()
         (service / "nginx.conf.template").write_text(
-            render_nginx(server_name="example.invalid", webroot="/var/www/drupal/web", prefix="/tmp/xedc-nginx", port=80),
+            render_nginx(server_name="example.invalid", webroot="/var/www/drupal/web", prefix="/var/lib/xedc-recover/work/nginx", port=80),
             encoding="utf-8",
         )
         (service / "NOTES.txt").write_text(
@@ -275,8 +280,10 @@ def pack_backup(config: dict, backup_id: str, output_dir: str) -> dict:
         }
         (stage / "PACKAGE.json").write_text(json.dumps(package_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         _tar_zst(stage, archive)
+        packed = True
     finally:
-        shutil.rmtree(stage, ignore_errors=True)
+        if packed:
+            shutil.rmtree(stage, ignore_errors=True)
     digest = _sha256(archive)
     checksum = destination_root / f"{archive.name}.sha256"
     checksum.write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
@@ -370,7 +377,8 @@ def _install_material(stage: Path, backup_root: Path) -> str:
 def _services(target: Path, domain: str) -> dict:
     from .ssltool import nginx_test, self_sign, write_config
     webroot = target / "code" / "web"
-    prefix = Path("/tmp/xedc-nginx")
+    from .workspace import work_root
+    prefix = work_root(None) / "nginx"
     prefix.mkdir(parents=True, exist_ok=True)
     certs = self_sign(domain, "/etc/xedc-recover/ssl")
     text = render_nginx(
@@ -414,11 +422,16 @@ def _services(target: Path, domain: str) -> dict:
             rendered.append("listen.group = nginx")
             rendered.append("listen.mode = 0660")
         pool.write_text("\n".join(rendered) + "\n", encoding="utf-8")
-        subprocess.run(["service", "php8.5-fpm", "restart"], text=True, capture_output=True)
+        restarted = subprocess.run(["service", "php8.5-fpm", "restart"], text=True, capture_output=True)
+        if restarted.returncode != 0:
+            raise BackupError("PHP-FPM 没有启动，恢复已停止。")
     settings = webroot / "sites/default/settings.php"
     private = target / "private"
     if private.is_dir():
         subprocess.run(["chown", "-R", "www-data:www-data", str(private)], check=False)
+    temp_dir = target / "tmp"
+    if temp_dir.is_dir():
+        subprocess.run(["chown", "www-data:www-data", str(temp_dir)], check=False)
     if settings.is_file():
         subprocess.run(["chown", "www-data:www-data", str(settings)], check=False)
         os.chmod(settings, 0o440)
@@ -432,12 +445,13 @@ def _services(target: Path, domain: str) -> dict:
 
 
 def _health(domain: str, target: Path) -> dict:
+    from .workspace import work_root
     login = subprocess.run(
-        ["curl", "-fsS", "-H", f"Host: {domain}", "http://127.0.0.1/user/login", "-o", "/tmp/xedc-login.html"],
+        ["curl", "-fsS", "-H", f"Host: {domain}", "http://127.0.0.1/user/login", "-o", str(work_root(None) / "login.html")],
         text=True,
         capture_output=True,
     )
-    page = Path("/tmp/xedc-login.html")
+    page = work_root(None) / "login.html"
     body = page.read_text(encoding="utf-8", errors="replace") if page.is_file() else ""
     drush = target / "code/vendor/bin/drush"
     drush_ok = False
@@ -492,9 +506,15 @@ def install_bundle(
     if core.is_dir() and not state_path.is_file() and not report_path.is_file():
         raise BackupError("目标目录已有网站，拒绝覆盖")
     state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.is_file() else {"steps": {}}
-    free = shutil.disk_usage(destination.parent if destination.parent.exists() else Path("/")).free
-    if free < archive.stat().st_size * 3:
-        raise BackupError("磁盘空间不足，不能展开恢复包")
+    from .workspace import WorkspaceError, assert_disk, keep_message, make_work_dir, work_root
+    need = archive.stat().st_size * 4
+    space_parent = destination.parent if destination.parent.exists() else Path("/")
+    try:
+        assert_disk(space_parent, need, "恢复网站")
+        assert_disk(work_root(config), archive.stat().st_size * 3, "解包")
+    except WorkspaceError as exc:
+        raise BackupError(str(exc)) from exc
+    free = shutil.disk_usage(space_parent).free
     available = _memory_available()
     if available and available < 1024 * 1024 * 1024 and not skip_services:
         raise BackupError("可用内存不足 1 GB，拒绝安装运行环境")
@@ -505,7 +525,8 @@ def install_bundle(
         "memory_available": available,
         "cloudflare_dns": "manual-confirmation-required",
     }
-    work = Path(tempfile.mkdtemp(prefix="xedc-install-"))
+    work = make_work_dir(config, f"install-{digest[:12]}")
+    succeeded = False
     try:
         if "extracted" not in state["steps"]:
             _extract_package(archive, work)
@@ -527,7 +548,9 @@ def install_bundle(
         if not skip_services:
             ensure_marker()
             install_pinned(yes=True)
-            subprocess.run(["service", "mariadb", "start"], text=True, capture_output=True)
+            database_service = subprocess.run(["service", "mariadb", "start"], text=True, capture_output=True)
+            if database_service.returncode != 0:
+                raise BackupError("MariaDB 没有启动，恢复已停止。")
             subprocess.run(["service", "redis-server", "start"], text=True, capture_output=True)
         hosts = []
         if domain:
@@ -554,7 +577,11 @@ def install_bundle(
         )
         git_info = dict(package_doc.get("git") or {})
         git_info["composer_lock_sha256"] = package_doc.get("composer_lock_sha256") or ""
-        code_align = align_code(destination / "code", git_info)
+        code_align = align_code(destination / "code", git_info, work=work / "git")
+        files = {}
+        if restored.get("database_imported"):
+            from .fileset import audit_database_files
+            files = audit_database_files(destination, database_name)
         services = {}
         health = {}
         if not skip_services:
@@ -564,6 +591,10 @@ def install_bundle(
             health = _health(domain, destination)
             if not health["login_form"]:
                 raise BackupError("登录页健康检查失败")
+        file_error = ""
+        if files.get("missing"):
+            sample = "、".join(files.get("sample") or [])
+            file_error = f"数据库里有 {files['missing']} 个文件在磁盘上不存在。例如：{sample}"
         report = {
             "status": "PASS",
             "package": str(archive),
@@ -576,20 +607,30 @@ def install_bundle(
             "git_commit": (package_doc.get("git") or {}).get("commit", ""),
             "drupal_version": package_doc.get("drupal_version", ""),
             "restored": {"database_imported": restored.get("database_imported"), "chain": restored.get("chain")},
+            "files": files,
             "services": services,
             "health": health,
             "cloudflare_dns": "需要人工确认后，再把域名指向新服务器。程序没有修改 Cloudflare。",
         }
+        if file_error:
+            report["status"] = "FAIL"
+            report["file_error"] = file_error
         destination.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        if file_error:
+            raise BackupError(file_error)
         state_path.unlink(missing_ok=True)
+        succeeded = True
         return report
-    except Exception:
+    except Exception as exc:
         state["failed"] = True
         try:
             state_path.write_text(canonical(state), encoding="utf-8")
         except OSError:
             pass
+        if keep_message(work) not in str(exc):
+            raise BackupError(f"{exc}\n{keep_message(work)}") from exc
         raise
     finally:
-        shutil.rmtree(work, ignore_errors=True)
+        if succeeded:
+            shutil.rmtree(work, ignore_errors=True)

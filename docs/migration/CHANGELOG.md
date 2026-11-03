@@ -1,5 +1,12 @@
 # 变更记录
 
+## 2.4.0
+
+- 普通操作收成备份、传输、恢复。大文件使用 `/var/lib/xedc-recover/work` 和 `downloads`，不再解到 `/tmp`。
+- 自动安装只接受 Ubuntu 24.04。Ubuntu 26.04 直接 BLOCKED，不会添加 PHP 软件源。
+- `xedc-backup` 不再自动删除本机旧备份或 R2 历史对象。
+- 新备份仍然不需要单独解密密钥。旧 AES 备份继续使用原来的 `primary.key`。
+
 ## 2.3.0
 
 - 新的 `xedc-backup` 同时支持本地目录和 Cloudflare R2。默认先写本地包并核对 SHA256，再上传同一份文件，下载回来再次核对。

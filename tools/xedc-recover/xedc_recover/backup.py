@@ -10,7 +10,6 @@ import os
 import shutil
 import subprocess
 import tarfile
-import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -635,7 +634,8 @@ def verify_backup(config: dict, backup_id: str, deep: bool = True) -> dict:
             if digest != artifact.get("cipher_sha256"):
                 raise BackupError(f"{name} 密文校验失败")
             if deep and key is not None:
-                plain_dir = Path(tempfile.mkdtemp(prefix="xedc-verify-"))
+                from .workspace import make_work_dir
+                plain_dir = make_work_dir(config, f"verify-{name}")
                 plain = plain_dir / (Path(artifact["file"]).name + ".plain")
                 try:
                     plain_digest = decrypt_file(path, plain, key, key_id)

@@ -12,7 +12,7 @@
 
 下面保留原有维护说明，不作为恢复网站的必读步骤。
 
-这套工具的命令名是 `xedc-recover`。它备份 Drupal 代码、数据库、public/private 文件和必要配置，并能在一台没有生产网站的新机器上恢复。从 2.3.0 起，新的 `xedc-backup` 不再生成单独的解密密钥。旧的 AES-256-GCM 备份仍要原来的 `primary.key`。
+这套工具的日常命令是 `xedc-backup` 和 `xedc-restore`。新备份不需要单独解密密钥。旧的 AES-256-GCM 备份仍然需要原来的 `primary.key`。
 
 程序位置：`tools/xedc-recover`。
 
