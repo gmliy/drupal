@@ -55,6 +55,9 @@ def fixture(root: Path) -> None:
         encoding="utf-8",
     )
     (root / "db.sql").write_text("CREATE TABLE example (id INT);\n", encoding="utf-8")
+    tool = root / "web/tool.sh"
+    tool.write_text("#!/bin/sh\necho ok\n", encoding="utf-8")
+    tool.chmod(0o755)
 
 
 def config_for(root: Path, backup_root: Path, key: Path) -> dict:
@@ -148,6 +151,8 @@ class BackupRestoreTests(unittest.TestCase):
             self.assertIn("new-db-pass", settings)
             self.assertIn("salt-value-not-real", settings)
             self.assertIn("^lab\\.test$", settings)
+            self.assertTrue(os.access(target / "code/web/tool.sh", os.X_OK))
+            self.assertEqual((target / "code/web/sites/default/settings.php").stat().st_mode & 0o777, 0o440)
             with self.assertRaises(ProductionGuard):
                 restore_backup(config, second["id"], "/var/www/drupal", role="replacement", yes=True)
 
@@ -256,6 +261,34 @@ $settings['trusted_host_patterns'] = [
         self.assertIn("'^lab\\.test$'", rewritten)
         self.assertIn("'^www\\.example\\.com$'", rewritten)
         self.assertNotIn("^old\\.example$", rewritten)
+
+    def test_resume_skips_completed_database_step(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            source = root / "src"
+            backups = root / "backups"
+            fixture(source)
+            key = write_key(root / "key.json")
+            config = config_for(source, backups, Path(key["path"]))
+            backup_id = "xedc-resume-audit"
+            real_encrypt = encrypt_file
+            calls = {"n": 0}
+
+            def interrupt(source_path, destination, key_bytes, key_id):
+                calls["n"] += 1
+                if calls["n"] == 2:
+                    raise BackupError("模拟备份在文件阶段中断")
+                return real_encrypt(source_path, destination, key_bytes, key_id)
+
+            with patch("xedc_recover.backup.encrypt_file", side_effect=interrupt):
+                with self.assertRaises(BackupError):
+                    create_backup(config, backup_id=backup_id)
+            state = json.loads((backups / backup_id / "state.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["steps"]["database"]["status"], "done")
+            self.assertNotIn("files", state["steps"])
+            resumed = create_backup(config, resume=True, backup_id=backup_id)
+            self.assertEqual(resumed["id"], backup_id)
+            self.assertEqual(verify_backup(config, backup_id)["status"], "PASS")
 
     def test_prune_keeps_incremental_parent(self):
         with tempfile.TemporaryDirectory() as raw:

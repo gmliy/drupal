@@ -89,6 +89,31 @@ manifest 中的计数：users 11，node 94，file_managed 273。校验输出和 
 
 这些修复之后才记录上面的连续两轮 PASS。
 
+## 2026-11-03 15:08Z 最终测试审计
+
+这次审计重新执行了测试，没有沿用上一份报告里的结论。日志在 `/var/lib/xedc-recover/audit/`，不进入 Git。
+
+| 项目 | 命令与日志 | 时间 (UTC) | 状态 |
+| --- | --- | --- | --- |
+| 隔离容器 | `docker run` ubuntu:24.04，非特权，内存 3 GiB，端口 `127.0.0.1:18080`，三份只读挂载。`container-inspect.txt` | 15:10 | PASS |
+| 单元与实验室，修复前 | `python3 -m unittest tests.test_core tests.test_lab`。`unit-round1.log`、`unit-round2.log`，各 18 项 OK | 15:11:04–15:11:09 | PASS |
+| 全新恢复，修复前第 1 轮 | `docker exec xedc-recover-drill bash /tool/lab/drill.sh xedc-20261103T135450Z-3cd3bf`。`drill-round1.log`，退出码 0，`DRILL_OK` | 15:10:56–15:15:05 | PASS |
+| Drush 可执行位 | `vendor/bin/drush` 被恢复程序改成 `644`，直接执行返回 126。根因是权限整理把归档里的可执行位清掉了 | 15:16 | FIXED |
+| 单元与实验室，修复后连续两轮 | `unit-fixed-round1.log` 18 项、2.169s；`unit-fixed-round2.log` 18 项、1.925s。两份都是 OK | 15:17:15–15:17:19 | PASS |
+| 全新恢复，修复后第 1 轮 | `drill-fixed-round1.log`，`DRILL_OK`，退出码 0 | 15:17:01–15:19:22 | PASS |
+| 全新恢复，修复后第 2 轮 | `drill-fixed-round2.log`，`DRILL_OK`，退出码 0 | 15:20:20–15:22:44 | PASS |
+| 备份校验 | `xedc-recover backup verify --backup-id xedc-20261103T135450Z-3cd3bf`。`verify.log` 为 PASS | 15:23:13–15:23:17 | PASS |
+
+修复后的两轮演练都检查了这些结果：
+
+- Drush 13.8.0 以 `755` 直接运行，`status` 显示 Drupal 11.4.11、数据库 Connected、主题 `xedc` / `xedc_admin`、私有目录 `/srv/xedc/private`。
+- 一次性登录进入 uid 1 的账户页，HTTP 200，页面含管理工具栏。匿名访问 `/admin` 返回 403。
+- 首页、`/user/login`、`/meinv`、`/bizhi/1`、视频页 `/videos/shipinlanmuziduandeceshineirong` 和一张 public PNG 都是 200。
+- 数据库计数：users 11，node 94，file_managed 273，user__roles 2。
+- 域名迁移、S3 分段上传下载恢复、AWS 签名向量、SSL 自签、错误配置回滚、断点续跑，都包含在上面两轮 18 项测试里。
+
+生产 `settings.php`、Nginx 配置和 `/root/backup.sh` 的修改时间在审计结束后仍分别是 2026-11-02 09:33、2026-11-01 14:31 和 2026-11-02 22:50 UTC。演练容器已删除。
+
 ## 未通过项
 
 | 项目 | 状态 | 原因 |

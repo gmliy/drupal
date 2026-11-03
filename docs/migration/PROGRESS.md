@@ -2,7 +2,7 @@
 
 工作树：`/opt/xedc-migration`，分支 `feature/migration-v2`。生产仓库 `/var/www/drupal` 仍在 `main`，原有未提交修改没有被移动或清理。
 
-最后更新：2026-11-03。
+最后更新：2026-11-03 15:23 UTC。最终审计日志在 `/var/lib/xedc-recover/audit/`。
 
 | 阶段 | 状态 |
 | --- | --- |
@@ -17,9 +17,10 @@
 | 凭据命令 | 生产主机上重置管理员被拒绝 |
 | 定时任务 | 渲染到临时目录 PASS。生产 systemd 安装被拒绝 |
 | 生产只读加密备份 | PASS。`xedc-20261103T135450Z-3cd3bf`，verify PASS |
-| 全新容器恢复演练 | PASS。连续两轮 `DRILL_OK`，首页和登录页 200 |
-| 连续两轮关键测试 | PASS。单元 17 项两轮，演练两轮 |
-| 文档 | 完成。见 TEST_REPORT.md 和 SECURITY_REVIEW.md |
-| Git 推送 | 本提交只包含工具和文档，推送到 `feature/migration-v2`。不合并 main，不部署 |
+| 断点续跑 | 修复后的两轮单元测试包含中断后继续，结果 PASS |
+| 全新容器恢复演练 | PASS。修复可执行位之后连续两轮 `DRILL_OK`，Drush 和管理页已检查 |
+| 连续两轮关键测试 | PASS。见 TEST_REPORT.md 的 15:17–15:22 记录 |
+| 文档 | 审计结果已写入 TEST_REPORT.md、KNOWN_ISSUES.md、SECURITY_REVIEW.md |
+| Git 推送 | 审计修复和报告更新后推送 `feature/migration-v2`。不合并 main，不部署 |
 
 中断后续跑时：先读 `docs/MIGRATION_MASTER_SPEC.md` 和本文件。不要在 `/var/www/drupal` 里切分支。不要删除 `/var/lib/xedc-recover`。不要把密钥、备份或生产数据提交到 Git。

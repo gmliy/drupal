@@ -40,6 +40,14 @@
 
 新文档和工具代码里没有生产数据库口令，也没有 GitHub 个人访问令牌。
 
+## 2026-11-03 最终审计
+
+再次确认生产 `settings.php`、`/etc/nginx/conf.d/drupal.conf` 和 `/root/backup.sh` 的修改时间没有变化。新的演练容器仍是非特权、无 docker.sock、无 host 网络，只读挂载密钥、工具和备份，端口只绑定 `127.0.0.1:18080`。审计结束后容器已删除。
+
+恢复程序原先把所有普通文件改成 `644`，Drush 启动脚本因此不能执行。现已保留归档中的可执行位，`settings.php` 仍是 `440`。该修复有隔离测试，并在随后两轮全新恢复里确认 `vendor/bin/drush` 为 `755`。
+
+正式 R2 上传和正式证书申请仍然没有执行。审计日志位于 `/var/lib/xedc-recover/audit/`，里面没有写入 Git。
+
 ## 仍须人工保管
 
 - `/var/lib/xedc-recover/keys/primary.key` 不进入 Git。丢失后已有备份无法解密。
