@@ -1,0 +1,44 @@
+view xedc tag center:
+  title: '查看智能标签管理中心'
+  description: '查看标签总览、列表、未使用标签和操作记录。'
+  restrict access: true
+
+manage xedc tags:
+  title: '管理标签建议'
+  description: '忽略重复建议和未使用建议。不能删除标签，也不能执行合并。'
+  restrict access: true
+
+view xedc tag analysis:
+  title: '查看标签分析'
+  description: '查看重复检测、关联分析、推荐、健康检查和 SEO 建议。'
+  restrict access: true
+
+run xedc tag analysis:
+  title: '运行标签分析'
+  description: '排队健康检查、SEO 扫描、推荐扫描和 AI 分析任务。'
+  restrict access: true
+
+manage xedc tag aliases:
+  title: '管理标签别名'
+  description: '新增、停用和删除标签同义词别名。不会自动改内容。'
+  restrict access: true
+
+merge xedc tags:
+  title: '执行标签合并'
+  description: '把来源标签的内容引用迁到目标标签。不会自动删除来源标签。'
+  restrict access: true
+
+apply xedc tag recommendations:
+  title: '批量修改内容标签'
+  description: '在人工确认后，把推荐标签添加到已有内容。不会删除原标签。'
+  restrict access: true
+
+manage xedc tag seo:
+  title: '管理标签 SEO 建议'
+  description: '查看并记录标签 SEO 建议。不会自动批量改索引状态。'
+  restrict access: true
+
+delete xedc tags:
+  title: '删除标签'
+  description: '在单独确认并且没有任何引用时删除一个标签。'
+  restrict access: true

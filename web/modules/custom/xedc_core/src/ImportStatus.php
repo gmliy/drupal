@@ -73,7 +73,7 @@ final class ImportStatus {
    * Chinese label for a status id.
    */
   public static function label(string $status): string {
-    return self::labels()[$status] ?? $status;
+    return self::labels()[$status] ?? '未知状态';
   }
 
   /**
@@ -118,18 +118,34 @@ final class ImportStatus {
    */
   public static function labels(): array {
     return [
-      self::QUEUED => '等待处理',
-      self::UPLOADING => '正在接收文件',
-      self::VALIDATING => '验证压缩包',
-      self::EXTRACTING => '解压',
-      self::SCANNING => '扫描图片',
-      self::CONVERTING => '转换图片',
-      self::IMPORTING => '导入图片',
-      self::VERIFYING => '数据校验',
-      self::COMPLETED => '完成',
+      'pending' => '等待上传',
+      'open' => '等待上传',
+      self::QUEUED => '排队等待处理',
+      self::UPLOADING => '正在上传',
+      'uploaded' => '上传完成',
+      'merging' => '正在合并文件',
+      'processing' => '正在处理',
+      self::VALIDATING => '正在校验',
+      'hashing' => '正在校验',
+      self::EXTRACTING => '正在解压',
+      self::SCANNING => '正在处理',
+      self::CONVERTING => '正在处理',
+      'optimizing' => '正在处理',
+      'storing' => '正在处理',
+      self::IMPORTING => '正在导入',
+      'retrying' => '正在重试',
+      'paused' => '已暂停',
+      'interrupted' => '上传中断',
+      'expired' => '已过期',
+      self::VERIFYING => '正在校验',
+      self::COMPLETED => '已完成',
+      'success' => '成功',
+      'duplicate' => '文件已存在，已复用',
+      'skipped' => '已跳过',
       self::PARTIAL => '部分失败',
       self::FAILED => '失败',
       self::CANCELLED => '已取消',
+      'canceled' => '已取消',
       self::REVIEW => '待审核',
       self::PUBLISHED => '已发布',
     ];
@@ -144,7 +160,7 @@ final class ImportStatus {
   public static function filters(): array {
     return [
       'all' => '全部任务',
-      'queued' => '等待处理',
+      'queued' => '排队等待处理',
       'processing' => '正在处理',
       'review' => '导入完成待审核',
       'failed' => '处理失败',

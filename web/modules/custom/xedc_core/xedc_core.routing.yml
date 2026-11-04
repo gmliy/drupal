@@ -54,6 +54,19 @@ xedc_core.upload_sessions:
     _admin_route: TRUE
     no_cache: TRUE
 
+xedc_core.upload_probe:
+  path: '/admin/content/image-imports/upload/probe'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::probe'
+  methods: [POST]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _csrf_request_header_token: 'TRUE'
+    _user_is_logged_in: 'TRUE'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
 xedc_core.upload_session_create:
   path: '/admin/content/image-imports/upload/session'
   defaults:
@@ -157,6 +170,18 @@ xedc_core.import_progress:
     parameters:
       task:
         type: integer
+
+xedc_core.import_sync:
+  path: '/admin/content/image-imports/sync'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\ImportController::sync'
+  methods: [GET]
+  requirements:
+    _permission: 'import photo archives+administer xedc image imports'
+    _user_is_logged_in: 'TRUE'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
 
 xedc_core.import_publish:
   path: '/admin/content/image-imports/{task}/publish'

@@ -8,9 +8,9 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Queue\QueueFactory;
-use Drupal\Core\StringTranslation\ByteSizeMarkup;
 use Drupal\Core\Url;
 use Drupal\xedc_core\Image\ImageOptimizeRepository;
+use Drupal\xedc_core\Ops\Storage\StorageSizeFormatter;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -56,7 +56,7 @@ final class ImageOptimizeForm extends FormBase {
       '#attributes' => ['class' => ['xedc-opt-summary']],
       '#items' => [
         $this->t('成功 @count', ['@count' => $success]),
-        $this->t('累计节省 @bytes', ['@bytes' => ByteSizeMarkup::create($saved)]),
+        $this->t('累计节省 @bytes', ['@bytes' => StorageSizeFormatter::formatBytes($saved)]),
         $this->t('平均节省 @ratio%', ['@ratio' => $this->ratio($summary)]),
         $this->t('失败 @count', ['@count' => (int) ($summary['failed'] ?? 0)]),
         $this->t('排队 @count', ['@count' => (int) ($summary['queued'] ?? 0)]),
@@ -101,9 +101,9 @@ final class ImageOptimizeForm extends FormBase {
           '#type' => 'table',
           '#rows' => [
             [$this->t('文件'), $detail['filename'] . ' #' . $detail['fid']],
-            [$this->t('原始'), $detail['source_mime'] . ' / ' . ByteSizeMarkup::create((int) $detail['source_bytes'])],
-            [$this->t('结果'), $detail['stored_mime'] . ' / ' . ByteSizeMarkup::create((int) $detail['stored_bytes'])],
-            [$this->t('节省'), ByteSizeMarkup::create($savedBytes) . ' / ' . $ratio],
+            [$this->t('原始'), $detail['source_mime'] . ' / ' . StorageSizeFormatter::formatBytes((int) $detail['source_bytes'])],
+            [$this->t('结果'), $detail['stored_mime'] . ' / ' . StorageSizeFormatter::formatBytes((int) $detail['stored_bytes'])],
+            [$this->t('节省'), StorageSizeFormatter::formatBytes($savedBytes) . ' / ' . $ratio],
             [$this->t('尺寸'), $detail['width'] . '×' . $detail['height']],
             [$this->t('耗时'), $detail['elapsed_ms'] . ' ms'],
             [$this->t('R2'), (string) $detail['r2_status']],
@@ -160,9 +160,9 @@ final class ImageOptimizeForm extends FormBase {
       $link = Link::fromTextAndUrl((string) $row['filename'], Url::fromRoute('xedc_core.image_optimize', [], ['query' => ['task' => (int) $row['id']]]))->toString();
       $options[$row['id']] = [
         'file' => $link . ' #' . $row['fid'],
-        'source' => $row['source_mime'] . ' ' . ByteSizeMarkup::create((int) $row['source_bytes']),
-        'stored' => $row['stored_mime'] . ' ' . ByteSizeMarkup::create((int) $row['stored_bytes']),
-        'saved' => ByteSizeMarkup::create($savedBytes),
+        'source' => $row['source_mime'] . ' ' . StorageSizeFormatter::formatBytes((int) $row['source_bytes']),
+        'stored' => $row['stored_mime'] . ' ' . StorageSizeFormatter::formatBytes((int) $row['stored_bytes']),
+        'saved' => StorageSizeFormatter::formatBytes($savedBytes),
         'ratio' => $ratio,
         'size' => $row['width'] . '×' . $row['height'],
         'time' => $row['elapsed_ms'] . ' ms',

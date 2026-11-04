@@ -1,0 +1,198 @@
+<?php
+
+/**
+ * @file
+ * Tables for tag review decisions, merge snapshots and the audit log.
+ */
+
+declare(strict_types=1);
+
+use Drupal\user\Entity\Role;
+
+/**
+ * Implements hook_schema().
+ */
+function xedc_tags_schema(): array {
+  return [
+    'xedc_tag_audit' => [
+      'description' => 'Tag center audit log. It does not replace taxonomy terms.',
+      'fields' => [
+        'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+        'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'op' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+        'tid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'message' => ['type' => 'text', 'not null' => FALSE],
+        'context' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+        'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      ],
+      'primary key' => ['id'],
+      'indexes' => [
+        'created' => ['created'],
+        'tid' => ['tid'],
+        'op' => ['op'],
+      ],
+    ],
+    'xedc_tag_decision' => [
+      'description' => 'Editor decisions for duplicate, unused and recommendation suggestions.',
+      'fields' => [
+        'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+        'kind' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+        'subject' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+        'decision' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+        'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'note' => ['type' => 'text', 'not null' => FALSE],
+        'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      ],
+      'primary key' => ['id'],
+      'unique keys' => [
+        'kind_subject' => ['kind', 'subject'],
+      ],
+    ],
+    'xedc_tag_merge' => [
+      'description' => 'Tag merge attempts and the field snapshot used for rollback.',
+      'fields' => [
+        'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+        'sources' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+        'target_tid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+        'moved' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'skipped' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'message' => ['type' => 'text', 'not null' => FALSE],
+        'snapshot' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+        'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      ],
+      'primary key' => ['id'],
+      'indexes' => [
+        'target' => ['target_tid'],
+        'status' => ['status'],
+      ],
+    ],
+    'xedc_tag_alias' => [
+      'description' => 'Synonym and history aliases that map to an existing tags term.',
+      'fields' => [
+        'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+        'tid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'alias' => ['type' => 'varchar', 'length' => 191, 'not null' => TRUE, 'default' => ''],
+        'normalized' => ['type' => 'varchar', 'length' => 191, 'not null' => TRUE, 'default' => ''],
+        'type' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'synonym'],
+        'status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'active'],
+        'source' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => 'manual'],
+        'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      ],
+      'primary key' => ['id'],
+      'unique keys' => [
+        'normalized' => ['normalized'],
+      ],
+      'indexes' => [
+        'tid' => ['tid'],
+        'status' => ['status'],
+      ],
+    ],
+    'xedc_tag_ai_suggestion' => [
+      'description' => 'Validated AI suggestions awaiting human review.',
+      'fields' => [
+        'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+        'source_tid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'target_tid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'suggestion_type' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+        'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'pending'],
+        'payload' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+        'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      ],
+      'primary key' => ['id'],
+      'indexes' => [
+        'source' => ['source_tid'],
+        'status' => ['status'],
+      ],
+    ],
+    'xedc_tag_task' => [
+      'description' => 'Background tag analysis tasks.',
+      'fields' => [
+        'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+        'type' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+        'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'pending'],
+        'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'total' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'processed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'success' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'failed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'message' => ['type' => 'text', 'not null' => FALSE],
+        'options' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+        'result' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+        'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'started' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'finished' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      ],
+      'primary key' => ['id'],
+      'indexes' => [
+        'type_status' => ['type', 'status'],
+        'status' => ['status'],
+      ],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_install().
+ */
+function xedc_tags_install(): void {
+  xedc_tags_ensure_tables();
+  xedc_tags_grant_editor();
+}
+
+/**
+ * Creates the tag-center tables and grants the editor role.
+ */
+function xedc_tags_update_8001(): string {
+  xedc_tags_ensure_tables();
+  xedc_tags_grant_editor();
+  return '智能标签管理中心的记录表已就绪。';
+}
+
+/**
+ * Adds alias, AI suggestion and task tables.
+ */
+function xedc_tags_update_8002(): string {
+  xedc_tags_ensure_tables();
+  xedc_tags_grant_editor();
+  return '标签别名、AI 建议与分析任务表已就绪。';
+}
+
+/**
+ * Creates any missing tag-center tables.
+ */
+function xedc_tags_ensure_tables(): void {
+  $schema = xedc_tags_schema();
+  $database = \Drupal::database();
+  foreach ($schema as $name => $table) {
+    if (!$database->schema()->tableExists($name)) {
+      $database->schema()->createTable($name, $table);
+    }
+  }
+}
+
+/**
+ * Gives the content editor the non-destructive tag permissions.
+ */
+function xedc_tags_grant_editor(): void {
+  $role = Role::load('content_editor');
+  if (!$role) {
+    return;
+  }
+  foreach ([
+    'view xedc tag center',
+    'manage xedc tags',
+    'view xedc tag analysis',
+    'apply xedc tag recommendations',
+    'manage xedc tag aliases',
+  ] as $permission) {
+    $role->grantPermission($permission);
+  }
+  $role->save();
+}

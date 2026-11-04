@@ -3,3 +3,58 @@ services:
     class: Drupal\xedc_tags\Routing\RouteSubscriber
     tags:
       - { name: event_subscriber }
+
+  xedc_tags.catalog:
+    class: Drupal\xedc_tags\TagCatalog
+    arguments: ['@database', '@entity_type.manager', '@cache.default', '@language_manager']
+
+  xedc_tags.audit:
+    class: Drupal\xedc_tags\TagAudit
+    arguments: ['@database', '@current_user', '@datetime.time']
+
+  xedc_tags.guard:
+    class: Drupal\xedc_tags\TagGuard
+    arguments: ['@entity_type.manager', '@database', '@entity_field.manager']
+
+  xedc_tags.duplicates:
+    class: Drupal\xedc_tags\TagDuplicateDetector
+    arguments: ['@xedc_tags.catalog', '@xedc_tags.audit']
+
+  xedc_tags.health:
+    class: Drupal\xedc_tags\TagHealthInspector
+    arguments: ['@xedc_tags.catalog', '@xedc_tags.duplicates', '@xedc_tags.audit']
+
+  xedc_tags.relations:
+    class: Drupal\xedc_tags\TagRelations
+    arguments: ['@database', '@xedc_tags.catalog', '@cache.default', '@language_manager']
+
+  xedc_tags.merger:
+    class: Drupal\xedc_tags\TagMerger
+    arguments: ['@entity_type.manager', '@database', '@xedc_tags.catalog', '@xedc_tags.guard', '@xedc_tags.audit', '@cache_tags.invalidator']
+
+  xedc_tags.aliases:
+    class: Drupal\xedc_tags\TagAliasManager
+    arguments: ['@database', '@xedc_tags.catalog', '@xedc_tags.audit', '@current_user', '@datetime.time']
+
+  xedc_tags.suggestions:
+    class: Drupal\xedc_tags\RuleSuggestionProvider
+
+  xedc_tags.recommender:
+    class: Drupal\xedc_tags\TagRecommender
+    arguments: ['@xedc_tags.suggestions', '@xedc_tags.relations', '@xedc_tags.catalog', '@xedc_tags.audit', '@entity_type.manager']
+
+  xedc_tags.seo:
+    class: Drupal\xedc_tags\TagSeoInspector
+    arguments: ['@xedc_tags.catalog', '@xedc_tags.duplicates', '@xedc_tags.audit', '@config.factory', '@database']
+
+  xedc_tags.ai:
+    class: Drupal\xedc_tags\TagAiAnalyzer
+    arguments: ['@xedc_tags.catalog', '@xedc_tags.audit', '@module_handler', '@logger.factory']
+
+  xedc_tags.tasks:
+    class: Drupal\xedc_tags\TagTaskManager
+    arguments: ['@database', '@queue', '@xedc_tags.audit', '@current_user', '@datetime.time']
+
+  xedc_tags.listing:
+    class: Drupal\xedc_tags\TagListing
+    arguments: ['@database', '@entity_type.manager', '@entity.repository', '@xedc_tags.catalog', '@xedc_tags.relations', '@xedc_tags.audit', '@xedc_core.video_cards', '@file_url_generator', '@date.formatter', '@pager.manager', '@request_stack']

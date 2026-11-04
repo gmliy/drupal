@@ -55,6 +55,7 @@ final class UploadSessionManager {
     protected ImageBatchIntake $images,
     protected TaskRepository $tasks,
     protected ImportKick $kick,
+    protected FileFingerprint $fingerprints,
   ) {}
 
   /**
@@ -63,15 +64,23 @@ final class UploadSessionManager {
    */
   public function open(array $payload): array {
     $account = $this->currentUser->getAccount();
-    if ((int) $account->id() < 1 || !$this->canUpload($account)) {
+    if ((int) $account->id() < 1) {
       return $this->result(403, $this->fail('没有上传权限。'));
     }
     if (!$this->ready()) {
       return $this->result(500, $this->fail('私有文件目录不可用，上传会话没有创建。'));
     }
     $kind = (string) ($payload['kind'] ?? '');
-    if (!in_array($kind, ['image', 'archive'], TRUE)) {
+    if (!in_array($kind, ['image', 'archive', 'quick'], TRUE)) {
       return $this->result(400, $this->fail('上传类型无效。'));
+    }
+    if ($kind === 'quick') {
+      if (!$account->hasPermission('administer nodes')) {
+        return $this->result(403, $this->fail('没有上传权限。'));
+      }
+    }
+    elseif (!$this->canUpload($account)) {
+      return $this->result(403, $this->fail('没有上传权限。'));
     }
     $filename = $this->safeName((string) ($payload['filename'] ?? ''));
     if ($filename === '') {
@@ -88,6 +97,9 @@ final class UploadSessionManager {
     }
     $limits = $this->limits($account);
     $max = $kind === 'archive' ? $limits['archive'] : $limits['image'];
+    if ($kind === 'quick') {
+      $max = min($max, 25 * 1024 * 1024);
+    }
     if ($size > $max) {
       return $this->result(400, $this->fail('文件超过当前账号的大小限制。'));
     }
@@ -99,6 +111,11 @@ final class UploadSessionManager {
     if ($fileSha !== '' && !preg_match('/^[a-f0-9]{64}$/', $fileSha)) {
       return $this->result(400, $this->fail('文件 SHA256 格式无效。'));
     }
+    $clientId = strtolower(trim((string) ($payload['client_upload_id'] ?? '')));
+    if ($clientId !== '' && !preg_match('/^[a-f0-9]{32}$/', $clientId)) {
+      return $this->result(400, $this->fail('上传标识无效。'));
+    }
+    $reimport = !empty($payload['reimport']) ? 1 : 0;
     $nid = max(0, (int) ($payload['nid'] ?? 0));
     $title = mb_substr(trim((string) ($payload['title'] ?? '')), 0, 255);
     if ($kind === 'image' && $nid < 1) {
@@ -106,6 +123,14 @@ final class UploadSessionManager {
     }
     if ($kind === 'archive' && $nid < 1 && $title === '') {
       return $this->result(400, $this->fail('请先填写标题。'));
+    }
+    $same = $this->sameClientSession((int) $account->id(), $clientId);
+    if ($same) {
+      $sameName = (string) $same->filename === $filename && (int) $same->total_bytes === $size && hash_equals((string) $same->head_sha256, $head);
+      if (!$sameName) {
+        return $this->result(409, $this->fail('这个上传标识已经用于另一个文件。'));
+      }
+      return $this->result(200, $this->present($same) + ['resumed' => TRUE, 'message' => '已恢复同一次上传，没有新建会话。']);
     }
     if ($nid > 0 && !$this->editablePhoto($nid, $account) instanceof NodeInterface) {
       return $this->result(403, $this->fail('找不到可编辑的图片内容。'));
@@ -134,13 +159,13 @@ final class UploadSessionManager {
     if (!$this->pathIsUploadTree($directory)) {
       return $this->result(500, $this->fail('上传目录位置不正确，会话没有创建。'));
     }
-    $this->database->insert('xedc_upload_session')->fields([
+    $fields = [
       'session_id' => $sessionId,
       'uid' => (int) $account->id(),
       'filename' => $filename,
       'mime' => mb_substr(trim((string) ($payload['mime'] ?? '')), 0, 128),
       'kind' => $kind,
-      'tier' => $limits['tier'],
+      'tier' => $kind === 'quick' ? 'admin' : $limits['tier'],
       'total_bytes' => $size,
       'chunk_bytes' => $chunkBytes,
       'chunk_count' => $count,
@@ -156,7 +181,12 @@ final class UploadSessionManager {
       'error' => '',
       'created' => $now,
       'changed' => $now,
-    ])->execute();
+    ];
+    if ($this->database->schema()->fieldExists('xedc_upload_session', 'client_upload_id')) {
+      $fields['client_upload_id'] = $clientId;
+      $fields['reimport'] = $reimport;
+    }
+    $this->database->insert('xedc_upload_session')->fields($fields)->execute();
     $row = $this->load($sessionId);
     return $this->result(201, $this->present($row));
   }
@@ -166,7 +196,7 @@ final class UploadSessionManager {
    */
   public function list(): array {
     $account = $this->currentUser->getAccount();
-    if ((int) $account->id() < 1 || !$this->canUpload($account)) {
+    if ((int) $account->id() < 1 || (!$this->canUpload($account) && !$account->hasPermission('administer nodes'))) {
       return $this->result(403, $this->fail('没有上传权限。'));
     }
     if (!$this->database->schema()->tableExists('xedc_upload_session')) {
@@ -370,9 +400,11 @@ final class UploadSessionManager {
         'changed' => $this->now(),
       ]);
       $row = $this->load($sessionId) ?: $row;
-      $handed = (string) $row->kind === 'archive'
-        ? $this->handoffArchive($row, (string) $merged['path'])
-        : $this->handoffImage($row, (string) $merged['path']);
+      $handed = match ((string) $row->kind) {
+        'archive' => $this->handoffArchive($row, (string) $merged['path']),
+        'quick' => $this->handoffQuick($row, (string) $merged['path']),
+        default => $this->handoffImage($row, (string) $merged['path']),
+      };
       if (empty($handed['ok'])) {
         $status = !empty($handed['task_id']) ? 'completed' : ((int) ($handed['http'] ?? 422) === 422 ? 'failed' : 'uploading');
         $this->update($sessionId, [
@@ -384,9 +416,18 @@ final class UploadSessionManager {
         $fresh = $this->load($sessionId) ?: $row;
         return $this->result((int) ($handed['http'] ?? 422), array_merge($this->present($fresh), $this->fail((string) ($handed['error'] ?? '导入任务没有创建。'))));
       }
-      $this->rememberTask($row, (int) $handed['task_id'], (string) ($handed['final_uri'] ?? ''));
+      $this->rememberTask($row, (int) ($handed['task_id'] ?? 0), (string) ($handed['final_uri'] ?? ''));
       $this->deleteUploadTree($row);
-      return $this->result(200, $this->taskPayload($this->load($sessionId) ?: $row, (string) ($handed['message'] ?? '上传已完成。')));
+      $done = $this->taskPayload($this->load($sessionId) ?: $row, (string) ($handed['message'] ?? '上传已完成。'));
+      foreach (['mid', 'dup', 'original_bytes', 'optimized_bytes', 'fid', 'reused'] as $extra) {
+        if (array_key_exists($extra, $handed)) {
+          $done[$extra] = $handed[$extra];
+        }
+      }
+      if (!empty($handed['phase'])) {
+        $done['phase'] = (string) $handed['phase'];
+      }
+      return $this->result(200, $done);
     }
     catch (\Throwable $e) {
       $this->logger->error('上传会话合并失败 @id：@message', [
@@ -926,14 +967,11 @@ final class UploadSessionManager {
       $sha = is_string($hashed) ? $hashed : '';
     }
     $duplicate = $sha !== '' ? $this->tasks->findByArchiveHash($sha) : NULL;
-    if ($duplicate) {
-      return [
-        'ok' => TRUE,
-        'task_id' => (int) $duplicate->id,
-        'final_uri' => (string) $duplicate->archive_uri,
-        'message' => '相同压缩包已有任务，没有重复创建。',
-        'nid' => (int) $duplicate->nid,
-      ];
+    if ($duplicate && !(int) ($session->reimport ?? 0)) {
+      $decision = $this->archiveDecision($duplicate, $session, $path);
+      if ($decision !== NULL) {
+        return $decision;
+      }
     }
     $directory = 'private://xedc-import/inbox';
     if (!$this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS)) {
@@ -1129,6 +1167,9 @@ final class UploadSessionManager {
       'sha_status' => (string) $session->sha_status,
       'head_sha256' => (string) $session->head_sha256,
       'file_sha256' => (string) $session->file_sha256,
+      'client_upload_id' => (string) ($session->client_upload_id ?? ''),
+      'reimport' => (int) ($session->reimport ?? 0),
+      'expires' => (int) $session->changed + $this->ttl(),
       'task_id' => (int) $session->task_id,
       'nid' => (int) $session->nid,
       'error' => (string) $session->error,
@@ -1285,6 +1326,354 @@ final class UploadSessionManager {
       }
     }
     return $count;
+  }
+
+  /**
+   * Asks whether a file is already stored. Does not accept a file id from the client.
+   *
+   * @param array<string, mixed> $payload
+   * @return array{http: int, data: array<string, mixed>}
+   */
+  public function probe(array $payload): array {
+    $account = $this->currentUser->getAccount();
+    $kind = (string) ($payload['kind'] ?? '');
+    if ((int) $account->id() < 1) {
+      return $this->result(403, $this->fail('没有上传权限。'));
+    }
+    if ($kind === 'quick') {
+      if (!$account->hasPermission('administer nodes')) {
+        return $this->result(403, $this->fail('没有上传权限。'));
+      }
+    }
+    elseif (!$this->canUpload($account)) {
+      return $this->result(403, $this->fail('没有上传权限。'));
+    }
+    if (!in_array($kind, ['image', 'archive', 'quick'], TRUE)) {
+      return $this->result(400, $this->fail('上传类型无效。'));
+    }
+    $sha = strtolower(trim((string) ($payload['sha256'] ?? $payload['file_sha256'] ?? '')));
+    if (!preg_match('/^[a-f0-9]{64}$/', $sha)) {
+      return $this->result(400, $this->fail('文件 SHA256 格式无效。'));
+    }
+    $size = max(0, (int) ($payload['size'] ?? 0));
+    if ($kind === 'archive') {
+      return $this->probeArchive($payload, $sha, $size);
+    }
+    $found = $this->fingerprints->findImage($sha, $size);
+    if (empty($found['reusable']) || !$found['file'] instanceof FileInterface) {
+      return $this->result(200, [
+        'ok' => TRUE,
+        'reusable' => FALSE,
+        'upload' => TRUE,
+        'reason' => (string) ($found['reason'] ?? 'not_found'),
+      ]);
+    }
+    $admin = $account->hasPermission('administer xedc image imports') || $account->hasPermission('administer nodes');
+    $base = [
+      'ok' => TRUE,
+      'reusable' => TRUE,
+      'upload' => FALSE,
+      'phase' => 'duplicate',
+      'message' => '文件已存在，已复用。',
+      'bytes' => (int) ($found['file']->getSize() ?: $found['bytes']),
+      'fid' => $admin ? (int) $found['fid'] : 0,
+    ];
+    if (empty($payload['apply']) || $kind === 'quick') {
+      return $this->result(200, $base);
+    }
+    $nid = max(0, (int) ($payload['nid'] ?? 0));
+    $node = $nid > 0 ? $this->editablePhoto($nid, $account) : FALSE;
+    if (!$node instanceof NodeInterface) {
+      return $this->result(403, $this->fail('找不到可编辑的图片内容。'));
+    }
+    $clientId = strtolower(trim((string) ($payload['client_upload_id'] ?? '')));
+    if ($clientId !== '' && !preg_match('/^[a-f0-9]{32}$/', $clientId)) {
+      return $this->result(400, $this->fail('上传标识无效。'));
+    }
+    $token = $clientId !== '' ? $clientId : bin2hex(random_bytes(16));
+    $saved = $this->images->addReused($node, (int) $found['fid'], $this->safeName((string) ($payload['filename'] ?? 'image.jpg')), $token, $sha, $size);
+    if (empty($saved['ok'])) {
+      return $this->result(422, $this->fail((string) ($saved['error'] ?? '复用没有写入投稿。')));
+    }
+    return $this->result(200, $base + $saved + [
+      'reusable' => TRUE,
+      'upload' => FALSE,
+      'phase' => 'duplicate',
+      'message' => '文件已存在，已复用。',
+    ]);
+  }
+
+  /**
+   * The open session created by this browser gesture, if it is still active.
+   */
+  private function sameClientSession(int $uid, string $clientId): ?object {
+    if ($uid < 1 || !preg_match('/^[a-f0-9]{32}$/', $clientId) || !$this->database->schema()->fieldExists('xedc_upload_session', 'client_upload_id')) {
+      return NULL;
+    }
+    $id = $this->database->select('xedc_upload_session', 's')
+      ->fields('s', ['session_id'])
+      ->condition('uid', $uid)
+      ->condition('client_upload_id', $clientId)
+      ->condition('status', ['cancelled', 'expired'], 'NOT IN')
+      ->orderBy('changed', 'DESC')
+      ->range(0, 1)
+      ->execute()
+      ->fetchField();
+    if (!is_string($id) || $id === '') {
+      return NULL;
+    }
+    $row = $this->load($id);
+    return ($row && (int) $row->uid === $uid) ? $row : NULL;
+  }
+
+  /**
+   * @param array<string, mixed> $payload
+   * @return array{http: int, data: array<string, mixed>}
+   */
+  private function probeArchive(array $payload, string $sha, int $size): array {
+    $account = $this->currentUser->getAccount();
+    $reimport = !empty($payload['reimport']);
+    $task = $this->tasks->findByArchiveHash($sha);
+    if (!$task || $reimport) {
+      return $this->result(200, ['ok' => TRUE, 'reusable' => FALSE, 'upload' => TRUE, 'reason' => $task ? 'reimport' : 'not_found']);
+    }
+    $owner = (int) $task->uid === (int) $account->id();
+    $admin = $account->hasPermission('administer xedc image imports');
+    $status = (string) $task->status;
+    $success = in_array($status, [ImportStatus::REVIEW, ImportStatus::PUBLISHED, ImportStatus::COMPLETED], TRUE);
+    $failed = in_array($status, [ImportStatus::FAILED, ImportStatus::PARTIAL], TRUE);
+    if (($owner || $admin) && $success) {
+      return $this->result(200, $this->archiveSummary($task, '相同压缩包已有任务，没有重复上传或解压。', TRUE));
+    }
+    if (($owner || $admin) && $failed && $this->archive->exists((string) $task->archive_uri)) {
+      if (!empty($payload['apply'])) {
+        try {
+          $this->processor->retry((int) $task->id);
+        }
+        catch (ImportException $e) {
+          return $this->result(422, $this->fail($e->getMessage()));
+        }
+      }
+      return $this->result(200, $this->archiveSummary($task, '已恢复原导入任务，没有创建第二个任务。', TRUE));
+    }
+    if (($owner || $admin) && !$success && !$failed) {
+      return $this->result(200, $this->archiveSummary($task, '原导入任务仍在处理，没有创建第二个任务。', TRUE));
+    }
+    if ($success && !empty($payload['apply'])) {
+      $cloned = $this->cloneArchive($task, $payload, $sha, $size);
+      if ($cloned !== NULL) {
+        return $cloned;
+      }
+    }
+    if ($success) {
+      return $this->result(200, [
+        'ok' => TRUE,
+        'reusable' => TRUE,
+        'upload' => FALSE,
+        'phase' => 'duplicate',
+        'message' => '文件已存在，已复用。',
+      ]);
+    }
+    return $this->result(200, ['ok' => TRUE, 'reusable' => FALSE, 'upload' => TRUE, 'reason' => 'not_found']);
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function archiveSummary(object $task, string $message, bool $visible): array {
+    $data = [
+      'ok' => TRUE,
+      'reusable' => TRUE,
+      'upload' => FALSE,
+      'phase' => 'duplicate',
+      'message' => $message,
+      'reused' => (int) ($task->success_count ?? 0),
+      'skipped' => (int) ($task->skipped_count ?? 0),
+      'failed' => (int) ($task->failed_count ?? 0),
+      'success' => (int) ($task->success_count ?? 0),
+    ];
+    if ($visible) {
+      $data['task_id'] = (int) $task->id;
+      $data['nid'] = (int) $task->nid;
+      $data['status'] = (string) $task->status;
+      $data['label'] = ImportStatus::label((string) $task->status);
+    }
+    return $data;
+  }
+
+  /**
+   * Gives the current user their own content rows for an archive someone else imported.
+   *
+   * @param array<string, mixed> $payload
+   * @return array{http: int, data: array<string, mixed>}|null
+   *   NULL when the images are not healthy enough to skip extraction.
+   */
+  private function cloneArchive(object $source, array $payload, string $sha, int $size): ?array {
+    $clientId = strtolower(trim((string) ($payload['client_upload_id'] ?? '')));
+    if ($clientId !== '' && !preg_match('/^[a-f0-9]{32}$/', $clientId)) {
+      return $this->result(400, $this->fail('上传标识无效。'));
+    }
+    $token = $clientId !== '' ? $clientId : '';
+    if ($token !== '') {
+      $existing = $this->tasks->findByUploadToken($token);
+      if ($existing && (int) $existing->uid === (int) $this->currentUser->id()) {
+        return $this->result(200, $this->archiveSummary($existing, '这次投稿已经创建，没有重复创建。', TRUE));
+      }
+    }
+    $session = (object) [
+      'nid' => max(0, (int) ($payload['nid'] ?? 0)),
+      'title' => mb_substr(trim((string) ($payload['title'] ?? '')), 0, 255),
+      'uid' => (int) $this->currentUser->id(),
+    ];
+    $node = $this->resolveNode($session);
+    if (!$node instanceof NodeInterface) {
+      return $this->result(403, $this->fail('没有可编辑的图片内容。'));
+    }
+    $usable = [];
+    foreach ($this->tasks->items((int) $source->id) as $item) {
+      if (!in_array((string) $item->status, ['success', 'duplicate'], TRUE)) {
+        continue;
+      }
+      $sourceSha = strtolower((string) ($item->source_sha256 ?? ''));
+      if ((int) $item->fid < 1 || !preg_match('/^[a-f0-9]{64}$/', $sourceSha)) {
+        continue;
+      }
+      $found = $this->fingerprints->findImage($sourceSha, (int) ($item->original_bytes ?? 0));
+      if (empty($found['reusable'])) {
+        continue;
+      }
+      $usable[] = [$item, $sourceSha, (int) $found['fid']];
+    }
+    if (!$usable) {
+      return NULL;
+    }
+    $id = $this->tasks->create([
+      'nid' => (int) $node->id(),
+      'uid' => (int) $this->currentUser->id(),
+      'mode' => 'append',
+      'status' => ImportStatus::QUEUED,
+      'stage' => ImportStatus::QUEUED,
+      'source' => 'images',
+      'message' => '文件已存在，正在写入本次投稿',
+      'archive_sha256' => $sha,
+      'archive_bytes' => $size,
+      'archive_name' => $this->safeName((string) ($payload['filename'] ?? '')),
+      'upload_token' => $token,
+    ]);
+    $index = 0;
+    foreach ($usable as [$item, $sourceSha, $fid]) {
+      $index++;
+      $itemToken = $token !== '' ? substr($token . sprintf('%08x', $index), 0, 64) : bin2hex(random_bytes(16));
+      $this->images->stageReused($id, $fid, (string) $item->original_name, $itemToken, $sourceSha, (int) ($item->original_bytes ?? $item->bytes ?? 0));
+    }
+    $this->images->queueExisting($id);
+    $created = $this->tasks->load($id);
+    return $this->result(200, $this->archiveSummary($created ?: $source, '文件已存在，已复用。正在为本次投稿创建内容记录。', TRUE) + [
+      'task_id' => $id,
+      'nid' => (int) $node->id(),
+      'phase' => 'duplicate',
+    ]);
+  }
+
+  /**
+   * @return array<string, mixed>|null
+   *   A finished decision, or NULL when a new import task must be created.
+   */
+  private function archiveDecision(object $duplicate, object $session, string $path): ?array {
+    $account = $this->currentUser->getAccount();
+    $owner = (int) $duplicate->uid === (int) $account->id();
+    $admin = $account->hasPermission('administer xedc image imports');
+    $status = (string) $duplicate->status;
+    $success = in_array($status, [ImportStatus::REVIEW, ImportStatus::PUBLISHED, ImportStatus::COMPLETED], TRUE);
+    $failed = in_array($status, [ImportStatus::FAILED, ImportStatus::PARTIAL], TRUE);
+    if (!$owner && !$admin) {
+      $cloned = $this->cloneArchive($duplicate, [
+        'nid' => (int) $session->nid,
+        'title' => (string) $session->title,
+        'filename' => (string) $session->filename,
+        'client_upload_id' => (string) ($session->client_upload_id ?? ''),
+        'apply' => TRUE,
+      ], (string) $session->file_sha256, (int) $session->total_bytes);
+      if (is_array($cloned) && ($cloned['http'] ?? 500) < 300) {
+        return [
+          'ok' => TRUE,
+          'task_id' => (int) ($cloned['data']['task_id'] ?? 0),
+          'nid' => (int) ($cloned['data']['nid'] ?? 0),
+          'message' => (string) ($cloned['data']['message'] ?? '文件已存在，已复用。'),
+          'phase' => 'duplicate',
+          'reused' => 1,
+        ];
+      }
+      return NULL;
+    }
+    if ($success || (!$failed && $status !== ImportStatus::CANCELLED)) {
+      return [
+        'ok' => TRUE,
+        'task_id' => (int) $duplicate->id,
+        'final_uri' => (string) $duplicate->archive_uri,
+        'nid' => (int) $duplicate->nid,
+        'message' => $success ? '相同压缩包已有任务，没有重复上传或解压。' : '原导入任务仍在处理，没有创建第二个任务。',
+        'phase' => $success ? 'duplicate' : 'processing',
+        'reused' => 1,
+      ];
+    }
+    if ($failed && $this->archive->exists((string) $duplicate->archive_uri)) {
+      try {
+        $this->processor->retry((int) $duplicate->id);
+      }
+      catch (ImportException $e) {
+        return ['ok' => FALSE, 'http' => 422, 'error' => $e->getMessage()];
+      }
+      return [
+        'ok' => TRUE,
+        'task_id' => (int) $duplicate->id,
+        'nid' => (int) $duplicate->nid,
+        'message' => '已恢复原导入任务，没有创建第二个任务。',
+        'phase' => 'retrying',
+      ];
+    }
+    return NULL;
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function handoffQuick(object $session, string $path): array {
+    if (!\Drupal::hasService('xedc_quick.intake')) {
+      return ['ok' => FALSE, 'http' => 500, 'error' => '快速发布不可用，没有保存文件。'];
+    }
+    try {
+      $saved = \Drupal::service('xedc_quick.intake')->storePath(
+        $path,
+        (string) $session->filename,
+        (string) ($session->title !== '' ? $session->title : 'gallery'),
+        1,
+        (int) $session->total_bytes,
+      );
+    }
+    catch (\Throwable $e) {
+      $this->logger->error('快速发布保存失败：@message', ['@message' => $e->getMessage()]);
+      return ['ok' => FALSE, 'http' => 500, 'error' => '快速发布没有保存文件。'];
+    }
+    if (empty($saved['ok'])) {
+      return [
+        'ok' => FALSE,
+        'http' => (int) ($saved['http'] ?? 422),
+        'error' => (string) ($saved['error'] ?? '快速发布没有保存文件。'),
+      ];
+    }
+    return [
+      'ok' => TRUE,
+      'task_id' => 0,
+      'mid' => (int) ($saved['mid'] ?? 0),
+      'dup' => !empty($saved['dup']),
+      'fid' => (int) ($saved['fid'] ?? 0),
+      'original_bytes' => (int) ($saved['original_bytes'] ?? 0),
+      'optimized_bytes' => (int) ($saved['optimized_bytes'] ?? 0),
+      'phase' => !empty($saved['dup']) ? 'duplicate' : 'completed',
+      'message' => !empty($saved['dup']) ? '文件已存在，已复用。' : '图片已保存。',
+      'reused' => !empty($saved['dup']) ? 1 : 0,
+    ];
   }
 
   private function sweepPartials(string $dir): void {

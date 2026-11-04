@@ -2,6 +2,162 @@ xedc_tags.index:
   path: '/tags'
   defaults:
     _controller: '\Drupal\xedc_tags\Controller\TagsController::index'
-    _title: '全部标签'
+    _title: '探索标签'
   requirements:
     _permission: 'access content'
+
+xedc_tags.admin_overview:
+  path: '/admin/content/tags'
+  defaults:
+    _controller: '\Drupal\xedc_tags\Controller\AdminController::overview'
+    _title: '标签总览'
+  requirements:
+    _permission: 'view xedc tag center'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_list:
+  path: '/admin/content/tags/list'
+  defaults:
+    _form: '\Drupal\xedc_tags\Form\ListActionForm'
+    _title: '标签列表'
+  requirements:
+    _permission: 'view xedc tag center'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_duplicates:
+  path: '/admin/content/tags/duplicates'
+  defaults:
+    _form: '\Drupal\xedc_tags\Form\DuplicateActionForm'
+    _title: '重复标签检测'
+  requirements:
+    _permission: 'view xedc tag analysis'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_merge:
+  path: '/admin/content/tags/merge'
+  defaults:
+    _form: '\Drupal\xedc_tags\Form\MergeForm'
+    _title: '标签合并'
+  requirements:
+    _permission: 'merge xedc tags'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_unused:
+  path: '/admin/content/tags/unused'
+  defaults:
+    _form: '\Drupal\xedc_tags\Form\UnusedActionForm'
+    _title: '未使用标签'
+  requirements:
+    _permission: 'view xedc tag center'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_recommend:
+  path: '/admin/content/tags/recommend'
+  defaults:
+    _form: '\Drupal\xedc_tags\Form\RecommendForm'
+    _title: '标签智能推荐'
+  requirements:
+    _permission: 'view xedc tag analysis'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_relations:
+  path: '/admin/content/tags/relations'
+  defaults:
+    _controller: '\Drupal\xedc_tags\Controller\AdminController::relations'
+    _title: '标签关联分析'
+  requirements:
+    _permission: 'view xedc tag analysis'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_seo:
+  path: '/admin/content/tags/seo'
+  defaults:
+    _controller: '\Drupal\xedc_tags\Controller\AdminController::seo'
+    _title: '标签 SEO 检查'
+  requirements:
+    _permission: 'view xedc tag analysis'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_history:
+  path: '/admin/content/tags/history'
+  defaults:
+    _controller: '\Drupal\xedc_tags\Controller\AdminController::history'
+    _title: '标签操作记录'
+  requirements:
+    _permission: 'view xedc tag center'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_health:
+  path: '/admin/content/tags/health'
+  defaults:
+    _form: '\Drupal\xedc_tags\Form\HealthForm'
+    _title: '标签健康检查'
+  requirements:
+    _permission: 'view xedc tag analysis'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_aliases:
+  path: '/admin/content/tags/aliases'
+  defaults:
+    _form: '\Drupal\xedc_tags\Form\AliasForm'
+    _title: '标签别名管理'
+  requirements:
+    _permission: 'manage xedc tag aliases'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_ai:
+  path: '/admin/content/tags/ai'
+  defaults:
+    _form: '\Drupal\xedc_tags\Form\AiAnalyzeForm'
+    _title: 'AI 标签分析'
+  requirements:
+    _permission: 'view xedc tag analysis'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_tasks:
+  path: '/admin/content/tags/tasks'
+  defaults:
+    _form: '\Drupal\xedc_tags\Form\TaskForm'
+    _title: '标签分析任务'
+  requirements:
+    _permission: 'run xedc tag analysis'
+  options:
+    _admin_route: TRUE
+
+xedc_tags.admin_term:
+  path: '/admin/content/tags/term/{taxonomy_term}'
+  defaults:
+    _controller: '\Drupal\xedc_tags\Controller\AdminController::term'
+    _title_callback: '\Drupal\xedc_tags\Controller\AdminController::termTitle'
+  requirements:
+    _custom_access: '\Drupal\xedc_tags\Access\TagAdminAccess::term'
+  options:
+    _admin_route: TRUE
+    parameters:
+      taxonomy_term:
+        type: entity:taxonomy_term
+
+xedc_tags.admin_delete:
+  path: '/admin/content/tags/term/{taxonomy_term}/delete'
+  defaults:
+    _form: '\Drupal\xedc_tags\Form\DeleteTermForm'
+    _title: '删除标签'
+  requirements:
+    _custom_access: '\Drupal\xedc_tags\Access\TagAdminAccess::delete'
+  options:
+    _admin_route: TRUE
+    parameters:
+      taxonomy_term:
+        type: entity:taxonomy_term

@@ -2,3 +2,7 @@ services:
   xedc_quick.store:
     class: Drupal\xedc_quick\QuickStore
     arguments: ['@database', '@state']
+
+  xedc_quick.intake:
+    class: Drupal\xedc_quick\QuickIntake
+    arguments: ['@xedc_quick.store']

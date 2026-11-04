@@ -28,6 +28,16 @@ final class UploadSessionController extends ControllerBase {
     );
   }
 
+  public function probe(Request $request): JsonResponse {
+    return $this->respond(function () use ($request): array {
+      $payload = json_decode($request->getContent(), TRUE);
+      if (!is_array($payload)) {
+        return ['http' => 400, 'data' => ['ok' => FALSE, 'error' => '请求不是 JSON。', 'message' => '请求不是 JSON。']];
+      }
+      return $this->uploads->probe($payload);
+    });
+  }
+
   public function createSession(Request $request): JsonResponse {
     return $this->respond(function () use ($request): array {
       $payload = json_decode($request->getContent(), TRUE);

@@ -909,3 +909,127 @@ function xedc_core_update_10015(): string {
   }
   return $created ? '已创建断点续传表：' . implode(', ', $created) . '。' : '断点续传表已存在，未改动。';
 }
+
+/**
+ * Adds the client upload identity and the physical-object claim.
+ *
+ * Existing files, media and import rows are not rewritten.
+ */
+function xedc_core_update_10016(): string {
+  $schema = \Drupal::database()->schema();
+  $tables = \Drupal\xedc_core\Upload\UploadSchema::tables();
+  $added = [];
+  if ($schema->tableExists('xedc_upload_session')) {
+    foreach (['client_upload_id', 'reimport'] as $field) {
+      if ($schema->fieldExists('xedc_upload_session', $field) || !isset($tables['xedc_upload_session']['fields'][$field])) {
+        continue;
+      }
+      $schema->addField('xedc_upload_session', $field, $tables['xedc_upload_session']['fields'][$field]);
+      $added[] = 'xedc_upload_session.' . $field;
+    }
+    if (!$schema->indexExists('xedc_upload_session', 'uid_client')) {
+      $schema->addIndex('xedc_upload_session', 'uid_client', ['uid', 'client_upload_id'], $tables['xedc_upload_session']);
+      $added[] = 'xedc_upload_session.uid_client';
+    }
+  }
+  if (!$schema->tableExists('xedc_blob_claim') && isset($tables['xedc_blob_claim'])) {
+    $schema->createTable('xedc_blob_claim', $tables['xedc_blob_claim']);
+    $added[] = 'xedc_blob_claim';
+  }
+  return $added ? '已增加上传去重结构：' . implode(', ', $added) . '。没有改动已有文件。' : '上传去重结构已存在，未改动已有文件。';
+}
+
+/**
+ * Backfills original_bytes only from verified sources. Never invents sizes.
+ *
+ * Sources, in order: existing image_file value (skip), optimize.source_bytes,
+ * import_item.original_bytes, quick_orig.bytes, identical source/stored hash.
+ */
+function xedc_core_update_10017(): string {
+  $database = \Drupal::database();
+  $schema = $database->schema();
+  if (!$schema->tableExists('xedc_image_file') || !$schema->fieldExists('xedc_image_file', 'original_bytes')) {
+    return '没有原图大小字段，跳过回填。';
+  }
+  $missing = (int) $database->query('SELECT COUNT(*) FROM {xedc_image_file} WHERE original_bytes = 0')->fetchField();
+  $fixed = 0;
+
+  if ($schema->tableExists('xedc_image_optimize')) {
+    $rows = $database->query("SELECT f.fid, o.source_bytes
+      FROM {xedc_image_file} f
+      INNER JOIN {xedc_image_optimize} o ON o.fid = f.fid
+      INNER JOIN (
+        SELECT fid, MAX(id) AS id FROM {xedc_image_optimize}
+        WHERE status = 'success' AND source_bytes > 0 GROUP BY fid
+      ) latest ON latest.id = o.id
+      WHERE f.original_bytes = 0 AND o.source_bytes > 0")->fetchAll();
+    foreach ($rows as $row) {
+      $fixed += (int) $database->update('xedc_image_file')
+        ->fields(['original_bytes' => (int) $row->source_bytes])
+        ->condition('fid', (int) $row->fid)
+        ->condition('original_bytes', 0)
+        ->execute();
+    }
+  }
+
+  if ($schema->tableExists('xedc_import_item') && $schema->fieldExists('xedc_import_item', 'original_bytes') && $schema->tableExists('media__field_media_image')) {
+    $rows = $database->query("SELECT f.fid, MAX(i.original_bytes) AS original_bytes
+      FROM {xedc_image_file} f
+      INNER JOIN {media__field_media_image} m ON m.field_media_image_target_id = f.fid
+      INNER JOIN {xedc_import_item} i ON i.mid = m.entity_id AND i.original_bytes > 0 AND i.mid > 0
+      WHERE f.original_bytes = 0
+      GROUP BY f.fid")->fetchAll();
+    foreach ($rows as $row) {
+      $fixed += (int) $database->update('xedc_image_file')
+        ->fields(['original_bytes' => (int) $row->original_bytes])
+        ->condition('fid', (int) $row->fid)
+        ->condition('original_bytes', 0)
+        ->execute();
+    }
+  }
+
+  if ($schema->tableExists('xedc_quick_orig') && $schema->tableExists('media__field_media_image')) {
+    $rows = $database->query("SELECT f.fid, MAX(q.bytes) AS bytes
+      FROM {xedc_image_file} f
+      INNER JOIN {media__field_media_image} m ON m.field_media_image_target_id = f.fid
+      INNER JOIN {xedc_quick_orig} q ON q.mid = m.entity_id AND q.bytes > 0
+      WHERE f.original_bytes = 0
+      GROUP BY f.fid")->fetchAll();
+    foreach ($rows as $row) {
+      $fixed += (int) $database->update('xedc_image_file')
+        ->fields(['original_bytes' => (int) $row->bytes])
+        ->condition('fid', (int) $row->fid)
+        ->condition('original_bytes', 0)
+        ->execute();
+    }
+  }
+
+  $rows = $database->query("SELECT fid, bytes FROM {xedc_image_file}
+    WHERE original_bytes = 0
+      AND bytes > 0
+      AND source_sha256 <> ''
+      AND stored_sha256 <> ''
+      AND source_sha256 = stored_sha256")->fetchAll();
+  foreach ($rows as $row) {
+    $fields = ['original_bytes' => (int) $row->bytes];
+    $current = $database->select('xedc_image_file', 'f')
+      ->fields('f', ['optimized_bytes', 'optimization_status'])
+      ->condition('fid', (int) $row->fid)
+      ->execute()
+      ->fetchAssoc();
+    if (is_array($current) && (int) ($current['optimized_bytes'] ?? 0) < 1) {
+      $fields['optimized_bytes'] = (int) $row->bytes;
+    }
+    if (is_array($current) && ($current['optimization_status'] ?? '') === '') {
+      $fields['optimization_status'] = 'success';
+    }
+    $fixed += (int) $database->update('xedc_image_file')
+      ->fields($fields)
+      ->condition('fid', (int) $row->fid)
+      ->condition('original_bytes', 0)
+      ->execute();
+  }
+
+  $still = (int) $database->query('SELECT COUNT(*) FROM {xedc_image_file} WHERE original_bytes = 0')->fetchField();
+  return '原图大小回填：开始缺失 ' . $missing . '，本次可靠恢复 ' . $fixed . '，仍缺失 ' . $still . '。没有伪造大小。';
+}

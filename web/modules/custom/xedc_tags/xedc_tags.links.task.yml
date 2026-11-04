@@ -1,0 +1,77 @@
+xedc_tags.admin_overview_tab:
+  title: '总览'
+  route_name: xedc_tags.admin_overview
+  base_route: xedc_tags.admin_overview
+  weight: 0
+
+xedc_tags.admin_list_tab:
+  title: '列表'
+  route_name: xedc_tags.admin_list
+  base_route: xedc_tags.admin_overview
+  weight: 1
+
+xedc_tags.admin_health_tab:
+  title: '健康'
+  route_name: xedc_tags.admin_health
+  base_route: xedc_tags.admin_overview
+  weight: 2
+
+xedc_tags.admin_duplicates_tab:
+  title: '重复'
+  route_name: xedc_tags.admin_duplicates
+  base_route: xedc_tags.admin_overview
+  weight: 3
+
+xedc_tags.admin_merge_tab:
+  title: '合并'
+  route_name: xedc_tags.admin_merge
+  base_route: xedc_tags.admin_overview
+  weight: 4
+
+xedc_tags.admin_aliases_tab:
+  title: '别名'
+  route_name: xedc_tags.admin_aliases
+  base_route: xedc_tags.admin_overview
+  weight: 5
+
+xedc_tags.admin_recommend_tab:
+  title: '推荐'
+  route_name: xedc_tags.admin_recommend
+  base_route: xedc_tags.admin_overview
+  weight: 6
+
+xedc_tags.admin_relations_tab:
+  title: '关联'
+  route_name: xedc_tags.admin_relations
+  base_route: xedc_tags.admin_overview
+  weight: 7
+
+xedc_tags.admin_seo_tab:
+  title: 'SEO'
+  route_name: xedc_tags.admin_seo
+  base_route: xedc_tags.admin_overview
+  weight: 8
+
+xedc_tags.admin_ai_tab:
+  title: 'AI'
+  route_name: xedc_tags.admin_ai
+  base_route: xedc_tags.admin_overview
+  weight: 9
+
+xedc_tags.admin_tasks_tab:
+  title: '任务'
+  route_name: xedc_tags.admin_tasks
+  base_route: xedc_tags.admin_overview
+  weight: 10
+
+xedc_tags.admin_unused_tab:
+  title: '未使用'
+  route_name: xedc_tags.admin_unused
+  base_route: xedc_tags.admin_overview
+  weight: 11
+
+xedc_tags.admin_history_tab:
+  title: '记录'
+  route_name: xedc_tags.admin_history
+  base_route: xedc_tags.admin_overview
+  weight: 12

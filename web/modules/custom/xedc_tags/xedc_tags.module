@@ -10,10 +10,16 @@ function xedc_tags_theme() {
     'xedc_tags_term' => [
       'variables' => [
         'term_name' => '',
+        'description' => '',
         'total' => 0,
-        'items' => [],
+        'counts' => [],
+        'filters' => [],
+        'groups' => [],
         'sort' => 'new',
-        'sort_urls' => [],
+        'sorts' => [],
+        'related' => [],
+        'notice' => '',
+        'notice_url' => '',
         'index_url' => '',
         'home_url' => '',
       ],
@@ -22,11 +28,26 @@ function xedc_tags_theme() {
     'xedc_tags_index' => [
       'variables' => [
         'tags' => [],
+        'popular' => [],
+        'newest' => [],
         'total_tags' => 0,
         'total_items' => 0,
+        'q' => '',
+        'sort' => 'count',
+        'type' => '',
+        'types' => [],
+        'sorts' => [],
+        'clear_url' => '',
+        'index_url' => '',
         'home_url' => '',
       ],
       'template' => 'xedc-tags-index',
+    ],
+    'xedc_tags_metrics' => [
+      'variables' => [
+        'items' => [],
+      ],
+      'template' => 'xedc-tags-metrics',
     ],
   ];
 }

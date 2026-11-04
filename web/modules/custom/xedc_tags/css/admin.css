@@ -1,0 +1,81 @@
+.xt-admin {
+  color: var(--xedc-admin-foreground);
+  max-width: 1120px;
+}
+
+.xt-admin-kicker {
+  margin: 0 0 8px;
+  color: var(--xedc-admin-muted);
+  font-size: 13px;
+}
+
+.xt-admin-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0 24px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--xedc-admin-border);
+}
+
+.xt-admin-metrics a {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--xedc-admin-border);
+  color: inherit;
+  text-decoration: none;
+}
+
+.xt-admin-metrics a:hover,
+.xt-admin-metrics a:focus-visible {
+  color: var(--xedc-admin-link);
+}
+
+.xt-admin-metrics strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.xt-admin-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.xt-admin-chip {
+  display: inline-block;
+  margin: 0 8px 8px 0;
+}
+
+.xt-admin table {
+  width: 100%;
+}
+
+.xt-admin .form-item {
+  margin-right: 12px;
+}
+
+.xt-admin .form-actions,
+.xt-admin details {
+  margin-top: 12px;
+}
+
+.xt-admin .button,
+.xt-admin .button--primary {
+  margin-right: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .gin--dark-mode .xt-admin,
+  [data-gin-color-scheme="dark"] .xt-admin {
+    color: inherit;
+  }
+}
+
+@media (max-width: 640px) {
+  .xt-admin-metrics {
+    grid-template-columns: 1fr;
+  }
+}

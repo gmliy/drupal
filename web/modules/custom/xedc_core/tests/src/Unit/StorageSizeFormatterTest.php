@@ -22,6 +22,8 @@ final class StorageSizeFormatterTest extends TestCase {
       1023 => '1023 B',
       1024 => '1.00 KiB',
       1024 * 1024 => '1.00 MiB',
+      26880000 => '25.63 MiB',
+      1024 ** 3 => '1.00 GiB',
       163198 => '159.37 KiB',
       39380312064 => '36.68 GiB',
       1024 ** 4 => '1.00 TiB',

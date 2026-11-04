@@ -206,8 +206,9 @@ function xedc_home_metatags_alter(array &$metatags, array &$context): void {
       $metatags['og_description'] = $metatags['description'];
     }
     elseif ($route === 'xedc_tags.index') {
-      $metatags['title'] = t('全部标签') . ' | DcLili';
-      $metatags['description'] = (string) t('DcLili 标签目录，按标签浏览美图、文章与视频。');
+      $metatags['title'] = t('探索标签') . ' | DcLili';
+      $metatags['og_title'] = $metatags['title'];
+      $metatags['description'] = (string) t('通过标签发现感兴趣的图片、视频与文章。');
       $metatags['og_description'] = $metatags['description'];
     }
     elseif ($route === 'view.image_gallery.page_1') {

@@ -7,3 +7,6 @@ app:
   dependencies:
     - core/drupal
     - core/once
+    - core/drupalSettings
+    - xedc_core/upload_manager
+    - xedc_core/upload_panel

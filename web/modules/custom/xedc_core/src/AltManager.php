@@ -9,9 +9,14 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\node\NodeInterface;
 
 /**
- * Generates per-image ALT text and remembers manual edits.
+ * Generates image ALT as model name + work title and remembers manual edits.
  */
 class AltManager {
+
+  /**
+   * Soft cap for generated ALT text in Chinese characters / code points.
+   */
+  private const MAX_LENGTH = 60;
 
   public function __construct(
     protected Connection $database,
@@ -19,32 +24,84 @@ class AltManager {
   ) {}
 
   /**
-   * ALT text: title plus a 1-based sequence.
+   * Builds ALT from a photo node: model names then work title.
    */
-  public function format(string $title, int $sequence, int $total): string {
-    unset($total);
-    return $this->cleanTitle($title) . '_第' . max(1, $sequence) . '张图';
+  public function forNode(NodeInterface $node): string {
+    return $this->compose($this->modelsFromNode($node), (string) $node->label());
   }
 
   /**
-   * ALT for a cover that is not part of the gallery sequence.
+   * Builds ALT from raw model label(s) and work title.
+   *
+   * @param string|string[] $models
+   *   One model name or ordered list of model names.
    */
-  public function cover(string $title): string {
-    return $this->cleanTitle($title) . '_封面';
+  public function compose(string|array $models, string $title): string {
+    $modelText = $this->modelsText($models);
+    $titleText = $this->cleanPart($title);
+    if ($modelText === '' && $titleText === '') {
+      return '';
+    }
+    if ($modelText === '') {
+      return $this->limit($titleText, self::MAX_LENGTH);
+    }
+    if ($titleText === '') {
+      return $this->limit($modelText, self::MAX_LENGTH);
+    }
+    // Avoid "小雪小雪夏日" when the title already starts with the model name.
+    if ($titleText === $modelText || str_starts_with($titleText, $modelText)) {
+      return $this->limit($titleText, self::MAX_LENGTH);
+    }
+    $remain = self::MAX_LENGTH - mb_strlen($modelText);
+    if ($remain < 1) {
+      return $this->limit($modelText, self::MAX_LENGTH);
+    }
+    return $modelText . $this->limit($titleText, $remain);
+  }
+
+  /**
+   * Legacy entry used by older callers. Sequence is ignored; models optional.
+   *
+   * @param string|string[] $models
+   *   Optional model name(s). When omitted, only the title is used.
+   */
+  public function format(string $title, int $sequence = 0, int $total = 0, string|array $models = ''): string {
+    unset($sequence, $total);
+    return $this->compose($models, $title);
+  }
+
+  /**
+   * Cover ALT uses the same model + title rule.
+   */
+  public function cover(string $title, string|array $models = ''): string {
+    return $this->compose($models, $title);
   }
 
   /**
    * Readable title with control characters and markup removed.
+   *
+   * Empty input stays empty. Callers that need a non-empty fallback must
+   * decide separately; ALT generation does not invent placeholder text.
    */
   public function cleanTitle(string $title): string {
-    $title = preg_replace('/[\x00-\x1F\x7F]+/u', '', $title) ?? $title;
-    $title = str_replace(['<', '>', '"', "'", '\\'], '', $title);
-    $title = preg_replace('/\s+/u', ' ', trim($title)) ?? '';
-    $title = trim($title, " ._");
-    if ($title === '') {
-      return '图片';
+    return $this->cleanPart($title);
+  }
+
+  /**
+   * Model labels from field_model in field order, without duplicates.
+   */
+  public function modelsFromNode(NodeInterface $node): string {
+    if (!$node->hasField('field_model') || $node->get('field_model')->isEmpty()) {
+      return '';
     }
-    return mb_substr($title, 0, 180);
+    $names = [];
+    foreach ($node->get('field_model')->referencedEntities() as $term) {
+      $name = $this->cleanPart((string) $term->label());
+      if ($name !== '' && !in_array($name, $names, TRUE)) {
+        $names[] = $name;
+      }
+    }
+    return implode('', $names);
   }
 
   /**
@@ -78,7 +135,7 @@ class AltManager {
   }
 
   /**
-   * Rewrites automatic ALT text from the current title and image order.
+   * Rewrites automatic ALT text from the current models and title.
    *
    * Manual ALT values are left untouched.
    */
@@ -103,17 +160,33 @@ class AltManager {
       ->fetchAllKeyed();
     $medias = $this->entityTypeManager->getStorage('media')->loadMultiple($mids);
     $shared = $this->sharedMedia($mids, (int) $node->id());
-    $total = count($mids);
+    $alt = $this->forNode($node);
     $updated = 0;
-    foreach ($mids as $delta => $mid) {
-      if (($sources[$mid] ?? '') !== 'auto' || isset($shared[$mid])) {
+    foreach ($mids as $mid) {
+      if (($sources[$mid] ?? '') === 'manual' || isset($shared[$mid])) {
         continue;
       }
+      // Only rewrite rows we previously marked auto, or empty ALT with no row.
+      $source = $sources[$mid] ?? '';
       $media = $medias[$mid] ?? NULL;
       if (!$media || !$media->hasField('field_media_image') || $media->get('field_media_image')->isEmpty()) {
         continue;
       }
-      $alt = $this->format($node->label(), $delta + 1, $total);
+      $current = trim((string) $media->get('field_media_image')->alt);
+      if ($source === 'manual') {
+        continue;
+      }
+      if ($source !== 'auto' && $current !== '') {
+        // Existing unexplained ALT: treat as manual and never overwrite.
+        $this->remember($mid, $current, 'manual');
+        continue;
+      }
+      if ($alt === '' || $current === $alt) {
+        if ($alt !== '' && $source !== 'auto') {
+          $this->remember($mid, $alt, 'auto');
+        }
+        continue;
+      }
       $media->xedc_import_internal = TRUE;
       $media->get('field_media_image')->first()->set('alt', $alt);
       $media->save();
@@ -121,6 +194,38 @@ class AltManager {
       $updated++;
     }
     return $updated;
+  }
+
+  /**
+   * @param string|string[] $models
+   *   Model names.
+   */
+  private function modelsText(string|array $models): string {
+    if (is_string($models)) {
+      return $this->cleanPart($models);
+    }
+    $names = [];
+    foreach ($models as $model) {
+      $name = $this->cleanPart((string) $model);
+      if ($name !== '' && !in_array($name, $names, TRUE)) {
+        $names[] = $name;
+      }
+    }
+    return implode('', $names);
+  }
+
+  private function cleanPart(string $text): string {
+    $text = preg_replace('/[\x00-\x1F\x7F]+/u', '', $text) ?? $text;
+    $text = str_replace(['<', '>', '"', "'", '\\'], '', $text);
+    $text = preg_replace('/\s+/u', ' ', trim($text)) ?? '';
+    return trim($text, " ._");
+  }
+
+  private function limit(string $text, int $max): string {
+    if ($max < 1 || $text === '') {
+      return '';
+    }
+    return mb_strlen($text) <= $max ? $text : mb_substr($text, 0, $max);
   }
 
   /**

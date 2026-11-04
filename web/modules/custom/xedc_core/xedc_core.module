@@ -22,6 +22,51 @@ use Drupal\xedc_core\Entity\DownloadResource;
 use Drupal\xedc_core\ImportStatus;
 
 /**
+ * Implements hook_page_attachments().
+ *
+ * Attaches the shared upload manager on admin routes for users who can upload.
+ */
+function xedc_core_page_attachments(array &$attachments): void {
+  $account = \Drupal::currentUser();
+  if (!$account->isAuthenticated()) {
+    return;
+  }
+  if (!$account->hasPermission('import photo archives') && !$account->hasPermission('administer xedc image imports') && !$account->hasPermission('administer nodes')) {
+    return;
+  }
+  // Only the administration UI. Do not match frontend entity/view/xedc routes.
+  $path = \Drupal::requestStack()->getCurrentRequest()?->getPathInfo() ?? '';
+  $isAdmin = \Drupal::service('router.admin_context')->isAdminRoute() || str_starts_with($path, '/admin');
+  if (!$isAdmin) {
+    return;
+  }
+  $settings = \Drupal::config('xedc_core.settings');
+  $attachments['#attached']['library'][] = 'xedc_core/upload_manager';
+  $attachments['#attached']['library'][] = 'xedc_core/upload_panel';
+  $attachments['#attached']['drupalSettings']['xedcUpload'] = [
+    'sessionsUrl' => Url::fromRoute('xedc_core.upload_sessions')->toString(),
+    'sessionUrl' => Url::fromRoute('xedc_core.upload_session_create')->toString(),
+    'sessionBase' => Url::fromRoute('xedc_core.import_list')->toString() . '/upload/session/',
+    'probeUrl' => Url::fromRoute('xedc_core.upload_probe')->toString(),
+    'draftUrl' => Url::fromRoute('xedc_core.asset_draft')->toString(),
+    'closeUrl' => Url::fromRoute('xedc_core.asset_close')->toString(),
+    'progressBase' => Url::fromRoute('xedc_core.import_list')->toString() . '/',
+    'syncUrl' => Url::fromRoute('xedc_core.import_sync')->toString(),
+    'centerUrl' => Url::fromRoute('xedc_core.import_list')->toString(),
+    'maxArchive' => (int) $settings->get('max_archive_bytes') ?: 209715200,
+    'maxImage' => (int) $settings->get('max_image_bytes') ?: 52428800,
+    'chunkBytes' => (int) $settings->get('upload_chunk_bytes') ?: 5242880,
+    'headBytes' => 65536,
+    'concurrency' => 2,
+    'entry' => 'admin',
+    'adminOnly' => TRUE,
+  ];
+  $attachments['#cache']['contexts'][] = 'user.permissions';
+  $attachments['#cache']['contexts'][] = 'route';
+  $attachments['#cache']['contexts'][] = 'url.path';
+}
+
+/**
  * Stores the archive selection for the duration of one form submission.
  *
  * @param array<string, mixed>|null $value
@@ -68,8 +113,16 @@ function xedc_core_form_node_form_alter(array &$form, FormStateInterface $form_s
     'imageUrl' => Url::fromRoute('xedc_core.asset_image')->toString(),
     'draftUrl' => Url::fromRoute('xedc_core.asset_draft')->toString(),
     'closeUrl' => Url::fromRoute('xedc_core.asset_close')->toString(),
+    'sessionsUrl' => Url::fromRoute('xedc_core.upload_sessions')->toString(),
+    'sessionUrl' => Url::fromRoute('xedc_core.upload_session_create')->toString(),
+    'sessionBase' => Url::fromRoute('xedc_core.import_list')->toString() . '/upload/session/',
+    'probeUrl' => Url::fromRoute('xedc_core.upload_probe')->toString(),
     'progressBase' => Url::fromRoute('xedc_core.import_list')->toString() . '/',
     'maxArchive' => $limit,
+    'maxImage' => (int) \Drupal::config('xedc_core.settings')->get('max_image_bytes') ?: 52428800,
+    'chunkBytes' => (int) \Drupal::config('xedc_core.settings')->get('upload_chunk_bytes') ?: 5242880,
+    'headBytes' => 65536,
+    'concurrency' => 2,
     'nid' => (int) $node->id(),
     'titleSelector' => '#edit-title-0-value',
   ];
@@ -100,13 +153,13 @@ function xedc_core_form_node_form_alter(array &$form, FormStateInterface $form_s
   ];
   $form['xedc_import']['uploader'] = [
     '#type' => 'inline_template',
-    '#template' => '<div class="xedc-upload" data-xedc-asset-upload data-nid="{{ nid }}"><div class="xedc-upload__grid"><section><h3>ZIP / 7z</h3><label>{{ archive_label }}<input type="file" data-xedc-archive accept=".zip,.7z,application/zip,application/x-7z-compressed"></label></section><section><h3>{{ image_heading }}</h3><label>{{ image_label }}<input type="file" data-xedc-images accept="image/jpeg,image/png,image/gif,image/webp" multiple></label></section></div><p class="xedc-upload__note" data-xedc-note>{{ help }}</p><ul data-xedc-list></ul></div>',
+    '#template' => '<section class="xedc-upload" data-xedc-asset-upload data-nid="{{ nid }}"><header class="xedc-upload__head"><div><h2>上传中心</h2><p class="xedc-upload__help">{{ help }}</p></div><button type="button" data-xedc-refresh>刷新任务</button></header><div class="xedc-upload__stats" data-xedc-stats></div><div class="xedc-upload__grid"><section class="xedc-upload__drop" data-xedc-drop="archive"><h3>压缩包</h3><label class="xedc-upload__pick">{{ archive_label }}<input type="file" data-xedc-archive accept=".zip,.7z,application/zip,application/x-7z-compressed"></label></section><section class="xedc-upload__drop" data-xedc-drop="image"><h3>{{ image_heading }}</h3><label class="xedc-upload__pick">{{ image_label }}<input type="file" data-xedc-images accept="image/jpeg,image/png,image/gif,image/webp" multiple></label></section></div><p class="xedc-upload__note" data-xedc-note></p><div class="xedc-upload__queue" data-xedc-list></div></section>',
     '#context' => [
       'nid' => (int) $node->id(),
       'archive_label' => t('选择压缩包，上传后自动开始导入'),
       'image_heading' => t('普通图片'),
       'image_label' => t('选择图片，上传后后台继续优化'),
-      'help' => t('新建内容会先保存草稿。已上传成功的任务不会因为离开页面而丢失；浏览器里还没传完的文件无法由服务器恢复。'),
+      'help' => t('选择或拖入文件。相同内容会复用已有文件。中断后重新选择同一个文件，服务器只接收缺少的分块。'),
     ],
   ];
   $form['xedc_import']['help'] = [
@@ -408,8 +461,8 @@ function xedc_core_cover_alt(NodeInterface $node, string $field): void {
   if ($row === 'manual' || ($current !== '' && $row !== 'auto')) {
     return;
   }
-  $text = $alt->cover($node->label());
-  if ($current === $text) {
+  $text = $alt->forNode($node);
+  if ($text === '' || $current === $text) {
     return;
   }
   $media->xedc_import_internal = TRUE;
@@ -429,7 +482,8 @@ function xedc_core_user_presave(UserInterface $user): void {
   if (!$item || trim((string) $item->alt) !== '') {
     return;
   }
-  $item->set('alt', \Drupal::service('xedc_core.alt')->cleanTitle($user->getDisplayName()) . '_头像');
+  $name = \Drupal::service('xedc_core.alt')->cleanTitle($user->getDisplayName());
+  $item->set('alt', $name !== '' ? ($name . '_头像') : '头像');
 }
 
 /**

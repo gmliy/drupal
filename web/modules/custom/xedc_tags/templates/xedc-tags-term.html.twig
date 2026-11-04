@@ -10,31 +10,75 @@
   <header class="xt-head">
     <div>
       <h1 class="xt-title"><span class="xt-hash">#</span>{{ term_name }}</h1>
-      <p class="xt-sub">{{ '共 @count 组美图'|t({'@count': total}) }}</p>
+      {% if description %}
+        <div class="xt-desc">{{ description }}</div>
+      {% endif %}
+      <p class="xt-counts">
+        <span>{{ '已发布 @count'|t({'@count': total}) }}</span>
+        {% if counts.photo %}<span>{{ '图片 @count'|t({'@count': counts.photo}) }}</span>{% endif %}
+        {% if counts.video %}<span>{{ '视频 @count'|t({'@count': counts.video}) }}</span>{% endif %}
+        {% if counts.article %}<span>{{ '文章 @count'|t({'@count': counts.article}) }}</span>{% endif %}
+      </p>
     </div>
-    <div class="xt-seg" role="group" aria-label="{{ '排序'|t }}">
-      <a href="{{ sort_urls.new }}" class="{{ sort == 'new' ? 'is-active' }}">{{ '最新'|t }}</a>
-      <a href="{{ sort_urls.hot }}" class="{{ sort == 'hot' ? 'is-active' }}">{{ '最热'|t }}</a>
-    </div>
+    {% if sorts %}
+      <div class="xt-seg" role="group" aria-label="{{ '排序'|t }}">
+        {% for item in sorts %}
+          <a href="{{ item.url }}" class="{{ item.active ? 'is-active' }}">{{ item.label }}</a>
+        {% endfor %}
+      </div>
+    {% endif %}
   </header>
 
-  {% if items %}
-    <ul class="xt-grid">
-      {% for i in items %}
-        <li>
-          <a class="xt-card" href="{{ i.url }}">
-            <div class="xt-media">
-              {% if i.cover %}<img src="{{ i.cover }}" alt="{{ i.title }}" loading="lazy">{% endif %}
-              {% if i.cat %}<span class="xt-badge">{{ i.cat }}</span>{% endif %}
-            </div>
-            <div class="xt-body">
-              <h2 class="xt-card-title">{{ i.title }}</h2>
-            </div>
-          </a>
-        </li>
+  {% if notice and notice_url %}
+    <p class="xt-notice">{{ '这个标签上的内容已合并到'|t }} <a href="{{ notice_url }}">{{ notice }}</a>{{ '。原地址仍保留。'|t }}</p>
+  {% endif %}
+
+  {% if filters %}
+    <div class="xt-seg xt-filters" role="group" aria-label="{{ '内容类型'|t }}">
+      {% for item in filters %}
+        <a href="{{ item.url }}" class="{{ item.active ? 'is-active' }}">{{ item.label }} {{ item.count }}</a>
       {% endfor %}
-    </ul>
+    </div>
+  {% endif %}
+
+  {% if groups %}
+    {% for group in groups %}
+      <div class="xt-group">
+        {% if group.kind == 'photo' %}
+          <div class="meitu-grid">
+            {% for card in group.items %}
+              {% include '@xedc/templates/includes/meitu-card.html.twig' with card only %}
+            {% endfor %}
+          </div>
+        {% elseif group.kind == 'video' %}
+          <div class="xv-grid">
+            {% for card in group.items %}
+              <article class="vcard">
+                {% include '@xedc/templates/video/video-card.html.twig' with { card: card } only %}
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="xa"><div class="xa-list">
+            {% for card in group.items %}
+              {{ card.build }}
+            {% endfor %}
+          </div></div>
+        {% endif %}
+      </div>
+    {% endfor %}
   {% else %}
-    <div class="xt-empty">{{ '这个标签下还没有内容'|t }}</div>
+    <div class="xt-empty">{{ '这个标签下还没有已发布内容'|t }}</div>
+  {% endif %}
+
+  {% if related %}
+    <section class="xt-related-wrap" aria-label="{{ '相关标签'|t }}">
+      <h2>{{ '相关标签'|t }}</h2>
+      <ul class="xt-related">
+        {% for t in related %}
+          <li><a href="{{ t.url }}">{{ t.name }} <span>{{ t.count }}</span></a></li>
+        {% endfor %}
+      </ul>
+    </section>
   {% endif %}
 </div>

@@ -1,4 +1,4 @@
-<div class="xt xt-index" data-xt-index>
+<div class="xt xt-index">
   <nav class="xt-crumb" aria-label="{{ '面包屑'|t }}">
     <ol>
       <li><a href="{{ home_url }}">{{ '首页'|t }}</a></li>
@@ -8,38 +8,96 @@
 
   <header class="xt-head">
     <div>
-      <h1 class="xt-title">{{ '全部标签'|t }}</h1>
-      <p class="xt-sub">{{ '共 @tags 个标签，@items 组内容'|t({'@tags': total_tags, '@items': total_items}) }}</p>
+      <h1 class="xt-title">{{ '探索标签'|t }}</h1>
+      <p class="xt-sub">{{ '通过标签发现感兴趣的图片、视频与文章。'|t }}</p>
+      <p class="xt-sub">{{ '共 @tags 个有公开内容的标签，@items 篇已发布内容'|t({'@tags': total_tags, '@items': total_items}) }}</p>
     </div>
   </header>
 
-  <div class="xt-toolbar">
+  <form class="xt-toolbar" method="get" action="{{ index_url }}">
     <label class="xt-search">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input type="search" placeholder="{{ '搜索标签'|t }}" autocomplete="off" aria-label="{{ '搜索标签'|t }}">
+      <input type="search" name="q" value="{{ q }}" placeholder="{{ '搜索标签'|t }}" autocomplete="off" aria-label="{{ '搜索标签'|t }}">
     </label>
-    <div class="xt-seg" role="group" aria-label="{{ '排序'|t }}">
-      <button type="button" class="is-active" data-sort="hot">{{ '热门'|t }}</button>
-      <button type="button" data-sort="new">{{ '最新'|t }}</button>
-      <button type="button" data-sort="name">{{ '名称'|t }}</button>
+    {% if sort != 'count' %}
+      <input type="hidden" name="sort" value="{{ sort }}">
+    {% endif %}
+    {% if type %}
+      <input type="hidden" name="type" value="{{ type }}">
+    {% endif %}
+    <button type="submit">{{ '搜索'|t }}</button>
+    {% if q %}
+      <a class="xt-clear" href="{{ clear_url }}">{{ '清空'|t }}</a>
+    {% endif %}
+  </form>
+
+  {% if types %}
+    <div class="xt-seg xt-filters" role="group" aria-label="{{ '内容类型'|t }}">
+      {% for item in types %}
+        <a href="{{ item.url }}" class="{{ item.active ? 'is-active' }}">{{ item.label }}</a>
+      {% endfor %}
     </div>
+  {% endif %}
+
+  <div class="xt-seg" role="group" aria-label="{{ '排序'|t }}">
+    {% for item in sorts %}
+      <a href="{{ item.url }}" class="{{ item.active ? 'is-active' }}">{{ item.label }}</a>
+    {% endfor %}
   </div>
 
-  <ul class="xt-tags">
-    {% for t in tags %}
-      <li data-name="{{ t.name|lower }}" data-count="{{ t.count }}" data-latest="{{ t.latest }}">
-        <a class="xt-tag" href="{{ t.url }}">
-          <span class="xt-tag-row">
-            <span class="xt-tag-name"><i>#</i>{{ t.name }}</span>
-            <span class="xt-tag-count">{{ t.count }}</span>
-          </span>
-          <span class="xt-bar"><i style="width: {{ t.pct }}%"></i></span>
-        </a>
-      </li>
-    {% endfor %}
-  </ul>
+  {% if popular %}
+    <section class="xt-popular" aria-label="{{ '热门标签'|t }}">
+      <h2>{{ '热门标签'|t }}</h2>
+      <ul class="xt-tags">
+        {% for t in popular %}
+          <li>
+            <a class="xt-tag" href="{{ t.url }}">
+              <span class="xt-tag-row">
+                <span class="xt-tag-name"><i>#</i>{{ t.name }}</span>
+                <span class="xt-tag-count">{{ t.count }}</span>
+              </span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
 
-  <div class="xt-more-wrap" hidden><button type="button" class="xt-more"></button></div>
+  {% if newest %}
+    <section class="xt-popular" aria-label="{{ '最新标签'|t }}">
+      <h2>{{ '最新标签'|t }}</h2>
+      <ul class="xt-tags">
+        {% for t in newest %}
+          <li>
+            <a class="xt-tag" href="{{ t.url }}">
+              <span class="xt-tag-row">
+                <span class="xt-tag-name"><i>#</i>{{ t.name }}</span>
+                <span class="xt-tag-count">{{ t.count }}</span>
+              </span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
 
-  <div class="xt-empty" hidden>{{ '没有匹配的标签，换个关键词试试'|t }}</div>
+  <section aria-label="{{ '标签列表'|t }}">
+    <h2 class="xt-section">{{ '全部标签'|t }}</h2>
+    {% if tags %}
+      <ul class="xt-tags">
+        {% for t in tags %}
+          <li>
+            <a class="xt-tag" href="{{ t.url }}">
+              <span class="xt-tag-row">
+                <span class="xt-tag-name"><i>#</i>{{ t.name }}</span>
+                <span class="xt-tag-count">{{ t.count }}</span>
+              </span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="xt-empty">{{ '没有匹配的标签，换个关键词试试'|t }}</div>
+    {% endif %}
+  </section>
 </div>

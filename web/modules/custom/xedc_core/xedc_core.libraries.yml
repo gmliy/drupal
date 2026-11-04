@@ -13,6 +13,25 @@ admin:
     - core/drupal
     - core/once
 
+upload_manager:
+  js:
+    js/upload-manager.js: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+
+upload_panel:
+  css:
+    theme:
+      css/upload-panel.css: {}
+  js:
+    js/upload-panel.js: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+    - core/once
+    - xedc_core/upload_manager
+
 asset_upload:
   css:
     theme:
@@ -23,6 +42,8 @@ asset_upload:
     - core/drupal
     - core/drupalSettings
     - core/once
+    - xedc_core/upload_manager
+    - xedc_core/upload_panel
 
 dashboard:
   css:

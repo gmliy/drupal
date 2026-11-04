@@ -6,7 +6,7 @@ namespace Drupal\xedc_core\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Link;
-use Drupal\Core\StringTranslation\ByteSizeMarkup;
+use Drupal\xedc_core\Ops\Storage\StorageSizeFormatter;
 use Drupal\Core\Url;
 use Drupal\file\FileInterface;
 use Drupal\image\Entity\ImageStyle;
@@ -100,6 +100,42 @@ class ImportController extends ControllerBase {
   }
 
   /**
+   * Lightweight task list sync for the upload center table.
+   */
+  public function sync(): JsonResponse {
+    $account = $this->currentUser();
+    $uid = $account->hasPermission('administer xedc image imports') ? NULL : (int) $account->id();
+    $rows = $this->tasks->list('all', $uid, 40, 0, '', 'new');
+    $tasks = [];
+    foreach ($rows as $row) {
+      $done = ImportStatus::isTerminal((string) $row->status);
+      $live = trim((string) ($row->phase ?? ''));
+      $phase = ImportStatus::phase((string) $row->status, $live !== '' ? $live : (string) $row->stage);
+      $total = (int) $row->total;
+      $processed = (int) $row->processed;
+      $percent = $done ? 100 : ($total > 0 ? (int) floor($processed / $total * 100) : (int) $row->progress);
+      $tasks[] = [
+        'id' => (int) $row->id,
+        'status' => (string) $row->status,
+        'label' => $phase['label'],
+        'progress' => $percent,
+        'success' => (int) $row->success_count,
+        'failed' => (int) $row->failed_count,
+        'skipped' => (int) $row->skipped_count,
+        'detail' => $this->t('成功 @ok · 失败 @bad', [
+          '@ok' => (int) $row->success_count,
+          '@bad' => (int) $row->failed_count,
+        ])->__toString(),
+        'done' => $done,
+      ];
+    }
+    return new JsonResponse([
+      'tasks' => $tasks,
+      'updated' => time(),
+    ]);
+  }
+
+  /**
    * JSON progress for the admin page.
    */
   public function progress(int $task): JsonResponse {
@@ -113,6 +149,7 @@ class ImportController extends ControllerBase {
         'id' => (int) $item->id,
         'name' => (string) ($item->original_name ?? ''),
         'status' => (string) $item->status,
+        'label' => $this->itemLabel((string) $item->status, (int) ($item->reused ?? 0)),
         'bytes' => isset($item->original_bytes) ? (int) $item->original_bytes : 0,
         'error' => (string) ($item->error ?? ''),
       ];
@@ -121,6 +158,15 @@ class ImportController extends ControllerBase {
     $done = ImportStatus::isTerminal((string) $row->status);
     $live = trim((string) ($row->phase ?? ''));
     $phase = ImportStatus::phase((string) $row->status, $live !== '' ? $live : (string) $row->stage);
+    $reusedItems = 0;
+    foreach ($items as $item) {
+      if (($item['label'] ?? '') === '文件已存在，已复用') {
+        $reusedItems++;
+      }
+    }
+    if ($done && (string) $row->source === 'images' && $reusedItems > 0 && $reusedItems === (int) $row->success_count && (int) $row->failed_count === 0) {
+      $phase = ['id' => 'duplicate', 'label' => '文件已存在，已复用'];
+    }
     $total = (int) $row->total;
     $processed = (int) $row->processed;
     $percent = $done ? 100 : ($total > 0 ? (int) floor($processed / $total * 100) : (int) $row->progress);
@@ -239,8 +285,21 @@ class ImportController extends ControllerBase {
         '@skip' => $row->skipped_count,
       ]),
       (string) $this->t('原图总大小：@size', ['@size' => $this->originalLabel($row)]),
+      (string) $this->t('复用文件：@count 个', ['@count' => $this->reusedCount($row)]),
       (string) $this->t('方式：@mode', ['@mode' => $row->mode]),
     ];
+    $archiveSha = strtolower((string) ($row->archive_sha256 ?? ''));
+    if (preg_match('/^[a-f0-9]{64}$/', $archiveSha)) {
+      $items[] = (string) $this->t('压缩包 SHA-256：@hash', ['@hash' => $archiveSha]);
+    }
+    $session = $this->sessionForTask((int) $row->id);
+    if ($session) {
+      $items[] = (string) $this->t('上传会话：@status，已确认 @done / @total', [
+        '@status' => ImportStatus::label((string) $session->status),
+        '@done' => $this->formatBytes((int) $session->received_bytes),
+        '@total' => $this->formatBytes((int) $session->total_bytes),
+      ]);
+    }
     if (!$node) {
       $items[] = (string) $this->t('关联内容已不存在。');
       return $items;
@@ -256,6 +315,33 @@ class ImportController extends ControllerBase {
   /**
    * Formats a byte total. Zero stays zero under Chinese plural rules.
    */
+  private function reusedCount(object $row): int {
+    $count = 0;
+    foreach ($this->tasks->items((int) $row->id) as $item) {
+      if ((int) ($item->reused ?? 0) === 1 || (string) $item->status === 'duplicate') {
+        $count++;
+      }
+    }
+    return $count;
+  }
+
+  /**
+   * The upload session that created this task, when one still exists.
+   */
+  private function sessionForTask(int $taskId): ?object {
+    $schema = \Drupal::database()->schema();
+    if ($taskId < 1 || !$schema->tableExists('xedc_upload_session')) {
+      return NULL;
+    }
+    $row = \Drupal::database()->select('xedc_upload_session', 's')
+      ->fields('s', ['status', 'received_bytes', 'total_bytes'])
+      ->condition('task_id', $taskId)
+      ->range(0, 1)
+      ->execute()
+      ->fetchObject();
+    return $row ?: NULL;
+  }
+
   private function originalLabel(object $row): string {
     $known = 0;
     $bytes = 0;
@@ -273,10 +359,23 @@ class ImportController extends ControllerBase {
    * Formats a byte total. Zero stays zero under Chinese plural rules.
    */
   private function formatBytes(int $bytes): string {
-    if ($bytes < 1) {
-      return (string) $this->t('0 字节');
+    return StorageSizeFormatter::formatBytes(max(0, $bytes));
+  }
+
+  /**
+   * User-facing item state. The stored status value stays unchanged.
+   */
+  private function itemLabel(string $status, int $reused): string {
+    if ($reused === 1 || $status === 'duplicate') {
+      return '文件已存在，已复用';
     }
-    return (string) ByteSizeMarkup::create($bytes);
+    return match ($status) {
+      'pending' => '等待上传',
+      'success' => '成功',
+      'failed' => '失败',
+      'skipped' => '已跳过',
+      default => '未知状态',
+    };
   }
 
   /**
@@ -399,6 +498,9 @@ class ImportController extends ControllerBase {
     $caption = (string) $item->original_name;
     if ((string) $item->status === 'failed') {
       $caption .= ' — ' . (string) $item->error;
+    }
+    elseif ((int) ($item->reused ?? 0) === 1 || (string) $item->status === 'duplicate') {
+      $caption .= ' — 文件已存在，已复用';
     }
     $figure = [
       '#type' => 'container',

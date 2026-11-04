@@ -2,6 +2,8 @@
 
 日期：2026-11-03。站点 https://gitxx.xyz。Drupal 11.4.11。模块 `xedc_core`。页面 `/admin/content/image-imports`。
 
+2026-11-04 的上传中心、去重和浏览器验收见 `docs/XEDC_UPLOAD_SYSTEM_COMPREHENSIVE_REPAIR_REPORT.md`。本文件只保留 11 月 3 日的 HTTP 500 和断点续传记录，不重复那次结论。
+
 先读了 `docs/XEDC_ARCHIVE_IMPORT_PERFORMANCE_REPORT.md` 和已有的图片上传专项记录。没有提交或推送 Git，没有改 `config/sync`、Drupal 核心、第三方模块、R2 Bucket、密钥或生产存储模式。测试草稿已删除。测试期间管理员自己上传并进入审核的任务 208、209、213 没有改动。
 
 状态只用：PASS、FIXED、FAIL、NOT TESTED、BLOCKED。

@@ -109,7 +109,9 @@
         const g = $('#xq-grid');
         g.replaceChildren();
         const ok = items.filter((x) => x.st === 'ok').length;
-        $('#xq-bar').textContent = ok ? `已传 ${ok} / ${items.length}` : `已选 ${items.length} 张`;
+        const selectedBytes = items.reduce((sum, it) => sum + (it.file ? it.file.size : 0), 0);
+        const stateText = { wait: '等待上传', up: '正在上传', ok: '已完成', bad: '失败' };
+        $('#xq-bar').textContent = (ok ? `已传 ${ok} / ${items.length}` : `已选 ${items.length} 张`) + ' · ' + bytesLabel(selectedBytes);
         items.forEach((it, i) => {
           const d = document.createElement('div');
           d.className = 'xq-it ' + (it.st || '') + (it.dup ? ' dup' : '');
@@ -126,7 +128,7 @@
             d.appendChild(ph);
           }
           const num = document.createElement('b');
-          num.textContent = it.st === 'up' && it.progress ? String(it.progress) + '%' : String(i + 1);
+          num.textContent = (it.file && it.file.name ? it.file.name + ' · ' : '') + (stateText[it.st] || '未知状态') + (it.dup ? ' · 文件已存在，已复用' : '') + (it.st === 'up' && it.progress ? ' ' + it.progress + '%' : '');
           d.appendChild(num);
           if (it.err) {
             const note = document.createElement('span');
@@ -251,7 +253,194 @@
         return response;
       }
 
+      async function sha256(blob) {
+        const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+        return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+      }
+      function bytesLabel(bytes) {
+        if (!Number.isFinite(bytes) || bytes < 1024) return Math.max(0, Math.round(bytes || 0)) + ' B';
+        const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+        let value = bytes;
+        let index = 0;
+        let rounded = value;
+        while (index < units.length - 1) {
+          value /= 1024;
+          index += 1;
+          rounded = Math.round(value * 100) / 100;
+          if (rounded < 1024 || index === units.length - 1) break;
+        }
+        return rounded.toFixed(2) + ' ' + units[index];
+      }
+      function applySaved(it, json) {
+        it.mid = json.mid;
+        it.dup = !!json.dup;
+        it.originalBytes = json.original_bytes || it.file.size;
+        it.optimizedBytes = json.optimized_bytes || 0;
+        it.st = 'ok';
+        it.err = '';
+        it.progress = 100;
+      }
+      async function sendChunks(it, title, hash) {
+        const head = await sha256(it.file.slice(0, Math.min(it.file.size, 65536)));
+        const ext = String(it.file.name.split('.').pop() || '').toLowerCase();
+        const filename = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) ? it.file.name : 'photo.jpg';
+        const client = [...crypto.getRandomValues(new Uint8Array(16))].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+        const headers = { 'X-CSRF-Token': token, 'Content-Type': 'application/json', Accept: 'application/json' };
+        const created = await fetch('/admin/quick-gallery/upload/session', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            filename,
+            size: it.file.size,
+            kind: 'quick',
+            mime: it.file.type || '',
+            head_sha256: head,
+            file_sha256: hash,
+            client_upload_id: client,
+            title,
+          }),
+        });
+        const session = await created.json().catch(() => ({}));
+        if (!created.ok || !session.session_id) throw new Error(session.error || '分块会话没有创建');
+        const base = '/admin/quick-gallery/upload/session/' + session.session_id;
+        const chunkBytes = Number(session.chunk_bytes) || 5242880;
+        try {
+          for (let index = 0; index < Number(session.chunk_count); index += 1) {
+            const start = index * chunkBytes;
+            const blob = it.file.slice(start, Math.min(it.file.size, start + chunkBytes));
+            const chunkHash = await sha256(blob);
+            const sent = await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', base + '/chunk/' + index);
+              xhr.setRequestHeader('X-CSRF-Token', token);
+              xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+              xhr.setRequestHeader('X-Chunk-Sha256', chunkHash);
+              xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error('分块没有被确认')));
+              xhr.onerror = () => reject(new Error('网络中断，服务器没有确认收到文件。'));
+              xhr.send(blob);
+            });
+            void sent;
+            it.st = 'up';
+            it.progress = Math.round(((index + 1) / session.chunk_count) * 100);
+            draw();
+          }
+          const done = await fetch(base + '/complete', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ file_sha256: hash }),
+          });
+          const body = await done.json().catch(() => ({}));
+          if (!done.ok || !body.mid) throw new Error(body.error || '合并没有完成');
+          return body;
+        }
+        catch (error) {
+          await fetch(base + '/cancel', { method: 'POST', headers, body: '{}' }).catch(() => {});
+          throw error;
+        }
+      }
       async function up(it, n, title) {
+        const manager = Drupal.xedcUpload;
+        if (manager) {
+          try {
+            await manager.start();
+            if (!it.uploadId) {
+              const created = await manager.enqueue([it.file], {
+                kind: 'quick',
+                entry: 'quick',
+                title,
+                maxImage: 26214400,
+              });
+              it.uploadId = created[0] && created[0].id;
+            }
+            else {
+              await manager.retry(it.uploadId);
+            }
+            await new Promise((resolve, reject) => {
+              let settled = false;
+              const finish = (fn, value) => {
+                if (settled) return;
+                settled = true;
+                stop();
+                window.clearTimeout(timer);
+                fn(value);
+              };
+              const stop = manager.subscribe((jobs) => {
+                const job = jobs.find((row) => row.id === it.uploadId);
+                if (!job) return;
+                it.progress = job.bytes > 0 ? Math.round((job.confirmed / job.bytes) * 100) : (job.phase === 'completed' || job.phase === 'duplicate' ? 100 : it.progress || 0);
+                it.st = ['failed', 'interrupted'].includes(job.phase) ? 'bad' : (job.mid || job.phase === 'duplicate' || job.phase === 'completed' ? 'ok' : 'up');
+                it.err = job.error || '';
+                draw();
+                if (job.mid || job.phase === 'duplicate' || job.phase === 'completed') {
+                  applySaved(it, {
+                    mid: job.mid,
+                    dup: job.phase === 'duplicate',
+                    original_bytes: job.originalBytes || it.file.size,
+                    optimized_bytes: job.optimizedBytes || 0,
+                  });
+                  finish(resolve);
+                }
+                else if (['failed', 'interrupted', 'cancelled'].includes(job.phase) && job.error) {
+                  finish(reject, new Error(job.error));
+                }
+              });
+              const timer = window.setTimeout(() => {
+                const job = manager.list().find((row) => row.id === it.uploadId);
+                if (job && (job.mid || job.phase === 'completed' || job.phase === 'duplicate')) {
+                  applySaved(it, {
+                    mid: job.mid,
+                    dup: job.phase === 'duplicate',
+                    original_bytes: job.originalBytes || it.file.size,
+                    optimized_bytes: job.optimizedBytes || 0,
+                  });
+                  finish(resolve);
+                  return;
+                }
+                finish(reject, new Error((job && job.error) || '上传超时，已保留可恢复的任务。'));
+              }, 180000);
+            });
+            return;
+          }
+          catch (e) {
+            const reason = String(e && e.message || e);
+            if (/过大|大小限制|不是受支持|本地没有原文件/.test(reason)) {
+              it.err = reason;
+              it.st = 'bad';
+              return;
+            }
+          }
+        }
+        let hash = '';
+        try {
+          hash = await sha256(it.file);
+          const response = await fetch('/admin/quick-gallery/reuse', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': token, 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ sha256: hash, size: it.file.size, title, n }),
+          });
+          const known = await response.json().catch(() => ({}));
+          if (response.ok && known.mid && known.reusable) {
+            applySaved(it, known);
+            it.dup = true;
+            return;
+          }
+        }
+        catch (e) { /* 查重失败时继续上传，服务器仍会校验。 */ }
+        if (hash) {
+          try {
+            const saved = await sendChunks(it, title, hash);
+            applySaved(it, saved);
+            return;
+          }
+          catch (e) {
+            const reason = String(e && e.message || e);
+            if (/过大|大小限制|不是受支持/.test(reason)) {
+              it.err = reason;
+              it.st = 'bad';
+              return;
+            }
+          }
+        }
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
             const json = await new Promise((resolve, reject) => {
@@ -377,6 +566,8 @@
             link.textContent = '打开内容';
             $('#xq-msg').appendChild(document.createTextNode(' '));
             $('#xq-msg').appendChild(link);
+            btn.disabled = false;
+            btn.dataset.busy = '';
           }
           else {
             msg(json.error || '创建失败');

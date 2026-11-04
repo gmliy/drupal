@@ -35,6 +35,8 @@ final class UploadSchema {
           'title' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
           'task_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
           'final_uri' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+          'client_upload_id' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+          'reimport' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
           'error' => ['type' => 'text', 'not null' => FALSE],
           'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
           'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
@@ -42,8 +44,23 @@ final class UploadSchema {
         'primary key' => ['session_id'],
         'indexes' => [
           'uid_status' => ['uid', 'status'],
+          'uid_client' => ['uid', 'client_upload_id'],
           'changed' => ['changed'],
         ],
+      ],
+      'xedc_blob_claim' => [
+        'description' => 'One physical object claim per stored SHA-256.',
+        'fields' => [
+          'sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE],
+          'bytes' => ['type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'uri' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+          'kind' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'stored'],
+          'status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'pending'],
+          'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        ],
+        'primary key' => ['sha256'],
       ],
       'xedc_upload_chunk' => [
         'description' => 'One successfully stored chunk of an upload session.',

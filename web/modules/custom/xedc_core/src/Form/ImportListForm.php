@@ -8,7 +8,7 @@ use Drupal\Component\Render\MarkupInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Markup;
-use Drupal\Core\StringTranslation\ByteSizeMarkup;
+use Drupal\xedc_core\Ops\Storage\StorageSizeFormatter;
 use Drupal\Core\Url;
 use Drupal\xedc_core\ArchiveManager;
 use Drupal\xedc_core\ImportStatus;
@@ -104,6 +104,7 @@ class ImportListForm extends FormBase {
       'maxArchive' => $archiveLimit,
       'maxImage' => $imageLimit,
       'chunkBytes' => $chunkBytes,
+      'probeUrl' => Url::fromRoute('xedc_core.upload_probe')->toString(),
       'headBytes' => 65536,
       'concurrency' => max(1, min(3, $concurrency)),
       'nid' => 0,
@@ -113,15 +114,18 @@ class ImportListForm extends FormBase {
     $form['upload'] = [
       '#type' => 'inline_template',
       '#weight' => -20,
-      '#template' => '<div class="xedc-upload" data-xedc-asset-upload data-nid="0"><h2>{{ title }}</h2><p>{{ help }} {{ seven }}</p><div class="xedc-upload__grid"><section><h3>ZIP / 7z</h3><label>{{ title_label }}<input type="text" data-xedc-title maxlength="255"></label><label>{{ archive_label }}<input type="file" data-xedc-archive accept=".zip,.7z,application/zip,application/x-7z-compressed" multiple></label></section><section><h3>{{ image_heading }}</h3><label>{{ image_label }}<input type="file" data-xedc-images accept="image/jpeg,image/png,image/gif,image/webp" multiple></label></section></div><div data-xedc-resume></div><p class="xedc-upload__note" data-xedc-note></p><ul data-xedc-list></ul></div>',
+      '#template' => '<section class="xedc-upload" data-xedc-asset-upload data-nid="0"><header class="xedc-upload__head"><div><h2>{{ title }}</h2><p class="xedc-upload__help">{{ help }} {{ seven }}</p></div><button type="button" data-xedc-refresh>{{ refresh }}</button></header><div class="xedc-upload__stats" data-xedc-stats></div><div class="xedc-upload__grid"><section class="xedc-upload__drop" data-xedc-drop="archive"><h3>压缩包</h3><label>{{ title_label }}<input type="text" data-xedc-title maxlength="255"></label><label class="xedc-upload__pick">{{ archive_label }}<input type="file" data-xedc-archive accept=".zip,.7z,application/zip,application/x-7z-compressed" multiple></label><p class="xedc-upload__hint">{{ archive_hint }}</p></section><section class="xedc-upload__drop" data-xedc-drop="image"><h3>{{ image_heading }}</h3><label class="xedc-upload__pick">{{ image_label }}<input type="file" data-xedc-images accept="image/jpeg,image/png,image/gif,image/webp" multiple></label><p class="xedc-upload__hint">{{ image_hint }}</p></section></div><p class="xedc-upload__note" data-xedc-note></p><div class="xedc-upload__queue" data-xedc-list></div></section>',
       '#context' => [
-        'title' => $this->t('上传图片或压缩包'),
-        'help' => $this->t('文件按分块上传到私有目录。网络中断、刷新或重新打开页面后，可以用同一个文件继续，服务器已经确认的分块不会重传。全部到齐并校验通过后才创建导入任务。'),
+        'title' => $this->t('上传中心'),
+        'help' => $this->t('选择或拖入文件。相同内容会复用已有文件，中断后只继续缺少的分块。'),
+        'refresh' => $this->t('刷新任务'),
         'seven' => $seven,
         'title_label' => $this->t('图集标题'),
-        'archive_label' => $this->t('选择压缩包'),
-        'image_heading' => $this->t('普通图片'),
+        'archive_label' => $this->t('选择 ZIP 或 7z，可多选'),
+        'archive_hint' => $this->t('最大 @size', ['@size' => StorageSizeFormatter::formatBytes($archiveLimit)]),
+        'image_heading' => $this->t('普通图片 / 批量图片'),
         'image_label' => $this->t('选择图片，可多选'),
+        'image_hint' => $this->t('JPEG、PNG、GIF、WebP，单张最大 @size', ['@size' => StorageSizeFormatter::formatBytes($imageLimit)]),
       ],
     ];
     $form['#cache']['max-age'] = 0;
@@ -249,7 +253,7 @@ class ImportListForm extends FormBase {
     ];
     $filterLabels = [
       'all' => $this->t('全部'),
-      'queued' => $this->t('等待处理'),
+      'queued' => $this->t('排队等待处理'),
       'processing' => $this->t('处理中'),
       'review' => $this->t('待审核'),
       'failed' => $this->t('失败'),
@@ -281,6 +285,10 @@ class ImportListForm extends FormBase {
       $title = (string) ($row->node_title ?: $this->t('内容已删除'));
       $status = (string) $row->status;
       $table[$id] = [
+        '#attributes' => [
+          'data-task-id' => (string) $id,
+          'class' => ['xedc-import-dashboard__row'],
+        ],
         'task' => [
           'data' => [
             '#type' => 'container',
@@ -318,7 +326,7 @@ class ImportListForm extends FormBase {
         'counts' => [
           'data' => [
             '#type' => 'inline_template',
-            '#template' => '<span class="xedc-import-dashboard__nums"><strong>{{ total }}</strong><em>{{ detail }}</em></span>',
+            '#template' => '<span class="xedc-import-dashboard__nums" data-xedc-sync-detail><strong>{{ total }}</strong><em>{{ detail }}</em></span>',
             '#context' => [
               'total' => (int) $row->total,
               'detail' => $this->t('成功 @ok · 失败 @bad', [
@@ -332,7 +340,7 @@ class ImportListForm extends FormBase {
         'progress' => [
           'data' => [
             '#type' => 'inline_template',
-            '#template' => '<span class="xedc-import-dashboard__meter" title="{{ progress }}%"><span style="width:{{ progress }}%"></span></span><em class="xedc-import-dashboard__percent">{{ progress }}%</em>',
+            '#template' => '<span class="xedc-import-dashboard__meter" title="{{ progress }}%"><span data-xedc-sync-fill style="width:{{ progress }}%"></span></span><em class="xedc-import-dashboard__percent" data-xedc-sync-percent>{{ progress }}%</em>',
             '#context' => ['progress' => max(0, min(100, (int) $row->progress))],
           ],
           'data-label' => (string) $this->t('进度'),
@@ -344,6 +352,7 @@ class ImportListForm extends FormBase {
             '#value' => ImportStatus::label($status),
             '#attributes' => [
               'class' => ['xedc-import-dashboard__badge', 'is-' . $this->statusClass($status)],
+              'data-xedc-sync-status' => '1',
             ],
           ],
           'data-label' => (string) $this->t('状态'),
@@ -368,9 +377,10 @@ class ImportListForm extends FormBase {
       '#options' => $table,
       '#empty' => $keyword !== '' || $filter !== 'all' ? $this->t('没有符合条件的任务。') : $this->t('暂无导入任务'),
       '#access' => !$showEmpty,
-      '#prefix' => '<div class="xedc-import-dashboard__table-scroll">',
+      '#prefix' => '<div class="xedc-import-dashboard__table-scroll" data-xedc-import-table>',
       '#suffix' => '</div>',
     ];
+    $form['#attached']['drupalSettings']['xedcAsset']['syncUrl'] = Url::fromRoute('xedc_core.import_sync')->toString();
 
     $form['pager'] = [
       '#type' => 'container',
@@ -609,10 +619,7 @@ class ImportListForm extends FormBase {
    * Zero stays zero. Larger sizes use Drupal's formatter.
    */
   private function formatBytes(int $bytes): string {
-    if ($bytes < 1) {
-      return (string) $this->t('0 字节');
-    }
-    return (string) ByteSizeMarkup::create($bytes);
+    return StorageSizeFormatter::formatBytes($bytes);
   }
 
   /**

@@ -231,14 +231,14 @@
           {% endif %}
         </article>
       </div>
-      <h3 class="xedc-ops-section">超过 100 MB</h3>
+      <h3 class="xedc-ops-section">超过 100 MiB</h3>
       {% if report.large %}
         <ul class="xedc-ops-paths">{% for row in report.large %}<li><code>{{ row.path }}</code><span>{{ row.bytes }}</span></li>{% endfor %}</ul>
-      {% else %}<p class="xedc-ops-note">没有超过 100 MB 的可读文件。</p>{% endif %}
-      <h3 class="xedc-ops-section">超过 500 MB</h3>
+      {% else %}<p class="xedc-ops-note">没有超过 100 MiB 的可读文件。</p>{% endif %}
+      <h3 class="xedc-ops-section">超过 500 MiB</h3>
       {% if report.huge %}
         <ul class="xedc-ops-paths">{% for row in report.huge %}<li><code>{{ row.path }}</code><span>{{ row.bytes }}</span></li>{% endfor %}</ul>
-      {% else %}<p class="xedc-ops-note">没有超过 500 MB 的可读文件。</p>{% endif %}
+      {% else %}<p class="xedc-ops-note">没有超过 500 MiB 的可读文件。</p>{% endif %}
     </section>
 
     <section aria-label="最近文件">
@@ -310,9 +310,9 @@
         <ul class="xedc-ops-paths">{% for row in report.unmanaged %}<li><code>{{ row.path }}</code><span>{{ row.bytes }}</span></li>{% endfor %}</ul>
       {% endif %}
       <h3 class="xedc-ops-section">重复文件</h3>
-      <p class="xedc-ops-note">先按大小分组，只对同大小的文件计算 SHA-256。文件名相同或大小相同本身不算重复。超过 32 MB 的文件不在网页请求里计算哈希。</p>
+      <p class="xedc-ops-note">先按大小分组，只对同大小的文件计算 SHA-256。文件名相同或大小相同本身不算重复。超过 32 MiB 的文件不在网页请求里计算哈希。</p>
       {% if report.hash_skipped %}
-        <p class="xedc-ops-detail">有 {{ report.hash_skipped|length }} 个同大小文件超过 32 MB，没有计算哈希，也不记为重复。</p>
+        <p class="xedc-ops-detail">有 {{ report.hash_skipped|length }} 个同大小文件超过 32 MiB，没有计算哈希，也不记为重复。</p>
       {% endif %}
       {% if report.duplicates %}
         {% for group in report.duplicates %}

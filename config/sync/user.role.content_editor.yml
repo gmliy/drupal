@@ -31,6 +31,7 @@ dependencies:
     - system
     - taxonomy
     - xedc_core
+    - xedc_tags
 _core:
   default_config_hash: og55Zu0F-q-X8zG0Ohrls49zws6IrmmosZS-30Es8vw
 id: content_editor
@@ -52,6 +53,7 @@ permissions:
   - 'administer url aliases'
   - 'administer xedc image imports'
   - administer_mailsystem
+  - 'apply xedc tag recommendations'
   - 'bulk delete aliases'
   - 'bulk update aliases'
   - 'configure navigation layout'
@@ -85,6 +87,8 @@ permissions:
   - 'execute xedc_moderation_set_state node'
   - 'ignore 404 requests'
   - 'import photo archives'
+  - 'manage xedc tag aliases'
+  - 'manage xedc tags'
   - 'notify of path changes'
   - 'publish xedc image imports'
   - 'revert all revisions'
@@ -104,3 +108,5 @@ permissions:
   - 'view own unpublished content'
   - 'view scheduled content'
   - 'view the administration theme'
+  - 'view xedc tag analysis'
+  - 'view xedc tag center'

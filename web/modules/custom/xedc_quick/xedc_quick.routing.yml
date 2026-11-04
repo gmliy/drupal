@@ -20,6 +20,71 @@ xedc_quick.upload:
   requirements:
     _permission: 'administer nodes'
     _csrf_request_header_token: 'TRUE'
+xedc_quick.reuse:
+  path: '/admin/quick-gallery/reuse'
+  defaults:
+    _controller: '\Drupal\xedc_quick\Controller\QuickController::reuse'
+  methods: [POST]
+  requirements:
+    _permission: 'administer nodes'
+    _csrf_request_header_token: 'TRUE'
+xedc_quick.upload_sessions:
+  path: '/admin/quick-gallery/upload/sessions'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::listSessions'
+  methods: [GET]
+  requirements:
+    _permission: 'administer nodes'
+    _user_is_logged_in: 'TRUE'
+xedc_quick.upload_session_create:
+  path: '/admin/quick-gallery/upload/session'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::createSession'
+  methods: [POST]
+  requirements:
+    _permission: 'administer nodes'
+    _csrf_request_header_token: 'TRUE'
+    _user_is_logged_in: 'TRUE'
+xedc_quick.upload_session:
+  path: '/admin/quick-gallery/upload/session/{upload_session}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::show'
+  methods: [GET]
+  requirements:
+    _permission: 'administer nodes'
+    _user_is_logged_in: 'TRUE'
+    upload_session: '[a-f0-9]{32}'
+xedc_quick.upload_chunk:
+  path: '/admin/quick-gallery/upload/session/{upload_session}/chunk/{chunk}'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::chunk'
+  methods: [POST]
+  requirements:
+    _permission: 'administer nodes'
+    _csrf_request_header_token: 'TRUE'
+    _user_is_logged_in: 'TRUE'
+    upload_session: '[a-f0-9]{32}'
+    chunk: '\d+'
+xedc_quick.upload_complete:
+  path: '/admin/quick-gallery/upload/session/{upload_session}/complete'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::complete'
+  methods: [POST]
+  requirements:
+    _permission: 'administer nodes'
+    _csrf_request_header_token: 'TRUE'
+    _user_is_logged_in: 'TRUE'
+    upload_session: '[a-f0-9]{32}'
+xedc_quick.upload_cancel:
+  path: '/admin/quick-gallery/upload/session/{upload_session}/cancel'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\UploadSessionController::cancel'
+  methods: [POST]
+  requirements:
+    _permission: 'administer nodes'
+    _csrf_request_header_token: 'TRUE'
+    _user_is_logged_in: 'TRUE'
+    upload_session: '[a-f0-9]{32}'
 xedc_quick.create:
   path: '/admin/quick-gallery/create'
   defaults:

@@ -63,9 +63,15 @@ try {
   $uri = $file ? (string) $file->getFileUri() : '';
   $check('快速发布优化后写入公开存储', $good['status'] === 200 && str_starts_with($uri, 'public://') && !str_contains($uri, 'public/public/') && $file->getSize() > 0, $uri . ' ' . ($file ? $file->getSize() : 0));
   $check('快速发布返回原图和优化后字节', (int) ($good['json']['original_bytes'] ?? 0) > (int) ($good['json']['optimized_bytes'] ?? 0), json_encode($good['json']));
-  $check('快速发布 ALT', $media && str_contains((string) $media->get('field_media_image')->alt, '_第1张图'), (string) ($media ? $media->get('field_media_image')->alt : ''));
+  $check('快速发布 ALT', $media && (string) $media->get('field_media_image')->alt === 'phase2', (string) ($media ? $media->get('field_media_image')->alt : ''));
   $again = $upload($work . '/ok.jpg', 'ok.jpg');
-  $check('重复图片复用媒体', (int) ($again['json']['mid'] ?? 0) === $mid && !empty($again['json']['dup']), (string) ($again['json']['mid'] ?? 0));
+  $againMid = (int) ($again['json']['mid'] ?? 0);
+  $againMedia = $againMid ? Media::load($againMid) : NULL;
+  $againFid = $againMedia ? (int) $againMedia->get('field_media_image')->target_id : 0;
+  $check('重复图片复用文件并新建媒体', $againMid > 0 && $againMid !== $mid && $againFid === (int) $file->id() && !empty($again['json']['dup']), 'mid ' . $mid . '->' . $againMid . ' fid ' . $againFid);
+  if ($againMedia && $againMid !== $mid) {
+    $againMedia->delete();
+  }
 
   file_put_contents($work . '/bad.jpg', 'not a jpeg');
   $bad = $upload($work . '/bad.jpg', 'bad.jpg');

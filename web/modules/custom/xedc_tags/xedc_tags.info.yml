@@ -1,8 +1,9 @@
 name: 'XEDC Tags'
 type: module
-description: '标签详情页与全部标签页'
+description: '前台标签页和后台智能标签管理中心。统计和合并都使用现有 tags 词汇。'
 package: Custom
 core_version_requirement: ^10 || ^11
 dependencies:
   - drupal:taxonomy
   - drupal:node
+  - xedc_core:xedc_core

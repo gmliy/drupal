@@ -115,6 +115,14 @@ class ImagePipeline {
       \Drupal::state()->delete('xedc_import_fail_next');
       throw new ImportException('模拟处理失败，可以重试。');
     }
+    if ((int) $item->fid > 0 && trim((string) ($item->temp_uri ?? '')) === '') {
+      $known = strtolower((string) ($item->source_sha256 ?? ''));
+      if (!preg_match('/^[a-f0-9]{64}$/', $known)) {
+        throw new ImportException('复用图片缺少 SHA-256。');
+      }
+      $this->finishReusedUpload($task, $item, $node, $known);
+      return;
+    }
     $real = $this->fileSystem->realpath((string) $item->temp_uri);
     $work = $this->fileSystem->realpath((string) $task->work_uri);
     if (!$real || !$work || !is_file($real) || is_link($real) || !str_starts_with($real, $work . DIRECTORY_SEPARATOR)) {
@@ -306,10 +314,27 @@ class ImagePipeline {
     ];
     $schema = \Drupal::database()->schema();
     if ($schema->fieldExists('xedc_image_file', 'original_bytes')) {
+      $existingOriginal = 0;
+      $existing = \Drupal::database()->select('xedc_image_file', 'f')
+        ->fields('f', ['original_bytes', 'original_mime', 'original_extension'])
+        ->condition('fid', $fid)
+        ->execute()
+        ->fetchAssoc();
+      if (is_array($existing)) {
+        $existingOriginal = max(0, (int) ($existing['original_bytes'] ?? 0));
+      }
       $originalBytes = max(0, (int) ($original['original_bytes'] ?? 0));
+      // Never replace a measured original with unknown, and never invent sizes.
+      if ($originalBytes < 1 && $existingOriginal > 0) {
+        $originalBytes = $existingOriginal;
+      }
+      // Unoptimized files keep identical source and stored hashes; bytes are original.
+      if ($originalBytes < 1 && $sourceHash !== '' && $sourceHash === $storedHash && $bytes > 0) {
+        $originalBytes = $bytes;
+      }
       $fields['original_bytes'] = $originalBytes;
-      $fields['original_mime'] = mb_substr((string) ($original['original_mime'] ?? ''), 0, 64);
-      $fields['original_extension'] = mb_substr((string) ($original['original_extension'] ?? ''), 0, 16);
+      $fields['original_mime'] = mb_substr((string) ($original['original_mime'] ?? ($existing['original_mime'] ?? '')), 0, 64);
+      $fields['original_extension'] = mb_substr((string) ($original['original_extension'] ?? ($existing['original_extension'] ?? '')), 0, 16);
       $fields['optimized_bytes'] = $bytes;
       $fields['optimized_mime'] = mb_substr((string) ($original['optimized_mime'] ?? ''), 0, 64);
       $fields['optimized_extension'] = mb_substr((string) ($original['optimized_extension'] ?? ''), 0, 16);
@@ -342,6 +367,25 @@ class ImagePipeline {
       $media = $this->createMedia($task, $item, $node, $file, $info, $this->altText($task, $item, $node));
     }
     $this->markReady($item, $file, $media, $sourceHash, $storedHash, FALSE, 'success');
+  }
+
+  /**
+   * Creates a new media on a file that was matched before any bytes were stored.
+   */
+  private function finishReusedUpload(object $task, object $item, NodeInterface $node, string $sourceHash): void {
+    $file = File::load((int) $item->fid);
+    $real = $file instanceof FileInterface ? $this->readablePath($file->getFileUri()) : NULL;
+    if (!$file instanceof FileInterface || !is_string($real) || !is_file($real) || str_starts_with($file->getFileUri(), 'private://')) {
+      throw new ImportException('要复用的文件不存在，没有把它当成新文件跳过。');
+    }
+    $storedHash = hash_file('sha256', $real);
+    if (!is_string($storedHash) || !preg_match('/^[a-f0-9]{64}$/', $storedHash)) {
+      throw new ImportException('要复用的文件无法校验。');
+    }
+    $info = $this->describe($real);
+    $media = $this->createMedia($task, $item, $node, $file, $info, $this->altText($task, $item, $node));
+    $this->markReady($item, $file, $media, $sourceHash, $storedHash, TRUE, 'success');
+    $this->tasks->log((int) $task->id, 'info', (string) $item->original_name . ' 文件已存在，已复用文件 ' . $file->id() . '，并新建媒体 ' . $media->id() . '。');
   }
 
   /**
@@ -383,25 +427,15 @@ class ImagePipeline {
     if (!is_string($storedHash) || !preg_match('/^[a-f0-9]{64}$/', $storedHash)) {
       return FALSE;
     }
-    $media = $existing['media'];
-    $created = FALSE;
-    if (!$media) {
-      $this->tasks->markItem((int) $item->id, [
-        'fid' => (int) $file->id(),
-        'source_sha256' => $sourceHash,
-        'stored_sha256' => $storedHash,
-      ]);
-      $info = $this->describe($real);
-      $media = $this->createMedia($task, $item, $node, $file, $info, $this->altText($task, $item, $node));
-      $created = TRUE;
-    }
+    $this->tasks->markItem((int) $item->id, [
+      'fid' => (int) $file->id(),
+      'source_sha256' => $sourceHash,
+      'stored_sha256' => $storedHash,
+    ]);
+    $info = $this->describe($real);
+    $media = $this->createMedia($task, $item, $node, $file, $info, $this->altText($task, $item, $node));
     $this->markReady($item, $file, $media, $sourceHash, $storedHash, TRUE, $zipDuplicate ? 'duplicate' : 'success');
-    if ($created) {
-      $this->tasks->log((int) $task->id, 'warning', (string) $item->original_name . ' 已有文件缺少媒体，已补建媒体 ' . $media->id() . '，没有新建文件。');
-    }
-    else {
-      $this->tasks->log((int) $task->id, 'info', (string) $item->original_name . ' 与网站已有图片相同，已复用媒体 ' . $media->id() . '。');
-    }
+    $this->tasks->log((int) $task->id, 'info', (string) $item->original_name . ' 与网站已有图片相同，已复用文件 ' . $file->id() . '，并新建媒体 ' . $media->id() . '。');
     return TRUE;
   }
 
@@ -412,6 +446,22 @@ class ImagePipeline {
    *   Validated official image still inside the task directory.
    */
   private function publishNew(object $task, object $item, NodeInterface $node, array $built, string $sourceHash, string $storedHash, ?string $sourcePath = NULL, array $sourceInfo = []): void {
+    $fingerprint = \Drupal::hasService('xedc_core.file_fingerprint') ? \Drupal::service('xedc_core.file_fingerprint') : NULL;
+    $ownedClaim = FALSE;
+    if ($fingerprint instanceof \Drupal\xedc_core\Upload\FileFingerprint) {
+      $claim = $fingerprint->claimStored($storedHash, (int) $built['bytes']);
+      if (!empty($claim['busy'])) {
+        throw new ImportException('相同文件正在写入，请稍后重试。');
+      }
+      if (!empty($claim['reuse']) && $this->reuseFile($task, $item, $node, $claim['reuse'], $sourceHash, FALSE)) {
+        $work = dirname((string) ($built['path'] ?? ''), 2);
+        if (is_string($work) && $work !== '') {
+          $this->deleteBuilt((string) $built['path'], $work);
+        }
+        return;
+      }
+      $ownedClaim = !empty($claim['claimed']);
+    }
     $directory = 'public://' . date('Y-m');
     $ready = $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
     $remotePublic = $this->files instanceof LocalFileBridge && $this->files->schemeIsRemote('public');
@@ -419,13 +469,25 @@ class ImagePipeline {
     clearstatcache(TRUE, is_string($directoryReal) ? $directoryReal : $directory);
     $localDirectory = is_string($directoryReal) && $directoryReal !== '' && is_dir($directoryReal) && is_writable($directoryReal);
     if (!$ready || (!$remotePublic && !$localDirectory)) {
+      if ($ownedClaim && $fingerprint instanceof \Drupal\xedc_core\Upload\FileFingerprint) {
+        $fingerprint->abandonStored($storedHash);
+      }
       throw new ImportAbortException('目标目录 ' . $directory . ' 无法创建或当前用户不可写，已停止导入。');
     }
     $total = max((int) $item->weight, (int) $task->total);
     $filename = sprintf('n%d-%s.%s', (int) $node->id(), str_pad((string) $item->weight, max(3, strlen((string) $total)), '0', STR_PAD_LEFT), $built['extension']);
     $this->notePhase((int) $task->id, 'storing', '正在上传到公开存储');
     $storeStarted = hrtime(TRUE);
-    $uri = $this->fileSystem->copy($built['path'], $directory . '/' . $filename, FileExists::Rename);
+    $uri = '';
+    try {
+      $uri = $this->fileSystem->copy($built['path'], $directory . '/' . $filename, FileExists::Rename);
+    }
+    catch (\Throwable $e) {
+      if ($ownedClaim && $fingerprint instanceof \Drupal\xedc_core\Upload\FileFingerprint) {
+        $fingerprint->abandonStored($storedHash);
+      }
+      throw $e;
+    }
     $this->lastStoreMs += (int) ((hrtime(TRUE) - $storeStarted) / 1000000);
     $file = File::create([
       'uri' => $uri,
@@ -435,15 +497,24 @@ class ImagePipeline {
     ]);
     try {
       $file->save();
+      if ($ownedClaim && $fingerprint instanceof \Drupal\xedc_core\Upload\FileFingerprint) {
+        $fingerprint->commitStored($storedHash, (int) $file->id(), (string) $file->getFileUri(), (int) $built['bytes']);
+        $ownedClaim = FALSE;
+      }
     }
     catch (\Throwable $e) {
-      if ($remotePublic) {
-        $this->fileSystem->delete($uri);
+      if ($ownedClaim && $fingerprint instanceof \Drupal\xedc_core\Upload\FileFingerprint) {
+        $fingerprint->abandonStored($storedHash);
       }
-      else {
-        $copied = $this->fileSystem->realpath($uri);
-        if (is_string($copied) && is_file($copied)) {
-          unlink($copied);
+      if (isset($uri) && is_string($uri) && $uri !== '') {
+        if ($remotePublic) {
+          $this->fileSystem->delete($uri);
+        }
+        else {
+          $copied = $this->fileSystem->realpath($uri);
+          if (is_string($copied) && is_file($copied)) {
+            unlink($copied);
+          }
         }
       }
       throw new ImportException('正式文件记录创建失败。');
@@ -511,7 +582,7 @@ class ImagePipeline {
     if (!$animated && is_string($real) && is_file($real) && $this->isAnimatedGif($real)) {
       $animated = 1;
     }
-    $this->tasks->markItem((int) $item->id, [
+    $fields = [
       'status' => $status,
       'fid' => (int) $file->id(),
       'mid' => (int) $media->id(),
@@ -527,7 +598,71 @@ class ImagePipeline {
       'webp' => (string) ($built['delivery'] ?? ($animated ? 'animated' : '')),
       'alt' => $alt,
       'error' => '',
-    ]);
+    ];
+    // Keep the measured pre-optimization size on the import row.
+    $originalBytes = max(0, (int) ($item->original_bytes ?? 0));
+    if ($originalBytes > 0 && \Drupal::database()->schema()->fieldExists('xedc_import_item', 'original_bytes')) {
+      $fields['original_bytes'] = $originalBytes;
+    }
+    $this->tasks->markItem((int) $item->id, $fields);
+    $this->ensureOriginalBytes((int) $file->id(), $originalBytes, $sourceHash, $storedHash, $bytes);
+  }
+
+  /**
+   * Writes original_bytes only when a verified positive value is available.
+   */
+  private function ensureOriginalBytes(int $fid, int $originalBytes, string $sourceHash, string $storedHash, int $storedBytes): void {
+    if ($fid < 1 || !\Drupal::database()->schema()->fieldExists('xedc_image_file', 'original_bytes')) {
+      return;
+    }
+    if ($originalBytes < 1 && $sourceHash !== '' && $sourceHash === $storedHash && $storedBytes > 0) {
+      $originalBytes = $storedBytes;
+    }
+    if ($originalBytes < 1) {
+      return;
+    }
+    $database = \Drupal::database();
+    $current = (int) $database->select('xedc_image_file', 'f')
+      ->fields('f', ['original_bytes'])
+      ->condition('fid', $fid)
+      ->execute()
+      ->fetchField();
+    if ($current > 0) {
+      return;
+    }
+    if ($current === 0 || $current === FALSE) {
+      $exists = $database->select('xedc_image_file', 'f')
+        ->fields('f', ['fid'])
+        ->condition('fid', $fid)
+        ->execute()
+        ->fetchField();
+      if ($exists) {
+        $database->update('xedc_image_file')
+          ->fields(['original_bytes' => $originalBytes])
+          ->condition('fid', $fid)
+          ->condition('original_bytes', 0)
+          ->execute();
+        return;
+      }
+      $database->merge('xedc_image_file')
+        ->keys(['fid' => $fid])
+        ->fields([
+          'animated' => 0,
+          'webp' => '',
+          'bytes' => $storedBytes,
+          'source_sha256' => $sourceHash,
+          'stored_sha256' => $storedHash,
+          'original_bytes' => $originalBytes,
+          'original_mime' => '',
+          'original_extension' => '',
+          'optimized_bytes' => $storedBytes,
+          'optimized_mime' => '',
+          'optimized_extension' => '',
+          'optimization_status' => 'success',
+          'processed' => \Drupal::time()->getRequestTime(),
+        ])
+        ->execute();
+    }
   }
 
   /**
@@ -645,8 +780,8 @@ class ImagePipeline {
    * ALT text for a newly created media. Shared media keeps the alt it already has.
    */
   private function altText(object $task, object $item, NodeInterface $node): string {
-    $total = max((int) $item->weight, (int) $task->total, 1);
-    return $this->alt->format($node->label(), (int) $item->weight, $total);
+    unset($task, $item);
+    return $this->alt->forNode($node);
   }
 
   /**

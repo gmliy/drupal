@@ -128,7 +128,8 @@ try {
         $check('ZIP 图片写入公开存储且大于 0', str_starts_with($uri, 'public://') && $file->getSize() > 0, $uri . ' ' . ($file ? $file->getSize() : 0));
       }
     }
-    $check('ZIP ALT 按标题和序号生成', in_array($zipTitle . '_第1张图', $alts, TRUE) && in_array($zipTitle . '_第2张图', $alts, TRUE), implode(' | ', $alts));
+    $expectedAlt = \Drupal::service('xedc_core.alt')->compose('', $zipTitle);
+    $check('ZIP ALT 使用模特名+作品标题', $alts && count(array_unique($alts)) === 1 && $alts[0] === $expectedAlt, implode(' | ', $alts));
     $again = $upload($zipPath, '中文图集.zip', [
       'upload_token' => $zipToken,
       'title' => $zipTitle,
@@ -155,7 +156,7 @@ try {
     $node = Node::load((int) ($sevenJson['nid'] ?? 0));
     $check('7z 解压并导入 1 张图片', $done && (int) $done->success_count === 1 && $node && !$node->isPublished(), $done ? (string) $done->status . ' ok=' . $done->success_count . ' err=' . $done->error : 'no');
     $alt = $node ? (string) $node->get('field_images')->referencedEntities()[0]->get('field_media_image')->alt : '';
-    $check('7z ALT 使用内容标题', $alt === $sevenTitle . '_第1张图', $alt);
+    $check('7z ALT 使用模特名+作品标题', $alt === \Drupal::service('xedc_core.alt')->compose('', $sevenTitle), $alt);
   }
 
   $empty = $work . '/empty.zip';

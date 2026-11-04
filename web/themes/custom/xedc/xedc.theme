@@ -123,8 +123,9 @@ function xedc_metatags_alter(array &$metatags, array &$context): void {
     $metatags['og_description'] = $metatags['description'];
   }
   elseif ($route === 'xedc_tags.index') {
-    $metatags['title'] = t('全部标签') . ' | DcLili';
-    $metatags['description'] = (string) t('DcLili 标签目录，按标签浏览美图、文章与视频。');
+    $metatags['title'] = t('探索标签') . ' | DcLili';
+    $metatags['og_title'] = $metatags['title'];
+    $metatags['description'] = (string) t('通过标签发现感兴趣的图片、视频与文章。');
     $metatags['og_description'] = $metatags['description'];
   }
   elseif ($route === 'view.image_gallery.page_1') {
@@ -163,15 +164,23 @@ function xedc_metatags_alter(array &$metatags, array &$context): void {
   $entity = $context['entity'] ?? NULL;
   if ($entity instanceof \Drupal\taxonomy\TermInterface && $entity->bundle() !== 'models') {
     $term = _xedc_translated($entity);
+    $raw = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string) $term->get('description')->value), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
     if ($term->bundle() === 'video_category') {
       $metatags['title'] = t('@name - 视频分类', ['@name' => $term->label()]) . ' | DcLili';
       $metatags['og_title'] = $metatags['title'];
       $metatags['canonical_url'] = $term->toUrl('canonical', ['absolute' => TRUE])->toString();
     }
+    elseif ($term->bundle() === 'tags') {
+      $metatags['title'] = $term->label() . ' | DcLili';
+      $metatags['og_title'] = $metatags['title'];
+      if ($raw === '') {
+        $metatags['description'] = (string) t('浏览与“@name”相关的已发布图片、视频与文章。', ['@name' => $term->label()]);
+        $metatags['og_description'] = $metatags['description'];
+      }
+    }
     else {
       $metatags['title'] = t('@name 列表页', ['@name' => $term->label()]) . ' | DcLili';
     }
-    $raw = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string) $term->get('description')->value), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
     if ($raw !== '') {
       $metatags['description'] = mb_substr($raw, 0, 160);
       $metatags['og_description'] = $metatags['description'];
@@ -446,6 +455,9 @@ function xedc_page_attachments_alter(array &$attachments) {
     }
     elseif ($term->bundle() === 'video_category') {
       $title = (string) t('@name - 视频分类', ['@name' => $term->label()]);
+    }
+    elseif ($term->bundle() === 'tags') {
+      $title = (string) $term->label();
     }
     else {
       $title = (string) t('@name 列表页', ['@name' => $term->label()]);
@@ -2120,22 +2132,23 @@ function _xedc_add_meta(array &$variables) {
     }
     return $out;
   };
+  // Public photo detail shows count, original size and date only.
+  // Optimization totals stay available to admin forms via GalleryMetrics.
   $variables['xedc_meta'] = [
     'count' => $galleryStats['count'] ?? count($files),
     'size' => $sizeLabel,
-    'original' => $galleryStats['original_label'] ?? '',
-    'optimized' => $galleryStats['optimized_label'] ?? '',
-    'saved' => $galleryStats['saved_label'] ?? '',
-    'ratio' => $galleryStats['ratio_label'] ?? '',
-    'image_status' => $galleryStats['status'] ?? '',
-    'note' => $galleryStats['partial_note'] ?? '',
-    'gallery_stats' => $galleryStats !== NULL,
+    'size_label' => (string) t('原图总大小'),
+    'original' => $galleryStats['original_label'] ?? $sizeLabel,
+    'gallery_stats' => FALSE,
     'date' => \Drupal::service('date.formatter')->format($node->getCreatedTime(), 'custom', 'Y-m-d'),
     'models' => $terms('field_model'),
     'tags' => $terms('field_tags'),
     'categories' => $terms('field_categories'),
   ];
   $variables['#cache']['tags'][] = 'node:' . $node->id();
+  if ($galleryStats) {
+    $variables['#cache']['tags'][] = 'xedc_gallery_metrics:' . $node->id();
+  }
 }
 
 /**

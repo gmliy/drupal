@@ -313,9 +313,9 @@ try {
     $cover = (int) $node->get('field_cover_image')->target_id;
     $mids = array_map('intval', array_column($node->get('field_images')->getValue(), 'target_id'));
     $check('封面来自有效图片', $cover && in_array($cover, $mids, TRUE), (string) $cover);
-    $expected = \Drupal::service('xedc_core.alt')->format($title, 1, $total);
-    $check('ALT 第001张', ($alts[0] ?? '') === $expected, ($alts[0] ?? '') . ' != ' . $expected);
-    $check('每张 ALT 不同', count($alts) === count(array_unique($alts)), implode(' | ', $alts));
+    $expected = \Drupal::service('xedc_core.alt')->forNode($node);
+    $check('ALT 使用模特名+作品标题', ($alts[0] ?? '') === $expected && $expected !== '', ($alts[0] ?? '') . ' != ' . $expected);
+    $check('同作品图片 ALT 一致', count($alts) === count(array_unique($alts)) && count($alts) === $total, implode(' | ', $alts));
     $check('原图总大小', (int) $task->bytes === $bytes && $bytes > 0, $task->bytes . ' vs ' . $bytes);
     $check('重命名保留原格式', $renamed, 'checked');
     $check('正式图片为 WebP', $webpOk, $webpOk ? 'webp' : 'missing');

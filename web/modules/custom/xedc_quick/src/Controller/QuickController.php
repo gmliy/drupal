@@ -11,6 +11,7 @@ use Drupal\media\Entity\Media;
 use Drupal\media\MediaInterface;
 use Drupal\node\Entity\Node;
 use Drupal\taxonomy\Entity\Term;
+use Drupal\xedc_quick\QuickIntake;
 use Drupal\xedc_quick\QuickStore;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -23,6 +24,7 @@ class QuickController extends ControllerBase {
 
   public function __construct(
     protected QuickStore $store,
+    protected QuickIntake $intake,
   ) {}
 
   /**
@@ -31,6 +33,7 @@ class QuickController extends ControllerBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('xedc_quick.store'),
+      $container->get('xedc_quick.intake'),
     );
   }
 
@@ -115,12 +118,36 @@ class QuickController extends ControllerBase {
    * Empty shell. Term lists are loaded by the suggest endpoint.
    */
   public function page(): array {
+    $maxImage = (int) (\Drupal::config('xedc_core.settings')->get('member_max_image_bytes') ?: 26214400);
+    if ($maxImage < 1) {
+      $maxImage = 26214400;
+    }
     return [
       '#type' => 'html_tag',
       '#tag' => 'div',
       '#attributes' => ['id' => 'xq-app'],
       '#attached' => [
-        'library' => ['xedc_quick/app'],
+        'library' => ['xedc_quick/app', 'xedc_core/upload_manager', 'xedc_core/upload_panel'],
+        'drupalSettings' => [
+          'xedcUpload' => [
+            'sessionsUrl' => '/admin/quick-gallery/upload/sessions',
+            'sessionUrl' => '/admin/quick-gallery/upload/session',
+            'sessionBase' => '/admin/quick-gallery/upload/session/',
+            'probeUrl' => '',
+            'reuseUrl' => '/admin/quick-gallery/reuse',
+            'draftUrl' => '',
+            'closeUrl' => '',
+            'progressBase' => '/admin/content/image-imports/',
+            'syncUrl' => '/admin/content/image-imports/sync',
+            'centerUrl' => '/admin/quick-gallery',
+            'maxArchive' => 0,
+            'maxImage' => $maxImage,
+            'chunkBytes' => (int) (\Drupal::config('xedc_core.settings')->get('upload_chunk_bytes') ?: 5242880),
+            'headBytes' => 65536,
+            'concurrency' => 2,
+            'entry' => 'quick',
+          ],
+        ],
       ],
       '#cache' => [
         'contexts' => ['user.permissions'],
@@ -169,122 +196,39 @@ class QuickController extends ControllerBase {
    * Stores one already-compressed image as media, reusing an identical file.
    */
   public function upload(Request $request): JsonResponse {
-    [, $media_type, $source] = $this->info();
     $uploaded = $request->files->get('file');
     if (!$uploaded || !$uploaded->isValid()) {
       return new JsonResponse(['error' => '没有收到有效图片。'], 400);
     }
-    if ($uploaded->getSize() > 25 * 1024 * 1024) {
-      return new JsonResponse(['error' => '文件过大'], 400);
+    $title = trim((string) $request->request->get('title', 'gallery'));
+    $index = max(1, (int) $request->request->get('n', 1));
+    $path = $uploaded->getRealPath();
+    if (!is_string($path) || $path === '') {
+      return new JsonResponse(['error' => '没有收到有效图片。'], 400);
     }
-    $info = @getimagesize($uploaded->getPathname());
-    $type = (int) ($info[2] ?? 0);
-    $extension = match ($type) {
-      IMAGETYPE_JPEG => 'jpg',
-      IMAGETYPE_PNG => 'png',
-      IMAGETYPE_GIF => 'gif',
-      IMAGETYPE_WEBP => 'webp',
-      default => (defined('IMAGETYPE_AVIF') && $type === IMAGETYPE_AVIF) ? 'avif' : '',
-    };
-    if ($extension === '') {
-      return new JsonResponse(['error' => '不是受支持的图片，文件没有公开。'], 400);
+    $saved = $this->intake->storePath($path, $uploaded->getClientOriginalName(), $title, $index, (int) $uploaded->getSize());
+    $http = (int) ($saved['http'] ?? 500);
+    unset($saved['http'], $saved['ok']);
+    return new JsonResponse($saved, $http);
+  }
+
+  /**
+   * Reuses a healthy file when the browser already knows its SHA-256.
+   */
+  public function reuse(Request $request): JsonResponse {
+    $payload = json_decode($request->getContent(), TRUE);
+    if (!is_array($payload)) {
+      return new JsonResponse(['error' => '请求不是 JSON。'], 400);
     }
-    $this->store->ensureTables();
-    $hash = hash_file('sha256', $uploaded->getPathname());
-    $lock_name = 'xedc_quick:' . $hash;
-    $lock = \Drupal::lock();
-    if (!$lock->acquire($lock_name, 30)) {
-      $lock->wait($lock_name, 5);
-      $existing = $this->mediaForHash($hash);
-      if ($existing) {
-        return new JsonResponse(['mid' => (int) $existing, 'dup' => TRUE]);
-      }
-      if (!$lock->acquire($lock_name, 30)) {
-        return new JsonResponse(['error' => '请稍后重试'], 429);
-      }
-    }
-    $optimizedPath = NULL;
-    try {
-      $existing = $this->mediaForHash($hash);
-      if ($existing) {
-        return new JsonResponse(['mid' => (int) $existing, 'dup' => TRUE]);
-      }
-      $title = trim((string) $request->request->get('title', 'gallery'));
-      $title = $title !== '' ? mb_substr($title, 0, 200) : 'gallery';
-      $n = max(1, (int) $request->request->get('n', 1));
-      $slug = strtolower(trim((string) preg_replace('/[^a-z0-9]+/i', '-', \Drupal::service('transliteration')->transliterate($title, 'en')), '-'));
-      $slug = substr($slug !== '' ? $slug : 'gallery', 0, 60);
-      $originalBytes = (int) $uploaded->getSize();
-      $sourcePath = $uploaded->getRealPath();
-      $optimizedMime = '';
-      if (!\Drupal::hasService('xedc_core.image_optimizer') || !\Drupal::hasService('xedc_core.image_optimize_repository')) {
-        return new JsonResponse(['error' => '图片优化服务不可用，文件没有公开'], 500);
-      }
-      $settings = \Drupal::service('xedc_core.image_optimize_repository')->settings();
-      $decision = \Drupal::service('xedc_core.image_optimizer')->optimize($sourcePath, $settings);
-      if ($decision->status === 'rejected') {
-        return new JsonResponse(['error' => $decision->error !== '' ? $decision->error : '图片未通过优化'], 400);
-      }
-      if (!$decision->keptOriginal && is_file($decision->path)) {
-        $sourcePath = $decision->path;
-        $optimizedPath = $decision->path;
-        $extension = $decision->extension !== '' ? $decision->extension : $extension;
-        $optimizedMime = $decision->mime;
-      }
-      if (\Drupal::state()->get('xedc_quick_fail_public_copy') === TRUE) {
-        throw new \RuntimeException('公开存储写入失败（测试模拟），文件没有公开。');
-      }
-      $directory = 'public://gallery/' . date('Y-m');
-      $filesystem = \Drupal::service('file_system');
-      $filesystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
-      $destination = sprintf('%s/%s-%03d.%s', $directory, $slug, $n, $extension);
-      $uri = $filesystem->copy($sourcePath, $destination, FileExists::Rename);
-      $file = File::create([
-        'uri' => $uri,
-        'uid' => $this->currentUser()->id(),
-        'status' => FileInterface::STATUS_PERMANENT,
-        'filename' => basename($uri),
-      ]);
-      if ($optimizedMime !== '') {
-        $file->setMimeType($optimizedMime);
-      }
-      $file->save();
-      $media = Media::create([
-        'bundle' => $media_type,
-        'name' => $title . ' ' . $n,
-        'uid' => $this->currentUser()->id(),
-        'status' => 1,
-        $source => [
-          'target_id' => $file->id(),
-          'alt' => \Drupal::service('xedc_core.alt')->format($title, $n, $n),
-        ],
-      ]);
-      $media->save();
-      $this->store->rememberUpload($hash, (int) $media->id(), $originalBytes);
-      if (\Drupal::hasService('xedc_core.alt')) {
-        \Drupal::service('xedc_core.alt')->remember((int) $media->id(), (string) $media->get($source)->alt, 'auto');
-      }
-      return new JsonResponse([
-        'mid' => (int) $media->id(),
-        'original_bytes' => $originalBytes,
-        'optimized_bytes' => (int) $file->getSize(),
-        'mime' => (string) $file->getMimeType(),
-        'public' => str_starts_with((string) $file->getFileUri(), 'public://') && !str_contains((string) $file->getFileUri(), 'public/public/'),
-      ]);
-    }
-    catch (\Throwable $e) {
-      $this->getLogger('xedc_quick')->error('Gallery upload failed: @message', ['@message' => $e->getMessage()]);
-      $safe = str_contains($e->getMessage(), '公开存储') ? $e->getMessage() : '上传失败';
-      return new JsonResponse(['error' => $safe], 500);
-    }
-    finally {
-      if (is_string($optimizedPath) && is_file($optimizedPath)) {
-        $optimizedDir = dirname($optimizedPath);
-        @unlink($optimizedPath);
-        @rmdir($optimizedDir);
-      }
-      $lock->release($lock_name);
-    }
+    $saved = $this->intake->match(
+      (string) ($payload['sha256'] ?? ''),
+      (int) ($payload['size'] ?? 0),
+      (string) ($payload['title'] ?? 'gallery'),
+      (int) ($payload['n'] ?? 1),
+    );
+    $http = (int) ($saved['http'] ?? 200);
+    unset($saved['http']);
+    return new JsonResponse($saved, $http);
   }
 
   /**
@@ -340,23 +284,26 @@ class QuickController extends ControllerBase {
       if ($node->hasField('moderation_state')) {
         $node->set('moderation_state', $publish ? 'published' : 'draft');
       }
+      $model = trim((string) ($data['model'] ?? ''));
+      if ($node->hasField('field_model') && $model !== '') {
+        $node->set('field_model', $this->terms($bundle, 'field_model', [$model]));
+      }
       if ($node->hasField('field_cover_image')) {
         $cover_media = $loaded[$cover] ?? NULL;
         if ($cover_media instanceof MediaInterface) {
           if ($node->getFieldDefinition('field_cover_image')->getType() === 'image') {
+            $coverAlt = \Drupal::hasService('xedc_core.alt')
+              ? \Drupal::service('xedc_core.alt')->compose($model, $title)
+              : $title;
             $node->set('field_cover_image', [
               'target_id' => $cover_media->getSource()->getSourceFieldValue($cover_media),
-              'alt' => $title,
+              'alt' => $coverAlt !== '' ? $coverAlt : $title,
             ]);
           }
           else {
             $node->set('field_cover_image', ['target_id' => $cover]);
           }
         }
-      }
-      $model = trim((string) ($data['model'] ?? ''));
-      if ($node->hasField('field_model') && $model !== '') {
-        $node->set('field_model', $this->terms($bundle, 'field_model', [$model]));
       }
       if ($node->hasField('field_tags')) {
         $node->set('field_tags', $this->terms($bundle, 'field_tags', $data['tags'] ?? []));
@@ -366,6 +313,9 @@ class QuickController extends ControllerBase {
       }
       $node->save();
       $node = Node::load((int) $node->id()) ?: $node;
+      if (\Drupal::hasService('xedc_core.alt')) {
+        \Drupal::service('xedc_core.alt')->refresh($node);
+      }
       $metrics = \Drupal::hasService('xedc_core.gallery_metrics') ? \Drupal::service('xedc_core.gallery_metrics')->forNode($node) : [];
       $url = $publish ? $node->toUrl()->toString() : $node->toUrl('edit-form')->toString();
       return new JsonResponse([

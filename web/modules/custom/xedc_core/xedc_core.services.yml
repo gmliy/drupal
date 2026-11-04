@@ -53,6 +53,10 @@ services:
     class: Drupal\xedc_core\ImageBatchIntake
     arguments: ['@xedc_core.tasks', '@file_system', '@queue', '@xedc_core.import_kick', '@config.factory']
 
+  xedc_core.file_fingerprint:
+    class: Drupal\xedc_core\Upload\FileFingerprint
+    arguments: ['@database', '@entity_type.manager', '@lock', '@datetime.time', '@logger.channel.xedc_core']
+
   xedc_core.upload_session:
     class: Drupal\xedc_core\Upload\UploadSessionManager
     arguments:
@@ -69,6 +73,7 @@ services:
       - '@xedc_core.image_batch'
       - '@xedc_core.tasks'
       - '@xedc_core.import_kick'
+      - '@xedc_core.file_fingerprint'
 
   xedc_core.gallery_metrics:
     class: Drupal\xedc_core\GalleryMetrics

@@ -117,6 +117,84 @@ final class ImageBatchIntake {
   }
 
   /**
+   * Queues a new media for a file that is already stored.
+   *
+   * @return array<string, mixed>
+   *   The same shape as addFile(). No new physical file is written.
+   */
+  public function addReused(NodeInterface $node, int $fid, string $originalName, string $token, string $sourceSha, int $bytes): array {
+    $token = $this->token($token);
+    $sourceSha = strtolower(trim($sourceSha));
+    if ($token === '' || $fid < 1 || !preg_match('/^[a-f0-9]{64}$/', $sourceSha)) {
+      return $this->fail('复用参数无效，没有跳过上传。', TRUE, FALSE);
+    }
+    $task = $this->openTask($node);
+    if (!$this->stageReused((int) $task->id, $fid, $originalName, $token, $sourceSha, $bytes)) {
+      return $this->fail('复用记录没有写入。', TRUE, FALSE);
+    }
+    $this->tasks->update((int) $task->id, [
+      'total' => $this->tasks->itemCount((int) $task->id),
+      'message' => '文件已存在，正在写入本次投稿',
+    ]);
+    $this->queueFactory->get('xedc_image_import')->createItem(['task_id' => (int) $task->id]);
+    $this->kick->schedule((int) $task->id);
+    $item = $this->tasks->itemByRelativePath((int) $task->id, $token);
+    if (!$item) {
+      return $this->fail('复用记录没有写入。', TRUE, TRUE);
+    }
+    $described = $this->describe($this->tasks->load((int) $task->id), $item, '文件已存在，已复用。');
+    $described['phase'] = 'duplicate';
+    $described['fid'] = $fid;
+    return $described;
+  }
+
+  /**
+   * Adds one reused image to an existing task.
+   */
+  public function stageReused(int $taskId, int $fid, string $originalName, string $token, string $sourceSha, int $bytes): bool {
+    $token = $this->token($token);
+    $sourceSha = strtolower(trim($sourceSha));
+    if ($taskId < 1 || $token === '' || $fid < 1 || !preg_match('/^[a-f0-9]{64}$/', $sourceSha)) {
+      return FALSE;
+    }
+    if ($this->tasks->itemByRelativePath($taskId, $token)) {
+      return TRUE;
+    }
+    $this->tasks->insertItems($taskId, [[
+      'relative' => $token,
+      'name' => $originalName,
+      'uri' => '',
+      'bytes' => max(0, $bytes),
+      'original_bytes' => max(0, $bytes),
+      'status' => 'pending',
+    ]], $this->tasks->itemCount($taskId) + 1);
+    $item = $this->tasks->itemByRelativePath($taskId, $token);
+    if (!$item) {
+      return FALSE;
+    }
+    $this->tasks->markItem((int) $item->id, [
+      'fid' => $fid,
+      'source_sha256' => $sourceSha,
+      'reused' => 1,
+    ]);
+    return TRUE;
+  }
+
+  /**
+   * Puts an existing task on the import queue.
+   */
+  public function queueExisting(int $taskId): void {
+    $this->tasks->update($taskId, [
+      'total' => $this->tasks->itemCount($taskId),
+      'status' => ImportStatus::QUEUED,
+      'stage' => ImportStatus::QUEUED,
+      'message' => '文件已存在，正在写入本次投稿',
+    ]);
+    $this->queueFactory->get('xedc_image_import')->createItem(['task_id' => $taskId]);
+    $this->kick->schedule($taskId);
+  }
+
+  /**
    * Stops accepting files and lets the worker attach finished images.
    */
   public function close(int $taskId): object {
