@@ -18,7 +18,7 @@
 | R012 | SHA256、zstd、composer.lock、manifest schema | lib/backup.sh | 备份日志 checksum OK，进程退出码 0 | DONE |
 | R013 | 保留上限且不删除唯一 PASS，FAIL 不计入 | xedc_backup_retain | shell_functions.sh 的 retain 用例 | DONE |
 | R014 | 03:00 与 15:00 timer，生产机不启用 | contrib/systemd | 单元文件存在；systemctl 未 enable | WARN |
-| R015 | 异地复制 | xedc_backup_offsite、lib/r2.sh | 本地目录复制仍有单元测试。R2 客户端对本地私有 S3 完成了小对象和 605176048 字节迁移包的上传、回读和 SHA-256。没有专用 Cloudflare 凭据，未向真实 R2 上传 | WARN |
+| R015 | 异地复制 | xedc_backup_offsite、lib/r2.sh、upload.sh | 本地目录复制仍有单元测试。2026-11-04 已把现有 `20261104T105132Z` 上传到私有 R2，三个对象大小一致，回读 SHA-256 一致。隔离测试覆盖空列表、鉴权、网络和拒绝覆盖 | DONE |
 | R016 | 磁盘与内存预检、锁、日志 | lib/common.sh | 备份日志记录了内存和磁盘；锁被成功运行占用过 | DONE |
 | R017 | 恢复支持列出的发行版并拒绝来源机 | lib/common.sh restore.sh | Ubuntu 24.04 容器识别为 noble 并完成夹具恢复。其余发行版和来源机拒绝未测 | TODO |
 | R018 | PHP 只允许 8.5，禁止降到 8.4 | lib/environment.sh | `--php-version 8.4` 在安装前退出并写 BLOCKED。发行版矩阵和最新夹具见进度，未完成的系统不是 PASS | WARN |

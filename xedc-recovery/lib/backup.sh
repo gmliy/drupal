@@ -8,9 +8,10 @@ xedc_backup_usage() {
   backup.sh --package-snapshot 快照目录 [--upload-r2]
 
 每次运行都会重新扫描并生成一份新的时间戳快照，不覆盖上一份成功备份。
-成功后自动生成 /var/backups/xedc/xedc-migration-时间.tar.zst 和同名 .sha256。
---upload-r2 把迁移包传到专用私有 Bucket。配置见 /root/.config/xedc-recovery/r2.env。
-备份写到 /var/backups/xedc，不会进入 Git。
+成功后自动生成 /var/backups/xedc/xedc-migration-时间.tar.zst、同名 .sha256 和 .manifest.public.json。
+--upload-r2 会先做上面的完整备份，再上传新迁移包。它不会上传已经存在的旧包。
+已有迁移包用 upload.sh --file 上传。配置见 /root/.config/xedc-recovery/r2.env。
+备份写到 /var/backups/xedc，不会进入 Git。失败时日志含阶段、脚本、函数、行号、退出码和脱敏后的命令。
 EOF
 }
 
@@ -128,6 +129,7 @@ xedc_backup_main() {
   [[ -f $XEDC_SITE_ROOT/composer.lock ]] || xedc_die "找不到 composer.lock。"
   local parent=${output:-$XEDC_BACKUP_ROOT}
   mkdir -p "$parent"
+  xedc_set_phase preflight
   xedc_check_resources "$parent" 8388608
   if [[ ${XEDC_DRY_RUN:-0} == 1 ]]; then
     xedc_log INFO "dry-run: 将在 ${parent} 创建新快照，包含数据库、文件、服务配置和加密密钥。"
@@ -180,8 +182,10 @@ EOF
   else
     xedc_database_server_facts "$database" "$facts/database-server.txt" "$cnf"
   fi
+  xedc_set_phase database
   xedc_dump_database "$cnf" "$database" "$dest/database.sql.zst"
 
+  xedc_set_phase files
   local public_dir private_dir public_count public_bytes private_count private_bytes
   public_dir=$XEDC_SITE_ROOT/web/sites/default/files
   private_dir=$(jq -r '.private_path // empty' "$facts/settings-public.json")
@@ -214,6 +218,7 @@ EOF
     xedc_warn "没有私有文件目录。"
   fi
 
+  xedc_set_phase project
   local overlay=$facts/overlay
   mkdir -p "$overlay/web/sites/default" "$overlay/config"
   cp "$XEDC_SECRET_WORKDIR/settings.redacted.php" "$overlay/web/sites/default/settings.php"
@@ -229,6 +234,7 @@ EOF
   cp -a "$XEDC_SITE_ROOT/composer.lock" "$dest/composer.lock"
   chmod 600 "$dest/composer.lock"
 
+  xedc_set_phase system
   mkdir -p "$facts/system/nginx" "$facts/system/php" "$facts/services"
   cp -a /etc/nginx/conf.d "$facts/system/nginx/" 2>/dev/null || true
   cp -a /etc/nginx/mime.types "$facts/system/nginx/" 2>/dev/null || true
@@ -236,8 +242,10 @@ EOF
     cp -a /etc/php "$facts/system/php/php"
   fi
   xedc_tar_to_zstd "$dest/system-config.tar.zst" -C "$facts/system" -cf - .
+  xedc_set_phase services
   xedc_collect_services "$facts/services" "$XEDC_SECRET_WORKDIR"
   xedc_tar_to_zstd "$dest/services-config.tar.zst" -C "$facts/services" -cf - .
+  xedc_set_phase docker-volumes
   if [[ ${XEDC_SKIP_DOCKER:-0} != 1 ]]; then
     xedc_export_docker_volumes "$dest/docker-volumes" || xedc_die "Docker 数据卷导出失败。"
   else
@@ -245,6 +253,7 @@ EOF
     printf '%s\n' "skipped by test" >"$dest/docker-volumes/SKIP.txt"
   fi
 
+  xedc_set_phase manifest
   xedc_media_facts "$facts/media.json"
   xedc_collect_github_software "$facts/github.json"
   cp "$facts/github.json" "$dest/github-software.json"
@@ -377,10 +386,12 @@ def scan(archive):
 for archive in archives:
     scan(archive)
 PY
+  xedc_set_phase secrets
   xedc_backup_encrypt_secrets "$XEDC_SECRET_WORKDIR" "$dest/secrets.enc"
   rm -rf "$XEDC_SECRET_WORKDIR"
   XEDC_SECRET_WORKDIR=
   chmod 600 "$dest/secrets.enc"
+  xedc_set_phase checksum
   xedc_backup_checksums "$dest"
   xedc_backup_self_test "$dest"
   cat >"$dest/BACKUP_REPORT.md" <<EOF
@@ -404,11 +415,13 @@ EOF
   xedc_backup_offsite "$dest"
   xedc_backup_retain "$parent" 14
   local package_path=""
+  xedc_set_phase package
   xedc_migration_package "$dest" "$parent" >"$XEDC_STATE_ROOT/last-package-path"
   package_path=$(cat "$XEDC_STATE_ROOT/last-package-path")
   [[ -f $package_path ]] || xedc_die "迁移包生成失败。分项快照已保留：${dest}"
   if [[ ${XEDC_UPLOAD_R2:-0} == 1 ]]; then
-    xedc_r2_upload_package "$package_path" || xedc_die "R2 上传失败。分项快照和本地迁移包已保留。"
+    xedc_set_phase r2-upload
+    xedc_r2_upload_package "$package_path"
   fi
   xedc_log INFO "备份完成：${dest}"
   xedc_log INFO "迁移包：${package_path}"

@@ -28,6 +28,17 @@ xedc_init() {
     chmod 700 "$XEDC_LOG_DIR" "$XEDC_STATE_ROOT" "$XEDC_BACKUP_ROOT"
   fi
   XEDC_LOG=${XEDC_LOG:-$XEDC_LOG_DIR/recovery.log}
+  XEDC_PHASE=${XEDC_PHASE:-init}
+  if [[ -z ${XEDC_ERR_MARKER:-} || ! -f ${XEDC_ERR_MARKER} ]]; then
+    XEDC_ERR_MARKER=$(mktemp)
+    chmod 600 "$XEDC_ERR_MARKER"
+    : >"$XEDC_ERR_MARKER"
+    XEDC_TEMPS+=("$XEDC_ERR_MARKER")
+  fi
+  export XEDC_PHASE XEDC_ERR_MARKER XEDC_LOG
+  trap 'XEDC_TRACE_PREV=$?; XEDC_TRACE_CMD=$BASH_COMMAND; xedc_trace_last' DEBUG
+  trap 'xedc_on_err $? "${PIPESTATUS[*]}"' ERR
+  trap 'xedc_on_exit $?' EXIT
 }
 
 xedc_note_secret() {
@@ -76,14 +87,71 @@ xedc_warn() {
   xedc_log WARN "$*"
 }
 
+xedc_set_phase() {
+  XEDC_PHASE=$1
+  export XEDC_PHASE
+}
+
+xedc_trace_last() {
+  [[ ${XEDC_IN_TRACE:-0} == 1 || ${XEDC_IN_ERR:-0} == 1 ]] && return 0
+  XEDC_IN_TRACE=1
+  local cmd=${XEDC_TRACE_CMD:-}
+  local prev=${XEDC_TRACE_PREV:-0}
+  case $cmd in
+    xedc_on_err*|xedc_on_exit*|xedc_die*|xedc_trace_last*|'') XEDC_IN_TRACE=0; return 0 ;;
+  esac
+  if [[ $prev -eq 0 && -n ${XEDC_ERR_MARKER:-} && -s ${XEDC_ERR_MARKER} ]]; then
+    : >"$XEDC_ERR_MARKER"
+  fi
+  XEDC_CMD4=${XEDC_CMD3:-}
+  XEDC_CMD3=${XEDC_CMD2:-}
+  XEDC_CMD2=${XEDC_CMD1:-}
+  XEDC_CMD1=$cmd
+  XEDC_IN_TRACE=0
+  return 0
+}
+
 xedc_die() {
-  xedc_log FAIL "$*"
+  local src=${BASH_SOURCE[1]:-}
+  local func=${FUNCNAME[1]:-main}
+  local line=${BASH_LINENO[0]:-}
+  if [[ -n ${XEDC_ERR_MARKER:-} ]]; then
+    printf '1\n' >"$XEDC_ERR_MARKER"
+  fi
+  xedc_log FAIL "$* 阶段=${XEDC_PHASE:-unknown} 退出码=1 脚本=${src} 函数=${func} 行=${line} 快照=${XEDC_DEST:-无}"
   exit 1
 }
 
 xedc_on_err() {
-  local rc=$1 line=$2
-  xedc_log FAIL "命令失败，退出码 ${rc}，行 ${line}"
+  local rc=$1
+  local pipe=${2:-}
+  [[ ${XEDC_IN_ERR:-0} == 1 ]] && exit "$rc"
+  XEDC_IN_ERR=1
+  trap - ERR
+  if [[ -n ${XEDC_ERR_MARKER:-} && -s ${XEDC_ERR_MARKER} ]]; then
+    exit "$rc"
+  fi
+  if [[ -n ${XEDC_ERR_MARKER:-} ]]; then
+    printf '1\n' >"$XEDC_ERR_MARKER"
+  fi
+  local line=${BASH_LINENO[0]:-}
+  local func=${FUNCNAME[1]:-main}
+  local src=${BASH_SOURCE[1]:-${BASH_SOURCE[0]:-}}
+  local cmd=${BASH_COMMAND:-}
+  local extra=""
+  if [[ $pipe == *" "* ]]; then
+    extra=" 管道=${pipe} 近命令=${XEDC_CMD1:-}; ${XEDC_CMD2:-}; ${XEDC_CMD3:-}"
+  fi
+  xedc_log FAIL "阶段=${XEDC_PHASE:-unknown} 退出码=${rc} 脚本=${src} 函数=${func} 行=${line} 快照=${XEDC_DEST:-无} 命令=${cmd}${extra}" || true
+  exit "$rc"
+}
+
+xedc_on_exit() {
+  local rc=$1
+  [[ ${XEDC_EXIT_HANDLED:-0} == 1 ]] && return 0
+  XEDC_EXIT_HANDLED=1
+  trap - ERR EXIT DEBUG
+  xedc_cleanup_temps || true
   exit "$rc"
 }
 
@@ -112,6 +180,12 @@ xedc_cleanup_temps() {
   fi
   if [[ -n ${XEDC_SECRET_WORKDIR:-} && -d $XEDC_SECRET_WORKDIR ]]; then
     rm -rf "$XEDC_SECRET_WORKDIR"
+  fi
+  if [[ -n ${XEDC_R2_CFG:-} ]]; then
+    rm -f "$XEDC_R2_CFG"
+  fi
+  if [[ -n ${XEDC_STATE_ROOT:-} && -d $XEDC_STATE_ROOT ]]; then
+    find "$XEDC_STATE_ROOT" -maxdepth 1 -name '.rclone.*' -delete
   fi
 }
 

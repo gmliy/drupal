@@ -245,6 +245,56 @@ xedc_migration_check_tree() {
   return 0
 }
 
+xedc_migration_manifest_corresponds() {
+  local archive=$1 manifest=$2
+  local name member tmp rc
+  name=$(basename "$archive" .tar.zst)
+  [[ $(basename "$manifest") == "${name}.manifest.public.json" ]] || return 1
+  [[ -f $archive && -f $manifest && ! -L $manifest ]] || return 1
+  member="${name}/snapshot/manifest.public.json"
+  tmp=$(mktemp)
+  chmod 600 "$tmp"
+  if ! tar --zstd -xOf "$archive" "$member" >"$tmp" 2>/dev/null; then
+    rm -f "$tmp"
+    return 1
+  fi
+  python3 - "$manifest" "$tmp" <<'PY'
+import json, sys
+external, internal = sys.argv[1:]
+banned = {
+    "password", "hash_salt", "secret", "secret_access_key", "access_key",
+    "account_id", "endpoint", "bucket", "token", "cdn_base", "username",
+}
+
+def load(path):
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+    if data.get("schema") != 2:
+        raise SystemExit(1)
+    return data
+
+def walk(value, key=""):
+    if isinstance(value, dict):
+        for item_key, item in value.items():
+            lowered = item_key.lower()
+            if lowered in banned or "password" in lowered or "secret" in lowered or "token" in lowered:
+                raise SystemExit(3)
+            walk(item, item_key)
+    elif isinstance(value, list):
+        for item in value:
+            walk(item, key)
+
+outer = load(external)
+inner = load(internal)
+if outer != inner:
+    raise SystemExit(2)
+walk(outer)
+PY
+  rc=$?
+  rm -f "$tmp"
+  return "$rc"
+}
+
 xedc_migration_verify_archive() {
   local archive=$1 shafile=$2
   [[ -f $archive && -f $shafile ]] || {

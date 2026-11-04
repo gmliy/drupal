@@ -56,12 +56,26 @@ xedc_export_docker_volumes() {
       continue
     fi
     xedc_log INFO "只读导出数据卷 ${volume}。文件级复制不是事务一致快照。"
-    docker run --rm --network none --read-only \
+    local err
+    err=$(mktemp)
+    chmod 600 "$err"
+    if ! docker run --rm --network none --read-only \
       --mount "type=volume,source=${volume},target=/volume,readonly" \
       --mount "type=bind,source=${dest},target=/backup" \
       ubuntu:24.04 \
-      tar -C /volume -cf "/backup/${volume}.tar" .
-    zstd -T2 -q --rm -f "$dest/${volume}.tar"
+      tar -C /volume -cf "/backup/${volume}.tar" . 2>"$err"; then
+      xedc_log FAIL "数据卷 ${volume} 导出失败。命令输出已脱敏写入日志。"
+      xedc_log FAIL "$(cat "$err")"
+      rm -f "$err"
+      return 1
+    fi
+    if ! zstd -T2 -q --rm -f "$dest/${volume}.tar" 2>"$err"; then
+      xedc_log FAIL "数据卷 ${volume} 压缩失败。命令输出已脱敏写入日志。"
+      xedc_log FAIL "$(cat "$err")"
+      rm -f "$err"
+      return 1
+    fi
+    rm -f "$err"
     printf '%s\n' "${volume}: crash-consistent file copy while the container kept running" >>"$dest/CONSISTENCY.txt"
   done
   if docker volume inspect xedc-recover-db-data >/dev/null 2>&1; then

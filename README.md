@@ -33,11 +33,14 @@ sudo ls -lh /var/backups/xedc/xedc-migration-*.tar.zst
 sudo sha256sum /var/backups/xedc/xedc-migration-*.tar.zst
 ```
 
-R2 配置好之后，可以在同一次备份里上传：
+上传已有迁移包，或在新备份时顺便上传：
 
 ```bash
+sudo xedc-recovery/upload.sh --file /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst
 sudo xedc-recovery/backup.sh --upload-r2
 ```
+
+`upload.sh` 上传已经存在的迁移包。`backup.sh --upload-r2` 会先做一轮新的完整备份，再上传新包。本地备份完成不等于 R2 上传完成。
 
 已有成功快照、只补迁移包时：
 
@@ -135,26 +138,34 @@ R2_PROVIDER=Cloudflare
 sudo xedc-recovery/download.sh --source=r2 --list
 ```
 
-上传发生在备份命令带 `--upload-r2` 时。对象路径是 `xedc-backups/年/月/xedc-migration-时间.tar.zst`，同时上传 `.sha256` 和去掉端点、桶名、密钥字段的 manifest。age 私钥不会上传。脚本核对远端大小，并下载回来比对 SHA-256。失败时退出码非零。脚本不会删除远端旧对象。
+没有迁移包时会明确写出“R2 中没有找到迁移包。”，这条命令仍然成功。连接、鉴权或 Bucket 错误会失败。
+
+上传已经存在的迁移包：
+
+```bash
+sudo xedc-recovery/upload.sh --file /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst
+```
+
+对象路径是 `xedc-backups/年/月/xedc-migration-时间.tar.zst`，同一目录还有 `.sha256` 和去掉端点、桶名、密钥字段的 manifest。age 私钥不会上传。脚本核对三个对象的大小，并下载回来比对 SHA-256。失败时退出码非零。脚本不会删除远端旧对象，也不会覆盖内容不同的同名对象。
 
 在新服务器下载并恢复：
 
 ```bash
 git clone https://github.com/xxedc/drupal.git
 cd drupal
-sudo xedc-recovery/download.sh --source=r2 --backup=20261104T082520Z --output /root
+sudo xedc-recovery/download.sh --source=r2 --backup 20261104T105132Z --output /root
 cd /root
-sha256sum -c xedc-migration-20261104T082520Z.tar.zst.sha256
+sha256sum -c xedc-migration-20261104T105132Z.tar.zst.sha256
 sudo apt-get update
 sudo apt-get install -y zstd
-tar --zstd -xf xedc-migration-20261104T082520Z.tar.zst
-cd xedc-migration-20261104T082520Z
+tar --zstd -xf xedc-migration-20261104T105132Z.tar.zst
+cd xedc-migration-20261104T105132Z
 sudo ./restore.sh --mode=full --domain 新域名 --old-domain 旧域名 --new-domain 新域名
 ```
 
-省略 `--backup` 时下载该前缀下最新的一个迁移包。缺少 rclone 时，`download.sh` 会安装系统包里的 rclone。更换密钥时覆盖 `r2.env` 里的两行密钥，权限保持 600，并在 Cloudflare 撤销旧 Token。
+省略 `--backup` 时下载该前缀下最新的一个迁移包，并同时取回 `.sha256` 和 `.manifest.public.json`。目标目录已有同名文件时不会覆盖。缺少 rclone 时，`download.sh` 会安装系统包里的 rclone。更换密钥时覆盖 `r2.env` 里的两行密钥，权限保持 600，并在 Cloudflare 撤销旧 Token。
 
-这台机器还没有专用 R2 配置。上传和下载代码已对本地私有 S3 服务做过往返，包括上面这份 605176048 字节的迁移包，哈希与本地一致。还没有向真正的 Cloudflare 账户上传。
+`R2_ACCOUNT_ID` 填 32 位账户 ID。`R2_ACCESS_KEY_ID` 和 `R2_SECRET_ACCESS_KEY` 填这个私有 Bucket 的 S3 密钥，不要填 Cloudflare API Token。隔离测试和真实上传结果见 `xedc-recovery/docs/XEDC_R2_UPLOAD_DOWNLOAD_FIX_REPORT.md`。
 
 ### 5. 新服务器准备
 

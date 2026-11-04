@@ -12,11 +12,17 @@
 sudo xedc-recovery/backup.sh
 sudo xedc-recovery/backup.sh --dry-run
 sudo xedc-recovery/backup.sh --output /var/backups/xedc
-sudo xedc-recovery/backup.sh --upload-r2
 sudo xedc-recovery/backup.sh --package-snapshot /var/backups/xedc/20261104T082520Z
 ```
 
-成功的备份会保留分项快照，并生成 `/var/backups/xedc/xedc-migration-快照时间.tar.zst` 与同名 `.sha256`。打包失败时命令失败，原快照不删除。age 私钥不进迁移包。
+`backup.sh --upload-r2` 会先做一轮新的完整备份，再上传刚生成的迁移包。它不会拿已经存在的旧包去上传。已有迁移包用：
+
+```bash
+sudo xedc-recovery/upload.sh --file /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst
+sudo xedc-recovery/upload.sh --dry-run --file /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst
+```
+
+成功的备份会保留分项快照，并生成 `/var/backups/xedc/xedc-migration-快照时间.tar.zst`、同名 `.sha256` 和 `.manifest.public.json`。打包失败时命令失败，原快照不删除。age 私钥不进迁移包。本地备份完成不等于 R2 异地备份完成；只有上传日志里的 `result=PASS` 才表示远端核对通过。失败时日志会写阶段、脚本、函数、行号、退出码和脱敏后的命令。
 
 从原服务器查看：
 
@@ -68,10 +74,11 @@ Cloudflare R2 使用专用私有 Bucket 和只含该 Bucket 对象读写权限�
 
 ```bash
 sudo xedc-recovery/download.sh --source=r2 --list
-sudo xedc-recovery/download.sh --source=r2 --backup=20261104T082520Z --output /root
+sudo xedc-recovery/download.sh --source=r2 --output /root
+sudo xedc-recovery/download.sh --source=r2 --backup 20261104T105132Z --output /root
 ```
 
-对象键是 `xedc-backups/年/月/xedc-migration-时间.tar.zst`。上传后会核对远端大小并回读 SHA-256。失败不会被记成成功。脚本不删除远端旧备份。age 私钥不上传。这台机器没有专用 R2 凭据；同一套客户端已对本地私有 S3 完成小对象和上述完整迁移包的往返，哈希一致。真正的 Cloudflare 账户还没有上传记录。
+对象键是 `xedc-backups/年/月/xedc-migration-时间.tar.zst`，同一目录还有 `.sha256` 和 `.manifest.public.json`。列表只显示迁移包，空列表会写明“R2 中没有找到迁移包。”并仍返回成功。网络、鉴权或 Bucket 错误返回非零。下载三个文件，核对大小、SHA-256、zstd 和 manifest；同名文件已存在时不覆盖。上传后会核对三个对象的大小并回读 SHA-256。失败不会被记成成功。脚本不删除、不覆盖远端已有的不同对象。age 私钥不上传。隔离测试和真实 Cloudflare 的结果写在 `docs/XEDC_R2_UPLOAD_DOWNLOAD_FIX_REPORT.md`。
 
 新服务器需要受支持的 Ubuntu 或 Debian、root、软件源网络、磁盘空间、域名和单独传来的 age 私钥。云安全组放行 80 和 443。
 

@@ -6,7 +6,7 @@
 
 ## 结论
 
-`backup.sh` 在分项快照成功后会生成独立迁移包。当前这份已经生成并校验。新服务器的恢复入口只接受 PHP 8.5，不会改用 8.4。真实 Cloudflare 账户没有配置，因此没有向 Cloudflare 上传。
+`backup.sh` 在分项快照成功后会生成独立迁移包。当前这些包已经生成并校验。新服务器的恢复入口只接受 PHP 8.5，不会改用 8.4。已有迁移包用 `upload.sh` 上传。`20261104T105132Z` 已上传到私有 R2，并完成列表、隔离下载和 SHA-256 回读。本地备份完成本身不等于异地备份完成。
 
 ## 迁移包
 
@@ -75,14 +75,15 @@ age 私钥单独放到 `/root/.config/xedc-recovery/age.key`，权限 600。
 配置文件是 `/root/.config/xedc-recovery/r2.env`，权限必须是 600。模板在 `xedc-recovery/contrib/r2.env.example`。Bucket 必须是专用私有桶，不要使用网站公开文件的桶，也不要打开公开访问。Token 只授予该 Bucket 的对象读和对象写。
 
 ```bash
+sudo xedc-recovery/upload.sh --file /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst
 sudo xedc-recovery/backup.sh --upload-r2
 sudo xedc-recovery/download.sh --source=r2 --list
-sudo xedc-recovery/download.sh --source=r2 --backup=20261104T082520Z --output /root
+sudo xedc-recovery/download.sh --source=r2 --backup 20261104T105132Z --output /root
 ```
 
-远端对象键是 `xedc-backups/年/月/xedc-migration-时间.tar.zst`，同时上传 `.sha256` 和脱敏 manifest。上传后核对远端大小，并下载回来比对 SHA-256。失败退出码非零。脚本不删除远端旧对象，也不上传 age 私钥。
+`upload.sh` 使用已经存在的迁移包。`backup.sh --upload-r2` 会先做一轮新的完整备份。远端对象键是 `xedc-backups/年/月/xedc-migration-时间.tar.zst`，同一目录有 `.sha256` 和脱敏 manifest。上传后核对三个对象的大小，并下载回来比对 SHA-256。失败退出码非零。脚本不删除远端旧对象，不覆盖内容不同的同名对象，也不上传 age 私钥。
 
-这台机器没有这份专用配置。客户端对 `127.0.0.1` 上的私有 S3 服务完成了小对象上传、回读、错误密钥、缺失对象，以及上述 605176048 字节迁移包的回读。回读哈希与本地一致。没有向 Cloudflare 上传。
+`20261104T105132Z` 已上传。本地大小 604337199 字节，SHA-256 `9b88e6517b5612900dd3acee6b8d5c17f4d016b834454e2c04a9104d6ea4a279`。回读到隔离目录后哈希、zstd 和 manifest 一致，随后删除了这份回读副本，没有删除 `/var/backups/xedc` 里的原包。隔离测试仍覆盖空列表、鉴权失败、网络失败、缺失 Bucket 和拒绝覆盖。网站公开 Bucket 没有被使用。
 
 ## 恢复和 PHP 8.5
 
@@ -106,7 +107,6 @@ PHP 8.5 安装矩阵见 `/var/log/xedc-recovery/php85-matrix/`：
 
 ## 没有写成通过的项目
 
-- 真实 Cloudflare R2 上传和下载。
 - 正式 CA 证书。夹具走的是自签名等待模式。
 - 生产 Drupal 的 `composer install`、Drush、配置导入和数据库更新。
 - Matomo 进程和 Netdata 进程。快照里有脱敏 compose 和 Netdata 配置，夹具只恢复了模板。

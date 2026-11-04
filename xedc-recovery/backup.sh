@@ -45,11 +45,15 @@ done
 
 xedc_backup_on_exit() {
   local rc=$1
-  xedc_cleanup_temps
+  [[ ${XEDC_EXIT_HANDLED:-0} == 1 ]] && return 0
+  XEDC_EXIT_HANDLED=1
+  trap - ERR EXIT DEBUG
+  xedc_cleanup_temps || true
   if [[ $rc -ne 0 && ${XEDC_BACKUP_OK:-0} != 1 && -n ${XEDC_DEST:-} ]]; then
-    xedc_log FAIL "删除未完成的备份 ${XEDC_DEST}"
-    rm -rf "$XEDC_DEST"
+    xedc_log FAIL "删除未完成的备份 ${XEDC_DEST}" || true
+    rm -rf "$XEDC_DEST" || true
   fi
+  exit "$rc"
 }
 trap 'xedc_backup_on_exit $?' EXIT
 
@@ -59,7 +63,8 @@ if [[ -n ${PACKAGE_SNAPSHOT:-} ]]; then
   package_path=$(cat "$XEDC_STATE_ROOT/last-package-path")
   [[ -f $package_path ]] || xedc_die "迁移包生成失败。"
   if [[ ${XEDC_UPLOAD_R2:-0} == 1 ]]; then
-    xedc_r2_upload_package "$package_path" || xedc_die "R2 上传失败。本地迁移包仍保留。"
+    xedc_set_phase r2-upload
+    xedc_r2_upload_package "$package_path"
   fi
   printf '%s\n' "$package_path"
   exit 0
