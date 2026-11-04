@@ -14,3 +14,5 @@ secrets*
 .drupal-credentials
 settings.local.php
 xedc-recovery/tests/tmp/
+__pycache__/
+*.pyc
