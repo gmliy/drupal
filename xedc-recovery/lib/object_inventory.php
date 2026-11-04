@@ -48,7 +48,12 @@ function xedc_inventory_main(array $argv): int
     $private = (string) ($settings['private_path'] ?? '');
     $active = xedc_inventory_read_json($private . '/xedc-storage-runtime/active.json');
     $mode = (string) ($active['public_mode'] ?? 'unknown');
-    $profileDir = $private . '/xedc-storage-keys/silly';
+    $provider = (string) ($active['public_provider'] ?? '');
+    if ($provider !== '' && preg_match('/^[A-Za-z0-9_-]+$/', $provider) !== 1) {
+        fwrite(STDERR, "对象存储配置名不合法。\n");
+        return 1;
+    }
+    $profileDir = $private . '/xedc-storage-keys/' . $provider;
     $profile = xedc_inventory_read_json($profileDir . '/runtime.json');
     $report = [
         'in_use' => $mode === 'cloudflare_r2',
