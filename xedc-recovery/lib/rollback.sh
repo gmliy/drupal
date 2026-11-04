@@ -21,16 +21,92 @@ xedc_rollback_save_file() {
   fi
 }
 
+xedc_rollback_capture_tree() {
+  local root=$1
+  [[ -d ${XEDC_ROLLBACK_DIR:-} && -d $root ]] || return 0
+  local list=$XEDC_ROLLBACK_DIR/expected.sha256
+  local rel file found
+  : >"$list"
+  for rel in composer.json web/index.php web/sites/default/settings.php web/sites/default/settings.local.php; do
+    file=$root/$rel
+    if [[ -f $file ]]; then
+      sha256sum "$file" | awk -v rel="$rel" '{print $1, rel}' >>"$list"
+    fi
+  done
+  if [[ ! -s $list ]]; then
+    found=$(find "$root" -type f -printf '%P\n' | head -n 1)
+    if [[ -n $found && -f $root/$found ]]; then
+      sha256sum "$root/$found" | awk -v rel="$found" '{print $1, rel}' >>"$list"
+    else
+      printf '%s\n' empty >"$XEDC_ROLLBACK_DIR/site-empty"
+    fi
+  fi
+  if [[ ${XEDC_ROLLBACK_CAPTURE_NGINX:-0} == 1 && -f /etc/nginx/conf.d/xedc-drupal.conf ]]; then
+    cp -a /etc/nginx/conf.d/xedc-drupal.conf "$XEDC_ROLLBACK_DIR/nginx/site.conf"
+    sha256sum /etc/nginx/conf.d/xedc-drupal.conf | awk '{print $1}' >"$XEDC_ROLLBACK_DIR/nginx/site.sha256"
+  fi
+}
+
+xedc_rollback_capture_database() {
+  local database=$1
+  [[ -d ${XEDC_ROLLBACK_DIR:-} ]] || return 0
+  [[ $database =~ ^[A-Za-z0-9_]+$ ]] || return 0
+  local exists dump_bin
+  exists=$(mariadb -N -e "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='${database}'" 2>/dev/null || printf '%s' 0)
+  [[ $exists == 1 ]] || return 0
+  dump_bin=mysqldump
+  if command -v mariadb-dump >/dev/null 2>&1; then
+    dump_bin=mariadb-dump
+  fi
+  "$dump_bin" --single-transaction --no-tablespaces --default-character-set=utf8mb4 "$database" \
+    | zstd -T2 -q -f -o "$XEDC_ROLLBACK_DIR/database/before.sql.zst"
+  local dump_status=${PIPESTATUS[0]} zstd_status=${PIPESTATUS[1]}
+  if [[ $dump_status -ne 0 || $zstd_status -ne 0 || ! -s $XEDC_ROLLBACK_DIR/database/before.sql.zst ]]; then
+    xedc_die "覆盖数据库前的回滚快照失败。"
+  fi
+  jq -n --arg database "$database" '{database:$database}' >"$XEDC_ROLLBACK_DIR/database/meta.json"
+  printf '%s\n' '[client]' 'user=root' 'socket=/run/mysqld/mysqld.sock' >"$XEDC_ROLLBACK_DIR/database/client.cnf"
+  chmod 600 "$XEDC_ROLLBACK_DIR/database/client.cnf" "$XEDC_ROLLBACK_DIR/database/before.sql.zst"
+}
+
 xedc_rollback_verify() {
-  local dir=$1
-  [[ -d $dir ]] || return 1
-  [[ -f $dir/nginx/site.conf || -f $dir/database/before.sql.zst || -f $dir/settings/settings.local.php ]]
+  local dir=$1 root=$2
+  local hash rel now checked=0
+  if [[ -s $dir/expected.sha256 ]]; then
+    while read -r hash rel; do
+      [[ -n $hash && -n $rel && -f $root/$rel ]] || return 1
+      now=$(sha256sum "$root/$rel" | awk '{print $1}')
+      [[ $now == "$hash" ]] || return 1
+      checked=1
+    done <"$dir/expected.sha256"
+  elif [[ -f $dir/site-empty ]]; then
+    [[ -d $root ]] || return 1
+    checked=1
+  fi
+  if [[ -f $dir/nginx/site.sha256 ]]; then
+    [[ -f /etc/nginx/conf.d/xedc-drupal.conf ]] || return 1
+    now=$(sha256sum /etc/nginx/conf.d/xedc-drupal.conf | awk '{print $1}')
+    [[ $now == $(cat "$dir/nginx/site.sha256") ]] || return 1
+    checked=1
+  fi
+  if [[ -f $dir/database/before.sql.zst ]]; then
+    [[ -s $dir/database/before.sql.zst ]] || return 1
+    checked=1
+  fi
+  [[ $checked == 1 ]]
 }
 
 xedc_rollback_apply() {
   local dir=$1 root=$2
   [[ -d $dir ]] || xedc_die "找不到回滚目录。"
-  if [[ -f $dir/database/before.sql.zst && -f $dir/database/client.cnf ]]; then
+  if [[ -d $dir/site-before ]]; then
+    if [[ -e $root ]]; then
+      mv "$root" "$dir/site-failed"
+    fi
+    mkdir -p "$(dirname "$root")"
+    mv "$dir/site-before" "$root"
+  fi
+  if [[ -f $dir/database/before.sql.zst && -f $dir/database/client.cnf && -f $dir/database/meta.json ]]; then
     local database
     database=$(jq -r '.database' "$dir/database/meta.json")
     zstdcat "$dir/database/before.sql.zst" | mariadb --defaults-extra-file="$dir/database/client.cnf" "$database"
@@ -41,14 +117,21 @@ xedc_rollback_apply() {
     xedc_ensure_nginx
   fi
   if [[ -f $dir/settings/settings.local.php ]]; then
+    mkdir -p "$root/web/sites/default"
     cp -a "$dir/settings/settings.local.php" "$root/web/sites/default/settings.local.php"
   fi
-  if [[ -d $dir/services ]]; then
-    cp -a "$dir/services/." /etc/systemd/system/ 2>/dev/null || true
+  if [[ -d $dir/services && -n $(find "$dir/services" -mindepth 1 -print -quit) ]]; then
+    cp -a "$dir/services/." /etc/systemd/system/ || true
     systemctl daemon-reload || true
   fi
-  printf '%s\n' PASS >"$dir/ROLLBACK_STATUS"
-  xedc_log INFO "回滚文件已写回。请再执行验收确认原配置可用。"
+  if xedc_rollback_verify "$dir" "$root"; then
+    printf '%s\n' PASS >"$dir/ROLLBACK_STATUS"
+    xedc_log INFO "回滚后的文件校验通过。"
+    return 0
+  fi
+  printf '%s\n' FAIL >"$dir/ROLLBACK_STATUS"
+  xedc_warn "回滚未通过校验，不能视为成功。"
+  return 1
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then

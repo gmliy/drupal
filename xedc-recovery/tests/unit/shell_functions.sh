@@ -7,6 +7,8 @@ source "$ROOT/lib/ssl.sh"
 source "$ROOT/lib/common.sh"
 # shellcheck source=../../lib/environment.sh
 source "$ROOT/lib/environment.sh"
+# shellcheck source=../../lib/rollback.sh
+source "$ROOT/lib/rollback.sh"
 
 fail=0
 check() {
@@ -118,6 +120,35 @@ if [[ -d $retain/b && ! -d $retain/a && -d $retain/c && -d $single/only ]]; then
 else
   echo FAIL retain
   fail=1
+fi
+
+rb=$tmp/rollback-case
+mkdir -p "$rb/site/web" "$tmp/state" "$tmp/rbroot"
+printf '%s\n' 'version-one' >"$rb/site/web/index.php"
+export XEDC_SECRET_LIST=$tmp/secrets
+export XEDC_STATE_ROOT=$tmp/state
+export XEDC_ROLLBACK_ROOT=$tmp/rbroot
+: >"$XEDC_SECRET_LIST"
+xedc_rollback_begin
+xedc_rollback_capture_tree "$rb/site"
+mv "$rb/site" "$XEDC_ROLLBACK_DIR/site-before"
+mkdir -p "$rb/site/web"
+printf '%s\n' 'version-two' >"$rb/site/web/index.php"
+if xedc_rollback_apply "$XEDC_ROLLBACK_DIR" "$rb/site" && [[ $(cat "$rb/site/web/index.php") == version-one && $(cat "$XEDC_ROLLBACK_DIR/ROLLBACK_STATUS") == PASS ]]; then
+  echo PASS rollback_files
+else
+  echo FAIL rollback_files
+  fail=1
+fi
+empty=$tmp/empty-rollback
+export XEDC_ROLLBACK_ROOT=$tmp/rbempty
+mkdir -p "$XEDC_ROLLBACK_ROOT"
+xedc_rollback_begin
+if xedc_rollback_apply "$XEDC_ROLLBACK_DIR" "$empty/missing"; then
+  echo FAIL rollback_empty
+  fail=1
+else
+  if [[ $(cat "$XEDC_ROLLBACK_DIR/ROLLBACK_STATUS") == FAIL ]]; then echo PASS rollback_empty; else echo FAIL rollback_status; fail=1; fi
 fi
 
 rm -rf "$tmp"

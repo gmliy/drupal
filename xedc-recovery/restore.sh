@@ -261,6 +261,7 @@ if xedc_should_run source; then
   fi
   xedc_rollback_begin
   if [[ -e $TARGET ]]; then
+    XEDC_ROLLBACK_CAPTURE_NGINX=1 xedc_rollback_capture_tree "$TARGET"
     mv "$TARGET" "$XEDC_ROLLBACK_DIR/site-before"
   fi
   mkdir -p "$TARGET"
@@ -298,6 +299,7 @@ if xedc_should_run database; then
     xedc_random_password >"$passfile"
   fi
   chmod 600 "$passfile"
+  xedc_rollback_capture_database "$db_name"
   xedc_create_database_user "$db_name" "$db_user" "$passfile"
   xedc_write_client_cnf "$SECRET_DIR/db.json" "$XEDC_STATE_ROOT/restore.cnf"
   # 新密码写进临时配置，避免沿用旧密码导入。

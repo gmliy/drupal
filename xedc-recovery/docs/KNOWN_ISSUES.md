@@ -16,7 +16,7 @@
 
 Ubuntu 24.04 容器用 PHP 8.5.12、MariaDB、Nginx 和 PHP-FPM 恢复了一份小夹具，并重复跑过一次。夹具不是 Drupal。没有 drush，就没有配置导入、数据库更新、管理员重置和一次性登录。容器里没有 systemd 和 Docker 守护进程，所以 SSL 等待 timer 没有启用，Matomo 容器没有拉起。Netdata、cron、失败回滚和真实 CA 都还没有验收。对账目前只比较少数字段，不能当成与生产站一致。
 
-无 systemd 的机器上，`systemctl` 即使存在也不能用来启动服务。恢复改走 service 或直接启动进程。
+无 systemd 的机器上，`systemctl` 即使存在也不能用来启动服务。恢复改走 service 或直接启动进程。站点目录回滚已在临时目录核对哈希；Nginx 配置和数据库回滚还没有在运行中的服务上执行。
 
 ## 远端已有另一套工具
 

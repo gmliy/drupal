@@ -72,7 +72,7 @@ xedc_log() {
 }
 
 xedc_warn() {
-  XEDC_WARN_COUNT=$((XEDC_WARN_COUNT + 1))
+  XEDC_WARN_COUNT=$((${XEDC_WARN_COUNT:-0} + 1))
   xedc_log WARN "$*"
 }
 

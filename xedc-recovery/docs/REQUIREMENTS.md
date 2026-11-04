@@ -29,7 +29,7 @@
 | R023 | HTTP-01、DNS-01、手动 DNS、等待模式 | lib/ssl.sh | 容器内实际走 selfsigned-wait。未向 CA 发证 | WARN |
 | R024 | DNS 凭据不进命令行，列出现有服务商变量 | ssl.sh acme-dns-providers.json | provider 列表含 CF_Token、Ali_Key、hetzner 别名 | DONE |
 | R025 | 凭据文件、管理员不自动改密、一次性登录 | credentials.sh | 夹具写出凭据文件且未调用重置。没有 drush，登录链接未测 | WARN |
-| R026 | 回滚后验证原站仍可用 | rollback.sh | 未执行 | TODO |
+| R026 | 回滚后验证原站仍可用 | rollback.sh | 临时目录移回站点并核对哈希；空快照标 FAIL。未在运行中的 Nginx 或数据库上执行 | WARN |
 | R027 | PARITY_REPORT 能标出异常差异 | compare.sh | 单元测试能发现文件数差异。夹具二次恢复要求异常差异为 0。没有模块、行数和配套服务对账 | WARN |
 | R028 | Docker A 级 24 场景与 B 级子集，连续两轮 | tests | 只完成 Ubuntu 24.04 夹具的一次全新加重复恢复。不是 24 场景，也没有两轮 | TODO |
 | R029 | 公开仓库敏感扫描 | tests/scripts/secret-scan.py | 对本轮暂存差异执行，忽略路径、变量名和 not-stored 占位符 | DONE |
