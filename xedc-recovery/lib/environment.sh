@@ -52,16 +52,16 @@ xedc_install_php() {
   xedc_export_apt_env
   xedc_add_php_repo || true
   xedc_run apt-get update
-  if ! xedc_apt_has "php${want}-fpm"; then
-    if [[ $want == 8.5 && $(xedc_apt_has php8.4-fpm; echo $?) == 0 ]]; then
-      xedc_warn "目标 PHP 8.5 没有可用软件包。下面是 composer 对 8.5 的阻塞信息，随后改用 8.4。"
-      if [[ -f $XEDC_SITE_ROOT/composer.json ]]; then
-        (cd "$XEDC_SITE_ROOT" && composer why-not php 8.5) || true
-      fi
-      actual=8.4
-    else
-      xedc_die "系统仓库和第三方源都没有 PHP ${want}。不会静默安装一个未记录的版本。"
+  if xedc_apt_has "php${want}-fpm"; then
+    actual=$want
+  elif [[ $want == 8.5 ]] && xedc_apt_has php8.4-fpm; then
+    xedc_warn "目标 PHP 8.5 没有可用软件包。下面是 composer 对 8.5 的阻塞信息，随后改用 8.4。"
+    if [[ -f ${XEDC_SITE_ROOT:-}/composer.json ]]; then
+      (cd "$XEDC_SITE_ROOT" && composer why-not php 8.5) || true
     fi
+    actual=8.4
+  else
+    xedc_die "系统仓库和第三方源都没有 PHP ${want}。不会静默安装一个未记录的版本。"
   fi
   local pkg packages=(
     "php${actual}-fpm" "php${actual}-cli" "php${actual}-mysql" "php${actual}-xml"
@@ -87,6 +87,88 @@ xedc_install_php() {
   export XEDC_PHP_ACTUAL=$actual
   if [[ $installed == missing ]]; then
     xedc_die "PHP ${actual} 安装后仍不可用。"
+  fi
+  if [[ -x /usr/bin/php${actual} ]]; then
+    update-alternatives --set php "/usr/bin/php${actual}" >/dev/null 2>&1 || true
+    ln -sfn "/usr/bin/php${actual}" /usr/local/bin/php
+  fi
+}
+
+xedc_have_systemd() {
+  [[ -d /run/systemd/system ]] && command -v systemctl >/dev/null 2>&1
+}
+
+xedc_ensure_mariadb() {
+  if mariadb -N -e 'SELECT 1' >/dev/null 2>&1; then
+    return 0
+  fi
+  install -d -o mysql -g mysql -m 755 /run/mysqld
+  if xedc_have_systemd; then
+    systemctl start mariadb || systemctl start mysql || true
+  elif command -v service >/dev/null 2>&1; then
+    service mariadb start || service mysql start || true
+  fi
+  if ! mariadb -N -e 'SELECT 1' >/dev/null 2>&1; then
+    mkdir -p /var/log/xedc-recovery
+    mysqld --user=mysql --bind-address=127.0.0.1 --datadir=/var/lib/mysql >>/var/log/xedc-recovery/mysqld.log 2>&1 &
+  fi
+  local _
+  for _ in $(seq 1 40); do
+    if mariadb -N -e 'SELECT 1' >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  xedc_die "MariaDB 没有启动。"
+}
+
+xedc_ensure_nginx() {
+  if pgrep -x nginx >/dev/null 2>&1; then
+    nginx -s reload
+    return 0
+  fi
+  if xedc_have_systemd; then
+    systemctl enable --now nginx
+    return 0
+  fi
+  nginx
+}
+
+xedc_ensure_php_fpm() {
+  local ver=$1
+  local sock="/run/php/php${ver}-fpm.sock"
+  [[ -S $sock ]] && return 0
+  install -d -o www-data -g www-data /run/php
+  if xedc_have_systemd; then
+    systemctl enable --now "php${ver}-fpm" || true
+  elif command -v service >/dev/null 2>&1; then
+    service "php${ver}-fpm" start || true
+  fi
+  if [[ ! -S $sock ]]; then
+    if [[ -x /usr/sbin/php-fpm${ver} ]]; then
+      "/usr/sbin/php-fpm${ver}" --daemonize || true
+    fi
+  fi
+  local _
+  for _ in $(seq 1 20); do
+    [[ -S $sock ]] && return 0
+    sleep 1
+  done
+  xedc_warn "PHP-FPM 套接字未出现：${sock}"
+  return 1
+}
+
+xedc_ensure_redis() {
+  if command -v redis-cli >/dev/null 2>&1 && redis-cli ping >/dev/null 2>&1; then
+    return 0
+  fi
+  if xedc_have_systemd; then
+    systemctl enable --now redis-server || true
+  elif command -v service >/dev/null 2>&1; then
+    service redis-server start || true
+  fi
+  if command -v redis-cli >/dev/null 2>&1 && ! redis-cli ping >/dev/null 2>&1; then
+    redis-server --daemonize yes --bind 127.0.0.1 || xedc_warn "Redis 未启动。"
   fi
 }
 

@@ -157,7 +157,26 @@ xedc_backup_main() {
   if ! php "$XEDC_LIB/object_inventory.php" --site-root "$XEDC_SITE_ROOT" --output "$facts/object_storage.json"; then
     xedc_die "对象存储清点失败。"
   fi
-  xedc_database_server_facts "$database" "$facts/database-server.txt"
+  if [[ -n ${XEDC_SQL_DUMP_FILE:-} ]]; then
+    local fixture_tables=0
+    if [[ -f $XEDC_SQL_DUMP_FILE && $XEDC_SQL_DUMP_FILE != *.zst ]]; then
+      fixture_tables=$(grep -c 'CREATE TABLE' "$XEDC_SQL_DUMP_FILE" || true)
+    fi
+    [[ $fixture_tables =~ ^[0-9]+$ ]] || fixture_tables=0
+    cat >"$facts/database-server.txt" <<EOF
+version=fixture
+charset=utf8mb4
+collation=utf8mb4_unicode_ci
+sql_mode=STRICT_TRANS_TABLES
+engine=InnoDB:${fixture_tables}
+tables=${fixture_tables}
+routines=0
+triggers=0
+EOF
+    xedc_log INFO "使用测试 SQL 文件，不读取本机数据库服务器信息。"
+  else
+    xedc_database_server_facts "$database" "$facts/database-server.txt"
+  fi
   xedc_dump_database "$cnf" "$database" "$dest/database.sql.zst"
 
   local public_dir private_dir public_count public_bytes private_count private_bytes

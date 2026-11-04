@@ -18,20 +18,25 @@
 
 ## 进行中
 
-- M1 文档和代码准备提交。恢复主流程尚未在干净系统执行。
+- M2 恢复核心。Ubuntu 24.04 干净容器已经恢复一份不含生产数据的夹具，并重复执行一次。
+- 还没有 Drupal drush、回滚验证、真实证书、其余发行版和 24 个场景。
 
 ## 下一步
 
-- 提交并推送 main。
-- 在隔离环境跑恢复，不用生产库和容器。
-- 补齐对账采集、回滚验证和 Docker 两轮矩阵。
+- 补回滚验证、证书 staging，以及完整对账字段。
+- 继续 Docker A 级其余场景和 B 级发行版。不把这一次夹具结果写成全矩阵通过。
 
 ## 测试
 
-- `bash xedc-recovery/tests/unit/shell_functions.sh`：PASS。
+- `bash xedc-recovery/tests/unit/shell_functions.sh`：PASS，含无对象存储时对账不报异常。
 - `php xedc-recovery/tests/unit/domain_replace_test.php`：OK。
+- `php xedc-recovery/tests/unit/object_inventory_test.php`：PASS。
 - 真实备份日志：`/var/log/xedc-recovery/backup-keys.log`，结束于 `备份完成：/var/backups/xedc/20261104T061746Z`。
-- Docker 矩阵：未运行。
+- 夹具备份：`/var/lib/xedc-recovery/fixture-backups/20261104T070508Z`，不在 Git 里。构建时设置 `XEDC_SQL_DUMP_FILE` 和 `XEDC_SKIP_DOCKER=1`，没有连接生产库。
+- 夹具恢复命令：`bash xedc-recovery/tests/integration/restore-docker.sh`，镜像 `ubuntu:24.04`，`--memory=4g --cpus=2`。第二次退出码 0，日志结束于 `FIXTURE_RESTORE_OK`。
+- 容器日志记录 `8.3.6 → 8.5 → 8.5.12`。HTTPS 首页 200，`/admin` 302。序列化字段可 unserialize，且不含旧域名。二次恢复的对账要求 `异常差异: 0`。
+- 同一次日志有 WARN：没有 Docker 守护进程，没有 drush，证书是自签名等待模式。这些不是 PASS。
+- Docker A/B 矩阵和连续两轮：未运行。
 
 ## 修复
 
@@ -40,6 +45,10 @@
 - 导出改用 `mariadb-dump`。
 - 证书方式、DNS 凭据文件、通配符和版本策略已接到 `restore.sh`。ZeroSSL 失败不再被当成成功。
 - 对象存储配置目录改为读取 active.json 里的 provider，不再写死目录名。本地存储和缺密钥有测试；线上只读清点仍是 public 765、private 0。
+- 干净系统先安装 jq、zstd、age 和 python3，否则恢复在读 manifest 前就退出。
+- 没有 systemd 时直接启动 MariaDB、Nginx、PHP-FPM 和 Redis。SSL 等待 timer 只在 systemd 可用时启用。
+- 域名替换前的 zstd 快照会覆盖 mktemp 留下的空文件，空快照会中止替换。
+- 重复恢复时重新读取数据库名，避免对账把表数报成 0。未使用对象存储时不再把对象数量报成缺失。
 
 ## 决定
 
@@ -64,3 +73,4 @@
 - 没有改写 `3f56c01`。用 merge 保留该提交和标签，并保留远端 `tools/xedc-recover/`。
 - `docs/MIGRATION_MASTER_SPEC.md` 的冲突采用远端已发布文本。`/root/TASK.md` 仍要求 age，本目录的实现不改成无加密包。
 - 已推送 `493fd507a68466cc1174862e75a974a7fdc2637d` 到 origin/main。
+- 其后对象存储读取修复已推送，当前起点是 `2e347e3`。

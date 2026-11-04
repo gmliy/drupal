@@ -12,7 +12,13 @@ xedc_domain_replace() {
   if [[ ${XEDC_DRY_RUN:-0} == 1 ]]; then
     dry=(--dry-run)
   else
-    "$dump_bin" --defaults-extra-file="$cnf" --single-transaction --no-tablespaces --default-character-set=utf8mb4 "$database" | zstd -T2 -q -o "$snapshot"
+    rm -f "$snapshot"
+    "$dump_bin" --defaults-extra-file="$cnf" --single-transaction --no-tablespaces --default-character-set=utf8mb4 "$database" | zstd -T2 -q -f -o "$snapshot"
+    local dump_status=${PIPESTATUS[0]} zstd_status=${PIPESTATUS[1]}
+    if [[ $dump_status -ne 0 || $zstd_status -ne 0 || ! -s $snapshot ]]; then
+      rm -f "$snapshot"
+      xedc_die "域名替换前的数据库快照失败。"
+    fi
   fi
   if ! php "$XEDC_LIB/domain_replace.php" \
     --defaults-file "$cnf" \

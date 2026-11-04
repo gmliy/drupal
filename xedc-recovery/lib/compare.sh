@@ -11,16 +11,27 @@ output = sys.argv[3]
 rows = []
 
 def add(name, left, right, kind):
-    status = "相同" if left == right else kind
+    missing = (None, "", "unknown")
+    if left in missing and right in missing:
+        status = "SKIP"
+    elif left in missing or right in missing:
+        status = "缺失"
+    elif left == right:
+        status = "相同"
+    else:
+        status = kind
     rows.append((name, left, right, status))
 
+storage = manifest.get("object_storage") or {}
+prefixes = storage.get("prefixes") or []
+object_left = sum(item.get("count", 0) for item in prefixes) if storage.get("in_use") or prefixes else None
 pairs = [
-    ("Drupal", manifest.get("source", {}).get("php"), live.get("drupal_version"), "异常差异"),
+    ("Drupal", (manifest.get("drupal") or {}).get("version"), live.get("drupal_version"), "异常差异"),
     ("PHP", manifest.get("source", {}).get("php"), live.get("php"), "预期差异"),
     ("公共文件数", manifest.get("files", {}).get("public_files"), live.get("public_files"), "异常差异"),
     ("数据表数", manifest.get("database", {}).get("tables"), live.get("tables"), "异常差异"),
     ("ffmpeg", manifest.get("media", {}).get("ffmpeg_version"), live.get("ffmpeg"), "需要用户处理"),
-    ("对象数量", sum(item.get("count", 0) for item in manifest.get("object_storage", {}).get("prefixes", [])), live.get("object_count"), "异常差异"),
+    ("对象数量", object_left, live.get("object_count"), "异常差异"),
 ]
 for name, left, right, kind in pairs:
     if left in (None, "", "unknown") and right in (None, "", "unknown"):

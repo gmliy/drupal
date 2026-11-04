@@ -62,6 +62,14 @@ JSON
 if xedc_compare_write "$manifest" "$live" "$tmp/parity.md"; then echo FAIL compare_should_fail; fail=1; else echo PASS compare_detects; fi
 grep -q '异常差异' "$tmp/parity.md"
 
+cat >"$manifest" <<'JSON'
+{"schema":2,"source":{"php":"8.5.12"},"files":{"public_files":2},"database":{"tables":3},"media":{"ffmpeg_version":"6"},"object_storage":{"in_use":false,"prefixes":[]}}
+JSON
+cat >"$live" <<'JSON'
+{"php":"8.5.12","public_files":2,"tables":3,"ffmpeg":"6"}
+JSON
+if xedc_compare_write "$manifest" "$live" "$tmp/parity.md"; then echo PASS compare_no_objects; else echo FAIL compare_no_objects; fail=1; fi
+
 printf '%s\n' 'version=10.11.1' 'charset=utf8mb4' 'collation=utf8mb4_unicode_ci' 'sql_mode=STRICT' 'engine=InnoDB:4' 'tables=228' 'routines=2' 'triggers=1' >"$tmp/db.txt"
 check dbver "$(xedc_database_fact "$tmp/db.txt" version)" 10.11.1
 check dbtables "$(xedc_database_fact "$tmp/db.txt" tables)" 228

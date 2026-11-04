@@ -20,18 +20,18 @@
 | R014 | 03:00 与 15:00 timer，生产机不启用 | contrib/systemd | 单元文件存在；systemctl 未 enable | WARN |
 | R015 | 异地复制 | xedc_backup_offsite | 单元测试复制到临时目录；生产未配置 | WARN |
 | R016 | 磁盘与内存预检、锁、日志 | lib/common.sh | 备份日志记录了内存和磁盘；锁被成功运行占用过 | DONE |
-| R017 | 恢复支持列出的发行版并拒绝来源机 | lib/common.sh restore.sh | 发行版判断和来源机拒绝未在目标系统执行 | TODO |
-| R018 | PHP 8.5，失败才明确降到 8.4 | lib/environment.sh | 生产机已是 8.5.12；安装路径未在干净系统执行 | TODO |
-| R019 | 恢复数据库、文件、Composer、Nginx、cron、权限 | restore.sh | 未在隔离环境执行 | TODO |
-| R020 | Matomo、Netdata、Docker、ffmpeg、播放器恢复 | services.sh media.sh | 备份含配置和卷；恢复未执行 | TODO |
-| R021 | 域名替换保留 PHP 序列化 | domain_replace.php | domain_replace_test.php OK | DONE |
-| R022 | 域名替换前快照，失败回滚 | lib/domain.sh | 未对真实库执行 | TODO |
-| R023 | HTTP-01、DNS-01、手动 DNS、等待模式 | lib/ssl.sh | 决策函数单元测试 PASS；未向 CA 发证 | TODO |
+| R017 | 恢复支持列出的发行版并拒绝来源机 | lib/common.sh restore.sh | Ubuntu 24.04 容器识别为 noble 并完成夹具恢复。其余发行版和来源机拒绝未测 | TODO |
+| R018 | PHP 8.5，失败才明确降到 8.4 | lib/environment.sh | 干净 Ubuntu 24.04 容器安装 PHP 8.5.12（日志：8.3.6 → 8.5 → 8.5.12）。8.4 回退未触发 | WARN |
+| R019 | 恢复数据库、文件、Composer、Nginx、cron、权限 | restore.sh | 夹具恢复了数据库、文件、空 Composer 项目、Nginx 和 PHP-FPM。不是 Drupal，cron 未验收 | WARN |
+| R020 | Matomo、Netdata、Docker、ffmpeg、播放器恢复 | services.sh media.sh | ffmpeg 6.1.1-3ubuntu5 已安装且冒烟未告警。容器内没有 Docker，Matomo 只恢复模板。Netdata 未验收 | WARN |
+| R021 | 域名替换保留 PHP 序列化 | domain_replace.php | 单元测试 OK。夹具库替换后 unserialize 得到新域名 | DONE |
+| R022 | 域名替换前快照，失败回滚 | lib/domain.sh | 夹具替换前快照必须非空，成功路径通过。失败回滚未执行 | WARN |
+| R023 | HTTP-01、DNS-01、手动 DNS、等待模式 | lib/ssl.sh | 容器内实际走 selfsigned-wait。未向 CA 发证 | WARN |
 | R024 | DNS 凭据不进命令行，列出现有服务商变量 | ssl.sh acme-dns-providers.json | provider 列表含 CF_Token、Ali_Key、hetzner 别名 | DONE |
-| R025 | 凭据文件、管理员不自动改密、一次性登录 | credentials.sh | 未在隔离站点执行 | TODO |
+| R025 | 凭据文件、管理员不自动改密、一次性登录 | credentials.sh | 夹具写出凭据文件且未调用重置。没有 drush，登录链接未测 | WARN |
 | R026 | 回滚后验证原站仍可用 | rollback.sh | 未执行 | TODO |
-| R027 | PARITY_REPORT 能标出异常差异 | compare.sh | 单元测试能发现文件数差异；完整现场报告未生成 | TODO |
-| R028 | Docker A 级 24 场景与 B 级子集，连续两轮 | tests | 未运行 | TODO |
+| R027 | PARITY_REPORT 能标出异常差异 | compare.sh | 单元测试能发现文件数差异。夹具二次恢复要求异常差异为 0。没有模块、行数和配套服务对账 | WARN |
+| R028 | Docker A 级 24 场景与 B 级子集，连续两轮 | tests | 只完成 Ubuntu 24.04 夹具的一次全新加重复恢复。不是 24 场景，也没有两轮 | TODO |
 | R029 | 公开仓库敏感扫描 | tests/scripts/secret-scan.py | 对本轮暂存差异执行，忽略路径、变量名和 not-stored 占位符 | DONE |
 | R030 | 根 README 与 legacy 归档 | 根目录 | 留到 M6，本次未移动 README.md 和 site-migrate.sh | TODO |
 | R031 | .MIGRATION_DONE | 根目录 | 条件未满足，未创建 | N/A |

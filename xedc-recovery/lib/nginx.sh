@@ -80,7 +80,7 @@ EOF
     xedc_die "旧域名跳转配置无效，已删除。"
   fi
   if [[ ${XEDC_DRY_RUN:-0} != 1 ]]; then
-    systemctl reload nginx
+    xedc_ensure_nginx
   fi
 }
 
@@ -104,7 +104,7 @@ xedc_nginx_test_and_switch() {
   if [[ ${XEDC_DRY_RUN:-0} == 1 ]]; then
     return 0
   fi
-  systemctl reload nginx
+  xedc_ensure_nginx
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then

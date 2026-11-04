@@ -198,6 +198,15 @@ xedc_is_aws() {
   return 1
 }
 
+xedc_docs_dir() {
+  if [[ -d ${XEDC_HOME}/docs && -w ${XEDC_HOME}/docs ]]; then
+    printf '%s\n' "${XEDC_HOME}/docs"
+    return 0
+  fi
+  mkdir -p "${XEDC_STATE_ROOT}/docs"
+  printf '%s\n' "${XEDC_STATE_ROOT}/docs"
+}
+
 xedc_os_info() {
   # shellcheck disable=SC1091
   . /etc/os-release

@@ -105,11 +105,14 @@ AccuracySec=30s
 [Install]
 WantedBy=timers.target
 EOF
-  if ! command -v systemctl >/dev/null 2>&1; then
+  if ! xedc_have_systemd; then
     xedc_warn "没有 systemd，无法启用等待 timer。DNS 生效后请执行 restore.sh --retry-ssl --domain ${domain}"
     return 0
   fi
-  systemctl daemon-reload
+  systemctl daemon-reload || {
+    xedc_warn "systemd 不可用，无法启用等待 timer。DNS 生效后请执行 restore.sh --retry-ssl --domain ${domain}"
+    return 0
+  }
   systemctl enable --now xedc-ssl-wait.timer || xedc_warn "等待 timer 未能启用。DNS 生效后请执行 restore.sh --retry-ssl --domain ${domain}"
   xedc_log INFO "已启用等待模式。请添加 A 记录后等待，或手动执行 restore.sh --retry-ssl。"
 }

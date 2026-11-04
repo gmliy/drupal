@@ -38,7 +38,7 @@ xedc_rollback_apply() {
   if [[ -f $dir/nginx/site.conf ]]; then
     cp -a "$dir/nginx/site.conf" /etc/nginx/conf.d/xedc-drupal.conf
     nginx -t
-    systemctl reload nginx
+    xedc_ensure_nginx
   fi
   if [[ -f $dir/settings/settings.local.php ]]; then
     cp -a "$dir/settings/settings.local.php" "$root/web/sites/default/settings.local.php"

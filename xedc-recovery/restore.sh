@@ -225,9 +225,14 @@ fi
 DOMAIN=${DOMAIN:-${NEW_DOMAIN:-}}
 [[ -n $DOMAIN || -n $STEP ]] || xedc_die "恢复需要 --domain。"
 
+xedc_require_root
+if ! command -v jq >/dev/null 2>&1 || ! command -v zstd >/dev/null 2>&1 || ! command -v age >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
+  xedc_export_apt_env
+  apt-get update
+  apt-get install -y jq zstd age python3 ca-certificates curl tar openssl
+fi
 SOURCE_HASH=$(jq -r '.source.machine_id_sha256 // empty' "$SNAPSHOT/manifest.json")
 xedc_assert_restore_target "$SOURCE_HASH"
-xedc_require_root
 xedc_os_supported
 if xedc_is_aws; then
   xedc_warn "检测到 AWS。请在控制台安全组放行 80 和 443。脚本不会修改安全组。"
@@ -284,6 +289,7 @@ xedc_load_db_identity() {
 }
 
 if xedc_should_run database; then
+  xedc_ensure_mariadb
   xedc_load_db_identity
   passfile=$XEDC_STATE_ROOT/db.pass
   if [[ $KEEP_DB == 1 ]]; then
@@ -346,6 +352,8 @@ if xedc_should_run nginx; then
     fi
   fi
   PHP_SOCKET="/run/php/php${XEDC_PHP_ACTUAL}-fpm.sock"
+  xedc_ensure_php_fpm "$XEDC_PHP_ACTUAL" || true
+  xedc_ensure_redis || true
   cert_dir=/etc/xedc-recovery/ssl/$DOMAIN
   if [[ ! -f $cert_dir/fullchain.pem ]]; then
     xedc_self_signed "$DOMAIN" "$cert_dir"
@@ -384,17 +392,25 @@ if xedc_should_run domain && [[ -n $OLD_DOMAIN && -n $NEW_DOMAIN ]]; then
   xedc_load_db_identity
   xedc_domain_replace "$XEDC_STATE_ROOT/restore.cnf" "$db_name" "$OLD_DOMAIN" "$NEW_DOMAIN" "$XEDC_STATE_ROOT/domain-report.json" \
     || xedc_die "域名替换失败，数据库已按快照回滚。"
-  xedc_scan_hardcode "$TARGET" "$XEDC_HOME/docs/DOMAIN_HARDCODE.md" "$OLD_DOMAIN"
+  docs_dir=$(xedc_docs_dir)
+  xedc_scan_hardcode "$TARGET" "$docs_dir/DOMAIN_HARDCODE.md" "$OLD_DOMAIN"
   xedc_nginx_old_redirect "$OLD_DOMAIN" "$NEW_DOMAIN"
   xedc_mark domain
 fi
 if xedc_should_run drush; then
-  xedc_drush_rebuild "$TARGET" "https://${DOMAIN}"
+  if [[ -x $TARGET/vendor/bin/drush ]]; then
+    xedc_drush_rebuild "$TARGET" "https://${DOMAIN}"
+  else
+    xedc_warn "项目里没有 drush，已跳过 config:import、updatedb 和 cache:rebuild。"
+  fi
   xedc_mark drush
 fi
 if xedc_should_run credentials; then
   xedc_load_db_identity
-  admin=$(cd "$TARGET" && ./vendor/bin/drush --uri="https://${DOMAIN}" sql:query "SELECT name FROM users_field_data WHERE uid=1" | head -n 1) || true
+  admin=""
+  if [[ -x $TARGET/vendor/bin/drush ]]; then
+    admin=$(cd "$TARGET" && ./vendor/bin/drush --uri="https://${DOMAIN}" sql:query "SELECT name FROM users_field_data WHERE uid=1" | head -n 1) || true
+  fi
   xedc_credentials_write "https://${DOMAIN}" "$admin" "$db_name" "$db_user" "$XEDC_STATE_ROOT/db.pass" localhost 3306
   xedc_mark credentials
 fi
@@ -404,8 +420,27 @@ if xedc_should_run verify; then
 fi
 if [[ $STEP == compare || -z $STEP ]]; then
   live=$(xedc_mktemp)
-  jq -n --arg php "$(php -r 'echo PHP_VERSION;')" '{php:$php}' >"$live"
-  xedc_compare_write "$SNAPSHOT/manifest.json" "$live" "$XEDC_HOME/docs/PARITY_REPORT.md" || xedc_warn "对账发现异常差异，见 PARITY_REPORT.md。"
+  docs_dir=$(xedc_docs_dir)
+  if [[ -z ${db_name:-} ]]; then
+    xedc_load_db_identity
+  fi
+  tables=0
+  if [[ -n ${db_name:-} ]] && mariadb -N -e 'SELECT 1' >/dev/null 2>&1; then
+    tables=$(mariadb -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${db_name}'" 2>/dev/null || echo 0)
+  fi
+  [[ $tables =~ ^[0-9]+$ ]] || tables=0
+  public_files=0
+  if [[ -d $WEB_ROOT/sites/default/files ]]; then
+    public_files=$(find "$WEB_ROOT/sites/default/files" -type f | wc -l | tr -d ' ')
+  fi
+  [[ $public_files =~ ^[0-9]+$ ]] || public_files=0
+  jq -n \
+    --arg php "$(php -r 'echo PHP_VERSION;')" \
+    --argjson tables "$tables" \
+    --argjson public_files "$public_files" \
+    --arg ffmpeg "$(ffmpeg -version 2>/dev/null | awk 'NR==1 {print $3}')" \
+    '{php:$php, tables:$tables, public_files:$public_files, ffmpeg:$ffmpeg}' >"$live"
+  xedc_compare_write "$SNAPSHOT/manifest.json" "$live" "$docs_dir/PARITY_REPORT.md" || xedc_warn "对账发现异常差异，见 ${docs_dir}/PARITY_REPORT.md。"
 fi
 
 xedc_log INFO "恢复流程结束。凭据在 ${XEDC_CREDENTIALS_FILE}。管理员密码与原站一致。"
