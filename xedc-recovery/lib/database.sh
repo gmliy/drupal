@@ -75,11 +75,14 @@ xedc_database_engines() {
 }
 
 xedc_database_server_facts() {
-  local database=$1 outfile=$2
+  local database=$1 outfile=$2 cnf=${3:-}
   if [[ ! $database =~ ^[A-Za-z0-9_]+$ ]]; then
     xedc_die "数据库名不合法，已停止读取服务器信息。"
   fi
-  local sql
+  local sql args=()
+  if [[ -n $cnf ]]; then
+    args=(--defaults-extra-file="$cnf")
+  fi
   sql=$(cat <<SQL
 SELECT CONCAT('version=', VERSION());
 SELECT CONCAT('charset=', @@character_set_server);
@@ -91,8 +94,8 @@ SELECT CONCAT('routines=', COUNT(*)) FROM information_schema.routines WHERE rout
 SELECT CONCAT('triggers=', COUNT(*)) FROM information_schema.triggers WHERE trigger_schema='${database}';
 SQL
 )
-  if ! mariadb -N -e "$sql" >"$outfile" 2>"$outfile.err"; then
-    xedc_warn "无法用本地 socket 读取数据库服务器信息。"
+  if ! mariadb "${args[@]}" -N -e "$sql" >"$outfile" 2>"$outfile.err"; then
+    xedc_warn "无法读取该站点配置指向的数据库服务器信息。"
     printf '%s\n' "unavailable" >"$outfile"
   fi
   rm -f "$outfile.err"

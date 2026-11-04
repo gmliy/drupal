@@ -17,6 +17,10 @@ source "$SCRIPT_DIR/lib/github-software.sh"
 source "$SCRIPT_DIR/lib/services.sh"
 # shellcheck source=lib/backup.sh
 source "$SCRIPT_DIR/lib/backup.sh"
+# shellcheck source=lib/package.sh
+source "$SCRIPT_DIR/lib/package.sh"
+# shellcheck source=lib/r2.sh
+source "$SCRIPT_DIR/lib/r2.sh"
 
 xedc_init
 OUTPUT=""
@@ -27,6 +31,12 @@ while [[ $# -gt 0 ]]; do
     --output)
       OUTPUT=${2:-}
       [[ -n $OUTPUT ]] || xedc_die "--output 需要目录。"
+      shift 2
+      ;;
+    --upload-r2) export XEDC_UPLOAD_R2=1; shift ;;
+    --package-snapshot)
+      PACKAGE_SNAPSHOT=${2:-}
+      [[ -n $PACKAGE_SNAPSHOT ]] || xedc_die "--package-snapshot 需要快照目录。"
       shift 2
       ;;
     *) xedc_die "未知参数：$1" ;;
@@ -42,5 +52,17 @@ xedc_backup_on_exit() {
   fi
 }
 trap 'xedc_backup_on_exit $?' EXIT
+
+if [[ -n ${PACKAGE_SNAPSHOT:-} ]]; then
+  xedc_require_root
+  xedc_migration_package "$PACKAGE_SNAPSHOT" "${OUTPUT:-$XEDC_BACKUP_ROOT}" >"$XEDC_STATE_ROOT/last-package-path"
+  package_path=$(cat "$XEDC_STATE_ROOT/last-package-path")
+  [[ -f $package_path ]] || xedc_die "迁移包生成失败。"
+  if [[ ${XEDC_UPLOAD_R2:-0} == 1 ]]; then
+    xedc_r2_upload_package "$package_path" || xedc_die "R2 上传失败。本地迁移包仍保留。"
+  fi
+  printf '%s\n' "$package_path"
+  exit 0
+fi
 
 xedc_backup_main "$OUTPUT"

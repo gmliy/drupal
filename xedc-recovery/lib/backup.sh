@@ -4,9 +4,12 @@
 xedc_backup_usage() {
   cat <<'EOF'
 用法:
-  backup.sh [--dry-run] [--output 目录]
+  backup.sh [--dry-run] [--output 目录] [--upload-r2]
+  backup.sh --package-snapshot 快照目录 [--upload-r2]
 
 每次运行都会重新扫描并生成一份新的时间戳快照，不覆盖上一份成功备份。
+成功后自动生成 /var/backups/xedc/xedc-migration-时间.tar.zst 和同名 .sha256。
+--upload-r2 把迁移包传到专用私有 Bucket。配置见 /root/.config/xedc-recovery/r2.env。
 备份写到 /var/backups/xedc，不会进入 Git。
 EOF
 }
@@ -175,13 +178,16 @@ triggers=0
 EOF
     xedc_log INFO "使用测试 SQL 文件，不读取本机数据库服务器信息。"
   else
-    xedc_database_server_facts "$database" "$facts/database-server.txt"
+    xedc_database_server_facts "$database" "$facts/database-server.txt" "$cnf"
   fi
   xedc_dump_database "$cnf" "$database" "$dest/database.sql.zst"
 
   local public_dir private_dir public_count public_bytes private_count private_bytes
   public_dir=$XEDC_SITE_ROOT/web/sites/default/files
   private_dir=$(jq -r '.private_path // empty' "$facts/settings-public.json")
+  if [[ -z $private_dir && -d $XEDC_SITE_ROOT/private ]]; then
+    private_dir=$XEDC_SITE_ROOT/private
+  fi
   read -r public_count public_bytes < <(xedc_count_tree "$public_dir")
   xedc_archive_dir "$public_dir" "$dest/files-public.tar.zst"
   if [[ -n $private_dir && -d $private_dir ]]; then
@@ -257,6 +263,16 @@ EOF
   [[ $routines =~ ^[0-9]+$ ]] || routines=0
   [[ $triggers =~ ^[0-9]+$ ]] || triggers=0
   xedc_os_info
+  local drupal_version
+  drupal_version=$(php -r '
+$lock = json_decode((string) file_get_contents($argv[1]), true);
+foreach (($lock["packages"] ?? []) as $package) {
+    if (($package["name"] ?? "") === "drupal/core") {
+        echo $package["version"] ?? "";
+        exit;
+    }
+}
+' "$XEDC_SITE_ROOT/composer.lock")
   jq -n \
     --arg engine "MariaDB" \
     --arg version "$version" \
@@ -277,7 +293,9 @@ EOF
     --arg os "${XEDC_OS_ID} ${XEDC_OS_VERSION}" \
     --arg ospretty "$XEDC_OS_PRETTY" \
     --arg arch "$XEDC_OS_ARCH" \
+    --arg drupal "$drupal_version" \
     '{
+      drupal: {version:$drupal},
       database: {engine:$engine, version:$version, database:$name, charset:$charset, collation:$collation, sql_mode:$sql_mode, engines:$engines, tables:$tables, routines:$routines, triggers:$triggers, root_password:"not-stored"},
       files: {public_files:$public_files, public_bytes:$public_bytes, private_files:$private_files, private_bytes:$private_bytes},
       source: {machine_id_sha256:$machine, php:$php, os:$os, os_pretty:$ospretty, arch:$arch},
@@ -385,7 +403,15 @@ EOF
   export XEDC_BACKUP_OK=1
   xedc_backup_offsite "$dest"
   xedc_backup_retain "$parent" 14
+  local package_path=""
+  xedc_migration_package "$dest" "$parent" >"$XEDC_STATE_ROOT/last-package-path"
+  package_path=$(cat "$XEDC_STATE_ROOT/last-package-path")
+  [[ -f $package_path ]] || xedc_die "迁移包生成失败。分项快照已保留：${dest}"
+  if [[ ${XEDC_UPLOAD_R2:-0} == 1 ]]; then
+    xedc_r2_upload_package "$package_path" || xedc_die "R2 上传失败。分项快照和本地迁移包已保留。"
+  fi
   xedc_log INFO "备份完成：${dest}"
+  xedc_log INFO "迁移包：${package_path}"
   printf '%s\n' "$dest"
 }
 

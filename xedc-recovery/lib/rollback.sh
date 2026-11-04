@@ -67,6 +67,22 @@ xedc_rollback_capture_database() {
   jq -n --arg database "$database" '{database:$database}' >"$XEDC_ROLLBACK_DIR/database/meta.json"
   printf '%s\n' '[client]' 'user=root' 'socket=/run/mysqld/mysqld.sock' >"$XEDC_ROLLBACK_DIR/database/client.cnf"
   chmod 600 "$XEDC_ROLLBACK_DIR/database/client.cnf" "$XEDC_ROLLBACK_DIR/database/before.sql.zst"
+  mariadb -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${database}'" \
+    >"$XEDC_ROLLBACK_DIR/database/table-count"
+}
+
+xedc_rollback_capture_php_fpm() {
+  local ver=${1:-}
+  [[ -d ${XEDC_ROLLBACK_DIR:-} ]] || return 0
+  if [[ -z $ver ]]; then
+    ver=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || true)
+  fi
+  local pool="/etc/php/${ver}/fpm/pool.d/www.conf"
+  [[ -n $ver && -f $pool ]] || return 0
+  mkdir -p "$XEDC_ROLLBACK_DIR/php"
+  cp -a "$pool" "$XEDC_ROLLBACK_DIR/php/www.conf"
+  printf '%s\n' "$ver" >"$XEDC_ROLLBACK_DIR/php/version"
+  sha256sum "$pool" | awk '{print $1}' >"$XEDC_ROLLBACK_DIR/php/www.sha256"
 }
 
 xedc_rollback_verify() {
@@ -90,7 +106,19 @@ xedc_rollback_verify() {
     checked=1
   fi
   if [[ -f $dir/database/before.sql.zst ]]; then
-    [[ -s $dir/database/before.sql.zst ]] || return 1
+    [[ -s $dir/database/before.sql.zst && -f $dir/database/table-count && -f $dir/database/meta.json ]] || return 1
+    local database now_count
+    database=$(jq -r '.database' "$dir/database/meta.json")
+    now_count=$(mariadb --defaults-extra-file="$dir/database/client.cnf" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${database}'" 2>/dev/null || printf '%s' missing)
+    [[ $now_count == $(cat "$dir/database/table-count") ]] || return 1
+    checked=1
+  fi
+  if [[ -f $dir/php/www.sha256 && -f $dir/php/version ]]; then
+    local pool
+    pool="/etc/php/$(cat "$dir/php/version")/fpm/pool.d/www.conf"
+    [[ -f $pool ]] || return 1
+    now=$(sha256sum "$pool" | awk '{print $1}')
+    [[ $now == $(cat "$dir/php/www.sha256") ]] || return 1
     checked=1
   fi
   [[ $checked == 1 ]]
@@ -115,6 +143,18 @@ xedc_rollback_apply() {
     cp -a "$dir/nginx/site.conf" /etc/nginx/conf.d/xedc-drupal.conf
     nginx -t
     xedc_ensure_nginx
+  fi
+  if [[ -f $dir/php/www.conf && -f $dir/php/version ]]; then
+    local ver pool
+    ver=$(cat "$dir/php/version")
+    pool="/etc/php/${ver}/fpm/pool.d/www.conf"
+    mkdir -p "$(dirname "$pool")"
+    cp -a "$dir/php/www.conf" "$pool"
+    if [[ -f /run/php/php${ver}-fpm.pid ]]; then
+      kill -USR2 "$(cat "/run/php/php${ver}-fpm.pid")" 2>/dev/null || xedc_ensure_php_fpm "$ver" || true
+    else
+      xedc_ensure_php_fpm "$ver" || true
+    fi
   fi
   if [[ -f $dir/settings/settings.local.php ]]; then
     mkdir -p "$root/web/sites/default"

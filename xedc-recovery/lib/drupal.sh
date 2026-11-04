@@ -23,8 +23,15 @@ $password = trim((string) file_get_contents($passFile));
 $database = $secrets["database"] ?? "drupal";
 $user = $secrets["username"] ?? "drupal";
 $salt = $secrets["hash_salt"] ?? bin2hex(random_bytes(32));
-$host = $secrets["host"] ?? "localhost";
-$port = $secrets["port"] ?? "3306";
+$host = getenv("XEDC_RESTORE_DB_HOST");
+$port = getenv("XEDC_RESTORE_DB_PORT");
+if (!is_string($host) || $host === "") {
+    $host = "localhost";
+}
+if (!is_string($port) || $port === "") {
+    $port = "3306";
+}
+$portCode = ctype_digit($port) ? (string) (int) $port : var_export($port, true);
 $prefix = $secrets["prefix"] ?? "";
 $patterns = ["'^" . str_replace(".", "\\.", $domain) . "$'"];
 if (!str_starts_with($domain, "www.")) {
@@ -37,7 +44,7 @@ $body .= "  'username' => " . var_export($user, true) . ",\n";
 $body .= "  'password' => " . var_export($password, true) . ",\n";
 $body .= "  'prefix' => " . var_export($prefix, true) . ",\n";
 $body .= "  'host' => " . var_export($host, true) . ",\n";
-$body .= "  'port' => " . var_export((string) $port, true) . ",\n";
+$body .= "  'port' => " . $portCode . ",\n";
 $body .= "  'isolation_level' => 'READ COMMITTED',\n";
 $body .= "  'driver' => 'mysql',\n";
 $body .= "  'namespace' => 'Drupal\\\\mysql\\\\Driver\\\\Database\\\\mysql',\n";
@@ -57,10 +64,8 @@ PHP
 
 xedc_ensure_settings_include() {
   local settings=$1
-  if grep -q "settings.local.php" "$settings" && grep -q "include" "$settings"; then
-    if grep -Eq '^[^#]*settings\.local\.php' "$settings"; then
-      return 0
-    fi
+  if grep -Eq '^[[:space:]]*(include|require)(_once)?[[:space:]].*settings\.local\.php' "$settings"; then
+    return 0
   fi
   cat >>"$settings" <<'PHP'
 

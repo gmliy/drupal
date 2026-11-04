@@ -27,3 +27,11 @@ origin/main 在 `tools/xedc-recover/` 有一套已合并的备份工具，其规
 ## 对象存储
 
 R2 清单只证明备份时能列出对象。恢复到另一台机器仍需要密文里的密钥，并且不会把生产密钥写进测试容器。
+
+迁移包上传使用单独的 `/root/.config/xedc-recovery/r2.env`。这台机器没有这份专用凭据。客户端已对 `127.0.0.1` 上的私有 S3 服务验证上传、错误密钥、缺失对象，以及 605176048 字节迁移包的回读哈希。没有向 Cloudflare 或网站公开 Bucket 上传。脚本不会自动删除远端旧对象。
+
+## PHP 8.5
+
+恢复不再在缺少 8.5 时安装 8.4。Ondřej PPA 没有当前发行版时，会再试 `packages.sury.org`，最后才看系统仓库。
+
+2026-11-04 隔离安装：Ubuntu 22.04、24.04、26.04 与 Debian 12、13 为 PHP 8.5.12 CLI 和 FPM。Ubuntu 26.10 使用系统仓库的 PHP 8.5.9。Ubuntu 20.04 的第三方源没有 `php8.5-*`，BLOCKED。Debian 11 在安装 curl 等工具时，安全仓库若干包 404，没有进入 PHP 安装，BLOCKED。日志在 `/var/log/xedc-recovery/php85-matrix/`。

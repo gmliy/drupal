@@ -48,6 +48,7 @@ server {
     location ~ \\.php\$ {
         include fastcgi_params;
         fastcgi_param HTTP_PROXY "";
+        fastcgi_param HTTPS on;
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         fastcgi_pass unix:${socket};
         fastcgi_read_timeout 300s;

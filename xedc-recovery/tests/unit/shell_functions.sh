@@ -9,6 +9,9 @@ source "$ROOT/lib/common.sh"
 source "$ROOT/lib/environment.sh"
 # shellcheck source=../../lib/rollback.sh
 source "$ROOT/lib/rollback.sh"
+# shellcheck source=../../lib/drupal.sh
+source "$ROOT/lib/drupal.sh"
+xedc_init
 
 fail=0
 check() {
@@ -149,6 +152,23 @@ if xedc_rollback_apply "$XEDC_ROLLBACK_DIR" "$empty/missing"; then
   fail=1
 else
   if [[ $(cat "$XEDC_ROLLBACK_DIR/ROLLBACK_STATUS") == FAIL ]]; then echo PASS rollback_empty; else echo FAIL rollback_status; fail=1; fi
+fi
+
+printf '%s\n' '<?php' ' * Create a settings.local.php file to override variables' >"$tmp/commented-settings.php"
+xedc_ensure_settings_include "$tmp/commented-settings.php"
+if grep -Eq '^if \(is_file\(__DIR__ . '"'"'/settings.local.php'"'"'\)\)' "$tmp/commented-settings.php"; then
+  echo PASS settings_include
+else
+  echo FAIL settings_include
+  fail=1
+fi
+printf '%s\n' '<?php' 'include __DIR__ . "/settings.local.php";' >"$tmp/already-settings.php"
+xedc_ensure_settings_include "$tmp/already-settings.php"
+if [[ $(grep -c 'settings.local.php' "$tmp/already-settings.php") == 1 ]]; then
+  echo PASS settings_include_once
+else
+  echo FAIL settings_include_once
+  fail=1
 fi
 
 rm -rf "$tmp"

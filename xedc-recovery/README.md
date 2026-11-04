@@ -2,6 +2,8 @@
 
 这是 v2 的备份和恢复实现。命令从本目录的 `backup.sh` 和 `restore.sh` 进入。产物在 `/var/backups/xedc`，状态在 `/var/lib/xedc-recovery`，日志在 `/var/log/xedc-recovery`。这些目录都不进 Git。
 
+仓库首页的克隆、更新、备份和恢复步骤在 [../README.md](../README.md)。本文件是同一套命令的操作手册。两边的参数、路径和验收状态要保持一致。测试容器脚本不是生产恢复入口。
+
 下面每节只写代码里已经存在的行为。没跑过的测试会写明。
 
 ## 1. 备份
@@ -10,7 +12,76 @@
 sudo xedc-recovery/backup.sh
 sudo xedc-recovery/backup.sh --dry-run
 sudo xedc-recovery/backup.sh --output /var/backups/xedc
+sudo xedc-recovery/backup.sh --upload-r2
+sudo xedc-recovery/backup.sh --package-snapshot /var/backups/xedc/20261104T082520Z
 ```
+
+成功的备份会保留分项快照，并生成 `/var/backups/xedc/xedc-migration-快照时间.tar.zst` 与同名 `.sha256`。打包失败时命令失败，原快照不删除。age 私钥不进迁移包。
+
+从原服务器查看：
+
+```bash
+sudo ls -lh /var/backups/xedc/xedc-migration-*.tar.zst
+sudo sha256sum /var/backups/xedc/xedc-migration-*.tar.zst
+```
+
+当前这份是 `/var/backups/xedc/xedc-migration-20261104T082520Z.tar.zst`，605176048 字节，SHA-256 `96149968b29fe370dfc4ee15e6ca404f33cc7a504f22e4f32a14b85f8ec08cc5`。
+
+Linux 或 macOS 下载到自己的电脑：
+
+```bash
+scp root@203.0.113.10:/var/backups/xedc/xedc-migration-20261104T082520Z.tar.zst .
+scp root@203.0.113.10:/var/backups/xedc/xedc-migration-20261104T082520Z.tar.zst.sha256 .
+sha256sum -c xedc-migration-20261104T082520Z.tar.zst.sha256
+```
+
+Windows PowerShell：
+
+```powershell
+scp root@203.0.113.10:/var/backups/xedc/xedc-migration-20261104T082520Z.tar.zst .
+scp root@203.0.113.10:/var/backups/xedc/xedc-migration-20261104T082520Z.tar.zst.sha256 .
+Get-FileHash .\xedc-migration-20261104T082520Z.tar.zst -Algorithm SHA256
+```
+
+哈希不一致就不要恢复。文件里有数据库，保存在安全位置。其他 SSH 客户端用 SFTP 下载同样的两个文件即可。
+
+原服务器直接上传到新服务器：
+
+```bash
+scp /var/backups/xedc/xedc-migration-20261104T082520Z.tar.zst root@198.51.100.20:/root/
+scp /var/backups/xedc/xedc-migration-20261104T082520Z.tar.zst.sha256 root@198.51.100.20:/root/
+```
+
+本机中转时，把上面下载到的文件再 `scp` 到 `root@198.51.100.20:/root/`。新服务器上：
+
+```bash
+cd /root
+sha256sum -c xedc-migration-20261104T082520Z.tar.zst.sha256
+sudo apt-get update
+sudo apt-get install -y zstd
+tar --zstd -xf xedc-migration-20261104T082520Z.tar.zst
+cd xedc-migration-20261104T082520Z
+sudo ./restore.sh --mode=full --domain 新域名 --old-domain 旧域名 --new-domain 新域名
+```
+
+Cloudflare R2 使用专用私有 Bucket 和只含该 Bucket 对象读写权限的 API Token。配置写在 `/root/.config/xedc-recovery/r2.env`，权限 600，模板是 `contrib/r2.env.example`。不要把网站公开文件的 Bucket 用来存迁移包，也不要打开公开访问。
+
+```bash
+sudo xedc-recovery/download.sh --source=r2 --list
+sudo xedc-recovery/download.sh --source=r2 --backup=20261104T082520Z --output /root
+```
+
+对象键是 `xedc-backups/年/月/xedc-migration-时间.tar.zst`。上传后会核对远端大小并回读 SHA-256。失败不会被记成成功。脚本不删除远端旧备份。age 私钥不上传。这台机器没有专用 R2 凭据；同一套客户端已对本地私有 S3 完成小对象和上述完整迁移包的往返，哈希一致。真正的 Cloudflare 账户还没有上传记录。
+
+新服务器需要受支持的 Ubuntu 或 Debian、root、软件源网络、磁盘空间、域名和单独传来的 age 私钥。云安全组放行 80 和 443。
+
+`--mode=full` 在基础系统上安装 Nginx、MariaDB、Composer、ffmpeg、Docker 和 PHP 8.5，然后恢复站点。`--mode=restore` 只补缺失软件；目标目录或同名数据库已有内容时停止，不覆盖。
+
+Drupal 必须使用 PHP 8.5。`php -v` 和 `php-fpm8.5 -v` 都要是 8.5。没有软件包时写 `/var/lib/xedc-recovery/PHP_STATUS` 为 BLOCKED，并且不导入数据库、不切换 Nginx。`--php-version 8.4` 会直接被拒绝。
+
+证书仍按原来的 HTTP-01、DNS-01 和自签名等待模式。自签名不是签发成功。恢复日志在 `/var/log/xedc-recovery/recovery.log`，数据库账户在 `/root/.drupal-credentials`。
+
+常见故障：SCP 的 `Permission denied (publickey)` 是登录失败；上传中断后要重新校验；R2 凭据或对象不对时命令失败并清理不完整的临时文件；SHA-256 不一致时停止；磁盘不足时不删除旧快照；PHP 8.5 源不可用时 BLOCKED；Composer 失败不要拿旧 vendor 顶替；Docker 守护进程不存在时只留下配置并记 WARN。
 
 每次运行新建一个 UTC 时间戳目录。自检失败时退出处理会删除未完成目录。成功目录保留 `STATUS=PASS`。默认保留策略留下最近的成功快照，并且不删除最后一份 PASS。
 
@@ -18,13 +89,13 @@ sudo xedc-recovery/backup.sh --output /var/backups/xedc
 
 `xedc-recovery/contrib/systemd/` 里有 03:00 和 15:00 的 timer。生产机没有 enable。生产 crontab 里的 `/root/backup.sh` 没有被这个目录修改。
 
-设置 `XEDC_OFFSITE_DEST` 后才会复制到另一个目录，复制内容不含 age 私钥。生产机没有设置它。单元测试只写到临时目录。
+设置 `XEDC_OFFSITE_DEST` 后，才会用 `rsync -a` 把快照复制到这个本地目录。复制内容不含 age 私钥。生产机没有设置它。单元测试只写到临时目录。远程机器需要手工 `rsync` 快照目录，并且不要把 `/root/.config/xedc-recovery/age.key` 放进同一条命令。
 
 ## 2. 恢复
 
 在干净机器上，脚本先安装 `jq`、`zstd`、`age` 和 `python3`，再读清单。来源机器的 machine-id 哈希与本机相同，且不是测试开关时，恢复会拒绝执行，避免把快照倒回生产机。
 
-之后的顺序是：基础软件包、PHP、项目源码、Composer、解密密钥、数据库、公共和私有文件、`settings.local.php`、Nginx、证书、可选的配套服务、媒体冒烟、域名替换、Drush、凭据文件、HTTP 检查和对账。某一步已经记在状态文件里时，重复恢复会跳过它。
+之后的顺序是：基础软件包、PHP、项目源码、Composer、解密密钥、数据库、公共和私有文件、`settings.local.php`、Nginx、证书、可选的配套服务、媒体冒烟、域名替换、Drush、凭据文件、HTTP 检查和对账。`settings.local.php` 使用目标机的 `localhost:3306` 和新数据库密码。只有文件里已经有未注释的 `include` 或 `require` 时才不再追加引用；注释里提到这个文件名不算已经引用。某一步已经记在状态文件里时，重复恢复会跳过它。
 
 没有 systemd 时，MariaDB、Nginx、PHP-FPM 和 Redis 由 service 或直接启动。Ubuntu 24.04 容器里这样启动过。
 
@@ -34,8 +105,9 @@ sudo xedc-recovery/backup.sh --output /var/backups/xedc
 
 `restore.sh --help` 会打印参数。常用的有：
 
+- `--mode=full` 安装缺失的系统软件并恢复；`--mode=restore` 不覆盖已有网站和数据库
 - `--snapshot`、`--domain`、`--old-domain`、`--new-domain`
-- `--php-version`，默认 8.5
+- `--php-version` 只接受 8.5
 - `--versions balanced|pinned|latest`
 - `--force`，目标目录已存在时先做回滚快照再覆盖
 - `--dry-run`
@@ -52,9 +124,9 @@ DNS 凭据文件权限必须是 600 或 400。
 
 ## 4. 版本策略
 
-`--versions` 接受 `balanced`、`pinned`、`latest`。PHP 目标默认 8.5。安装前会检查第三方源的 Release 文件；源不支持当前发行版时退回系统仓库并记 WARN。8.5 没有软件包而 8.4 有时，先运行 `composer why-not php 8.5`，再安装 8.4，并打印「当前版本 → 目标版本 → 实际安装版本」。两种都没有就停止，不会悄悄装另一个版本。
+`--versions` 接受 `balanced`、`pinned`、`latest`。PHP 只允许 8.5。安装前会检查 Ondřej 或 Sury 源的 Release 文件；源没有 PHP 8.5，系统仓库也没有时，标记 BLOCKED 并停止。不会改用 PHP 8.4。Nginx 只使用 `/run/php/php8.5-fpm.sock`。
 
-Ubuntu 24.04 容器的实测记录是 `8.3.6 → 8.5 → 8.5.12`。8.4 回退没有被触发。
+Ubuntu 24.04 容器以前的记录是 `8.3.6 → 8.5 → 8.5.12`。现在的代码在进入安装前就会拒绝 `--php-version 8.4`。
 
 GitHub 发布包没有 SHA256 时不会下载。`pinned` 仍会查询最新发布说明，还没有锁死到清单里的单个 tag。
 
@@ -86,7 +158,7 @@ DNS 服务商列表来自 `lib/acme-dns-providers.json`。`--dns-provider list` 
 
 凭据文件是 `/root/.drupal-credentials`，权限 600。里面有新的数据库密码。管理员密码文字写的是与原站一致；恢复流程本身不改 uid 1。
 
-`--reset-admin` 在交互里要求输入 yes，或设置 `XEDC_ASSUME_YES=1`。它通过 Drush 改密码。`--login-link` 也依赖 Drush。这两条都还没有在 Drupal 站点上执行。
+`--reset-admin` 在交互里要求输入 yes，或设置 `XEDC_ASSUME_YES=1`。它通过 Drush 改 uid 1 的密码，并把新密码写入 `/root/.drupal-credentials` 的 `admin_password`。终端和日志不打印这串密码。`--login-link` 也依赖 Drush，输出一次性登录 URL。这两条都还没有在 Drupal 站点上执行。
 
 数据库口令不放在命令行参数里。客户端使用权限 600 的 defaults 文件。
 
@@ -94,7 +166,7 @@ DNS 服务商列表来自 `lib/acme-dns-providers.json`。`--dns-provider list` 
 
 `--compare` 和每次完整恢复结束都会写 `PARITY_REPORT.md`。相同、预期差异、需要用户处理和异常差异是分开的。只有异常差异让命令返回非零；恢复主流程把这个非零变成 WARN，不把异常藏掉。
 
-现在比较的字段是 Drupal 版本、PHP、公共文件数、表数、ffmpeg 和对象数量。Drupal 版本缺失不会拿 PHP 版本冒充。对象存储未使用且两边都没有数量时记 SKIP。
+现在比较的字段是 Drupal 版本、PHP、公共文件数、表数、ffmpeg 和对象数量。恢复结束时如果存在 Drush，会用 `status --field=drupal-version` 填写恢复后的版本。Drupal 版本缺失不会拿 PHP 版本冒充。对象存储未使用且两边都没有数量时记 SKIP。
 
 夹具二次恢复要求异常差异为 0。这不是完整对账。模块、主题、逐表行数、用户数、节点数、Composer 包、Nginx、PHP 扩展、systemd、cron 和编码器清单还没有采集。
 
@@ -104,7 +176,7 @@ DNS 服务商列表来自 `lib/acme-dns-providers.json`。`--dns-provider list` 
 
 Composer 使用系统包或已验证的安装脚本。Ubuntu 24.04 的发行版 Composer 在 PHP 8.5 上会打印弃用提示；夹具项目没有依赖，安装仍然退出码 0。真实 Drupal 项目还没有在干净机器上执行 `composer install`。
 
-GitHub 限流重试写在下载逻辑里，还没有用 mock 跑过。PHP 8.5 不可用时的 8.4 回退也还没有跑过。
+GitHub 限流重试写在下载逻辑里，还没有用 mock 跑过。PHP 8.4 不再作为退路；`--php-version 8.4` 会直接 BLOCKED。
 
 DNS 没生效时保持自签名，不把等待模式报成正式证书。云安全组未放行 80/443 时，脚本只提示。
 
@@ -137,7 +209,7 @@ bash xedc-recovery/tests/integration/restore-docker.sh 快照目录 age私钥
 
 构建夹具时设置 `XEDC_SQL_DUMP_FILE` 和 `XEDC_SKIP_DOCKER=1`，不读取生产库，不导出生产卷。恢复容器只挂载夹具快照、夹具私钥和本目录。
 
-已通过的是 Ubuntu 24.04 上的一次全新恢复加一次重复恢复。A 级还有中断续跑、管理员重置、HTTP-01、DNS-01、低内存、PHP 8.4 回退等场景没跑。B 级的 Ubuntu 22.04、26.04、26.10 和 Debian 12 没跑。连续两轮也没跑。官方镜像拿不到时要记 BLOCKED，不能换一个镜像还说原来的系统通过了。
+Ubuntu 24.04 夹具已用 `--mode=full` 做了一次全新恢复和一次重复恢复，日志在 `/var/log/xedc-recovery/fixture-full-20261104.log`。夹具不是 Drupal。A 级还有中断续跑、管理员重置、HTTP-01、DNS-01 和低内存没跑。B 级只测了 PHP 8.5 能否安装，没有在每个发行版上做完整站点恢复。连续两轮也没跑。官方镜像拿不到或软件源装不上 PHP 8.5 时记 BLOCKED。
 
 单元测试：
 

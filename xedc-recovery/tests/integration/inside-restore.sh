@@ -17,11 +17,21 @@ restore=/opt/xedc-recovery/restore.sh
   --domain newer.example.test \
   --old-domain old.example.test \
   --new-domain newer.example.test \
+  --mode=full \
   --php-version 8.5 \
   --force \
   --without-docker-services
 
 php -r 'exit(str_starts_with(PHP_VERSION, "8.5") ? 0 : 1);'
+php-fpm8.5 -v | head -n 1 | grep -q '8.5.'
+grep -q 'php8.5-fpm.sock' /etc/nginx/conf.d/xedc-drupal.conf
+php -m | grep -qi '^pdo_mysql$'
+php -m | grep -qi '^gd$'
+php -m | grep -qi '^mbstring$'
+command -v composer >/dev/null
+command -v ffmpeg >/dev/null
+command -v nginx >/dev/null
+command -v mariadb >/dev/null
 test -f /var/www/fixture-site/web/sites/default/files/hello.txt
 test -f /var/www/fixture-site/web/sites/default/settings.local.php
 php <<'PHP'
@@ -52,8 +62,19 @@ admin=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 15 https://newer.exam
   --domain newer.example.test \
   --old-domain old.example.test \
   --new-domain newer.example.test \
+  --mode=full \
   --php-version 8.5 \
   --force \
   --without-docker-services
 grep -q '异常差异: 0' /var/lib/xedc-recovery/docs/PARITY_REPORT.md
+if "$restore" \
+  --mode=restore \
+  --snapshot /snapshot \
+  --domain newer.example.test \
+  --php-version 8.5
+then
+  printf '%s\n' 'FAIL restore 模式覆盖了已有网站' >&2
+  exit 1
+fi
+printf '%s\n' 'PASS restore-mode-refuses'
 printf '%s\n' FIXTURE_RESTORE_OK

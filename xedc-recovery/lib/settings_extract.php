@@ -44,7 +44,11 @@ function xedc_settings_extract(string $file): array
     $username = xedc_settings_string_after($code, "/'username'\\s*=>\\s*'((?:\\\\'|[^'])*)'/");
     $password = xedc_settings_string_after($code, "/'password'\\s*=>\\s*'((?:\\\\'|[^'])*)'/");
     $host = xedc_settings_string_after($code, "/'host'\\s*=>\\s*'((?:\\\\'|[^'])*)'/") ?? 'localhost';
-    $port = xedc_settings_string_after($code, "/'port'\\s*=>\\s*'((?:\\\\'|[^'])*)'/") ?? '3306';
+    $port = xedc_settings_string_after($code, "/'port'\\s*=>\\s*'((?:\\\\'|[^'])*)'/");
+    if ($port === null && preg_match("/'port'\\s*=>\\s*(\\d+)/", $code, $portMatch) === 1) {
+        $port = $portMatch[1];
+    }
+    $port ??= '3306';
     $prefix = xedc_settings_string_after($code, "/'prefix'\\s*=>\\s*'((?:\\\\'|[^'])*)'/") ?? '';
     $salt = xedc_settings_string_after($code, "/\\\$settings\\s*\\[\\s*'hash_salt'\\s*\\]\\s*=\\s*'((?:\\\\'|[^'])*)'/");
     $private = xedc_settings_string_after($code, "/\\\$settings\\s*\\[\\s*'file_private_path'\\s*\\]\\s*=\\s*'((?:\\\\'|[^'])*)'/");

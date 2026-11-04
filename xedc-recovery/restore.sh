@@ -53,10 +53,13 @@ WITH_MATOMO=1
 WITH_NETDATA=1
 WITH_DOCKER=1
 WITH_MEDIA=1
+MODE=""
 
 xedc_restore_usage() {
   cat <<'EOF'
 用法:
+  restore.sh --mode=full --snapshot 目录 --domain 域名 --old-domain 旧域名 --new-domain 新域名
+  restore.sh --mode=restore --snapshot 目录 --domain 域名
   restore.sh --snapshot 目录 --domain 域名 [--php-version 8.5]
   restore.sh --snapshot 目录 --old-domain 旧域名 --new-domain 新域名
   restore.sh --show-credentials
@@ -86,6 +89,16 @@ while [[ $# -gt 0 ]]; do
     --old-domain) OLD_DOMAIN=$2; shift 2 ;;
     --new-domain) NEW_DOMAIN=$2; shift 2 ;;
     --php-version) PHP_VERSION=$2; shift 2 ;;
+    --mode=*)
+      MODE=${1#--mode=}
+      [[ $MODE == full || $MODE == restore ]] || xedc_die "--mode 只能是 full 或 restore。"
+      shift
+      ;;
+    --mode)
+      MODE=${2:-}
+      [[ $MODE == full || $MODE == restore ]] || xedc_die "--mode 只能是 full 或 restore。"
+      shift 2
+      ;;
     --versions)
       case ${2:-} in
         balanced|pinned|latest) export XEDC_VERSION_STRATEGY=$2 ;;
@@ -131,6 +144,10 @@ while [[ $# -gt 0 ]]; do
     *) xedc_die "未知参数：$1" ;;
   esac
 done
+
+if [[ $PHP_VERSION != 8.5 ]]; then
+  xedc_die "BLOCKED Drupal 恢复只允许 PHP 8.5，拒绝 ${PHP_VERSION}。"
+fi
 
 xedc_should_run() {
   local name=$1
@@ -219,6 +236,9 @@ if [[ $STEP == reset-admin || $STEP == login-link ]]; then
   exit 0
 fi
 
+if [[ -z $SNAPSHOT && -f $SCRIPT_DIR/../snapshot/manifest.json ]]; then
+  SNAPSHOT=$(cd "$SCRIPT_DIR/.." && pwd)/snapshot
+fi
 [[ -n $SNAPSHOT ]] || xedc_die "恢复需要 --snapshot。"
 [[ -f $SNAPSHOT/STATUS && $(cat "$SNAPSHOT/STATUS") == PASS ]] || xedc_die "快照不是成功备份。"
 [[ -f $SNAPSHOT/manifest.json ]] || xedc_die "快照缺少 manifest.json。"
@@ -242,11 +262,17 @@ XEDC_STATE_FILE=$XEDC_STATE_ROOT/restore-state.json
 xedc_state_init "$XEDC_STATE_FILE"
 TARGET=${XEDC_SITE_ROOT}
 WEB_ROOT=$TARGET/web
-PHP_SOCKET="/run/php/php${PHP_VERSION}-fpm.sock"
+PHP_SOCKET="/run/php/php8.5-fpm.sock"
+if [[ $MODE == restore && ( -e $TARGET/composer.json || -e $TARGET/web/sites/default/settings.php ) ]]; then
+  xedc_die "已有网站目录 ${TARGET}。--mode=restore 不会覆盖已有网站。"
+fi
 
 if xedc_should_run packages; then
   xedc_install_base_packages
-  xedc_install_composer_phar
+  xedc_ensure_composer
+  if [[ $MODE == full ]]; then
+    xedc_install_docker || xedc_warn "Docker 未完全安装。配套容器不会当作已经恢复。"
+  fi
   xedc_mark packages
 fi
 if xedc_should_run php; then
@@ -290,8 +316,18 @@ xedc_load_db_identity() {
 }
 
 if xedc_should_run database; then
+  if [[ ${XEDC_DRY_RUN:-0} != 1 ]]; then
+    xedc_assert_php85
+  fi
   xedc_ensure_mariadb
   xedc_load_db_identity
+  if [[ $MODE == restore ]]; then
+    [[ ${db_name:-} =~ ^[A-Za-z0-9_]+$ ]] || xedc_die "数据库名不合法，已停止。"
+    existing_tables=$(mariadb -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${db_name}'" 2>/dev/null || echo 0)
+    if [[ ${existing_tables:-0} != 0 ]]; then
+      xedc_die "数据库 ${db_name} 已有 ${existing_tables} 张表。--mode=restore 不会覆盖已有数据库。"
+    fi
+  fi
   passfile=$XEDC_STATE_ROOT/db.pass
   if [[ $KEEP_DB == 1 ]]; then
     jq -r '.password' "$SECRET_DIR/db.json" >"$passfile"
@@ -309,7 +345,15 @@ $pass = trim((string) file_get_contents($argv[1]));
 $cnf = $argv[2];
 $lines = [];
 foreach (file($cnf, FILE_IGNORE_NEW_LINES) as $line) {
-    $lines[] = str_starts_with($line, "password=") ? "password=" . $pass : $line;
+    if (str_starts_with($line, "password=")) {
+        $lines[] = "password=" . $pass;
+    } elseif (str_starts_with($line, "host=")) {
+        $lines[] = "host=localhost";
+    } elseif (str_starts_with($line, "port=")) {
+        $lines[] = "port=3306";
+    } else {
+        $lines[] = $line;
+    }
 }
 file_put_contents($cnf, implode("\n", $lines) . "\n");
 chmod($cnf, 0600);
@@ -353,7 +397,10 @@ if xedc_should_run nginx; then
       export XEDC_PHP_ACTUAL=$PHP_VERSION
     fi
   fi
-  PHP_SOCKET="/run/php/php${XEDC_PHP_ACTUAL}-fpm.sock"
+  if [[ $XEDC_PHP_ACTUAL != 8.5 ]]; then
+    xedc_php85_blocked "拒绝把 Nginx 连接到 PHP ${XEDC_PHP_ACTUAL}"
+  fi
+  PHP_SOCKET="/run/php/php8.5-fpm.sock"
   xedc_ensure_php_fpm "$XEDC_PHP_ACTUAL" || true
   xedc_ensure_redis || true
   cert_dir=/etc/xedc-recovery/ssl/$DOMAIN
@@ -436,12 +483,17 @@ if [[ $STEP == compare || -z $STEP ]]; then
     public_files=$(find "$WEB_ROOT/sites/default/files" -type f | wc -l | tr -d ' ')
   fi
   [[ $public_files =~ ^[0-9]+$ ]] || public_files=0
+  drupal_version=""
+  if [[ -n ${DOMAIN:-} && -x $TARGET/vendor/bin/drush ]]; then
+    drupal_version=$(cd "$TARGET" && ./vendor/bin/drush --uri="https://${DOMAIN}" status --field=drupal-version 2>/dev/null | head -n 1 || true)
+  fi
   jq -n \
     --arg php "$(php -r 'echo PHP_VERSION;')" \
+    --arg drupal_version "$drupal_version" \
     --argjson tables "$tables" \
     --argjson public_files "$public_files" \
     --arg ffmpeg "$(ffmpeg -version 2>/dev/null | awk 'NR==1 {print $3}')" \
-    '{php:$php, tables:$tables, public_files:$public_files, ffmpeg:$ffmpeg}' >"$live"
+    '{php:$php, drupal_version:$drupal_version, tables:$tables, public_files:$public_files, ffmpeg:$ffmpeg}' >"$live"
   xedc_compare_write "$SNAPSHOT/manifest.json" "$live" "$docs_dir/PARITY_REPORT.md" || xedc_warn "对账发现异常差异，见 ${docs_dir}/PARITY_REPORT.md。"
 fi
 

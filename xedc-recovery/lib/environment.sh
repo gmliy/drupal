@@ -15,27 +15,27 @@ xedc_url_ok() {
   curl -fsI -o /dev/null --max-time 25 "$1"
 }
 
+xedc_add_sury_repo() {
+  xedc_run apt-get install -y ca-certificates curl gnupg
+  xedc_run curl -fsSL -o /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
+  printf 'deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ %s main\n' "$XEDC_OS_CODENAME" \
+    > /etc/apt/sources.list.d/sury-php.list
+}
+
 xedc_add_php_repo() {
   xedc_os_info
   xedc_export_apt_env
-  local release=""
-  if [[ $XEDC_OS_ID == ubuntu ]]; then
-    release="https://ppa.launchpadcontent.net/ondrej/php/ubuntu/dists/${XEDC_OS_CODENAME}/Release"
-  else
-    release="https://packages.sury.org/php/dists/${XEDC_OS_CODENAME}/Release"
-  fi
-  if ! xedc_url_ok "$release"; then
-    xedc_warn "PHP 第三方源没有 ${XEDC_OS_ID} ${XEDC_OS_CODENAME} 的 Release 文件，改用系统仓库。"
-    return 1
-  fi
-  if [[ $XEDC_OS_ID == ubuntu ]]; then
+  local ondrej="https://ppa.launchpadcontent.net/ondrej/php/ubuntu/dists/${XEDC_OS_CODENAME}/Release"
+  local sury="https://packages.sury.org/php/dists/${XEDC_OS_CODENAME}/Release"
+  if [[ $XEDC_OS_ID == ubuntu ]] && xedc_url_ok "$ondrej"; then
     xedc_run apt-get install -y ca-certificates software-properties-common
     xedc_run add-apt-repository -y ppa:ondrej/php
+  elif xedc_url_ok "$sury"; then
+    xedc_log INFO "使用 packages.sury.org 的 PHP 源（${XEDC_OS_ID} ${XEDC_OS_CODENAME}）。"
+    xedc_add_sury_repo
   else
-    xedc_run apt-get install -y ca-certificates curl gnupg
-    xedc_run curl -fsSL -o /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
-    printf 'deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ %s main\n' "$XEDC_OS_CODENAME" \
-      > /etc/apt/sources.list.d/sury-php.list
+    xedc_warn "Ondřej 与 Sury 都没有 ${XEDC_OS_ID} ${XEDC_OS_CODENAME} 的 Release 文件，改用系统仓库。"
+    return 1
   fi
   xedc_run apt-get update
 }
@@ -45,28 +45,59 @@ xedc_filter_php_ini() {
   grep -Ev '^[[:space:]]*(track_errors|allow_call_time_pass_reference|magic_quotes_gpc|register_globals|safe_mode|always_populate_raw_post_data|zend.ze1_compatibility_mode)[[:space:]]*=' "$src" >"$dest" || true
 }
 
+xedc_php85_blocked() {
+  local reason=$1
+  mkdir -p "${XEDC_STATE_ROOT:-/var/lib/xedc-recovery}"
+  printf 'BLOCKED %s\n系统: %s %s (%s)\n' "$reason" "${XEDC_OS_ID:-unknown}" "${XEDC_OS_VERSION:-unknown}" "${XEDC_OS_CODENAME:-unknown}" \
+    >"${XEDC_STATE_ROOT:-/var/lib/xedc-recovery}/PHP_STATUS"
+  chmod 600 "${XEDC_STATE_ROOT:-/var/lib/xedc-recovery}/PHP_STATUS" 2>/dev/null || true
+  xedc_die "BLOCKED ${reason}。系统 ${XEDC_OS_ID:-unknown} ${XEDC_OS_VERSION:-unknown} (${XEDC_OS_CODENAME:-unknown})。不会安装 PHP 8.4 或其他版本，数据库和网站切换已停止。"
+}
+
+xedc_assert_php85() {
+  local cli fpm ext missing=""
+  cli=$(php -r 'echo PHP_VERSION;' 2>/dev/null || true)
+  [[ $cli == 8.5.* ]] || xedc_php85_blocked "PHP CLI 不是 8.5（${cli:-missing}）"
+  fpm=$(php-fpm8.5 -v 2>/dev/null | awk 'NR==1 {print $2}')
+  [[ $fpm == 8.5.* ]] || xedc_php85_blocked "php-fpm8.5 不是 8.5（${fpm:-missing}）"
+  for ext in curl gd intl mbstring xml zip bcmath pdo_mysql apcu redis; do
+    if ! php -m | grep -qi "^${ext}$"; then
+      missing="${missing} ${ext}"
+    fi
+  done
+  [[ -z $missing ]] || xedc_php85_blocked "PHP 8.5 缺少扩展:${missing}"
+  if [[ ! -S /run/php/php8.5-fpm.sock ]]; then
+    xedc_ensure_php_fpm 8.5 || xedc_php85_blocked "PHP 8.5 FPM 套接字不存在"
+  fi
+  [[ -S /run/php/php8.5-fpm.sock ]] || xedc_php85_blocked "Nginx 将要使用的 PHP 8.5 套接字不存在"
+  printf 'PASS PHP CLI %s，PHP-FPM %s，套接字 /run/php/php8.5-fpm.sock\n' "$cli" "$fpm" \
+    >"${XEDC_STATE_ROOT:-/var/lib/xedc-recovery}/PHP_STATUS"
+  chmod 600 "${XEDC_STATE_ROOT:-/var/lib/xedc-recovery}/PHP_STATUS" 2>/dev/null || true
+}
+
 xedc_install_php() {
   local want=${1:-8.5}
-  local current actual="$want"
+  local current actual="8.5"
+  xedc_os_info
+  if [[ $want != 8.5 ]]; then
+    xedc_php85_blocked "Drupal 恢复拒绝 PHP ${want}"
+  fi
   current=$(php -r 'echo PHP_VERSION;' 2>/dev/null || printf '%s' none)
+  if [[ ${XEDC_DRY_RUN:-0} == 1 ]]; then
+    export XEDC_PHP_ACTUAL=8.5
+    printf '当前版本 → 目标版本 → 实际安装版本: %s → 8.5 → dry-run\n' "$current"
+    return 0
+  fi
   xedc_export_apt_env
-  xedc_add_php_repo || true
+  xedc_add_php_repo || xedc_log INFO "PHP 第三方源不可用，继续检查系统仓库是否已有 PHP 8.5。"
   xedc_run apt-get update
-  if xedc_apt_has "php${want}-fpm"; then
-    actual=$want
-  elif [[ $want == 8.5 ]] && xedc_apt_has php8.4-fpm; then
-    xedc_warn "目标 PHP 8.5 没有可用软件包。下面是 composer 对 8.5 的阻塞信息，随后改用 8.4。"
-    if [[ -f ${XEDC_SITE_ROOT:-}/composer.json ]]; then
-      (cd "$XEDC_SITE_ROOT" && composer why-not php 8.5) || true
-    fi
-    actual=8.4
-  else
-    xedc_die "系统仓库和第三方源都没有 PHP ${want}。不会静默安装一个未记录的版本。"
+  if ! xedc_apt_has php8.5-fpm || ! xedc_apt_has php8.5-cli; then
+    xedc_php85_blocked "没有可用的 PHP 8.5 软件包"
   fi
   local pkg packages=(
-    "php${actual}-fpm" "php${actual}-cli" "php${actual}-mysql" "php${actual}-xml"
-    "php${actual}-gd" "php${actual}-mbstring" "php${actual}-curl" "php${actual}-zip"
-    "php${actual}-intl" "php${actual}-bcmath" "php${actual}-apcu" "php${actual}-redis"
+    php8.5-fpm php8.5-cli php8.5-mysql php8.5-xml
+    php8.5-gd php8.5-mbstring php8.5-curl php8.5-zip
+    php8.5-intl php8.5-bcmath php8.5-apcu php8.5-redis
   )
   for pkg in "${packages[@]}"; do
     if xedc_apt_has "$pkg"; then
@@ -82,16 +113,18 @@ xedc_install_php() {
     xedc_log INFO "PHP ${actual} 的 OPcache 已内置，不重复安装 php${actual}-opcache。"
   fi
   local installed
-  installed=$(php"${actual}" -r 'echo PHP_VERSION;' 2>/dev/null || printf '%s' missing)
-  printf '当前版本 → 目标版本 → 实际安装版本: %s → %s → %s\n' "$current" "$want" "$installed"
-  export XEDC_PHP_ACTUAL=$actual
-  if [[ $installed == missing ]]; then
-    xedc_die "PHP ${actual} 安装后仍不可用。"
+  installed=$(php8.5 -r 'echo PHP_VERSION;' 2>/dev/null || printf '%s' missing)
+  printf '当前版本 → 目标版本 → 实际安装版本: %s → 8.5 → %s\n' "$current" "$installed"
+  export XEDC_PHP_ACTUAL=8.5
+  if [[ $installed != 8.5.* ]]; then
+    xedc_php85_blocked "PHP 8.5 安装后仍不可用（${installed}）"
   fi
-  if [[ -x /usr/bin/php${actual} ]]; then
-    update-alternatives --set php "/usr/bin/php${actual}" >/dev/null 2>&1 || true
-    ln -sfn "/usr/bin/php${actual}" /usr/local/bin/php
+  if [[ -x /usr/bin/php8.5 ]]; then
+    update-alternatives --install /usr/bin/php php /usr/bin/php8.5 85 >/dev/null 2>&1 || true
+    update-alternatives --set php /usr/bin/php8.5 >/dev/null 2>&1 || true
+    ln -sfn /usr/bin/php8.5 /usr/local/bin/php
   fi
+  xedc_assert_php85
 }
 
 xedc_have_systemd() {
@@ -187,6 +220,40 @@ xedc_install_base_packages() {
       xedc_run apt-get install -y nodejs npm || xedc_warn "nodejs 未能安装。"
     fi
   fi
+}
+
+xedc_install_docker() {
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    return 0
+  fi
+  xedc_export_apt_env
+  xedc_run apt-get update
+  if ! xedc_apt_has docker.io; then
+    xedc_warn "系统仓库没有 docker.io。Docker 服务恢复记为未完成。"
+    return 1
+  fi
+  xedc_run apt-get install -y docker.io || return 1
+  if xedc_apt_has docker-compose-v2; then
+    xedc_run apt-get install -y docker-compose-v2 || xedc_warn "docker-compose-v2 安装失败。"
+  elif xedc_apt_has docker-compose; then
+    xedc_run apt-get install -y docker-compose || xedc_warn "docker-compose 安装失败。"
+  fi
+  if ! command -v docker >/dev/null 2>&1; then
+    return 1
+  fi
+  if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
+    xedc_warn "Docker 引擎已安装，Compose 不可用。"
+    return 1
+  fi
+  return 0
+}
+
+xedc_ensure_composer() {
+  if command -v composer >/dev/null 2>&1 && composer --version >/dev/null 2>&1; then
+    return 0
+  fi
+  xedc_install_composer_phar
+  composer --version >/dev/null 2>&1 || xedc_die "BLOCKED Composer 无法在当前 PHP 上运行。"
 }
 
 xedc_install_composer_phar() {

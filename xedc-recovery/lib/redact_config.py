@@ -10,12 +10,24 @@ KEY_RE = re.compile(
 )
 
 
+def _should_redact(value: str) -> bool:
+    if value in {"''", '""', "~", "null", "[]", "{}", "true", "false"}:
+        return False
+    quoted = len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}
+    # 模块权重、超时秒数和邮件标题不是凭据。带引号的值仍然脱敏，即使其中有空格。
+    if not quoted and re.fullmatch(r"-?\d+(?:\.\d+)?", value):
+        return False
+    if not quoted and " " in value:
+        return False
+    return True
+
+
 def redact_text(text: str) -> tuple[str, int]:
     count = 0
     lines = []
     for line in text.splitlines(keepends=True):
         match = KEY_RE.match(line.rstrip("\n"))
-        if match and match.group(4) not in {"''", '""', "~", "null", "[]", "{}"}:
+        if match and _should_redact(match.group(4)):
             newline = "\n" if line.endswith("\n") else ""
             lines.append(f"{match.group(1)}{match.group(2)}{match.group(3)}'XEDC_REDACTED'{newline}")
             count += 1

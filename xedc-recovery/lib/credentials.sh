@@ -44,8 +44,23 @@ xedc_reset_admin() {
   password=$(cat "$passfile")
   xedc_note_secret "$password"
   xedc_drush "$root" --uri="$uri" php:eval "\$pass = trim((string) file_get_contents('${passfile}')); \$user = \\Drupal\\user\\Entity\\User::load(1); \$user->setPassword(\$pass); \$user->save();"
-  printf '新的管理员密码只显示这一次：%s\n' "$password"
+  python3 - "$XEDC_CREDENTIALS_FILE" "$passfile" <<'PY'
+import os, sys
+dest, passfile = sys.argv[1:]
+password = open(passfile, encoding="utf-8").read().strip()
+line = "admin_password=" + password
+text = open(dest, encoding="utf-8").read() if os.path.isfile(dest) else ""
+if any(item.startswith("admin_password=") for item in text.splitlines()):
+    lines = [line if item.startswith("admin_password=") else item for item in text.splitlines()]
+    text = "\n".join(lines) + "\n"
+else:
+    text = (text if text.endswith("\n") or text == "" else text + "\n") + line + "\n"
+fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as handle:
+    handle.write(text)
+PY
   rm -f "$passfile"
+  xedc_log INFO "管理员密码已写入 ${XEDC_CREDENTIALS_FILE}，没有在终端显示。"
 }
 
 xedc_login_link() {

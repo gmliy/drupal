@@ -18,13 +18,24 @@
 
 ## 进行中
 
-- M2 恢复核心。Ubuntu 24.04 干净容器已经恢复一份不含生产数据的夹具，并重复执行一次。
-- 还没有 Drupal drush、回滚验证、真实证书、其余发行版和 24 个场景。
+- PHP 8.5 安装矩阵已跑完。通过：Ubuntu 22.04、24.04、26.04，Debian 12、13（8.5.12），Ubuntu 26.10（系统仓库 8.5.9）。BLOCKED：Ubuntu 20.04 没有 php8.5 包；Debian 11 的安全仓库在安装基础工具时 404。日志在 `/var/log/xedc-recovery/php85-matrix/`。
+- 真实 Drupal 的 Drush、配置导入和数据库更新还没有在干净机器上跑过。夹具不是 Drupal。
 
-## 下一步
+## 迁移包
 
-- 补回滚验证、证书 staging，以及完整对账字段。
-- 继续 Docker A 级其余场景和 B 级发行版。不把这一次夹具结果写成全矩阵通过。
+- `backup.sh` 在成功快照之后调用 `xedc_migration_package`。失败不会删除原快照，命令也不会报成功。
+- 已从快照 `20261104T082520Z` 生成 `/var/backups/xedc/xedc-migration-20261104T082520Z.tar.zst`。
+- 大小 605176048 字节。SHA-256 `96149968b29fe370dfc4ee15e6ca404f33cc7a504f22e4f32a14b85f8ec08cc5`。`sha256sum -c` 为 OK。
+- 归档内没有 `age.key` 或 `r2.env`。公开 manifest 去掉了端点、桶名和密钥字段。
+- 隔离 SSH 容器接收了这份包，容器内 `sha256sum -c` 为 OK。解压前需要安装 `zstd`。
+- 本地私有 S3 完成了上传、回读、错误密钥和缺失对象测试。同一路径回读了这份完整迁移包，哈希一致。没有 Cloudflare 专用凭据，没有向真实 R2 或网站公开 Bucket 上传。
+
+## 恢复
+
+- PHP 只允许 8.5。`--php-version 8.4` 在安装前退出，日志为 BLOCKED。
+- Ubuntu 24.04 夹具 `--mode=full` 的日志是 `8.3.6 → 8.5 → 8.5.12`，退出码 0，见 `/var/log/xedc-recovery/fixture-full-20261104.log`。
+- 同一轮里 `--mode=restore` 因目录已存在而停止。错误 age 私钥在独立夹具上被拒绝。损坏的外层包不能通过校验。
+- 证书仍是自签名等待。Matomo 只恢复了 compose 模板。没有 Drush。这些不是 PASS。
 
 ## 测试
 
