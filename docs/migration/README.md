@@ -1,12 +1,12 @@
 # XEDC 备份、迁移与灾难恢复
 
-普通用户只需要仓库根目录的 [README.md](../../README.md) 和 [QUICK_RESTORE.md](../../QUICK_RESTORE.md)。命令是 `xedc-backup` 和 `xedc-restore`。
+`xedc-backup` 和 `xedc-restore` 的操作说明在 [legacy/README-xedc-recover.md](../../legacy/README-xedc-recover.md) 和 [QUICK_RESTORE.md](../../QUICK_RESTORE.md)。仓库根目录的 README 现在介绍另一套带 age 加密的 `xedc-recovery/`。
 
 本目录按用途分开：
 
 | 类型 | 文件 |
 | --- | --- |
-| 用户操作 | 根目录 README.md、QUICK_RESTORE.md |
+| 用户操作 | legacy/README-xedc-recover.md、QUICK_RESTORE.md |
 | 开发架构 | ARCHITECTURE.md、BACKUP_FORMAT.md、ENVIRONMENT_AUDIT.md、DEPENDENCY_INVENTORY.md、BACKUP_GUIDE.md、FULL_RESTORE.md、DOMAIN_MIGRATION.md、SSL_GUIDE.md、CREDENTIALS_GUIDE.md |
 | 测试和安全审计 | TEST_PLAN.md、TEST_REPORT.md、SECURITY_REVIEW.md、KNOWN_ISSUES.md、CHANGELOG.md、PROGRESS.md |
 

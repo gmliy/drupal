@@ -50,7 +50,8 @@
 - 域名替换前的 zstd 快照会覆盖 mktemp 留下的空文件，空快照会中止替换。
 - 重复恢复时重新读取数据库名，避免对账把表数报成 0。未使用对象存储时不再把对象数量报成缺失。
 - 回滚先保存站点文件哈希。写回后哈希不一致，或快照里没有可核对的内容时，状态是 FAIL。
-- 夹具恢复提交是 `df0e912`。
+- 夹具恢复提交是 `df0e912`。回滚校验提交是 `3c61d3c`。
+- 根 README 已重写。`site-migrate.sh` 归档到 `legacy/`。原来的首页是 `tools/xedc-recover` 的说明，保存在 `legacy/README-xedc-recover.md`。`docs/migration/` 里的链接已改到新路径。
 
 ## 决定
 

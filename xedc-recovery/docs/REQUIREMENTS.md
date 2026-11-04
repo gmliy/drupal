@@ -33,5 +33,5 @@
 | R027 | PARITY_REPORT 能标出异常差异 | compare.sh | 单元测试能发现文件数差异。夹具二次恢复要求异常差异为 0。没有模块、行数和配套服务对账 | WARN |
 | R028 | Docker A 级 24 场景与 B 级子集，连续两轮 | tests | 只完成 Ubuntu 24.04 夹具的一次全新加重复恢复。不是 24 场景，也没有两轮 | TODO |
 | R029 | 公开仓库敏感扫描 | tests/scripts/secret-scan.py | 对本轮暂存差异执行，忽略路径、变量名和 not-stored 占位符 | DONE |
-| R030 | 根 README 与 legacy 归档 | 根目录 | 留到 M6，本次未移动 README.md 和 site-migrate.sh | TODO |
+| R030 | 根 README 与 legacy 归档 | 根目录 README.md、legacy/ | 根 README 已按当前代码重写。site-migrate.sh 已归档。原首页属于 tools/xedc-recover，改存 legacy/README-xedc-recover.md，不标成 site-migrate 手册 | DONE |
 | R031 | .MIGRATION_DONE | 根目录 | 条件未满足，未创建 | N/A |
