@@ -62,3 +62,4 @@
 - 第一次推送被拒绝：origin/main 已前进到 `be32fd1`，不能快进。
 - 没有改写 `3f56c01`。用 merge 保留该提交和标签，并保留远端 `tools/xedc-recover/`。
 - `docs/MIGRATION_MASTER_SPEC.md` 的冲突采用远端已发布文本。`/root/TASK.md` 仍要求 age，本目录的实现不改成无加密包。
+- 已推送 `493fd507a68466cc1174862e75a974a7fdc2637d` 到 origin/main。
