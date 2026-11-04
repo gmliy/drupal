@@ -10,9 +10,12 @@ web/sites/*/files/
 *.sql*
 *.zst
 *.age
+*.enc
 secrets*
 .drupal-credentials
 settings.local.php
 xedc-recovery/tests/tmp/
+# tools/xedc-recover 不得提交备份、密钥或数据库转储。
+/tools/xedc-recover/**/*.key
 __pycache__/
 *.pyc
