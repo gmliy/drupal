@@ -34,7 +34,7 @@ sudo xedc-recovery/download.sh --source=r2 --list
 
 ## 2. 快速恢复
 
-全新服务器先按下一节放好只读 Deploy Key，然后执行这一条：
+全新服务器先按第 3 节拿到工具。私有 GitHub 和从源服务器复制都可以。工具到位后执行这一条：
 
 ```bash
 sudo /opt/xedc/bootstrap-recover.sh --domain 新域名 --old-domain 旧域名 --new-domain 新域名
@@ -81,15 +81,17 @@ sudo xedc-recovery/restore.sh --rollback
 
 下面这些只做一次。之后备份用 `backup.sh`，恢复用上面的一条命令。
 
-GitHub 只读授权。在源服务器执行：
+新服务器用下面两种方式之一拿到 `xedc-recovery`。两种都包含恢复脚本。私有 GitHub 方式还会带上 `secure/` 里的 age 私钥和 R2 配置。从源服务器复制时，同样复制这个目录，密钥也在里面。不要把密钥发到公开网页或第三方网盘。
+
+### 私有 GitHub
+
+仓库 `xxedc/drupal` 是私有的，不能匿名 `git clone`。在源服务器生成只读 Deploy Key：
 
 ```bash
 sudo xedc-recovery/recover.sh --init-deploy-key
 ```
 
-把打印出的公钥加到 `xxedc/drupal` 的 Deploy keys，只给读取权限。私钥留在 `/root/.config/xedc-recovery/github-deploy.key`，权限 600。新服务器把这一个文件复制到相同路径。不要把私钥提交到别的仓库。
-
-把源服务器上的 `xedc-recovery/bootstrap-recover.sh` 和 `/root/.config/xedc-recovery/github-deploy.key` 复制到新服务器，然后执行：
+把打印出的公钥加到 GitHub 仓库 `xxedc/drupal` 的 Deploy keys，只给读取权限。私钥留在源服务器的 `/root/.config/xedc-recovery/github-deploy.key`，权限 600。再把这个私钥和 `xedc-recovery/bootstrap-recover.sh` 复制到新服务器：
 
 ```bash
 sudo install -d -m 755 /opt/xedc
@@ -97,6 +99,52 @@ sudo install -d -m 700 /root/.config/xedc-recovery
 sudo install -m 600 github-deploy.key /root/.config/xedc-recovery/github-deploy.key
 sudo install -m 755 bootstrap-recover.sh /opt/xedc/bootstrap-recover.sh
 ```
+
+只拉取工具、先不恢复时，在新服务器执行脚本里的同一条克隆命令：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git openssh-client ca-certificates
+printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' | sudo tee /root/.config/xedc-recovery/github-known-hosts >/dev/null
+sudo chmod 644 /root/.config/xedc-recovery/github-known-hosts
+sudo GIT_SSH_COMMAND='ssh -i /root/.config/xedc-recovery/github-deploy.key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/root/.config/xedc-recovery/github-known-hosts' \
+  git clone --depth 1 --filter=blob:none --sparse git@github.com:xxedc/drupal.git /opt/xedc/drupal
+sudo GIT_SSH_COMMAND='ssh -i /root/.config/xedc-recovery/github-deploy.key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/root/.config/xedc-recovery/github-known-hosts' \
+  git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
+sudo chmod 700 /opt/xedc/drupal/xedc-recovery/secure
+sudo chmod 600 /opt/xedc/drupal/xedc-recovery/secure/age.key /opt/xedc/drupal/xedc-recovery/secure/r2.env
+```
+
+工具在 `/opt/xedc/drupal/xedc-recovery/`。认证失败会停止，不会继续恢复。
+
+### 从源服务器拉取
+
+源服务器能用 SSH 登录时，不经过 GitHub，直接把工具目录复制到新服务器。`203.0.113.10` 换成源服务器地址。
+
+在新服务器执行：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y openssh-client
+sudo install -d -m 755 /opt/xedc/drupal
+sudo scp -r root@203.0.113.10:/var/www/drupal/xedc-recovery /opt/xedc/drupal/
+sudo chmod 700 /opt/xedc/drupal/xedc-recovery/secure
+sudo chmod 600 /opt/xedc/drupal/xedc-recovery/secure/age.key /opt/xedc/drupal/xedc-recovery/secure/r2.env
+```
+
+复制的是 `/var/www/drupal/xedc-recovery`，里面有 `recover.sh`、`restore.sh`、`backup.sh` 和 `secure/`。没有 Deploy Key 也可以接着恢复：
+
+```bash
+sudo /opt/xedc/drupal/xedc-recovery/recover.sh --domain 新域名 --old-domain 旧域名 --new-domain 新域名
+```
+
+也可以在源服务器把工具目录同步到新服务器。同名文件会被更新：
+
+```bash
+sudo rsync -a /var/www/drupal/xedc-recovery/ root@198.51.100.20:/opt/xedc/drupal/xedc-recovery/
+```
+
+`198.51.100.20` 换成新服务器地址。rsync 之后仍把 `secure/` 设为 700，把其中的 `age.key` 和 `r2.env` 设为 600。
 
 age 私钥已经在 `xedc-recovery/secure/age.key`。不要重新生成，否则已经上传的迁移包无法解密。恢复程序会自己把它装到 `/root/.config/xedc-recovery/age.key`。
 
