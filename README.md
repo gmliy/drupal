@@ -1,92 +1,236 @@
 # XEDC 备份与恢复
 
-源服务器备份，新服务器恢复。密钥在私有仓库的 `xedc-recovery/secure/`，迁移包在 Cloudflare R2。
+下面的命令都可以直接复制。`203.0.113.10` 是旧服务器地址，`198.51.100.20` 是新服务器地址，`20261104T105132Z` 是一份已经存在的迁移包时间戳。换成自己的地址和时间戳。域名换成要使用的域名。
 
 ## 快速备份
 
-在源服务器的仓库目录执行。
+在旧服务器的仓库目录执行。
 
-| 要做的事 | 命令 |
-| --- | --- |
-| 只在本机备份 | `sudo xedc-recovery/backup.sh` |
-| 备份并上传到 R2 | `sudo xedc-recovery/backup.sh --upload-r2` |
-| 上传已经存在的包 | `sudo xedc-recovery/upload.sh --file /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst` |
-| 查看 R2 里的包 | `sudo xedc-recovery/download.sh --source=r2 --list` |
+只在本机备份：
 
 ```bash
 sudo xedc-recovery/backup.sh
 ```
 
+备份并上传到 Cloudflare R2：
+
 ```bash
 sudo xedc-recovery/backup.sh --upload-r2
 ```
 
-备份写在 `/var/backups/xedc`。成功的快照目录里 `STATUS` 为 `PASS`，旁边有 `xedc-migration-时间.tar.zst`、同名 `.sha256` 和 `.manifest.public.json`。
+已经有迁移包，只上传、不重新备份：
 
-R2 上传是否完成，看 `/var/log/xedc-recovery/upload-文件名.log` 里的 `result=PASS`。本机备份完成还不是 R2 备份完成。R2 里没有迁移包时，列表会写“R2 中没有找到迁移包。”，这条命令仍然成功。
+```bash
+sudo xedc-recovery/upload.sh --file /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst
+```
+
+查看本机备份：
+
+```bash
+sudo ls -lh /var/backups/xedc/xedc-migration-*.tar.zst
+sudo sha256sum -c /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst.sha256
+```
+
+成功的快照目录在 `/var/backups/xedc/时间戳`，里面的 `STATUS` 是 `PASS`。迁移包、校验文件和公开清单在同一目录：
+
+```text
+/var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst
+/var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst.sha256
+/var/backups/xedc/xedc-migration-20261104T105132Z.manifest.public.json
+```
+
+查看 R2 里的迁移包：
+
+```bash
+sudo xedc-recovery/download.sh --source=r2 --list
+```
+
+没有迁移包时会写出“R2 中没有找到迁移包。”，这条命令仍然成功。上传是否完成看 `/var/log/xedc-recovery/upload-xedc-migration-20261104T105132Z.log` 里的 `result=PASS`。本机备份完成还不是 R2 备份完成。
+
+age 私钥在 `/root/.config/xedc-recovery/age.key`，不在迁移包里。传到新服务器时要单独传这个文件。
 
 ## 快速恢复
 
-新服务器先用下面的「拉取仓库」拿到工具，再执行一条恢复命令。
+有两种做法。文件已经传到新服务器时，用第一节的本地恢复。要从 R2 自动下载时，用第二节。
 
-仓库已经在 `/opt/xedc/drupal` 时：
+### 文件传过去之后，在新服务器本地恢复
+
+先把 age 私钥放到固定位置，权限 600：
+
+```bash
+sudo install -d -m 700 /root/.config/xedc-recovery
+sudo install -m 600 /root/age.key /root/.config/xedc-recovery/age.key
+```
+
+在压缩包所在目录校验、安装解压工具、解压：
+
+```bash
+cd /root
+sha256sum -c xedc-migration-20261104T105132Z.tar.zst.sha256
+sudo apt-get update
+sudo apt-get install -y zstd
+tar --zstd -xf xedc-migration-20261104T105132Z.tar.zst
+```
+
+`sha256sum` 不是 `OK` 就不要继续。进入解压出来的目录，执行包里的恢复命令：
+
+```bash
+cd /root/xedc-migration-20261104T105132Z
+sudo ./restore.sh --mode=full --domain 新域名 --old-domain 旧域名 --new-domain 新域名
+```
+
+这条命令会安装 Nginx、MariaDB、Composer、Docker、ffmpeg 和 PHP 8.5，然后恢复数据库、公共文件、私有文件、Matomo 和 Netdata 配置。域名不变时可以只写域名：
+
+```bash
+sudo ./restore.sh --mode=full --domain 新域名
+```
+
+新服务器上已经有网站目录或同名数据库、不能覆盖时：
+
+```bash
+sudo ./restore.sh --mode=restore --domain 新域名
+```
+
+`--mode=restore` 发现已有网站或已有数据表就停止。
+
+恢复日志在 `/var/log/xedc-recovery/recovery.log`。日志里有“恢复流程结束”，并且命令退出码是 0，这次恢复跑完了。数据库账号在 `/root/.drupal-credentials`。管理员密码与原站一致。
+
+查看结果：
+
+```bash
+php -v
+php-fpm8.5 -v
+sudo xedc-recovery/restore.sh --show-credentials
+```
+
+如果恢复程序不在 `/opt` 或仓库目录，上面最后一条改到解压目录里执行：
+
+```bash
+sudo ./restore.sh --show-credentials
+```
+
+回滚：
+
+```bash
+sudo ./restore.sh --rollback
+```
+
+### 新服务器从 R2 自动下载再恢复
+
+这种方式不传迁移包，但新服务器要能读到私有仓库里的 `xedc-recovery/secure/age.key` 和 `secure/r2.env`。仓库放在 `/opt/xedc/drupal` 时：
 
 ```bash
 sudo /opt/xedc/drupal/xedc-recovery/recover.sh --domain 新域名 --old-domain 旧域名 --new-domain 新域名
 ```
 
-Deploy Key 已经放好、还没有仓库时，用这一条。它会先拉取私有仓库，再恢复：
-
-```bash
-sudo /opt/xedc/bootstrap-recover.sh --domain 新域名 --old-domain 旧域名 --new-domain 新域名
-```
-
-指定一份历史备份：
+下载指定的一份，而不是最新的一份：
 
 ```bash
 sudo /opt/xedc/drupal/xedc-recovery/recover.sh --backup 20261104T105132Z --domain 新域名 --old-domain 旧域名 --new-domain 新域名
 ```
 
-只检查密钥和 R2 列表，不下载、不安装：
+只检查，不下载、不安装：
 
 ```bash
 sudo /opt/xedc/drupal/xedc-recovery/recover.sh --dry-run
 ```
 
-恢复会检查系统、内存、磁盘和网络，读取 age 私钥和 R2 配置，下载最新迁移包，校验 SHA-256、zstd 和 manifest，解密后安装 Nginx、PHP 8.5、MariaDB 12、Composer 和 Docker，并恢复数据库、公共文件、私有文件、Matomo 和 Netdata 配置。解密失败会停止。
-
-日志在 `/var/log/xedc-recovery/recover.log` 和 `/var/log/xedc-recovery/recovery.log`。退出码为 0，且日志里有“恢复流程结束”，这次恢复跑完了。数据库账号在 `/root/.drupal-credentials`。管理员密码与原站一致。
-
-回滚：
+日志在 `/var/log/xedc-recovery/recover.log` 和 `/var/log/xedc-recovery/recovery.log`。回滚：
 
 ```bash
 sudo /opt/xedc/drupal/xedc-recovery/restore.sh --rollback
 ```
 
+## 旧服务器和新服务器之间传文件
+
+要传 4 个文件。前 3 个是迁移包，第 4 个是解密私钥。私钥不要和迁移包打进同一个公开压缩包，也不要放到网站目录。
+
+在旧服务器上确认文件存在：
+
+```bash
+sudo ls -lh /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst.sha256 /var/backups/xedc/xedc-migration-20261104T105132Z.manifest.public.json /root/.config/xedc-recovery/age.key
+```
+
+在旧服务器执行，把文件推到新服务器的 `/root/`：
+
+```bash
+scp /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst root@198.51.100.20:/root/
+scp /var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst.sha256 root@198.51.100.20:/root/
+scp /var/backups/xedc/xedc-migration-20261104T105132Z.manifest.public.json root@198.51.100.20:/root/
+scp /root/.config/xedc-recovery/age.key root@198.51.100.20:/root/age.key
+```
+
+也可以在新服务器执行，从旧服务器拉下来：
+
+```bash
+scp root@203.0.113.10:/var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst /root/
+scp root@203.0.113.10:/var/backups/xedc/xedc-migration-20261104T105132Z.tar.zst.sha256 /root/
+scp root@203.0.113.10:/var/backups/xedc/xedc-migration-20261104T105132Z.manifest.public.json /root/
+scp root@203.0.113.10:/root/.config/xedc-recovery/age.key /root/age.key
+sudo chmod 600 /root/age.key
+```
+
+传完后在新服务器核对，输出必须是 `OK`：
+
+```bash
+cd /root
+sha256sum -c xedc-migration-20261104T105132Z.tar.zst.sha256
+```
+
+然后按上一节“文件传过去之后，在新服务器本地恢复”继续：安装私钥、解压、执行 `./restore.sh`。
+
+如果还要传整套恢复脚本，而不是只用迁移包里自带的 `restore.sh`，在新服务器执行：
+
+```bash
+sudo install -d -m 755 /opt/xedc/drupal
+sudo scp -r root@203.0.113.10:/var/www/drupal/xedc-recovery /opt/xedc/drupal/
+sudo chmod 700 /opt/xedc/drupal/xedc-recovery/secure
+sudo chmod 600 /opt/xedc/drupal/xedc-recovery/secure/age.key /opt/xedc/drupal/xedc-recovery/secure/r2.env
+```
+
+从旧服务器把工具目录同步到新服务器，同名文件会被更新：
+
+```bash
+sudo rsync -a /var/www/drupal/xedc-recovery/ root@198.51.100.20:/opt/xedc/drupal/xedc-recovery/
+```
+
+同步之后在新服务器把 `secure/` 设为 700，把其中的 `age.key` 和 `r2.env` 设为 600。
+
 ## 拉取 GitHub 仓库
 
-当前仓库是 **Private**。匿名访问 GitHub 会得到 404，所以新服务器现在要用私有方式。公开方式只在仓库改成 Public 之后才可用。
+当前仓库是私有的。匿名 `git clone` 不会成功。公开克隆只在仓库改成 Public 之后才可用。`secure/` 里有解密私钥和 R2 配置，不要为了匿名克隆把仓库改成 Public。
 
 ### 私有仓库
 
-用只读 Deploy Key。在源服务器生成公钥：
+在旧服务器生成只读 Deploy Key 的公钥：
 
 ```bash
 sudo xedc-recovery/recover.sh --init-deploy-key
 ```
 
-把打印出的那一行公钥加到 GitHub 仓库 `xxedc/drupal` 的 Deploy keys，只勾选读取。私钥留在 `/root/.config/xedc-recovery/github-deploy.key`，权限 600。不要把私钥提交到别的仓库。
+把终端打印出的公钥加到 GitHub 仓库 `xxedc/drupal` 的 Deploy keys，只给读取权限。私钥在 `/root/.config/xedc-recovery/github-deploy.key`。把这个私钥和 `xedc-recovery/bootstrap-recover.sh` 复制到新服务器：
 
-把私钥和 `xedc-recovery/bootstrap-recover.sh` 复制到新服务器：
+```bash
+scp /root/.config/xedc-recovery/github-deploy.key root@198.51.100.20:/root/github-deploy.key
+scp /var/www/drupal/xedc-recovery/bootstrap-recover.sh root@198.51.100.20:/root/bootstrap-recover.sh
+```
+
+在新服务器放好这两个文件：
 
 ```bash
 sudo install -d -m 755 /opt/xedc
 sudo install -d -m 700 /root/.config/xedc-recovery
-sudo install -m 600 github-deploy.key /root/.config/xedc-recovery/github-deploy.key
-sudo install -m 755 bootstrap-recover.sh /opt/xedc/bootstrap-recover.sh
+sudo install -m 600 /root/github-deploy.key /root/.config/xedc-recovery/github-deploy.key
+sudo install -m 755 /root/bootstrap-recover.sh /opt/xedc/bootstrap-recover.sh
 ```
 
-只拉取工具、先不恢复：
+然后一条命令拉取私有仓库并恢复：
+
+```bash
+sudo /opt/xedc/bootstrap-recover.sh --domain 新域名 --old-domain 旧域名 --new-domain 新域名
+```
+
+只拉取工具、先不恢复时：
 
 ```bash
 sudo apt-get update
@@ -101,78 +245,54 @@ sudo chmod 700 /opt/xedc/drupal/xedc-recovery/secure
 sudo chmod 600 /opt/xedc/drupal/xedc-recovery/secure/age.key /opt/xedc/drupal/xedc-recovery/secure/r2.env
 ```
 
-工具在 `/opt/xedc/drupal/xedc-recovery/`。这一份包含 `secure/age.key` 和 `secure/r2.env`。认证失败会停止。
+拉下来的工具在 `/opt/xedc/drupal/xedc-recovery/`。
 
 ### 公开仓库
 
-仓库改为 Public 之后，新服务器不需要 Deploy Key，直接克隆：
+仓库改为 Public 之后才使用：
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y git ca-certificates
 sudo git clone https://github.com/xxedc/drupal.git /opt/xedc/drupal
-```
-
-然后进入工具目录恢复：
-
-```bash
 sudo /opt/xedc/drupal/xedc-recovery/recover.sh --domain 新域名 --old-domain 旧域名 --new-domain 新域名
 ```
 
-现在不要用这条公开命令。仓库仍是 Private，匿名克隆不会成功。`secure/` 里有解密私钥和 R2 配置，把仓库改成 Public 会把这些密钥公开。保持 Private，用上面的 Deploy Key。
+现在仓库仍是 Private，这条公开克隆不会成功。
 
-### 不经过 GitHub
+## 第一次要准备的东西
 
-源服务器可以 SSH 时，直接复制工具目录。`203.0.113.10` 换成源服务器地址。
+这些只做一次。
 
-```bash
-sudo apt-get update
-sudo apt-get install -y openssh-client
-sudo install -d -m 755 /opt/xedc/drupal
-sudo scp -r root@203.0.113.10:/var/www/drupal/xedc-recovery /opt/xedc/drupal/
-sudo chmod 700 /opt/xedc/drupal/xedc-recovery/secure
-sudo chmod 600 /opt/xedc/drupal/xedc-recovery/secure/age.key /opt/xedc/drupal/xedc-recovery/secure/r2.env
-sudo /opt/xedc/drupal/xedc-recovery/recover.sh --domain 新域名 --old-domain 旧域名 --new-domain 新域名
-```
+- 迁移包在 `/var/backups/xedc/`。age 私钥在 `/root/.config/xedc-recovery/age.key`，也在私有仓库的 `xedc-recovery/secure/age.key`。不要重新生成，否则已经做好的迁移包无法解密。
+- R2 配置在 `xedc-recovery/secure/r2.env`。自动从 R2 下载时才会用到。只做本地文件恢复时不用它。
+- 域名可以写入 `/root/.config/xedc-recovery/restore.env`，权限 600。模板是 `xedc-recovery/contrib/restore.env.example`。
 
-从源服务器同步到新服务器时，同名文件会被更新。`198.51.100.20` 换成新服务器地址：
+新服务器使用 Ubuntu 20.04、22.04、24.04、26.04、26.10，或 Debian 11、12、13。需要 root 和足够磁盘。云安全组放行 80 和 443。脚本不修改安全组。
 
-```bash
-sudo rsync -a /var/www/drupal/xedc-recovery/ root@198.51.100.20:/opt/xedc/drupal/xedc-recovery/
-```
-
-同步后同样把 `secure/` 设为 700，把 `age.key` 和 `r2.env` 设为 600。
-
-## 首次只做一次
-
-- Deploy Key：源服务器 `--init-deploy-key`，公钥加到 GitHub，私钥复制到新服务器。
-- age 私钥：已在 `xedc-recovery/secure/age.key`。不要重新生成，否则已有迁移包无法解密。
-- R2 配置：已在 `xedc-recovery/secure/r2.env`。Bucket 保持私有。
-- 域名可以写入 `/root/.config/xedc-recovery/restore.env`，权限 600。模板是 `xedc-recovery/contrib/restore.env.example`。写好后可以只执行 `recover.sh`。
-
-新服务器使用 Ubuntu 20.04、22.04、24.04、26.04、26.10，或 Debian 11、12、13。需要 root、软件源网络和足够磁盘。云安全组放行 80 和 443。脚本不修改安全组。
-
-## 项目介绍
-
-这套工具备份并恢复 Drupal 及其配套服务：数据库、公共文件、私有文件、Composer 项目、Nginx、PHP-FPM、Matomo、Netdata、Docker 配置和媒体工具。密钥用 age 加密，私钥不放进迁移包。
-
-PHP 只使用 8.5。新服务器安装 MariaDB 12 系列里当前软件源提供的版本。没有 MariaDB 12 软件源时停止并标明 BLOCKED，不会改装旧版本后当成成功。
-
-迁移包是 `.tar.zst`，配套 `.sha256` 和 `.manifest.public.json`。远端目录是 `xedc-backups/年/月/`。已经上传的包可以继续下载和恢复。
+PHP 只使用 8.5。新服务器安装 MariaDB 12 系列里当前软件源提供的版本。没有这个软件源时会停止，并标明 BLOCKED，不会改装旧版本后当成成功。
 
 ## 常见问题
 
-| 现象 | 处理 |
-| --- | --- |
-| GitHub 认证失败 | 检查 Deploy Key 是否在 `/root/.config/xedc-recovery/github-deploy.key`，公钥是否只读。命令会停止。 |
-| 公开克隆失败 | 仓库仍是 Private。改用 Deploy Key，不要把仓库改成 Public。 |
-| R2 下载失败 | 看 `recover.log` 的阶段。鉴权失败、Bucket 不存在和空列表是不同错误。 |
-| age 解密失败 | 私钥与备份时不一致。命令停止，不导入数据库。不要重新生成 `secure/age.key`。 |
-| 磁盘不足 | 下载前停止，不删除已有备份。 |
-| PHP 8.5 安装失败 | 日志为 BLOCKED，不安装 8.4。 |
-| MariaDB 12 安装失败 | 没有 12 系列软件源，或本机已有其他版本在运行。已有数据库不会原地升级。 |
-| 恢复中断 | 再执行同一条 `recover.sh`。已完成步骤会跳过。 |
-| 需要回滚 | `sudo /opt/xedc/drupal/xedc-recovery/restore.sh --rollback`。日志没有写明校验通过，就不能当成已经回到原状。 |
+GitHub 认证失败：Deploy Key 不在 `/root/.config/xedc-recovery/github-deploy.key`，或公钥没有加到仓库的只读 Deploy keys。命令会停止。
+
+公开克隆失败：仓库仍是 Private。改用 Deploy Key，或改用上面的 `scp` 传文件。不要把仓库改成 Public。
+
+R2 下载失败：看 `/var/log/xedc-recovery/recover.log`。鉴权失败、Bucket 不存在和空列表是不同的错误。
+
+age 解密失败：新服务器上的私钥不是做这份备份时的私钥。恢复会停止，不会导入数据库。
+
+`sha256sum` 不是 OK：文件没有传完整。重新传迁移包和 `.sha256`，不要解压。
+
+磁盘不足：命令在下载前停止，不删除已有备份。
+
+PHP 8.5 安装失败：日志是 BLOCKED，不会安装 8.4。
+
+MariaDB 12 安装失败：没有 12 系列软件源，或这台机器已经有其他版本的数据库在运行。已有数据库不会被原地升级。
+
+恢复中断：在同一目录再执行同一条 `./restore.sh`。已经完成的步骤会跳过。
+
+回滚：在解压目录执行 `sudo ./restore.sh --rollback`。日志没有写明校验通过，就不能当成已经回到原状。
 
 ## 详细文档
 
