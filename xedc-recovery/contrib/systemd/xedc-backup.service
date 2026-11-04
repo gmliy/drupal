@@ -1,0 +1,10 @@
+[Unit]
+Description=XEDC Drupal backup
+OnFailure=xedc-backup-failure.service
+
+[Service]
+Type=oneshot
+ExecStart=/var/www/drupal/xedc-recovery/backup.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

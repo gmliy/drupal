@@ -6,3 +6,11 @@ web/sites/*/files/
 /private/
 .env
 .env.local
+.MIGRATION_DONE
+*.sql*
+*.zst
+*.age
+secrets*
+.drupal-credentials
+settings.local.php
+xedc-recovery/tests/tmp/

@@ -1,0 +1,24 @@
+# 审计时读到的版本。不是恢复目标的承诺，恢复以当时的 manifest 为准。
+# 这里不记录密钥、邮箱、内网地址或对象存储 endpoint。
+
+os=Ubuntu 24.04.4 LTS
+kernel=7.0.0-1014-aws
+arch=amd64
+php=/usr/bin/php8.5 8.5.12
+nginx=1.31.6
+mariadb=13.0.2
+redis=8.10.3
+node=/usr/bin/node v20.20.2
+composer=2.10.3
+drush=13.8.0
+drupal=11.4.11
+ffmpeg=6.1.1-3ubuntu5
+docker=29.9.1
+compose=v5.6.0
+encoders=libx264,libx265,libvpx,libvpx-vp9,aac,libopus
+imagemagick=absent
+yt_dlp=absent
+player=plyr+hls.js
+object_storage=cloudflare_r2
+certbot=present
+acme_sh=not installed on source; restore pins 3.1.6

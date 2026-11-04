@@ -1,0 +1,6 @@
+[Unit]
+Description=Notify that the XEDC backup failed
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger -t xedc-backup -- 备份失败，请查看 /var/log/xedc-recovery
