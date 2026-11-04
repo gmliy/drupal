@@ -1,6 +1,6 @@
 # xedc-recovery
 
-这是 v2 的备份和恢复实现。命令从本目录的 `backup.sh` 和 `restore.sh` 进入。产物在 `/var/backups/xedc`，状态在 `/var/lib/xedc-recovery`，日志在 `/var/log/xedc-recovery`。这些目录都不进 Git。
+这是 v2 的备份和恢复实现。日常备份用 `backup.sh`。全新服务器用 `bootstrap-recover.sh` 或 `recover.sh`。分步恢复仍从 `restore.sh` 进入。产物在 `/var/backups/xedc`，状态在 `/var/lib/xedc-recovery`，日志在 `/var/log/xedc-recovery`。这些目录都不进 Git。age 私钥和 R2 配置在 `secure/`，只随私有仓库分发，不进迁移包。
 
 仓库首页的克隆、更新、备份和恢复步骤在 [../README.md](../README.md)。本文件是同一套命令的操作手册。两边的参数、路径和验收状态要保持一致。测试容器脚本不是生产恢复入口。
 

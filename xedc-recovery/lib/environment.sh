@@ -205,10 +205,61 @@ xedc_ensure_redis() {
   fi
 }
 
+xedc_mariadb_version() {
+  local raw ver=""
+  raw=$(mariadb --version 2>/dev/null || true)
+  if [[ $raw =~ ([0-9]+\.[0-9]+\.[0-9]+)-MariaDB ]]; then
+    ver=${BASH_REMATCH[1]}
+  elif [[ $raw =~ Distrib[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+    ver=${BASH_REMATCH[1]}
+  fi
+  printf '%s\n' "$ver"
+}
+
+xedc_install_mariadb() {
+  xedc_os_info
+  local current=""
+  if command -v mariadb >/dev/null 2>&1; then
+    current=$(xedc_mariadb_version)
+    if [[ $current == 12.* ]]; then
+      xedc_log INFO "MariaDB ${current} 已安装。"
+      return 0
+    fi
+    if mariadb -N -e 'SELECT 1' >/dev/null 2>&1; then
+      xedc_die "BLOCKED 本机 MariaDB 是 ${current:-未知}，不是 12 系列。不会在已有数据库上原地升级。"
+    fi
+  fi
+  local dist=ubuntu series="" candidate url
+  [[ $XEDC_OS_ID == debian ]] && dist=debian
+  for candidate in 12.3 12.2 12.1 12.0; do
+    url="https://dlm.mariadb.com/repo/mariadb-server/${candidate}/repo/${dist}/dists/${XEDC_OS_CODENAME}/Release"
+    if xedc_url_ok "$url"; then
+      series=$candidate
+      break
+    fi
+  done
+  [[ -n $series ]] || xedc_die "BLOCKED ${XEDC_OS_ID} ${XEDC_OS_CODENAME} 没有可用的 MariaDB 12 软件源。没有安装其他版本。"
+  xedc_log INFO "使用 MariaDB ${series} 软件源。"
+  if [[ ${XEDC_DRY_RUN:-0} == 1 ]]; then
+    return 0
+  fi
+  xedc_run apt-get install -y ca-certificates curl gnupg
+  install -d -m 755 /etc/apt/keyrings
+  curl -fsSL -o /etc/apt/keyrings/mariadb-keyring-2019.gpg https://supplychain.mariadb.com/mariadb-keyring-2019.gpg
+  printf 'deb [signed-by=/etc/apt/keyrings/mariadb-keyring-2019.gpg] https://dlm.mariadb.com/repo/mariadb-server/%s/repo/%s %s main\n' \
+    "$series" "$dist" "$XEDC_OS_CODENAME" >/etc/apt/sources.list.d/mariadb-12.list
+  xedc_run apt-get update
+  xedc_run apt-get install -y mariadb-server
+  current=$(xedc_mariadb_version)
+  [[ $current == 12.* ]] || xedc_die "BLOCKED MariaDB 安装结果是 ${current:-未知}，不是 12 系列。"
+  xedc_log INFO "MariaDB ${current} 已安装。"
+}
+
 xedc_install_base_packages() {
   xedc_export_apt_env
   xedc_run apt-get update
-  xedc_run apt-get install -y nginx mariadb-server redis-server composer unzip curl ca-certificates \
+  xedc_install_mariadb
+  xedc_run apt-get install -y nginx redis-server composer unzip curl ca-certificates \
     git zstd jq age openssl ffmpeg python3 tar gnupg rsync
   if ! xedc_have node; then
     local node_release="https://deb.nodesource.com/node_20.x/dists/${XEDC_OS_CODENAME:-nodistro}/Release"

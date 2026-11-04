@@ -19,8 +19,18 @@ xedc_age_prepare() {
   local keydir=${XEDC_AGE_DIR:-/root/.config/xedc-recovery}
   XEDC_AGE_KEY=${XEDC_AGE_KEY:-$keydir/age.key}
   XEDC_AGE_PUB=${XEDC_AGE_PUB:-$XEDC_BACKUP_ROOT/age.pub}
+  local home=${XEDC_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+  local secure=${XEDC_SECURE_DIR:-$home/secure}/age.key
   mkdir -p "$keydir" "$(dirname "$XEDC_AGE_PUB")"
   chmod 700 "$keydir"
+  if [[ -f $secure ]]; then
+    if [[ -f $XEDC_AGE_KEY ]] && ! cmp -s "$secure" "$XEDC_AGE_KEY"; then
+      xedc_die "age 私钥与仓库 secure/age.key 不一致。没有生成新密钥，也没有覆盖现有私钥。"
+    fi
+    if [[ ! -s $XEDC_AGE_KEY ]]; then
+      install -m 600 "$secure" "$XEDC_AGE_KEY"
+    fi
+  fi
   if [[ ! -s $XEDC_AGE_KEY ]]; then
     age-keygen -o "$XEDC_AGE_KEY" >/dev/null 2>&1 || xedc_die "无法生成 age 密钥。"
     chmod 600 "$XEDC_AGE_KEY"

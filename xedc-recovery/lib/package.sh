@@ -376,10 +376,10 @@ xedc_migration_package() {
   mkdir -p "$bundle/snapshot" "$bundle/xedc-recovery/lib" "$bundle/templates"
   home=${XEDC_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
   [[ -f $home/restore.sh && -f $home/download.sh && -d $home/lib ]] || xedc_die "恢复程序不完整，不能打进迁移包。"
-  cp -a "$home/restore.sh" "$home/download.sh" "$bundle/xedc-recovery/"
+  cp -a "$home/restore.sh" "$home/download.sh" "$home/recover.sh" "$home/bootstrap-recover.sh" "$bundle/xedc-recovery/"
   cp -a "$home/lib/." "$bundle/xedc-recovery/lib/"
-  rm -rf "$bundle/xedc-recovery/lib/__pycache__"
-  find "$bundle/xedc-recovery" \( -name 'age.key' -o -name 'r2.env' -o -name '*.pyc' \) -delete
+  rm -rf "$bundle/xedc-recovery/lib/__pycache__" "$bundle/xedc-recovery/secure"
+  find "$bundle/xedc-recovery" \( -name 'age.key' -o -name 'r2.env' -o -name 'github-deploy.key' -o -name '*.pyc' \) -delete
   cat >"$bundle/restore.sh" <<EOF
 #!/usr/bin/env bash
 set -Eeuo pipefail

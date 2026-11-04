@@ -30,6 +30,14 @@
 - 隔离 SSH 容器接收了这份包，容器内 `sha256sum -c` 为 OK。解压前需要安装 `zstd`。
 - 本地私有 S3 完成了上传、回读、错误密钥和缺失对象测试。同一路径回读了这份完整迁移包，哈希一致。
 
+## 一条命令恢复
+
+- `recover.sh` 从 `secure/age.key` 和 `secure/r2.env` 安装密钥，列出并下载 R2 迁移包，校验后调用现有 `restore.sh --mode=full`。
+- `bootstrap-recover.sh` 用只读 Deploy Key 稀疏拉取 `xedc-recovery/`，再执行 `recover.sh`。
+- 没有重新生成 age 私钥。`20261104T105132Z` 的 `secrets.enc` 可以用这份私钥解密，解密结果含 `db.json`，明文已删除。
+- 本机 `recover.sh --dry-run` 只做检查和 R2 列表，没有下载，也没有改本地迁移包。
+- 生产机拒绝把备份恢复到自身。完整的新服务器站点恢复、Matomo 进程和 Netdata 进程没有在本轮重跑。
+
 ## R2 上传、列表和错误诊断
 
 - `upload.sh` 直接上传已有迁移包，不重新备份、不连接生产库。

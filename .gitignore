@@ -17,5 +17,8 @@ settings.local.php
 xedc-recovery/tests/tmp/
 # tools/xedc-recover 不得提交备份、密钥或数据库转储。
 /tools/xedc-recover/**/*.key
+# 只读 Deploy Key 留在服务器。age 私钥和 r2.env 只放在已确认为私有仓库的 secure/。
+xedc-recovery/secure/github-deploy.key
+xedc-recovery/secure/github-deploy.key.pub
 __pycache__/
 *.pyc
