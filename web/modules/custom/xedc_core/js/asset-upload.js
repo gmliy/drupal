@@ -155,8 +155,15 @@
             cancel.addEventListener('click', () => {
               if (window.confirm('取消后会删除这次尚未合并的分块和本地恢复数据。已经导入的内容不会删除。')) {
                 manager.cancel(job.id).then((result) => {
-                  if (result && result.error) say(result.error);
-                  else say('上传已取消。');
+                  if (!result) return;
+                  if (result.ok) say(result.error || '上传已取消。');
+                  else if (result.outcome === 'handed_off' || result.outcome === 'already_completed') {
+                    say(result.error || '上传已交给导入任务，不能取消。');
+                  }
+                  else if (result.outcome === 'completing') {
+                    say(result.error || '服务器正在完成交接，请稍后查看状态。');
+                  }
+                  else say(result.error || '取消状态待确认，本地已停止上传。');
                 });
               }
             });
@@ -176,7 +183,7 @@
           visible.forEach(rowView);
           drawStats(visible);
           if (!manager.persistOk()) {
-            say('本地任务没有保存成功：' + (manager.persistError() || 'IndexedDB 不可用'));
+            say(manager.persistError() || '文件暂存失败：无法保存所选文件，请重新选择文件后重试。');
           }
         }
 

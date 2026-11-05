@@ -644,8 +644,9 @@ xedc_core.storage_protected_download:
 xedc_core.vip_admin:
   path: '/admin/xedc/vip'
   defaults:
-    _controller: '\Drupal\xedc_core\Controller\EngagementAdminController::vip'
-    _title: 'VIP 会员'
+    _controller: '\Drupal\xedc_core\Controller\VipHubController::redirectTab'
+    tab: 'grant'
+    _title: 'VIP 管理'
   requirements:
     _permission: 'administer xedc vip'
   options:
@@ -671,7 +672,7 @@ xedc_core.engagement_overview:
   path: '/admin/xedc/overview'
   defaults:
     _controller: '\Drupal\xedc_core\Controller\EngagementAdminController::overview'
-    _title: '互动总览'
+    _title: '前台统计'
   requirements:
     _permission: 'view xedc engagement statistics'
   options:
@@ -682,7 +683,7 @@ xedc_core.engagement_hub:
   path: '/admin/xedc/engagement'
   defaults:
     _controller: '\Drupal\xedc_core\Controller\EngagementAdminController::overview'
-    _title: '互动总览'
+    _title: '前台统计'
   requirements:
     _permission: 'view xedc engagement statistics'
   options:
@@ -972,3 +973,85 @@ xedc_core.video_progress_save:
     parameters:
       node:
         type: entity:node
+
+xedc_core.vip_codes:
+  path: '/admin/people/xedc-vip-codes'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\VipHubController::redirectTab'
+    tab: 'codes'
+    _title: 'VIP 卡密管理'
+  requirements:
+    _permission: 'administer xedc vip codes'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.vip_codes_generate:
+  path: '/admin/people/xedc-vip-codes/generate'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\VipCodeGenerateForm'
+    _title: '生成 VIP 卡密'
+  requirements:
+    _permission: 'administer xedc vip codes'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.vip_codes_reveal:
+  path: '/admin/people/xedc-vip-codes/batch/{batch_id}/reveal'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\VipCodeAdminController::reveal'
+    _title: '卡密明文（仅一次）'
+  requirements:
+    _permission: 'administer xedc vip codes'
+    batch_id: \d+
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.vip_codes_export:
+  path: '/admin/people/xedc-vip-codes/batch/{batch_id}/export'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\VipCodeAdminController::exportCsv'
+    _title: '导出卡密 CSV'
+  requirements:
+    _permission: 'administer xedc vip codes'
+    batch_id: \d+
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.vip_code_revoke:
+  path: '/admin/people/xedc-vip-codes/code/{code_id}/revoke'
+  defaults:
+    _form: '\Drupal\xedc_core\Form\VipCodeRevokeForm'
+    _title: '作废卡密'
+  requirements:
+    _permission: 'administer xedc vip codes'
+    code_id: \d+
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE
+
+xedc_core.vip_redeem:
+  path: '/member/redeem'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\VipRedeemController::page'
+    _title: 'VIP 卡密兑换'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _permission: 'redeem xedc vip codes'
+  options:
+    no_cache: TRUE
+    _admin_route: FALSE
+
+xedc_core.vip_hub:
+  path: '/admin/people/xedc-vip'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\VipHubController::hub'
+    _title: 'VIP 管理'
+  requirements:
+    _permission: 'administer xedc vip+administer xedc vip codes+administer xedc vip notifications+view xedc notification records'
+  options:
+    _admin_route: TRUE
+    no_cache: TRUE

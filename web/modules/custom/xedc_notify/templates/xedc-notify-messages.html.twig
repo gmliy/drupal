@@ -1,0 +1,69 @@
+{#
+/**
+ * @file
+ * Private message inbox + thread.
+ */
+#}
+<div class="xn-msg{{ active_tid ? ' is-thread' : ' is-list' }}">
+  <aside class="xn-msg__list" aria-label="{{ '私信会话'|t }}">
+    <header class="xn-msg__list-head">
+      <h1>{{ '私信'|t }}</h1>
+      {% if unread_total %}
+        <span class="xn-badge">{{ unread_total > 99 ? '99+' : unread_total }}</span>
+      {% endif %}
+    </header>
+    {% if threads %}
+      <ul class="xn-msg__threads">
+        {% for item in threads %}
+          <li class="xn-msg__thread{{ item.active ? ' is-active' }}{{ item.unread ? ' is-unread' }}">
+            <a class="xn-msg__thread-link" href="{{ item.url }}">
+              <span class="xn-msg__avatar">
+                {% if item.avatar %}<img src="{{ item.avatar }}" alt="" width="40" height="40" loading="lazy">{% else %}{{ item.initial }}{% endif %}
+              </span>
+              <span class="xn-msg__meta">
+                <span class="xn-msg__name">{{ item.name }}</span>
+                <span class="xn-msg__preview">{{ item.preview }}</span>
+              </span>
+              <span class="xn-msg__side">
+                <time>{{ item.time_label }}</time>
+                {% if item.unread %}<span class="xn-badge">{{ item.unread > 99 ? '99+' : item.unread }}</span>{% endif %}
+              </span>
+            </a>
+            <a class="xn-msg__delete" href="{{ item.delete_url }}">{{ '删除'|t }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="xn-empty">{{ '还没有私信。可从会员公开主页发起对话。'|t }}</p>
+    {% endif %}
+  </aside>
+
+  <section class="xn-msg__chat" aria-label="{{ '聊天'|t }}">
+    {% if thread %}
+      <header class="xn-msg__chat-head">
+        <a class="xn-msg__back" href="{{ path('xedc_notify.messages') }}">{{ '返回'|t }}</a>
+        <span class="xn-msg__avatar">
+          {% if thread.avatar %}<img src="{{ thread.avatar }}" alt="" width="36" height="36">{% else %}{{ thread.initial }}{% endif %}
+        </span>
+        {% if thread.profile_url %}
+          <a class="xn-msg__name" href="{{ thread.profile_url }}">{{ thread.name }}</a>
+        {% else %}
+          <strong class="xn-msg__name">{{ thread.name }}</strong>
+        {% endif %}
+      </header>
+      <div class="xn-msg__bubbles" data-xn-msg-scroll>
+        {% for m in messages %}
+          <div class="xn-msg__bubble{{ m.mine ? ' is-mine' : ' is-theirs' }}">
+            <p>{{ m.body|nl2br }}</p>
+            <time>{{ m.time_label }}{% if m.mine and m.is_read %} · {{ '已读'|t }}{% endif %}</time>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="xn-msg__composer">{{ form }}</div>
+    {% else %}
+      <div class="xn-msg__placeholder">
+        <p>{{ '选择左侧会话开始聊天'|t }}</p>
+      </div>
+    {% endif %}
+  </section>
+</div>

@@ -109,6 +109,9 @@ final class Labels {
       'translation' => '自动翻译',
       'seo_optimization' => 'SEO 优化',
       'connection_test' => '连接测试',
+      // Tag center calls share the usage table; source machine value is xedc_tags.
+      'xedc_tags' => '标签管理（标签语义分析）',
+      'tag_semantic_analysis' => '标签管理（标签语义分析）',
       default => $source !== '' ? $source : '未知',
     };
   }

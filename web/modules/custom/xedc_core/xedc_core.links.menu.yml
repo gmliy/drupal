@@ -69,19 +69,30 @@ xedc_core.storage:
   weight: 10
 
 xedc_core.engagement:
-  title: '会员与互动'
-  description: 'VIP、下载资源和互动统计。'
-  route_name: xedc_core.vip_admin
-  parent: system.admin
-  weight: 4
+  title: '前台统计'
+  description: '点赞、下载、分享等前台互动统计。'
+  route_name: xedc_core.engagement_hub
+  parent: system.admin_people
+  weight: 22
+  # 左侧主导航由 xedc_admin navigation.theme 硬编码，此处避免系统菜单重复。
   enabled: false
 
 xedc_core.vip_admin:
   title: 'VIP 会员'
-  description: '开通、延期和取消 VIP。'
-  route_name: xedc_core.vip_admin
+  description: '开通、延期和取消 VIP（已并入 VIP 管理）。'
+  route_name: xedc_core.vip_hub
   parent: xedc_core.engagement
   weight: 0
+  enabled: false
+
+xedc_core.vip_hub:
+  title: 'VIP 管理'
+  description: '统一管理 VIP 开通、卡密、提醒与通知记录。'
+  route_name: xedc_core.vip_hub
+  parent: system.admin_people
+  weight: 25
+  # 主导航由 xedc_admin 渲染；保留定义供路由/权限发现。
+  enabled: false
 
 xedc_core.downloads:
   title: '下载资源'

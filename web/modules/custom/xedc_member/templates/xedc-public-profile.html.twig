@@ -5,7 +5,7 @@
  */
 #}
 <article class="xp">
-  <header class="xp-hero">
+  <div class="xp-hero" role="banner">
     <div class="xp-avatar">
       {% if avatar %}
         <img src="{{ avatar }}" alt="" width="72" height="72" loading="eager" decoding="async">
@@ -24,10 +24,14 @@
 
     <button type="button" class="xp-share" data-xp-share="{{ share_url }}" data-xp-title="{{ name }}">
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M14 5.5a3.5 3.5 0 1 1 .9 2.3L9.7 11a3.5 3.5 0 0 1 0 2l5.2 3.2a3.5 3.5 0 1 1-.8 1.6L8.7 14.4a3.5 3.5 0 1 1 0-4.8l5.4-3.4A3.5 3.5 0 0 1 14 5.5Z"></path>
+        <path d="M14 5.5a3.5 3.5 0 1 1 .9 2.3L9.7 11a3.5 3.5 0 0 1 0 2l5.2 3.2a3.5 3.5 0 1 1-.8 1.6L8.7 14.4a3.5 3.5 0 0 1 0-4.8l5.4-3.4A3.5 3.5 0 0 1 14 5.5Z"></path>
       </svg>
       <span>{{ '分享'|t }}</span>
     </button>
+
+    {% if profile_actions %}
+      <div class="xp-actions-wrap">{{ profile_actions }}</div>
+    {% endif %}
 
     {% if bio %}
       <p class="xp-bio">{{ bio|nl2br }}</p>
@@ -42,7 +46,7 @@
         </a>
       {% endfor %}
     </div>
-  </header>
+  </div>
 
   <div class="xp-toolbar">
     <nav class="xp-filters" aria-label="{{ '作品分类'|t }}">

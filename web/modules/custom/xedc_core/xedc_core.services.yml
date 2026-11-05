@@ -373,3 +373,7 @@ services:
     class: Drupal\xedc_core\EventSubscriber\ImageStyleRouteSubscriber
     tags:
       - { name: event_subscriber }
+
+  xedc_core.vip_codes:
+    class: Drupal\xedc_core\Engagement\VipCodeManager
+    arguments: ['@database', '@datetime.time', '@entity_type.manager', '@xedc_core.membership', '@flood']

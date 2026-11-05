@@ -30,7 +30,10 @@ final class UnusedActionForm extends AdminFormBase {
   }
 
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $form = $this->chrome($form);
+    $form = $this->chrome($form, [
+      'title' => $this->t('未使用标签'),
+      'description' => $this->t('清理前请确认没有任何内容引用。'),
+    ]);
     $ignored = [];
     foreach ($this->audit->decisions('unused') as $decision) {
       $ignored[(int) $decision->subject] = TRUE;
@@ -57,32 +60,46 @@ final class UnusedActionForm extends AdminFormBase {
         ['data' => ['#markup' => $this->operations($tid)]],
       ];
     }
-    $form['intro'] = [
-      '#markup' => '<p>' . $this->t('删除只能在单独确认页进行。只要还有内容、菜单、跳转或父子引用，就不能删除。') . '</p>',
-    ];
-    $form['tags'] = [
-      '#type' => 'tableselect',
-      '#header' => [
-        $this->t('标签'),
-        $this->t('情况'),
-        $this->t('创建时间'),
-        $this->t('关联内容'),
-        $this->t('最近关联内容'),
-        $this->t('人工描述'),
-        $this->t('公开 URL'),
-        $this->t('操作'),
+    $form['intro'] = $this->callout((string) $this->t('删除只能在单独确认页进行。只要还有内容、菜单、跳转或父子引用，就不能删除。'), 'warning');
+    foreach ($rows as $tid => &$row) {
+      $name = (string) $row[0];
+      $row[0] = ['data' => ['#markup' => $this->tagNameMarkup($name, (int) $tid)]];
+    }
+    unset($row);
+    $form['table_wrap'] = [
+      '#type' => 'container',
+      '#tree' => TRUE,
+      '#attributes' => ['class' => ['xt-card', 'xt-card--flush', 'xt-table-wrap']],
+      'tags' => [
+        '#type' => 'tableselect',
+        '#attributes' => ['class' => ['xt-table']],
+        '#header' => [
+          $this->t('标签'),
+          $this->t('情况'),
+          $this->t('创建时间'),
+          $this->t('关联内容'),
+          $this->t('最近关联内容'),
+          $this->t('人工描述'),
+          $this->t('公开 URL'),
+          $this->t('操作'),
+        ],
+        '#options' => $rows,
+        '#empty' => $this->t('没有待处理的未使用标签。'),
       ],
-      '#options' => $rows,
-      '#empty' => $this->t('没有待处理的未使用标签。'),
     ];
     if ($this->currentUser()->hasPermission('manage xedc tags') && $rows) {
-      $form['confirm'] = [
-        '#type' => 'checkbox',
-        '#title' => $this->t('我确认忽略选中的未使用建议'),
-      ];
-      $form['ignore'] = [
-        '#type' => 'submit',
-        '#value' => $this->t('忽略选中'),
+      $form['batch'] = [
+        '#type' => 'container',
+        '#tree' => TRUE,
+        '#attributes' => ['class' => ['xt-batch-bar']],
+        'confirm' => [
+          '#type' => 'checkbox',
+          '#title' => $this->t('我确认忽略选中的未使用建议'),
+        ],
+        'ignore' => [
+          '#type' => 'submit',
+          '#value' => $this->t('忽略选中'),
+        ],
       ];
     }
     $form['#cache']['tags'] = $this->catalog->cacheTags();
@@ -90,16 +107,16 @@ final class UnusedActionForm extends AdminFormBase {
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
-    if (!array_filter((array) $form_state->getValue('tags'))) {
-      $form_state->setErrorByName('tags', $this->t('请先选择标签。'));
+    if (!array_filter((array) $form_state->getValue(['table_wrap', 'tags']))) {
+      $form_state->setError($form['table_wrap']['tags'], $this->t('请先选择标签。'));
     }
-    if (!$form_state->getValue('confirm')) {
-      $form_state->setErrorByName('confirm', $this->t('请先确认。'));
+    if (!$form_state->getValue(['batch', 'confirm'])) {
+      $form_state->setError($form['batch']['confirm'], $this->t('请先确认。'));
     }
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    foreach (array_filter(array_map('intval', (array) $form_state->getValue('tags'))) as $tid) {
+    foreach (array_filter(array_map('intval', (array) $form_state->getValue(['table_wrap', 'tags']))) as $tid) {
       $this->audit->decide('unused', (string) $tid, 'ignore');
     }
     $this->messenger()->addStatus($this->t('已忽略选中的未使用建议。'));
@@ -111,9 +128,9 @@ final class UnusedActionForm extends AdminFormBase {
       '<a href="' . Url::fromRoute('xedc_tags.admin_term', ['taxonomy_term' => $tid])->toString() . '">' . $this->t('查看关联内容') . '</a>',
     ];
     if ($this->currentUser()->hasPermission('delete xedc tags')) {
-      $links[] = '<a href="' . Url::fromRoute('xedc_tags.admin_delete', ['taxonomy_term' => $tid])->toString() . '">' . $this->t('确认删除') . '</a>';
+      $links[] = '<a class="xt-ops--danger" href="' . Url::fromRoute('xedc_tags.admin_delete', ['taxonomy_term' => $tid])->toString() . '">' . $this->t('确认删除') . '</a>';
     }
-    return implode(' · ', $links);
+    return '<div class="xt-ops">' . implode('', $links) . '</div>';
   }
 
 }

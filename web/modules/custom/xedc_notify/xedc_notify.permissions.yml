@@ -1,0 +1,21 @@
+access own xedc messages:
+  title: '查看自己的私信'
+  description: '查看和删除自己的私信会话。'
+access send xedc messages:
+  title: '发送私信'
+  description: '向其他会员发送站内私信。'
+access own xedc notifications:
+  title: '查看自己的通知'
+  description: '查看、已读和删除自己的站内通知。'
+administer xedc notifications:
+  title: '管理官方通知'
+  description: '创建、发送、取消和重试官方站内通知。'
+  restrict access: true
+administer xedc vip notifications:
+  title: '管理 VIP 通知'
+  description: '配置 VIP 到期提醒，并查看或补发 VIP 通知记录。'
+  restrict access: true
+view xedc notification records:
+  title: '查看通知发送记录'
+  description: '查看官方和 VIP 通知的发送与已读统计。'
+  restrict access: true

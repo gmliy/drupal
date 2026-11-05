@@ -1,54 +1,74 @@
 <header class="xm-head">
   <div>
-    <h1 class="xm-title">{{ '我的投稿'|t }}</h1>
-    <p class="xm-sub">{{ '共 @count 篇投稿'|t({'@count': total}) }}</p>
+    <h1 class="xm-title">{{ '内容投稿'|t }}</h1>
+    <p class="xm-sub">{{ '选择内容类型开始投稿。草稿、待审核和退回修改都可以从下方继续处理。'|t }}</p>
   </div>
 </header>
 
 {% if create_links %}
-  <div class="xm-submit-actions">
+  <section class="xm-submit-hub" aria-label="{{ '投稿类型'|t }}">
     {% for link in create_links %}
-      <a class="xm-btn{% if loop.first %} xm-btn--primary{% endif %}" href="{{ link.url }}">{{ link.label }}</a>
+      <a class="xm-submit-card xm-submit-card--{{ link.key|default(loop.index) }}" href="{{ link.url }}">
+        <span class="xm-submit-card__icon" aria-hidden="true">{{ link.icon|default('＋') }}</span>
+        <span class="xm-submit-card__body">
+          <strong class="xm-submit-card__title">{{ link.label }}</strong>
+          {% if link.description %}
+            <span class="xm-submit-card__desc">{{ link.description }}</span>
+          {% endif %}
+        </span>
+      </a>
     {% endfor %}
-  </div>
+  </section>
 {% endif %}
 
-{% if items %}
-  <div class="xm-submission-list">
-    {% for item in items %}
-      <article class="xm-submission-card">
-        <div class="xm-submission-card__head">
-          <span class="xm-badge xm-badge--{{ item.state_id }}">{{ item.state_label }}</span>
-          <span class="xm-submission-card__type">{{ item.type_label }}</span>
-          <time>{{ item.changed }}</time>
-        </div>
-        <h2 class="xm-submission-card__title">{{ item.title }}</h2>
-        {% if item.review_note %}
-          <div class="xm-review-note">
-            <strong>{{ '审核意见'|t }}</strong>
-            <p>{{ item.review_note }}</p>
-          </div>
-        {% endif %}
-        {% if item.edit_url or item.view_url %}
-          <div class="xm-submission-card__actions">
-            {% if item.edit_url %}<a class="xm-btn xm-btn--primary" href="{{ item.edit_url }}">{{ '编辑 / 提交审核'|t }}</a>{% endif %}
-            {% if item.view_url %}<a class="xm-btn" href="{{ item.view_url }}">{{ '查看已发布内容'|t }}</a>{% endif %}
-          </div>
-        {% endif %}
-      </article>
-    {% endfor %}
-  </div>
-  {% if pager %}<div class="xm-pager">{{ pager }}</div>{% endif %}
-{% else %}
-  <div class="xm-empty">
-    <strong>{{ empty }}</strong>
-    <p>{{ '从上方选择一种内容开始写，可以先存成草稿。'|t }}</p>
-    {% if create_links %}
-      <div class="xm-empty__links">
-        {% for link in create_links %}
-          <a href="{{ link.url }}">{{ link.label }}</a>
-        {% endfor %}
-      </div>
-    {% endif %}
-  </div>
+{% if guidelines %}
+  <section class="xm-submit-guide">
+    <h2 class="xm-submit-guide__title">{{ '投稿须知'|t }}</h2>
+    <ul>
+      {% for line in guidelines %}
+        <li>{{ line }}</li>
+      {% endfor %}
+    </ul>
+  </section>
 {% endif %}
+
+<section class="xm-submit-recent">
+  <div class="xm-submit-recent__head">
+    <h2 class="xm-title xm-title--section">{{ '最近投稿'|t }}</h2>
+    <p class="xm-sub">{{ '共 @count 篇'|t({'@count': total}) }}</p>
+  </div>
+
+  {% if items %}
+    <div class="xm-submission-list">
+      {% for item in items %}
+        <article class="xm-submission-card xm-submission-card--{{ item.type }}">
+          <div class="xm-submission-card__head">
+            <span class="xm-badge xm-badge--{{ item.state_id }}">{{ item.state_label }}</span>
+            <span class="xm-submission-card__type">{{ item.type_label }}</span>
+            <time>{{ item.changed }}</time>
+          </div>
+          <h3 class="xm-submission-card__title">{{ item.title }}</h3>
+          {% if item.review_note %}
+            <div class="xm-review-note">
+              <strong>{{ '处理说明'|t }}</strong>
+              <p>{{ item.review_note }}</p>
+            </div>
+          {% endif %}
+          {% if item.actions %}
+            <div class="xm-submission-card__actions">
+              {% for action in item.actions %}
+                <a class="xm-btn{% if action.primary %} xm-btn--primary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+    {% if pager %}<div class="xm-pager">{{ pager }}</div>{% endif %}
+  {% else %}
+    <div class="xm-empty">
+      <strong>{{ empty }}</strong>
+      <p>{{ '从上方选择一种内容开始写，可以先存成草稿。'|t }}</p>
+    </div>
+  {% endif %}
+</section>

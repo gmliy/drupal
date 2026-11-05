@@ -1,0 +1,272 @@
+<?php
+
+/**
+ * @file
+ * Schema and updates for XEDC private messages and notifications.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function xedc_notify_schema(): array {
+  return [
+    'xedc_pm_thread' => xedc_notify_schema_pm_thread(),
+    'xedc_pm_thread_state' => xedc_notify_schema_pm_thread_state(),
+    'xedc_pm_message' => xedc_notify_schema_pm_message(),
+    'xedc_follow' => xedc_notify_schema_follow(),
+    'xedc_notification' => xedc_notify_schema_notification(),
+    'xedc_notification_pref' => xedc_notify_schema_notification_pref(),
+    'xedc_official_campaign' => xedc_notify_schema_official_campaign(),
+    'xedc_vip_notify_sent' => xedc_notify_schema_vip_notify_sent(),
+  ];
+}
+
+/**
+ * Private message thread (one row per participant pair).
+ */
+function xedc_notify_schema_pm_thread(): array {
+  return [
+    'description' => 'Private message threads between two members.',
+    'fields' => [
+      'tid' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'uid_low' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'uid_high' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'last_mid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'last_created' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'created' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['tid'],
+    'unique keys' => [
+      'pair' => ['uid_low', 'uid_high'],
+    ],
+    'indexes' => [
+      'last_created' => ['last_created'],
+    ],
+  ];
+}
+
+/**
+ * Per-user thread visibility and unread state.
+ */
+function xedc_notify_schema_pm_thread_state(): array {
+  return [
+    'description' => 'Per-participant private message thread state.',
+    'fields' => [
+      'tid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'hidden' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0],
+      'hidden_at' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'hide_after_mid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'unread_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'last_read_mid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['tid', 'uid'],
+    'indexes' => [
+      'uid_hidden_last' => ['uid', 'hidden'],
+      'uid_unread' => ['uid', 'unread_count'],
+    ],
+  ];
+}
+
+/**
+ * Adds per-user message cut-off mid for one-sided thread delete.
+ */
+function xedc_notify_update_10001(): string {
+  $schema = \Drupal::database()->schema();
+  if ($schema->tableExists('xedc_pm_thread_state') && !$schema->fieldExists('xedc_pm_thread_state', 'hide_after_mid')) {
+    $schema->addField('xedc_pm_thread_state', 'hide_after_mid', [
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+      'default' => 0,
+      'description' => 'Messages with mid <= this value stay hidden after a one-sided delete.',
+    ]);
+  }
+  return 'Added xedc_pm_thread_state.hide_after_mid.';
+}
+
+/**
+ * Private message rows.
+ */
+function xedc_notify_schema_pm_message(): array {
+  return [
+    'description' => 'Private message bodies.',
+    'fields' => [
+      'mid' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'tid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'sender_uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'recipient_uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'body' => ['type' => 'text', 'size' => 'big', 'not null' => TRUE],
+      'created' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'is_read' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0],
+      'read_at' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['mid'],
+    'indexes' => [
+      'tid_created' => ['tid', 'created'],
+      'recipient_unread' => ['recipient_uid', 'is_read'],
+      'sender_created' => ['sender_uid', 'created'],
+    ],
+  ];
+}
+
+/**
+ * Member follow relationships.
+ */
+function xedc_notify_schema_follow(): array {
+  return [
+    'description' => 'Member follow relationships for fan notifications.',
+    'fields' => [
+      'fid' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'follower_uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'following_uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'created' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['fid'],
+    'unique keys' => [
+      'pair' => ['follower_uid', 'following_uid'],
+    ],
+    'indexes' => [
+      'following_created' => ['following_uid', 'created'],
+      'follower_created' => ['follower_uid', 'created'],
+    ],
+  ];
+}
+
+/**
+ * Per-recipient in-app notifications.
+ */
+function xedc_notify_schema_notification(): array {
+  return [
+    'description' => 'In-app notifications for members.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'category' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'social'],
+      'type' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'actor_uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'title' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'body' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'route_name' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'route_params' => ['type' => 'text', 'size' => 'normal', 'not null' => FALSE],
+      'entity_type' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'entity_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'dedupe_key' => ['type' => 'varchar', 'length' => 191, 'not null' => TRUE, 'default' => ''],
+      'important' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0],
+      'pinned' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0],
+      'is_read' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0],
+      'deleted' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0],
+      'campaign_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'created' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'read_at' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'uid_dedupe' => ['uid', 'dedupe_key'],
+    ],
+    'indexes' => [
+      'uid_list' => ['uid', 'deleted', 'created'],
+      'uid_unread' => ['uid', 'deleted', 'is_read'],
+      'uid_category' => ['uid', 'category', 'deleted', 'created'],
+      'campaign' => ['campaign_id'],
+      'type_created' => ['type', 'created'],
+    ],
+  ];
+}
+
+/**
+ * Per-member notification preferences.
+ */
+function xedc_notify_schema_notification_pref(): array {
+  return [
+    'description' => 'Member notification preference switches.',
+    'fields' => [
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'follow' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1],
+      'like_photo' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1],
+      'like_article' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1],
+      'like_video' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1],
+      'comment_photo' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1],
+      'comment_reply' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1],
+      'favorite' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1],
+      'changed' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['uid'],
+  ];
+}
+
+/**
+ * Official broadcast campaigns.
+ */
+function xedc_notify_schema_official_campaign(): array {
+  return [
+    'description' => 'Official notification campaigns managed by admins.',
+    'fields' => [
+      'cid' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'title' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'body' => ['type' => 'text', 'size' => 'big', 'not null' => TRUE],
+      'category' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'announcement'],
+      'audience' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'all'],
+      'audience_uids' => ['type' => 'text', 'size' => 'big', 'not null' => FALSE],
+      'important' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0],
+      'pinned' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0],
+      'status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'draft'],
+      'created_by' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'created' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'queued_at' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'sent_at' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'planned_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'success_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'fail_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'last_error' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'cursor_uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['cid'],
+    'indexes' => [
+      'status_created' => ['status', 'created'],
+      'category_created' => ['category', 'created'],
+    ],
+  ];
+}
+
+/**
+ * Idempotency log for VIP lifecycle notifications.
+ */
+function xedc_notify_schema_vip_notify_sent(): array {
+  return [
+    'description' => 'Dedupes VIP reminder and lifecycle notifications.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'period_expires' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'notify_type' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'offset_days' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'notification_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'sent'],
+      'message' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'created' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'dedupe' => ['uid', 'period_expires', 'notify_type', 'offset_days'],
+    ],
+    'indexes' => [
+      'type_created' => ['notify_type', 'created'],
+      'uid_created' => ['uid', 'created'],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_install().
+ */
+function xedc_notify_install(): void {
+  // Authenticated members can use messages and notifications.
+  user_role_grant_permissions('authenticated', [
+    'access own xedc messages',
+    'access send xedc messages',
+    'access own xedc notifications',
+  ]);
+}

@@ -4,6 +4,9 @@ services:
     tags:
       - { name: event_subscriber }
 
+  xedc_tags.labels:
+    class: Drupal\xedc_tags\TagLabels
+
   xedc_tags.catalog:
     class: Drupal\xedc_tags\TagCatalog
     arguments: ['@database', '@entity_type.manager', '@cache.default', '@language_manager']
@@ -30,11 +33,11 @@ services:
 
   xedc_tags.merger:
     class: Drupal\xedc_tags\TagMerger
-    arguments: ['@entity_type.manager', '@database', '@xedc_tags.catalog', '@xedc_tags.guard', '@xedc_tags.audit', '@cache_tags.invalidator']
+    arguments: ['@entity_type.manager', '@database', '@xedc_tags.catalog', '@xedc_tags.guard', '@xedc_tags.audit', '@cache_tags.invalidator', '@lock']
 
   xedc_tags.aliases:
     class: Drupal\xedc_tags\TagAliasManager
-    arguments: ['@database', '@xedc_tags.catalog', '@xedc_tags.audit', '@current_user', '@datetime.time']
+    arguments: ['@database', '@xedc_tags.catalog', '@xedc_tags.audit', '@current_user', '@datetime.time', '@cache_tags.invalidator']
 
   xedc_tags.suggestions:
     class: Drupal\xedc_tags\RuleSuggestionProvider
@@ -53,7 +56,7 @@ services:
 
   xedc_tags.tasks:
     class: Drupal\xedc_tags\TagTaskManager
-    arguments: ['@database', '@queue', '@xedc_tags.audit', '@current_user', '@datetime.time']
+    arguments: ['@database', '@queue', '@xedc_tags.audit', '@current_user', '@datetime.time', '@lock']
 
   xedc_tags.listing:
     class: Drupal\xedc_tags\TagListing

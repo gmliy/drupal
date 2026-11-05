@@ -45,6 +45,24 @@ asset_upload:
     - xedc_core/upload_manager
     - xedc_core/upload_panel
 
+# Member photo forms: same uploader JS without the admin floating panel.
+member_upload:
+  css:
+    theme:
+      css/asset-upload.css: {}
+  js:
+    js/asset-upload.js: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+    - core/once
+    - xedc_core/upload_manager
+
+gallery_status:
+  css:
+    theme:
+      css/gallery-status.css: {}
+
 dashboard:
   css:
     theme:
@@ -77,3 +95,13 @@ ops:
     - core/drupal
     - core/drupalSettings
     - core/once
+
+vip_redeem:
+  css:
+    theme:
+      css/vip-redeem.css: {}
+
+vip_hub:
+  css:
+    theme:
+      css/vip-hub.css: {}

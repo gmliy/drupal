@@ -1,0 +1,82 @@
+[
+  {
+    "name": "login",
+    "status": "PASS",
+    "detail": "https://gitxx.xyz/user/2/edit?pass-reset-token=KddH0_-yFF9jpDEm3PQewIkzeAirbXZBoEZyCDtU7uDImefdjpIXm7yG3ear-ZpyRFFWz2RS2g"
+  },
+  {
+    "name": "hub-cards",
+    "status": "PASS",
+    "detail": "cards=5 title=内容投稿"
+  },
+  {
+    "name": "hub-no-admin-shell",
+    "status": "PASS",
+    "detail": "adminShell=0"
+  },
+  {
+    "name": "hub-mobile",
+    "status": "PASS",
+    "detail": "screenshot saved"
+  },
+  {
+    "name": "photo-frontend-theme",
+    "status": "PASS",
+    "detail": "xm-quiet-status xm-submission-page path-node language--zh-hans"
+  },
+  {
+    "name": "photo-member-form",
+    "status": "PASS",
+    "detail": "form=2"
+  },
+  {
+    "name": "photo-hide-featured",
+    "status": "PASS",
+    "detail": "featured=0"
+  },
+  {
+    "name": "photo-hide-slideshow",
+    "status": "PASS",
+    "detail": "slideshow=0"
+  },
+  {
+    "name": "photo-hide-staff-metrics",
+    "status": "PASS",
+    "detail": "ratioText=0"
+  },
+  {
+    "name": "photo-hide-task-table",
+    "status": "PASS",
+    "detail": "tasks=0"
+  },
+  {
+    "name": "photo-upload-present",
+    "status": "PASS",
+    "detail": "upload=2"
+  },
+  {
+    "name": "photo-no-admin-chrome",
+    "status": "PASS",
+    "detail": "admin=0 importText=0"
+  },
+  {
+    "name": "archive-preferred",
+    "status": "PASS",
+    "detail": "prefer=1"
+  },
+  {
+    "name": "video-member-form",
+    "status": "PASS",
+    "detail": "form=2"
+  },
+  {
+    "name": "article-member-form",
+    "status": "PASS",
+    "detail": "form=2"
+  },
+  {
+    "name": "hub-dark",
+    "status": "PASS",
+    "detail": "screenshot saved"
+  }
+]

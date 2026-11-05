@@ -1,0 +1,27 @@
+xedc_notify.admin_overview:
+  title: '通知管理'
+  description: '官方通知与发送记录。'
+  route_name: xedc_notify.admin_overview
+  parent: system.admin_people
+  weight: 20
+
+xedc_notify.admin_official:
+  title: '官方通知'
+  route_name: xedc_notify.admin_official
+  parent: xedc_notify.admin_overview
+  weight: 0
+
+# Legacy VIP admin pages redirect into VIP 管理 hub; keep routes, hide menus.
+xedc_notify.admin_vip:
+  title: 'VIP 通知记录'
+  route_name: xedc_notify.admin_vip
+  parent: xedc_notify.admin_overview
+  weight: 10
+  enabled: false
+
+xedc_notify.admin_vip_settings:
+  title: 'VIP 提醒设置'
+  route_name: xedc_notify.admin_vip_settings
+  parent: xedc_notify.admin_overview
+  weight: 20
+  enabled: false

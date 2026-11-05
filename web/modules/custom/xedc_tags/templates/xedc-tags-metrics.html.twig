@@ -1,5 +1,9 @@
-<ul class="xt-admin-metrics">
+{# Legacy metrics list kept for any leftover callers. Prefer dashboard template. #}
+<div class="xt-stat-grid">
   {% for item in items %}
-    <li><a href="{{ item.url }}"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></a></li>
+    <a class="xt-stat" href="{{ item.url }}">
+      <span class="xt-stat__label">{{ item.label }}</span>
+      <span class="xt-stat__value">{{ item.value }}</span>
+    </a>
   {% endfor %}
-</ul>
+</div>

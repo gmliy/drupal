@@ -1,0 +1,11 @@
+name: XEDC Notify
+type: module
+description: '会员私信、社交通知、VIP 提醒与官方站内通知。'
+core_version_requirement: '^11'
+package: XEDC
+dependencies:
+  - drupal:user
+  - drupal:node
+  - drupal:comment
+  - xedc_core:xedc_core
+  - xedc_member:xedc_member

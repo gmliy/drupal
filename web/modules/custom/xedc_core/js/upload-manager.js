@@ -11,10 +11,13 @@
   const CHANNEL = 'xedc-upload-v2';
   const LEADER_KEY = 'xedcUploadLeader';
   const MAX_BLOB_BYTES = 220 * 1024 * 1024;
-  const ACTIVE = ['pending', 'hashing', 'uploading', 'merging', 'validating', 'queued', 'processing', 'extracting', 'importing', 'retrying', 'interrupted', 'paused', 'open', 'needs_title'];
+  // ArrayBuffer fallback doubles RAM; keep it for mid-size files only.
+  const ARRAYBUFFER_FALLBACK_MAX = 64 * 1024 * 1024;
+  const ACTIVE = ['pending', 'hashing', 'uploading', 'merging', 'validating', 'queued', 'processing', 'extracting', 'importing', 'retrying', 'interrupted', 'paused', 'open', 'needs_title', 'cancel_pending'];
   const NEED_FILE = ['pending', 'hashing', 'uploading', 'merging', 'validating', 'retrying', 'interrupted', 'paused', 'open', 'needs_title'];
   const DONE = ['completed', 'duplicate', 'cancelled', 'canceled', 'success', 'review'];
-  const CANCELABLE = ['pending', 'needs_title', 'hashing', 'uploading', 'merging', 'validating', 'retrying', 'interrupted', 'paused', 'open', 'failed', 'queued'];
+  const CANCELABLE = ['pending', 'needs_title', 'hashing', 'uploading', 'merging', 'validating', 'retrying', 'interrupted', 'paused', 'open', 'failed', 'queued', 'cancel_pending'];
+  const WORKER_PHASES = ['queued', 'processing', 'extracting', 'importing', 'review', 'completed', 'success', 'duplicate'];
   const TOMBSTONE_KEY = 'xedcUploadCancelled';
 
   const labels = {
@@ -38,6 +41,7 @@
     failed: '失败',
     cancelled: '已取消',
     canceled: '已取消',
+    cancel_pending: '取消状态待确认',
     interrupted: '上传中断',
     review: '待审核',
     expired: '已过期',
@@ -206,26 +210,74 @@
       originalBytes: job.originalBytes || 0,
       optimizedBytes: job.optimizedBytes || 0,
       confirmed: job.confirmed || 0,
-      missing: job.missing || [],
+      missing: Array.isArray(job.missing) ? job.missing.map(Number) : [],
       phase: job.phase,
       error: job.error || '',
       retries: job.retries || 0,
       created: job.created || now(),
       updated: now(),
       chunkBytes: job.chunkBytes || settings().chunkBytes,
-      canAutoResume: !!(job.file || job.blob) || !!job.canAutoResume,
+      canAutoResume: false,
       persistWarned: !!job.persistWarned,
+      blobMissing: !!job.blobMissing,
+      blobEncoding: '',
       title: job.title || '',
     };
-    if (includeBlob && job.file && job.file.size <= MAX_BLOB_BYTES) {
-      row.blob = job.file;
-      row.canAutoResume = true;
+    // Blob attachment is handled by persist() so encoding / fallbacks stay in one place.
+    if (includeBlob) {
+      row.canAutoResume = !!(job.file || job.blob || job.persistBlob);
     }
-    else if (includeBlob && job.blob && job.blob.size <= MAX_BLOB_BYTES) {
-      row.blob = job.blob;
-      row.canAutoResume = true;
+    else {
+      row.canAutoResume = !!job.canAutoResume && !job.blobMissing;
     }
     return row;
+  }
+
+  /**
+   * Fresh Blob clone for IndexedDB. File objects that have been fully read via
+   * arrayBuffer() intermittently fail Chromium/WebKit structured clone with
+   * "Error preparing Blob/File data to be stored in object store".
+   */
+  function cloneForPersist(source) {
+    if (!source || !source.size) return null;
+    try {
+      return source.slice(0, source.size, source.type || 'application/octet-stream');
+    }
+    catch (e) {
+      return source;
+    }
+  }
+
+  function isBlobStoreError(error) {
+    const name = String((error && error.name) || '');
+    const msg = String((error && error.message) || error || '');
+    return name === 'DataCloneError'
+      || /preparing Blob\/File|Blob\/File data|DataCloneError|could not be cloned|cannot be cloned/i.test(msg);
+  }
+
+  function isQuotaError(error) {
+    const name = String((error && error.name) || '');
+    const msg = String((error && error.message) || error || '');
+    return name === 'QuotaExceededError' || /quota|storage.*full|空间不足/i.test(msg);
+  }
+
+  function humanPersistError(error) {
+    if (isQuotaError(error)) {
+      return '浏览器可用存储空间不足，请释放空间后重试。';
+    }
+    if (isBlobStoreError(error)) {
+      return '文件暂存失败：无法保存所选文件，请重新选择文件后重试。';
+    }
+    const msg = String((error && error.message) || '').trim();
+    if (!msg) return '本地任务没有保存成功。';
+    if (/[\u4e00-\u9fff]/.test(msg) && !/Blob|File|IndexedDB|object store/i.test(msg)) {
+      return msg;
+    }
+    return '文件暂存失败：无法保存所选文件，请重新选择文件后重试。';
+  }
+
+  function sourceBlob(job) {
+    return job.persistBlob || job.file || job.blob || null;
   }
 
   const listeners = new Set();
@@ -241,6 +293,8 @@
   let persistOk = true;
   let persistError = '';
   let running = false;
+  // 'blob' | 'arraybuffer' | 'meta' | '' (unprobed)
+  let blobPersistMode = '';
 
   function readTombstones() {
     try {
@@ -261,9 +315,30 @@
     aborted.add(id);
   }
 
+  function forgetTombstone(id) {
+    if (!id) return;
+    const rows = readTombstones().filter((item) => item !== id);
+    try { localStorage.setItem(TOMBSTONE_KEY, JSON.stringify(rows.slice(-200))); }
+    catch (e) { /* ignore */ }
+    aborted.delete(id);
+  }
+
   function isTombstoned(id, sessionId, clientIdValue) {
     const rows = readTombstones();
     return rows.includes(id) || (sessionId && rows.includes(sessionId)) || (clientIdValue && rows.includes(clientIdValue)) || aborted.has(id);
+  }
+
+  function stopJobTransport(job) {
+    if (!job) return;
+    aborted.add(job.id);
+    const xhrs = activeXhrs.get(job.id);
+    if (xhrs) {
+      xhrs.forEach((xhr) => {
+        try { xhr.abort(); } catch (e) { /* ignore */ }
+      });
+      activeXhrs.delete(job.id);
+    }
+    job.inflight = 0;
   }
 
   function emit() {
@@ -287,28 +362,189 @@
     return {
       total: all.length,
       uploading: count(['uploading', 'hashing', 'merging', 'validating', 'retrying']),
-      waiting: count(['pending', 'needs_title', 'queued', 'paused', 'interrupted', 'open', 'processing', 'extracting', 'importing']),
+      waiting: count(['pending', 'needs_title', 'queued', 'paused', 'interrupted', 'open', 'processing', 'extracting', 'importing', 'cancel_pending']),
       failed: count(['failed']),
       completed: count(['completed', 'duplicate', 'uploaded', 'success', 'review']),
     };
   }
 
+  async function putRow(row) {
+    await withStore('readwrite', (store) => requestToPromise(store.put(row)));
+  }
+
+  async function probeBlobPersist() {
+    if (blobPersistMode) return blobPersistMode;
+    const probeId = '__xedc_blob_probe__';
+    try {
+      const probe = new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'application/octet-stream' });
+      await putRow({
+        id: probeId,
+        name: 'probe',
+        bytes: probe.size,
+        phase: 'probe',
+        updated: now(),
+        blob: probe,
+        blobEncoding: 'blob',
+      });
+      await removePersisted(probeId);
+      blobPersistMode = 'blob';
+      return blobPersistMode;
+    }
+    catch (error) {
+      try { await removePersisted(probeId); } catch (e) { /* ignore */ }
+      if (isBlobStoreError(error)) {
+        try {
+          const bytes = new Uint8Array([1, 2, 3, 4]).buffer;
+          await putRow({
+            id: probeId,
+            name: 'probe',
+            bytes: 4,
+            phase: 'probe',
+            updated: now(),
+            blobBuffer: bytes,
+            blobMime: 'application/octet-stream',
+            blobEncoding: 'arraybuffer',
+          });
+          await removePersisted(probeId);
+          blobPersistMode = 'arraybuffer';
+          return blobPersistMode;
+        }
+        catch (error2) {
+          try { await removePersisted(probeId); } catch (e) { /* ignore */ }
+          blobPersistMode = 'meta';
+          return blobPersistMode;
+        }
+      }
+      // Unknown error: still try Blob on real jobs.
+      blobPersistMode = 'blob';
+      return blobPersistMode;
+    }
+  }
+
+  async function writeJobRow(job, includeBlob) {
+    const wantBlob = includeBlob !== false;
+    const row = rowFromJob(job, wantBlob);
+    const source = sourceBlob(job);
+
+    if (!wantBlob || !source || !source.size) {
+      row.blobMissing = !source || !source.size;
+      row.canAutoResume = false;
+      job.blobMissing = row.blobMissing;
+      await putRow(row);
+      job.canAutoResume = false;
+      return { mode: 'meta', storedBlob: false };
+    }
+
+    if (source.size > MAX_BLOB_BYTES) {
+      row.blobMissing = true;
+      row.canAutoResume = false;
+      job.blobMissing = true;
+      job.canAutoResume = false;
+      await putRow(row);
+      return { mode: 'meta', storedBlob: false, oversized: true };
+    }
+
+    const mode = await probeBlobPersist();
+    const attempts = [];
+    if (mode === 'blob') attempts.push('blob');
+    else if (mode === 'arraybuffer') attempts.push('arraybuffer');
+    else if (mode === 'meta') attempts.push('meta');
+    else attempts.push('blob');
+    if (!attempts.includes('arraybuffer') && source.size <= ARRAYBUFFER_FALLBACK_MAX) {
+      attempts.push('arraybuffer');
+    }
+    if (!attempts.includes('meta')) attempts.push('meta');
+
+    let lastError = null;
+    for (const attempt of attempts) {
+      const next = rowFromJob(job, true);
+      try {
+        if (attempt === 'blob') {
+          next.blob = cloneForPersist(source);
+          next.blobEncoding = 'blob';
+          next.blobMissing = false;
+          next.canAutoResume = true;
+          await putRow(next);
+          if (!job.persistBlob) job.persistBlob = next.blob;
+          job.blobMissing = false;
+          job.canAutoResume = true;
+          blobPersistMode = 'blob';
+          return { mode: 'blob', storedBlob: true };
+        }
+        if (attempt === 'arraybuffer') {
+          if (source.size > ARRAYBUFFER_FALLBACK_MAX) {
+            continue;
+          }
+          next.blobBuffer = await source.arrayBuffer();
+          next.blobMime = source.type || job.mime || '';
+          next.blobName = job.name || '';
+          next.blobEncoding = 'arraybuffer';
+          next.blobMissing = false;
+          next.canAutoResume = true;
+          await putRow(next);
+          job.blobMissing = false;
+          job.canAutoResume = true;
+          blobPersistMode = 'arraybuffer';
+          return { mode: 'arraybuffer', storedBlob: true };
+        }
+        next.blobMissing = true;
+        next.canAutoResume = false;
+        next.blobEncoding = '';
+        await putRow(next);
+        job.blobMissing = true;
+        job.canAutoResume = false;
+        return { mode: 'meta', storedBlob: false };
+      }
+      catch (error) {
+        lastError = error;
+        if (attempt === 'blob' && isBlobStoreError(error)) {
+          blobPersistMode = source.size <= ARRAYBUFFER_FALLBACK_MAX ? 'arraybuffer' : 'meta';
+          continue;
+        }
+        if (attempt === 'arraybuffer' && (isBlobStoreError(error) || isQuotaError(error))) {
+          blobPersistMode = 'meta';
+          continue;
+        }
+        throw error;
+      }
+    }
+    if (lastError) throw lastError;
+    throw new Error('本地任务没有保存成功。');
+  }
+
   async function persist(job, includeBlob) {
     try {
-      const row = rowFromJob(job, includeBlob !== false);
-      await withStore('readwrite', (store) => requestToPromise(store.put(row)));
+      const result = await writeJobRow(job, includeBlob !== false);
       persistOk = true;
       persistError = '';
-      job.persistWarned = false;
-      job.canAutoResume = !!(row.blob || job.file || job.blob);
+      if (result.storedBlob) {
+        job.persistWarned = false;
+      }
+      else if (includeBlob !== false && sourceBlob(job)) {
+        // Metadata saved, but Blob is not durable across refresh.
+        job.persistWarned = true;
+        const note = result.oversized
+          ? '文件过大，浏览器无法本地暂存完整文件。当前标签页可继续上传；刷新后需重新选择原文件。'
+          : '原文件暂时不可恢复，请重新选择原文件。当前标签页仍可继续上传。';
+        if (!job.error || /本地|暂存|持久化|Blob|File|object store/i.test(job.error)) {
+          job.error = note;
+        }
+        persistError = note;
+      }
+      return result;
     }
     catch (error) {
       persistOk = false;
-      persistError = (error && error.message) || '本地持久化失败';
+      persistError = humanPersistError(error);
       job.persistWarned = true;
       job.canAutoResume = false;
-      if (!job.error) job.error = '本地任务没有保存成功：' + persistError;
-      throw error;
+      if (!job.error || /Blob|File|object store|IndexedDB|持久化/i.test(job.error)) {
+        job.error = persistError;
+      }
+      throw Object.assign(error instanceof Error ? error : new Error(persistError), {
+        message: persistError,
+        cause: error,
+      });
     }
   }
 
@@ -319,29 +555,65 @@
     catch (e) { /* ignore */ }
   }
 
+  function restoreBlobFromRow(row) {
+    if (row.blob instanceof Blob) {
+      return { blob: row.blob, encoding: 'blob' };
+    }
+    if (row.blobEncoding === 'arraybuffer' && row.blobBuffer) {
+      try {
+        const mime = row.blobMime || row.mime || 'application/octet-stream';
+        let blob = new Blob([row.blobBuffer], { type: mime });
+        if (typeof File === 'function') {
+          try {
+            blob = new File([blob], row.blobName || row.name || 'file', { type: mime });
+          }
+          catch (e) { /* keep Blob */ }
+        }
+        return { blob, encoding: 'arraybuffer' };
+      }
+      catch (e) {
+        return { blob: null, encoding: '' };
+      }
+    }
+    return { blob: null, encoding: '' };
+  }
+
   async function loadPersisted() {
     const rows = await withStore('readonly', (store) => requestToPromise(store.getAll())) || [];
     for (const row of rows) {
+      if (!row || row.id === '__xedc_blob_probe__') {
+        if (row && row.id === '__xedc_blob_probe__') await removePersisted(row.id);
+        continue;
+      }
       if (jobs.has(row.id)) continue;
       if (isTombstoned(row.id, row.sessionId, row.clientId) || row.phase === 'cancelled' || row.phase === 'canceled') {
         await removePersisted(row.id);
         continue;
       }
-      const blob = row.blob || null;
+      const restored = restoreBlobFromRow(row);
+      const blob = restored.blob;
       const job = Object.assign({}, row, {
         file: blob,
         blob,
+        persistBlob: blob ? cloneForPersist(blob) : null,
+        blobBuffer: null,
         inflight: 0,
         preview: '',
         canAutoResume: !!blob,
+        blobMissing: !blob && !!row.blobMissing,
       });
       // Only uploads that still need bytes require a local file. Server-side
       // processing continues without the browser Blob.
       const needsFile = NEED_FILE.includes(job.phase) && job.phase !== 'needs_title' && !job.taskId && !job.mid;
       if (needsFile && !job.file) {
         job.phase = 'interrupted';
-        job.error = job.error || '请重新选择原来的文件以继续上传。';
+        job.error = job.error || '原文件暂时不可恢复，请重新选择原文件。';
         job.canAutoResume = false;
+        job.blobMissing = true;
+      }
+      else if (job.phase === 'cancel_pending') {
+        aborted.add(job.id);
+        job.error = job.error || '取消状态待确认。可重试取消，不会自动继续上传。';
       }
       else if (job.file && NEED_FILE.includes(job.phase) && job.phase !== 'needs_title') {
         // Keep blob-backed jobs ready for the leader to resume after navigation.
@@ -633,7 +905,7 @@
 
   async function runJob(job) {
     const cfg = settings();
-    if (aborted.has(job.id) || job.phase === 'cancelled' || job.phase === 'needs_title') return;
+    if (aborted.has(job.id) || job.phase === 'cancelled' || job.phase === 'cancel_pending' || job.phase === 'needs_title') return;
     job.error = '';
     job.updated = now();
     emit();
@@ -654,6 +926,8 @@
         job.head = await sha256Blob(job.file.slice(0, Math.min(job.file.size, cfg.headBytes || 65536)));
         try { job.sha256 = await sha256Blob(job.file); }
         catch (e) { job.sha256 = ''; }
+        // Re-clone after full-file reads so IndexedDB structured clone stays reliable.
+        job.persistBlob = cloneForPersist(job.file);
         await persist(job, true);
         emit();
       }
@@ -737,10 +1011,10 @@
     if (!leader || running) return;
     running = true;
     try {
-      const queue = list().filter((job) => job.file && ['pending', 'retrying', 'interrupted', 'paused', 'uploading'].includes(job.phase) && !aborted.has(job.id));
+      const queue = list().filter((job) => job.file && ['pending', 'retrying', 'interrupted', 'paused', 'uploading'].includes(job.phase) && !aborted.has(job.id) && job.phase !== 'cancel_pending');
       for (const job of queue) {
         if (!leader) break;
-        if (!job.file || aborted.has(job.id) || job.phase === 'needs_title' || job.phase === 'cancelled') continue;
+        if (!job.file || aborted.has(job.id) || job.phase === 'needs_title' || job.phase === 'cancelled' || job.phase === 'cancel_pending') continue;
         if (['completed', 'duplicate', 'cancelled', 'failed'].includes(job.phase) && job.phase !== 'failed') continue;
         await runJob(job);
       }
@@ -782,7 +1056,7 @@
         if (isTombstoned(session.session_id, session.session_id, session.client_upload_id)) return;
         const existing = [...jobs.values()].find((job) => job.sessionId === session.session_id || (session.client_upload_id && job.clientId === session.client_upload_id));
         if (existing) {
-          if (aborted.has(existing.id) || existing.phase === 'cancelled') return;
+          if (aborted.has(existing.id) || existing.phase === 'cancelled' || existing.phase === 'cancel_pending') return;
           const hadFile = !!(existing.file || existing.blob);
           applyServer(existing, session);
           if (!hadFile && !existing.file && NEED_FILE.includes(existing.phase) && !existing.taskId && !existing.mid) {
@@ -852,11 +1126,13 @@
       const reason = rejectLocal(file, kind, cfg);
       const id = clientId();
       const waitingTitle = !reason && needsTitle;
+      const persistBlob = !reason ? cloneForPersist(file) : null;
       const job = {
         id,
         clientId: id,
         file,
         blob: file,
+        persistBlob,
         name: file.name,
         bytes: file.size,
         mime: file.type || '',
@@ -872,16 +1148,38 @@
         created: now(),
         updated: now(),
         retries: 0,
-        canAutoResume: true,
+        canAutoResume: !!persistBlob,
+        blobMissing: false,
+        persistWarned: false,
       };
       jobs.set(id, job);
       created.push(job);
-      try {
-        await persist(job, true);
-      }
-      catch (error) {
-        job.error = '本地持久化失败：' + ((error && error.message) || '未知错误') + '。页面刷新后可能无法自动恢复。';
-        job.persistWarned = true;
+      if (!reason) {
+        try {
+          const result = await persist(job, true);
+          if (!result.storedBlob) {
+            // Current tab still has the File in memory; do not pretend durable resume.
+            job.persistWarned = true;
+            if (!job.error) {
+              job.error = persistError || '原文件暂时不可恢复，请重新选择原文件。当前标签页仍可继续上传。';
+            }
+          }
+        }
+        catch (error) {
+          // Metadata or Blob write failed completely: keep in-memory File for this tab
+          // but never claim the task was durably created.
+          job.persistWarned = true;
+          job.canAutoResume = false;
+          job.blobMissing = true;
+          job.error = humanPersistError(error) + ' 当前标签页仍可尝试上传；刷新后需重新选择文件。';
+          try {
+            await putRow(rowFromJob(job, false));
+          }
+          catch (e) {
+            job.phase = 'failed';
+            job.error = humanPersistError(error);
+          }
+        }
       }
       emit();
     }
@@ -939,75 +1237,58 @@
   async function attachFile(id, file) {
     const job = jobs.get(id);
     if (!job || !file) return false;
+    if (!file.size) {
+      job.error = '空文件不能上传。';
+      emit();
+      return false;
+    }
     const sha = await sha256Blob(file);
     const head = await sha256Blob(file.slice(0, Math.min(file.size, settings().headBytes || 65536)));
     if (file.size !== Number(job.bytes) || (job.sha256 && sha !== job.sha256) || (job.head && head !== job.head)) {
-      job.error = '这个文件和服务器上的未完成上传对不上。请重新选择原来的文件。';
+      job.error = '所选文件与原任务不匹配。请重新选择原来的文件。';
       emit();
       return false;
     }
     job.file = file;
     job.blob = file;
+    job.persistBlob = cloneForPersist(file);
     job.sha256 = sha;
     job.head = head;
     job.canAutoResume = true;
+    job.blobMissing = false;
     job.phase = 'retrying';
     job.error = '';
     job.preview = (job.kind === 'image' || job.kind === 'quick') ? URL.createObjectURL(file) : '';
-    await persist(job, true);
+    try {
+      const result = await persist(job, true);
+      if (!result.storedBlob) {
+        job.persistWarned = true;
+        job.error = persistError || '原文件暂时不可恢复，请重新选择原文件。当前标签页仍可继续上传。';
+      }
+    }
+    catch (error) {
+      job.persistWarned = true;
+      job.canAutoResume = false;
+      job.error = humanPersistError(error) + ' 当前标签页仍可尝试上传。';
+    }
     emit();
     if (leader) pump();
     else claimLeadership();
     return true;
   }
 
-  async function cancel(id) {
-    const job = jobs.get(id);
-    if (!job) return { ok: false, error: '任务不存在' };
-    if (job.taskId && ['queued', 'processing', 'extracting', 'importing', 'review', 'completed', 'success', 'duplicate'].includes(job.phase)) {
-      return { ok: false, error: '任务已交给服务器处理，不能通过上传面板取消导入。' };
-    }
-    aborted.add(job.id);
+  async function finalizeLocalCancel(job, message) {
     rememberTombstone(job.id);
     if (job.sessionId) rememberTombstone(job.sessionId);
     if (job.clientId) rememberTombstone(job.clientId);
-    const xhrs = activeXhrs.get(job.id);
-    if (xhrs) {
-      xhrs.forEach((xhr) => {
-        try { xhr.abort(); } catch (e) { /* ignore */ }
-      });
-      activeXhrs.delete(job.id);
-    }
-    job.phase = 'cancelled';
-    job.error = '';
-    job.inflight = 0;
     if (job.preview) {
       try { URL.revokeObjectURL(job.preview); } catch (e) { /* ignore */ }
     }
     job.preview = '';
     job.file = null;
     job.blob = null;
-    let serverOk = true;
-    let serverError = '';
-    if (job.sessionId) {
-      try {
-        const { response, json } = await api(sessionUrl(job.sessionId, '/cancel'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: '{}',
-        });
-        if (!response.ok) {
-          serverOk = false;
-          serverError = json.error || json.message || '服务器会话没有取消成功。';
-          job.error = serverError + ' 本地任务已停止，不会继续上传。';
-        }
-      }
-      catch (error) {
-        serverOk = false;
-        serverError = (error && error.message) || '服务器会话取消失败。';
-        job.error = serverError + ' 本地任务已停止，不会继续上传。';
-      }
-    }
+    job.phase = 'cancelled';
+    job.error = message || '';
     await removePersisted(job.id);
     jobs.delete(job.id);
     if (channel) {
@@ -1015,14 +1296,104 @@
       catch (e) { /* ignore */ }
     }
     emit();
-    return { ok: true, serverOk, error: serverError };
+  }
+
+  async function adoptHandedOff(job, json) {
+    forgetTombstone(job.id);
+    if (job.sessionId) forgetTombstone(job.sessionId);
+    if (job.clientId) forgetTombstone(job.clientId);
+    aborted.delete(job.id);
+    applyServer(job, json || {});
+    if (json && json.task_id) job.taskId = Number(json.task_id) || job.taskId;
+    job.phase = (json && (json.phase || json.label)) || (job.taskId ? 'queued' : 'uploaded');
+    job.error = '';
+    await persist(job, false);
+    emit();
+    if (job.taskId) pollTask(job);
+  }
+
+  async function cancel(id) {
+    const job = jobs.get(id);
+    if (!job) return { ok: false, outcome: 'unknown', error: '任务不存在' };
+    if (job.taskId && WORKER_PHASES.includes(job.phase)) {
+      return { ok: false, outcome: 'handed_off', error: '任务已交给服务器处理，不能通过上传面板取消导入。' };
+    }
+    stopJobTransport(job);
+    if (channel) {
+      try { channel.postMessage({ type: 'cancel_pending', tabId, id: job.id, sessionId: job.sessionId || '', clientId: job.clientId || '' }); }
+      catch (e) { /* ignore */ }
+    }
+    if (!job.sessionId) {
+      await finalizeLocalCancel(job, '');
+      return { ok: true, outcome: 'cancelled', serverOk: true, error: '' };
+    }
+    job.phase = 'cancel_pending';
+    job.error = '正在向服务器确认取消，本地已停止上传。';
+    await persist(job, true).catch(() => {});
+    emit();
+    try {
+      const { response, json } = await api(sessionUrl(job.sessionId, '/cancel'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      const outcome = (json && json.outcome) || '';
+      if (response.ok && (outcome === 'cancelled' || outcome === 'already_cancelled' || (json && json.status === 'cancelled'))) {
+        const note = (json && json.cleanup === 'failed')
+          ? ((json.message || '上传已取消') + '（临时文件清理待重试）')
+          : '';
+        await finalizeLocalCancel(job, note);
+        return {
+          ok: true,
+          outcome: outcome || 'cancelled',
+          serverOk: true,
+          cleanup: (json && json.cleanup) || '',
+          error: note,
+        };
+      }
+      if (response.status === 409 && (outcome === 'handed_off' || outcome === 'already_completed' || outcome === 'completing')) {
+        if (outcome === 'completing') {
+          job.phase = 'merging';
+          job.error = (json && (json.error || json.message)) || '服务器正在完成交接，上传取消未生效。';
+          await persist(job, true).catch(() => {});
+          emit();
+          return { ok: false, outcome: 'completing', serverOk: false, error: job.error };
+        }
+        await adoptHandedOff(job, json);
+        return {
+          ok: false,
+          outcome: outcome || 'handed_off',
+          serverOk: false,
+          error: (json && (json.error || json.message)) || '上传已交给导入任务，不能取消。',
+        };
+      }
+      if (!response.ok) {
+        job.phase = 'cancel_pending';
+        job.error = ((json && (json.error || json.message)) || '服务器会话取消未确认') + '。本地已停止上传，可重试取消。';
+        await persist(job, true).catch(() => {});
+        emit();
+        return { ok: false, outcome: outcome || 'unknown', serverOk: false, error: job.error };
+      }
+      job.phase = 'cancel_pending';
+      job.error = '取消结果不明确，本地已停止上传，可重试取消。';
+      await persist(job, true).catch(() => {});
+      emit();
+      return { ok: false, outcome: 'unknown', serverOk: false, error: job.error };
+    }
+    catch (error) {
+      job.phase = 'cancel_pending';
+      job.error = ((error && error.message) || '网络异常') + '。取消状态待确认，本地已停止上传，可重试取消。';
+      await persist(job, true).catch(() => {});
+      emit();
+      return { ok: false, outcome: 'unknown', serverOk: false, error: job.error };
+    }
   }
 
   function canCancel(job) {
-    if (!job || aborted.has(job.id) || job.phase === 'cancelled') return false;
-    if (job.taskId && ['queued', 'processing', 'extracting', 'importing', 'review', 'completed', 'success', 'duplicate'].includes(job.phase)) {
-      return false;
-    }
+    if (!job || job.phase === 'cancelled' || job.phase === 'canceled') return false;
+    if (job.taskId && WORKER_PHASES.includes(job.phase)) return false;
+    if (job.phase === 'cancel_pending') return true;
+    if (aborted.has(job.id) && job.phase !== 'cancel_pending') return false;
     return CANCELABLE.includes(job.phase) || !job.sessionId;
   }
 
@@ -1052,18 +1423,25 @@
             leader = false;
           }
           if (data.type === 'need-leader') maybeLead();
+          if (data.type === 'cancel_pending' && data.tabId !== tabId) {
+            const local = jobs.get(data.id);
+            if (local) {
+              stopJobTransport(local);
+              local.phase = 'cancel_pending';
+              local.error = local.error || '其他标签页正在确认取消。';
+              persist(local, true).catch(() => {});
+              listeners.forEach((fn) => {
+                try { fn(list()); } catch (e) { /* ignore */ }
+              });
+            }
+          }
           if (data.type === 'cancelled' && data.tabId !== tabId) {
             rememberTombstone(data.id);
             if (data.sessionId) rememberTombstone(data.sessionId);
             if (data.clientId) rememberTombstone(data.clientId);
             const local = jobs.get(data.id);
             if (local) {
-              aborted.add(data.id);
-              const xhrs = activeXhrs.get(data.id);
-              if (xhrs) {
-                xhrs.forEach((xhr) => { try { xhr.abort(); } catch (e) { /* ignore */ } });
-                activeXhrs.delete(data.id);
-              }
+              stopJobTransport(local);
               jobs.delete(data.id);
               removePersisted(data.id).catch(() => {});
               listeners.forEach((fn) => {

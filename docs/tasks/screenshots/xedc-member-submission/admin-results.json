@@ -1,0 +1,17 @@
+[
+  {
+    "n": "import-list",
+    "s": "FAIL",
+    "d": "{\"dash\":3,\"css\":{\"dashboard\":false,\"admin\":false,\"asset\":false}}"
+  },
+  {
+    "n": "import-detail",
+    "s": "FAIL",
+    "d": "figureish=138 adminCss=false"
+  },
+  {
+    "n": "moderated-gallery-status",
+    "s": "PASS",
+    "d": "statusNodes=30 css=false"
+  }
+]

@@ -21,6 +21,7 @@ dependencies:
     - search
     - system
     - xedc_core
+    - xedc_notify
 _core:
   default_config_hash: wkW7P5A53YhGmsgamrmTbfwpZrqdnPYiJdoAZQtdmJg
 id: authenticated
@@ -30,6 +31,9 @@ is_admin: false
 permissions:
   - 'access comments'
   - 'access content'
+  - 'access own xedc messages'
+  - 'access own xedc notifications'
+  - 'access send xedc messages'
   - 'create article content'
   - 'create image media'
   - 'create photo content'
@@ -50,6 +54,7 @@ permissions:
   - 'import photo archives'
   - 'opt-in or out of matomo tracking'
   - 'post comments'
+  - 'redeem xedc vip codes'
   - 'search content'
   - 'use text format basic_html'
   - 'use xedc_editorial transition resubmit_for_review'

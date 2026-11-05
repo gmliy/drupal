@@ -1,0 +1,93 @@
+.xedc-notify-admin {
+  --na-bd: var(--gin-border-color, #e4e4e7);
+  --na-fg: var(--gin-text, #18181b);
+  --na-mut: var(--gin-text-color-secondary, #71717a);
+  --na-soft: var(--gin-bg-layer2, #f4f4f5);
+  --na-surface: var(--gin-bg-layer, #fff);
+  max-width: 1180px;
+}
+
+.xedc-notify-admin__header h1 {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  color: var(--na-fg);
+}
+
+.xedc-notify-admin__lead {
+  margin: 0 0 20px;
+  color: var(--na-mut);
+}
+
+.xedc-notify-admin__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.xedc-notify-admin__stat {
+  background: var(--na-surface);
+  border: 1px solid var(--na-bd);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.xedc-notify-admin__stat strong {
+  display: block;
+  font-size: 1.45rem;
+  color: var(--na-fg);
+}
+
+.xedc-notify-admin__stat span {
+  color: var(--na-mut);
+  font-size: 0.9rem;
+}
+
+.xedc-notify-admin__panel {
+  background: var(--na-surface);
+  border: 1px solid var(--na-bd);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.xedc-notify-admin__panel h2 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.xedc-notify-admin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.xedc-notify-admin .button {
+  border-radius: 8px;
+}
+
+.xedc-notify-admin table {
+  width: 100%;
+}
+
+.xedc-notify-admin__empty {
+  color: var(--na-mut);
+  padding: 24px 0;
+  text-align: center;
+}
+
+.xedc-notify-admin__status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--na-soft);
+  color: var(--na-fg);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .xedc-notify-admin__panel {
+    padding: 12px;
+  }
+}

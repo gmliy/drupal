@@ -1,7 +1,7 @@
 <header class="xm-head">
   <div>
     <h1 class="xm-title">{{ '会员等级'|t }}</h1>
-    <p class="xm-sub">{{ membership.label }}</p>
+    <p class="xm-sub">{{ '状态来自会员系统权威数据，页面只负责展示。'|t }}</p>
   </div>
   {% if membership.active %}
     <span class="xm-tier xm-tier--vip">VIP</span>
@@ -9,22 +9,34 @@
     <span class="xm-tier">{{ '普通会员'|t }}</span>
   {% endif %}
 </header>
+
 <section class="xm-membership">
-  <div class="xm-membership__card">
+  <div class="xm-membership__card xm-membership__card--status">
+    <h2>{{ membership.label }}</h2>
     {% if membership.active %}
-      <p>{{ '开通时间：@date'|t({'@date': membership.starts}) }}</p>
-      <p>{{ '到期时间：@date'|t({'@date': membership.expires}) }}</p>
-      <p>{{ '剩余 @count 天'|t({'@count': membership.remaining}) }}</p>
-      {% if membership.expiring_soon %}<p class="xm-warn">{{ 'VIP 即将到期，到期后会自动恢复为普通会员。'|t }}</p>{% endif %}
+      <dl class="xm-membership__meta">
+        <div><dt>{{ '开通时间'|t }}</dt><dd>{{ membership.starts }}</dd></div>
+        <div><dt>{{ '到期时间'|t }}</dt><dd>{{ membership.expires }}</dd></div>
+        <div><dt>{{ '剩余天数'|t }}</dt><dd>{{ membership.remaining }}</dd></div>
+      </dl>
+      {% if membership.expiring_soon %}
+        <p class="xm-warn">{{ 'VIP 即将到期，到期后会自动恢复为普通会员。'|t }}</p>
+      {% endif %}
     {% elseif membership.expired %}
       <p>{{ 'VIP 已于 @date 到期，当前是普通会员。'|t({'@date': membership.expires}) }}</p>
     {% elseif membership.cancelled %}
       <p>{{ 'VIP 已被取消，当前是普通会员。'|t }}</p>
     {% else %}
-      <p>{{ '你当前是普通会员。VIP 由管理员开通，这里不能在线支付。'|t }}</p>
+      <p>{{ '你当前是普通会员。VIP 由管理员开通或卡密兑换，这里不能在线支付。'|t }}</p>
+    {% endif %}
+    {% if urls.redeem %}
+      <div class="xm-membership__actions">
+        <a class="xm-btn xm-btn--primary" href="{{ urls.redeem }}">{{ '卡密兑换'|t }}</a>
+      </div>
     {% endif %}
   </div>
-  <div class="xm-membership__card">
+
+  <div class="xm-membership__benefits">
     <h2>{{ 'VIP 权益'|t }}</h2>
     <ul>
       {% for line in membership.benefits %}

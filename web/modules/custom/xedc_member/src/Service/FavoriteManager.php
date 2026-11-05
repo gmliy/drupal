@@ -63,6 +63,7 @@ class FavoriteManager {
       throw new \InvalidArgumentException('This favorite is not allowed.');
     }
 
+    $added = FALSE;
     try {
       $this->database->insert('xedc_member_favorite')
         ->fields([
@@ -73,9 +74,13 @@ class FavoriteManager {
           'created' => $this->time->getRequestTime(),
         ])
         ->execute();
+      $added = TRUE;
     }
     catch (IntegrityConstraintViolationException) {
       // The unique key already exists; keep the original favorite time.
+    }
+    if ($added && \Drupal::moduleHandler()->moduleExists('xedc_notify')) {
+      xedc_notify_on_favorite($uid, $node);
     }
   }
 

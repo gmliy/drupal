@@ -31,7 +31,9 @@ function xedc_core_page_attachments(array &$attachments): void {
   if (!$account->isAuthenticated()) {
     return;
   }
-  if (!$account->hasPermission('import photo archives') && !$account->hasPermission('administer xedc image imports') && !$account->hasPermission('administer nodes')) {
+  // Floating upload panel is staff chrome. Members who only have
+  // "import photo archives" use the in-form member uploader instead.
+  if (!$account->hasPermission('administer xedc image imports') && !$account->hasPermission('administer nodes')) {
     return;
   }
   // Only the administration UI. Do not match frontend entity/view/xedc routes.
@@ -105,6 +107,84 @@ function xedc_core_form_node_form_alter(array &$form, FormStateInterface $form_s
   if (!$account->hasPermission('import photo archives') && !$account->hasPermission('administer xedc image imports')) {
     return;
   }
+  $isStaff = $account->hasPermission('administer xedc image imports') || $account->hasPermission('administer nodes');
+  if (!$isStaff) {
+    xedc_core_attach_member_photo_upload($form, $node);
+    return;
+  }
+  xedc_core_attach_staff_photo_import($form, $node, $account);
+}
+
+/**
+ * Member-facing photo upload: progress and file pickers only, no staff tooling.
+ */
+function xedc_core_attach_member_photo_upload(array &$form, NodeInterface $node): void {
+  $settings = \Drupal::config('xedc_core.settings');
+  $limit = (int) $settings->get('max_archive_bytes') ?: 209715200;
+  $form['#attached']['library'][] = 'xedc_core/member_upload';
+  $form['#attached']['drupalSettings']['xedcAsset'] = [
+    'archiveUrl' => Url::fromRoute('xedc_core.asset_archive')->toString(),
+    'imageUrl' => Url::fromRoute('xedc_core.asset_image')->toString(),
+    'draftUrl' => Url::fromRoute('xedc_core.asset_draft')->toString(),
+    'closeUrl' => Url::fromRoute('xedc_core.asset_close')->toString(),
+    'sessionsUrl' => Url::fromRoute('xedc_core.upload_sessions')->toString(),
+    'sessionUrl' => Url::fromRoute('xedc_core.upload_session_create')->toString(),
+    'sessionBase' => Url::fromRoute('xedc_core.import_list')->toString() . '/upload/session/',
+    'probeUrl' => Url::fromRoute('xedc_core.upload_probe')->toString(),
+    'progressBase' => Url::fromRoute('xedc_core.import_list')->toString() . '/',
+    'maxArchive' => $limit,
+    'maxImage' => (int) $settings->get('max_image_bytes') ?: 52428800,
+    'chunkBytes' => (int) $settings->get('upload_chunk_bytes') ?: 5242880,
+    'headBytes' => 65536,
+    'concurrency' => 2,
+    'nid' => (int) $node->id(),
+    'titleSelector' => '#edit-title-0-value',
+    'entry' => 'member',
+    'requireTitle' => TRUE,
+  ];
+  $form['#attached']['drupalSettings']['xedcUpload'] = $form['#attached']['drupalSettings']['xedcAsset'];
+  $form['xedc_import'] = [
+    '#type' => 'container',
+    '#tree' => TRUE,
+    '#weight' => 8,
+    '#attributes' => ['class' => ['xedc-import', 'xedc-import--member', 'xm-upload-card']],
+  ];
+  $mode = trim((string) (\Drupal::requestStack()->getCurrentRequest()?->query->get('upload') ?? ''));
+  $preferArchive = $mode === 'archive' || $mode === 'zip';
+  $preferImages = $mode === 'gallery' || $mode === 'images';
+  $form['xedc_import']['uploader'] = [
+    '#type' => 'inline_template',
+    '#template' => '<section class="xedc-upload xedc-upload--member" data-xedc-asset-upload data-nid="{{ nid }}" data-prefer="{{ prefer }}"><header class="xedc-upload__head"><div><h2>{{ heading }}</h2><p class="xedc-upload__help">{{ help }}</p></div></header><div class="xedc-upload__stats" data-xedc-stats></div><div class="xedc-upload__grid"><section class="xedc-upload__drop{% if prefer_archive %} is-preferred{% endif %}" data-xedc-drop="archive"><h3>{{ archive_heading }}</h3><label class="xedc-upload__pick">{{ archive_label }}<input type="file" data-xedc-archive accept=".zip,.7z,application/zip,application/x-7z-compressed"></label></section><section class="xedc-upload__drop{% if prefer_images %} is-preferred{% endif %}" data-xedc-drop="image"><h3>{{ image_heading }}</h3><label class="xedc-upload__pick">{{ image_label }}<input type="file" data-xedc-images accept="image/jpeg,image/png,image/gif,image/webp" multiple></label></section></div><p class="xedc-upload__note" data-xedc-note></p><div class="xedc-upload__queue" data-xedc-list></div></section>',
+    '#context' => [
+      'nid' => (int) $node->id(),
+      'prefer' => $preferArchive ? 'archive' : ($preferImages ? 'image' : ''),
+      'prefer_archive' => $preferArchive,
+      'prefer_images' => $preferImages,
+      'heading' => t('上传图片或压缩包'),
+      'archive_heading' => t('压缩包'),
+      'archive_label' => t('选择 ZIP / 7z'),
+      'image_heading' => t('图片集'),
+      'image_label' => t('一次选择多张图片'),
+      'help' => t('先填写标题，再选择文件。上传可中断后续传；刷新后如提示重新选择，请选回同一文件。'),
+    ],
+  ];
+  $archive = \Drupal::service('xedc_core.archive');
+  if (!$archive->privateReady()) {
+    $form['xedc_import']['missing'] = [
+      '#markup' => '<p class="xm-upload-note">' . t('压缩包上传暂不可用，请改用上方图片集或联系管理员。') . '</p>',
+    ];
+  }
+  elseif (!$archive->sevenZipBinary()) {
+    $form['xedc_import']['sevenzip'] = [
+      '#markup' => '<p class="xm-upload-note">' . t('目前仅支持 ZIP 压缩包。') . '</p>',
+    ];
+  }
+}
+
+/**
+ * Staff ZIP / bulk import panel on photo node forms.
+ */
+function xedc_core_attach_staff_photo_import(array &$form, NodeInterface $node, $account): void {
   $archive = \Drupal::service('xedc_core.archive');
   $limit = (int) \Drupal::config('xedc_core.settings')->get('max_archive_bytes') ?: 209715200;
   $form['#attached']['library'][] = 'xedc_core/asset_upload';
@@ -538,6 +618,13 @@ function xedc_core_cron(): void {
  */
 function xedc_core_theme(): array {
   return [
+    'xedc_vip_redeem' => [
+      'variables' => [
+        'form' => NULL,
+        'history' => [],
+      ],
+      'template' => 'xedc-vip-redeem',
+    ],
     'xedc_core_monitor' => [
       'variables' => [
         'snapshot' => [],

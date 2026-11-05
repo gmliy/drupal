@@ -1,0 +1,91 @@
+.xm-redeem {
+  --xr-surface: var(--xm-surface, #fff);
+  --xr-soft: var(--xm-surface-muted, #f4f4f5);
+  --xr-fg: var(--xm-fg, #18181b);
+  --xr-mut: var(--xm-mut, #71717a);
+  --xr-bd: var(--xm-bd, #e4e4e7);
+  --xr-primary: var(--xm-primary, #18181b);
+  --xr-primary-fg: var(--xm-primary-fg, #fafafa);
+  --xr-radius: var(--xm-radius, 12px);
+  color: var(--xr-fg);
+}
+
+.xm-redeem__head {
+  margin-bottom: 16px;
+}
+
+.xm-redeem__head h1 {
+  margin: 0 0 6px;
+  font-size: 1.4rem;
+}
+
+.xm-redeem__card,
+.xm-redeem__history {
+  background: var(--xr-surface);
+  border: 1px solid var(--xr-bd);
+  border-radius: var(--xr-radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.xm-redeem__card .form-item {
+  margin-bottom: 12px;
+}
+
+.xm-redeem__card input.form-text {
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid var(--xr-bd);
+  border-radius: 8px;
+  background: var(--xr-soft);
+  color: var(--xr-fg);
+  padding: 10px 12px;
+  letter-spacing: 0.04em;
+}
+
+.xm-redeem__card .button--primary,
+.xm-redeem__card .form-submit {
+  background: var(--xr-primary);
+  color: var(--xr-primary-fg);
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+}
+
+.xm-redeem__history h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.xm-redeem__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.xm-redeem__list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--xr-bd);
+  color: var(--xr-mut);
+  font-size: 0.92rem;
+}
+
+.xm-redeem__list li strong {
+  color: var(--xr-fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.xm-empty {
+  color: var(--xr-mut);
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .xm-redeem__list li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

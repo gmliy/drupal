@@ -1,56 +1,396 @@
+/**
+ * XEDC Smart Tag admin UI — Gin + Modern SaaS.
+ * Scoped to .xt-admin only. Prefer Gin CSS variables.
+ */
+
 .xt-admin {
-  color: var(--xedc-admin-foreground);
-  max-width: 1120px;
+  --xt-radius: 10px;
+  --xt-radius-sm: 8px;
+  --xt-gap: 16px;
+  --xt-gap-lg: 24px;
+  --xt-bg: var(--gin-bg-app, #f8f9fb);
+  --xt-surface: var(--gin-bg-layer, #fff);
+  --xt-surface-2: var(--gin-bg-layer2, #f4f4f5);
+  --xt-text: var(--gin-color-text, #18181b);
+  --xt-muted: var(--gin-color-text-light, #71717a);
+  --xt-border: var(--gin-border-color, #e4e4e7);
+  --xt-primary: rgb(var(--gin-color-primary-rgb, 37, 99, 235));
+  --xt-title: var(--gin-color-title, var(--xt-text));
+  --xt-danger: #dc2626;
+  --xt-warn: #d97706;
+  --xt-ok: #16a34a;
+  box-sizing: border-box;
+  max-width: 1180px;
+  color: var(--xt-text);
 }
 
-.xt-admin-kicker {
-  margin: 0 0 8px;
-  color: var(--xedc-admin-muted);
+.xt-admin *,
+.xt-admin *::before,
+.xt-admin *::after {
+  box-sizing: border-box;
+}
+
+/* ---- Header ---- */
+.xt-admin__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin: 0 0 var(--xt-gap-lg);
+  padding: 18px 20px;
+  background: var(--xt-surface);
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius);
+}
+
+.xt-admin__header-main {
+  min-width: 0;
+  flex: 1 1 280px;
+}
+
+.xt-admin__eyebrow {
+  margin: 0 0 4px;
+  color: var(--xt-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.xt-admin__title {
+  margin: 0;
+  color: var(--xt-title);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.xt-admin__lede,
+.xt-admin__note {
+  margin: 8px 0 0;
+  color: var(--xt-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.xt-admin__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin-top: 14px;
+}
+
+.xt-admin__meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
 }
 
-.xt-admin-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 0 24px;
-  margin: 0 0 24px;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--xedc-admin-border);
+.xt-admin__meta-label {
+  color: var(--xt-muted);
 }
 
-.xt-admin-metrics a {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--xedc-admin-border);
-  color: inherit;
-  text-decoration: none;
-}
-
-.xt-admin-metrics a:hover,
-.xt-admin-metrics a:focus-visible {
-  color: var(--xedc-admin-link);
-}
-
-.xt-admin-metrics strong {
+.xt-admin__meta-value {
   font-variant-numeric: tabular-nums;
 }
 
-.xt-admin-links {
+.xt-admin__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 12px;
+  gap: 8px;
+  align-items: center;
 }
 
-.xt-admin-chip {
-  display: inline-block;
-  margin: 0 8px 8px 0;
+.xt-admin__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid var(--xt-border);
+  border-radius: 999px;
+  color: var(--xt-text);
+  font-size: 13px;
+  text-decoration: none;
+  background: var(--xt-surface-2);
+  white-space: nowrap;
 }
 
-.xt-admin table {
+.xt-admin__back:hover,
+.xt-admin__back:focus-visible {
+  border-color: var(--xt-primary);
+  color: var(--xt-primary);
+}
+
+.xt-admin__section {
+  margin: 0 0 var(--xt-gap-lg);
+}
+
+.xt-admin__section-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Hide duplicate Gin page title when our chrome provides one. */
+.gin--vertical-toolbar .region-content:has(.xt-admin__title) > .block-page-title-block,
+body.gin--horizontal-toolbar .region-content:has(.xt-admin__title) > .block-page-title-block,
+.page-wrapper .region-content:has(.xt-admin__title) > h1.page-title {
+  display: none;
+}
+
+/* ---- Cards / panels / callouts ---- */
+.xt-card {
+  background: var(--xt-surface);
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius);
+  padding: 16px 18px;
+}
+
+.xt-card--flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+.xt-card--pad {
+  margin-bottom: var(--xt-gap);
+}
+
+.xt-panel {
+  margin: 0 0 var(--xt-gap);
+  padding: 16px 18px;
+  background: var(--xt-surface);
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius);
+}
+
+.xt-panel--danger {
+  border-color: color-mix(in srgb, var(--xt-danger) 35%, var(--xt-border));
+}
+
+.xt-panel .form-item:last-child,
+.xt-panel .form-actions:last-child {
+  margin-bottom: 0;
+}
+
+.xt-panel__title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.xt-callout {
+  margin: 0 0 var(--xt-gap);
+  padding: 12px 14px;
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius-sm);
+  background: var(--xt-surface-2);
+  color: var(--xt-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.xt-callout p {
+  margin: 0;
+}
+
+.xt-callout--info {
+  border-color: color-mix(in srgb, #3b82f6 28%, var(--xt-border));
+  background: color-mix(in srgb, #3b82f6 8%, var(--xt-surface));
+}
+
+.xt-callout--warning {
+  border-color: color-mix(in srgb, var(--xt-warn) 32%, var(--xt-border));
+  background: color-mix(in srgb, var(--xt-warn) 10%, var(--xt-surface));
+}
+
+.xt-callout--danger {
+  border-color: color-mix(in srgb, var(--xt-danger) 32%, var(--xt-border));
+  background: color-mix(in srgb, var(--xt-danger) 8%, var(--xt-surface));
+}
+
+.xt-callout--success {
+  border-color: color-mix(in srgb, var(--xt-ok) 28%, var(--xt-border));
+  background: color-mix(in srgb, var(--xt-ok) 8%, var(--xt-surface));
+}
+
+.xt-empty {
+  margin: 0;
+  padding: 28px 18px;
+  color: var(--xt-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ---- Stats ---- */
+.xt-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.xt-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--xt-surface);
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.xt-stat:hover,
+.xt-stat:focus-visible {
+  border-color: var(--xt-primary);
+  background: var(--xt-surface-2);
+}
+
+.xt-stat__label {
+  color: var(--xt-muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.xt-stat__value {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Shortcuts ---- */
+.xt-shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.xt-shortcut {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-height: 72px;
+  padding: 14px;
+  background: var(--xt-surface);
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.xt-shortcut:hover,
+.xt-shortcut:focus-visible {
+  border-color: var(--xt-primary);
+  background: var(--xt-surface-2);
+}
+
+.xt-shortcut__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: var(--xt-radius-sm);
+  background: var(--xt-surface-2);
+  border: 1px solid var(--xt-border);
+  color: var(--xt-muted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.xt-shortcut__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.xt-shortcut__title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.xt-shortcut__desc {
+  color: var(--xt-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ---- Table ---- */
+.xt-table-wrap {
   width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.xt-admin table.xt-table,
+.xt-admin table,
+.xt-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.xt-admin table th,
+.xt-admin table td,
+.xt-table th,
+.xt-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--xt-border);
+  text-align: left;
+  vertical-align: middle;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.xt-admin table thead th,
+.xt-table thead th {
+  color: var(--xt-muted);
+  font-weight: 500;
+  font-size: 12px;
+  background: var(--xt-surface-2);
+}
+
+.xt-admin table caption,
+.xt-table caption {
+  padding: 12px 14px 8px;
+  color: var(--xt-muted);
+  font-size: 12px;
+  text-align: left;
+  caption-side: top;
+}
+
+.xt-admin table tbody tr:last-child td,
+.xt-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.xt-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.xt-tag-name {
+  font-weight: 600;
+  color: var(--xt-text);
+}
+
+.xt-tag-tid {
+  color: var(--xt-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
 }
 
 .xt-admin .form-item {
@@ -65,17 +405,532 @@
 .xt-admin .button,
 .xt-admin .button--primary {
   margin-right: 8px;
+  min-height: 36px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .gin--dark-mode .xt-admin,
-  [data-gin-color-scheme="dark"] .xt-admin {
-    color: inherit;
+.xt-admin .button--danger,
+.xt-admin input.button--danger {
+  background: color-mix(in srgb, var(--xt-danger) 12%, var(--xt-surface));
+  border-color: color-mix(in srgb, var(--xt-danger) 40%, var(--xt-border));
+  color: var(--xt-danger);
+}
+
+.xt-admin details {
+  padding: 0;
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius);
+  background: var(--xt-surface);
+  overflow: hidden;
+}
+
+.xt-admin details + details {
+  margin-top: 10px;
+}
+
+.xt-admin details > summary {
+  cursor: pointer;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--xt-surface-2);
+  border-bottom: 1px solid transparent;
+  list-style: none;
+}
+
+.xt-admin details[open] > summary {
+  border-bottom-color: var(--xt-border);
+}
+
+.xt-admin details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.xt-admin details .details-wrapper,
+.xt-admin details .claro-details__wrapper,
+.xt-admin details > .details-wrapper,
+.xt-admin details > *:not(summary) {
+  padding: 12px 14px;
+}
+
+.xt-admin .item-list ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.xt-admin .item-list li {
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+/* ---- Filters ---- */
+.xt-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: flex-end;
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: var(--xt-surface);
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius);
+}
+
+.xt-filter-bar .form-item {
+  margin: 0;
+  min-width: 0;
+}
+
+.xt-filter-bar .form-item label {
+  font-size: 12px;
+  color: var(--xt-muted);
+}
+
+.xt-filter-bar input[type="text"],
+.xt-filter-bar input[type="number"],
+.xt-filter-bar select {
+  min-height: 32px;
+  max-width: 100%;
+}
+
+.xt-filter-bar .form-submit,
+.xt-filter-bar .button {
+  margin: 0;
+}
+
+.xt-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.xt-chip,
+a.xt-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--xt-border);
+  border-radius: 999px;
+  background: var(--xt-surface);
+  color: var(--xt-text);
+  font-size: 12px;
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+.xt-chip:hover,
+a.xt-chip:hover,
+a.xt-chip:focus-visible,
+.xt-chip.is-active,
+a.xt-chip.is-active {
+  border-color: var(--xt-primary);
+  color: var(--xt-primary);
+}
+
+.xt-admin-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.xt-admin-links a {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--xt-border);
+  border-radius: 999px;
+  background: var(--xt-surface);
+  color: var(--xt-text);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.xt-admin-links a:hover,
+.xt-admin-links a:focus-visible {
+  border-color: var(--xt-primary);
+  color: var(--xt-primary);
+}
+
+/* ---- Badges ---- */
+.xt-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--xt-border);
+  background: var(--xt-surface-2);
+  color: var(--xt-muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.xt-badge--success {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 14%, var(--xt-surface));
+  border-color: color-mix(in srgb, #22c55e 28%, var(--xt-border));
+}
+
+.xt-badge--warning {
+  color: #92400e;
+  background: color-mix(in srgb, #f59e0b 14%, var(--xt-surface));
+  border-color: color-mix(in srgb, #f59e0b 28%, var(--xt-border));
+}
+
+.xt-badge--danger {
+  color: #991b1b;
+  background: color-mix(in srgb, #ef4444 14%, var(--xt-surface));
+  border-color: color-mix(in srgb, #ef4444 28%, var(--xt-border));
+}
+
+.xt-badge--info {
+  color: #1e40af;
+  background: color-mix(in srgb, #3b82f6 14%, var(--xt-surface));
+  border-color: color-mix(in srgb, #3b82f6 28%, var(--xt-border));
+}
+
+.xt-badge--neutral {
+  color: var(--xt-muted);
+}
+
+/* Gin dark mode: explicit fallbacks so cards stay readable even if
+   aggregated theme vars lag behind the .gin--dark-mode class. */
+html.gin--dark-mode .xt-admin,
+.gin--dark-mode .xt-admin {
+  --xt-bg: #1b1b1d;
+  --xt-surface: #2a2a2d;
+  --xt-surface-2: #3b3b3f;
+  --xt-text: #d2d3d3;
+  --xt-muted: #9e9fa0;
+  --xt-border: #43454a;
+  --xt-title: #fff;
+  color: var(--xt-text);
+}
+
+html.gin--dark-mode .xt-admin .xt-admin__title,
+.gin--dark-mode .xt-admin .xt-admin__title,
+html.gin--dark-mode .xt-admin .xt-admin__section-title,
+.gin--dark-mode .xt-admin .xt-admin__section-title,
+html.gin--dark-mode .xt-admin .xt-tag-name,
+.gin--dark-mode .xt-admin .xt-tag-name,
+html.gin--dark-mode .xt-admin .xt-shortcut__title,
+.gin--dark-mode .xt-admin .xt-shortcut__title,
+html.gin--dark-mode .xt-admin .xt-panel__title,
+.gin--dark-mode .xt-admin .xt-panel__title {
+  color: var(--xt-title);
+}
+
+html.gin--dark-mode .xt-admin .xt-admin__lede,
+.gin--dark-mode .xt-admin .xt-admin__lede,
+html.gin--dark-mode .xt-admin .xt-admin__note,
+.gin--dark-mode .xt-admin .xt-admin__note,
+html.gin--dark-mode .xt-admin .xt-admin__eyebrow,
+.gin--dark-mode .xt-admin .xt-admin__eyebrow,
+html.gin--dark-mode .xt-admin .xt-stat__label,
+.gin--dark-mode .xt-admin .xt-stat__label,
+html.gin--dark-mode .xt-admin .xt-shortcut__desc,
+.gin--dark-mode .xt-admin .xt-shortcut__desc,
+html.gin--dark-mode .xt-admin .xt-tag-tid,
+.gin--dark-mode .xt-admin .xt-tag-tid,
+html.gin--dark-mode .xt-admin .xt-empty,
+.gin--dark-mode .xt-admin .xt-empty {
+  color: var(--xt-muted);
+}
+
+html.gin--dark-mode .xt-admin table th,
+.gin--dark-mode .xt-admin table th,
+html.gin--dark-mode .xt-admin table td,
+.gin--dark-mode .xt-admin table td {
+  color: var(--xt-text);
+}
+
+html.gin--dark-mode .xt-badge--success {
+  color: #86efac;
+}
+
+html.gin--dark-mode .xt-badge--warning {
+  color: #fcd34d;
+}
+
+html.gin--dark-mode .xt-badge--danger {
+  color: #fca5a5;
+}
+
+html.gin--dark-mode .xt-badge--info {
+  color: #93c5fd;
+}
+
+html.gin--dark-mode .xt-admin .button--danger,
+html.gin--dark-mode .xt-admin input.button--danger {
+  color: #fca5a5;
+}
+
+html.gin--dark-mode .xt-tag-name {
+  color: var(--xt-text);
+}
+
+html.gin--dark-mode .xt-callout--info,
+html.gin--dark-mode .xt-callout--warning,
+html.gin--dark-mode .xt-callout--danger,
+html.gin--dark-mode .xt-callout--success {
+  color: var(--xt-text);
+}
+
+/* ---- Ops links ---- */
+.xt-ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 12px;
+}
+
+.xt-ops a {
+  color: var(--xt-primary);
+  text-decoration: none;
+  white-space: nowrap;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.xt-ops a:hover,
+.xt-ops a:focus-visible {
+  text-decoration: underline;
+}
+
+.xt-ops a.xt-ops--danger {
+  color: var(--xt-danger);
+}
+
+html.gin--dark-mode .xt-ops a.xt-ops--danger {
+  color: #fca5a5;
+}
+
+/* Inline action buttons inside tables */
+.xt-admin td .button,
+.xt-admin td input.button {
+  margin: 2px 4px 2px 0;
+  min-height: 30px;
+  padding-inline: 10px;
+  font-size: 12px;
+}
+
+.xt-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.xt-form-grid .form-item {
+  margin-right: 0;
+}
+
+.xt-form-narrow {
+  max-width: 640px;
+}
+
+/* ---- Merge wizard ---- */
+.xt-merge-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.xt-merge-step {
+  padding: 10px 12px;
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius-sm);
+  background: var(--xt-surface);
+}
+
+.xt-merge-step.is-active {
+  border-color: var(--xt-primary);
+  background: color-mix(in srgb, var(--xt-primary) 8%, var(--xt-surface));
+}
+
+.xt-merge-step__n {
+  display: block;
+  color: var(--xt-muted);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.xt-merge-step__t {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.xt-merge-panel {
+  margin: 0 0 16px;
+  padding: 16px 18px;
+  background: var(--xt-surface);
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius);
+}
+
+.xt-merge-panel--danger {
+  border-color: color-mix(in srgb, var(--xt-danger) 35%, var(--xt-border));
+}
+
+.xt-merge-sources {
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px 4px;
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius-sm);
+  background: var(--xt-surface-2);
+}
+
+.xt-merge-preview {
+  margin: 12px 0;
+  padding: 14px 16px;
+  border-radius: var(--xt-radius-sm);
+  border: 1px solid var(--xt-border);
+  background: var(--xt-surface-2);
+}
+
+.xt-merge-preview ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.xt-batch-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--xt-surface);
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius);
+}
+
+.xt-facts {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0;
+  margin: 0 0 var(--xt-gap);
+  border: 1px solid var(--xt-border);
+  border-radius: var(--xt-radius);
+  overflow: hidden;
+  background: var(--xt-surface);
+}
+
+.xt-facts dt,
+.xt-facts dd {
+  margin: 0;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--xt-border);
+  font-size: 13px;
+}
+
+.xt-facts dt {
+  color: var(--xt-muted);
+  background: var(--xt-surface-2);
+  font-weight: 500;
+}
+
+.xt-facts dd:last-of-type,
+.xt-facts dt:last-of-type {
+  border-bottom: 0;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 1280px) {
+  .xt-stat-grid,
+  .xt-shortcut-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 640px) {
-  .xt-admin-metrics {
+@media (max-width: 1024px) {
+  .xt-stat-grid,
+  .xt-shortcut-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .xt-merge-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .xt-form-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .xt-admin {
+    max-width: 100%;
+  }
+
+  .xt-admin__header {
+    padding: 14px;
+  }
+
+  .xt-admin__title {
+    font-size: 20px;
+  }
+
+  .xt-stat-grid,
+  .xt-shortcut-grid,
+  .xt-merge-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .xt-stat__value {
+    font-size: 24px;
+  }
+
+  .xt-filter-bar .form-item {
+    flex: 1 1 100%;
+  }
+
+  .xt-admin table th,
+  .xt-admin table td {
+    padding: 8px 10px;
+  }
+
+  .xt-admin .xt-table-wrap {
+    margin: 0 -4px;
+    padding: 0 4px;
+  }
+
+  .xt-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .xt-facts dt {
+    border-bottom: 0;
+    padding-bottom: 2px;
+  }
+
+  .xt-facts dd {
+    padding-top: 2px;
+  }
+}
+
+@media (max-width: 430px) {
+  .xt-admin__actions .button {
+    width: 100%;
+    justify-content: center;
+    margin-right: 0;
+  }
+
+  .xt-admin__back {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .xt-batch-bar .button,
+  .xt-batch-bar input.button {
+    width: 100%;
+    margin-right: 0;
   }
 }

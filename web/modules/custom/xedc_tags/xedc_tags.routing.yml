@@ -10,7 +10,7 @@ xedc_tags.admin_overview:
   path: '/admin/content/tags'
   defaults:
     _controller: '\Drupal\xedc_tags\Controller\AdminController::overview'
-    _title: '标签总览'
+    _title: '标签统计'
   requirements:
     _permission: 'view xedc tag center'
   options:

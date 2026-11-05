@@ -3,6 +3,7 @@
 namespace Drupal\xedc_tags;
 
 use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Session\AccountInterface;
 
@@ -30,6 +31,7 @@ final class TagAliasManager {
     private TagAudit $audit,
     private AccountInterface $currentUser,
     private TimeInterface $time,
+    private CacheTagsInvalidatorInterface $cacheTags,
   ) {}
 
   public function ready(): bool {
@@ -117,11 +119,13 @@ final class TagAliasManager {
     if ($id > 0) {
       $this->database->update('xedc_tag_alias')->fields($fields)->condition('id', $id)->execute();
       $this->audit->log('alias_update', '更新别名 ' . $display, $fields, $tid, $uid);
+      $this->cacheTags->invalidateTags($this->catalog->cacheTags());
       return ['ok' => TRUE, 'message' => '别名已更新。', 'id' => $id];
     }
     $fields['created'] = $this->time->getRequestTime();
     $id = (int) $this->database->insert('xedc_tag_alias')->fields($fields)->execute();
     $this->audit->log('alias_create', '新增别名 ' . $display, $fields, $tid, $uid);
+    $this->cacheTags->invalidateTags($this->catalog->cacheTags());
     return ['ok' => TRUE, 'message' => '别名已创建。', 'id' => $id];
   }
 
@@ -141,6 +145,7 @@ final class TagAliasManager {
       'changed' => $this->time->getRequestTime(),
     ])->condition('id', $id)->execute();
     $this->audit->log('alias_status', $status . ' ' . $row->alias, ['id' => $id], (int) $row->tid, $uid);
+    $this->cacheTags->invalidateTags($this->catalog->cacheTags());
     return ['ok' => TRUE, 'message' => '别名状态已更新。'];
   }
 
@@ -154,6 +159,7 @@ final class TagAliasManager {
     }
     $this->database->delete('xedc_tag_alias')->condition('id', $id)->execute();
     $this->audit->log('alias_delete', '删除别名 ' . $row->alias, ['id' => $id], (int) $row->tid, $uid);
+    $this->cacheTags->invalidateTags($this->catalog->cacheTags());
     return ['ok' => TRUE, 'message' => '别名已删除。'];
   }
 

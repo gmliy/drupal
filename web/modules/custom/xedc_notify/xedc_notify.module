@@ -1,0 +1,294 @@
+<?php
+
+/**
+ * @file
+ * Hooks for XEDC private messages and notifications.
+ */
+
+declare(strict_types=1);
+
+use Drupal\comment\CommentInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\user\UserInterface;
+
+/**
+ * Implements hook_theme().
+ */
+function xedc_notify_theme($existing, $type, $theme, $path): array {
+  return [
+    'xedc_notify_messages' => [
+      'variables' => [
+        'threads' => [],
+        'active_tid' => 0,
+        'thread' => NULL,
+        'messages' => [],
+        'form' => NULL,
+        'unread_total' => 0,
+      ],
+      'template' => 'xedc-notify-messages',
+    ],
+    'xedc_notify_notifications' => [
+      'variables' => [
+        'items' => [],
+        'tabs' => [],
+        'category' => 'all',
+        'unread_total' => 0,
+        'read_all_form' => NULL,
+        'read_all_url' => '',
+        'settings_url' => '',
+      ],
+      'template' => 'xedc-notify-notifications',
+    ],
+    'xedc_notify_preferences' => [
+      'variables' => [
+        'form' => NULL,
+      ],
+      'template' => 'xedc-notify-preferences',
+    ],
+    'xedc_notify_header_badges' => [
+      'variables' => [
+        'messages_url' => '',
+        'notifications_url' => '',
+        'messages_count' => 0,
+        'notifications_count' => 0,
+        'messages_label' => '0',
+        'notifications_label' => '0',
+      ],
+      'template' => 'xedc-notify-header-badges',
+    ],
+    'xedc_notify_profile_actions' => [
+      'variables' => [
+        'follow_url' => '',
+        'following' => FALSE,
+        'message_url' => '',
+      ],
+      'template' => 'xedc-notify-profile-actions',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_cron().
+ */
+function xedc_notify_cron(): void {
+  \Drupal::service('xedc_notify.vip')->scanExpiringReminders();
+}
+
+/**
+ * Implements hook_preprocess_page().
+ */
+function xedc_notify_preprocess_page(array &$variables): void {
+  $variables['#cache']['contexts'][] = 'user.roles:authenticated';
+  $variables['xedc_notify_badges'] = [
+    '#lazy_builder' => ['xedc_notify.lazy_builders:headerBadges', []],
+    '#create_placeholder' => TRUE,
+  ];
+  $variables['#attached']['library'][] = 'xedc_notify/header';
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_insert() for comment.
+ */
+function xedc_notify_comment_insert(EntityInterface $entity): void {
+  if (!$entity instanceof CommentInterface) {
+    return;
+  }
+  // Only notify when published; moderated comments wait for update.
+  if ($entity->isPublished()) {
+    xedc_notify_safe_comment_notify($entity);
+  }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_update() for comment.
+ */
+function xedc_notify_comment_update(EntityInterface $entity): void {
+  if (!$entity instanceof CommentInterface) {
+    return;
+  }
+  $original = $entity->original ?? NULL;
+  if (!$original instanceof CommentInterface) {
+    return;
+  }
+  // Body edits on already-published comments must not re-notify.
+  if (!$original->isPublished() && $entity->isPublished()) {
+    xedc_notify_safe_comment_notify($entity);
+  }
+}
+
+/**
+ * Creates comment notifications without breaking the comment save path.
+ */
+function xedc_notify_safe_comment_notify(CommentInterface $comment): void {
+  try {
+    \Drupal::service('xedc_notify.social')->onComment($comment);
+  }
+  catch (\Throwable $e) {
+    \Drupal::logger('xedc_notify')->error('Comment notify failed for cid @cid: @m', [
+      '@cid' => (string) $comment->id(),
+      '@m' => $e->getMessage(),
+    ]);
+  }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_update() for user — security / status.
+ */
+function xedc_notify_user_update(EntityInterface $entity): void {
+  if (!$entity instanceof UserInterface) {
+    return;
+  }
+  $original = $entity->original ?? NULL;
+  if (!$original instanceof UserInterface) {
+    return;
+  }
+  $uid = (int) $entity->id();
+  if ($uid < 1) {
+    return;
+  }
+  /** @var \Drupal\xedc_notify\Service\OfficialCampaignManager $official */
+  $official = \Drupal::service('xedc_notify.official');
+
+  if ((int) $original->get('status')->value !== (int) $entity->get('status')->value) {
+    if ((int) $entity->get('status')->value === 0) {
+      $official->notifyUser(
+        $uid,
+        'account_status',
+        '账号已被停用',
+        '你的账号已被停用。如有疑问请联系管理员。',
+        'account_status:blocked:' . $uid . ':' . \Drupal::time()->getRequestTime(),
+      );
+    }
+    else {
+      $official->notifyUser(
+        $uid,
+        'account_status',
+        '账号已恢复',
+        '你的账号已恢复正常。',
+        'account_status:active:' . $uid . ':' . \Drupal::time()->getRequestTime(),
+      );
+    }
+  }
+
+  // Password hash change is a real security event when the stored hash differs.
+  if ($original->getPassword() !== $entity->getPassword() && $entity->getPassword()) {
+    $official->notifyUser(
+      $uid,
+      'security',
+      '账户安全提醒',
+      '你的登录密码已更改。如果这不是你本人操作，请立即联系管理员并重新保护账户。',
+      'security:password:' . $uid . ':' . substr(hash('sha256', (string) $entity->getPassword()), 0, 16),
+      'xedc_member.security',
+    );
+  }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_update() for node — moderation rejection.
+ */
+function xedc_notify_node_update(EntityInterface $entity): void {
+  if (!$entity->hasField('moderation_state')) {
+    return;
+  }
+  $original = $entity->original ?? NULL;
+  if (!$original || !$original->hasField('moderation_state')) {
+    return;
+  }
+  $before = (string) $original->get('moderation_state')->value;
+  $after = (string) $entity->get('moderation_state')->value;
+  if ($before === $after) {
+    return;
+  }
+  $owner = (int) $entity->getOwnerId();
+  if ($owner < 1) {
+    return;
+  }
+  /** @var \Drupal\xedc_notify\Service\OfficialCampaignManager $official */
+  $official = \Drupal::service('xedc_notify.official');
+  if ($after === 'rejected') {
+    $official->notifyUser(
+      $owner,
+      'moderation',
+      '投稿被拒绝',
+      '你的内容《' . $entity->label() . '》审核未通过。',
+      'moderation:rejected:node:' . (int) $entity->id() . ':' . $after,
+      'entity.node.canonical',
+      ['node' => (int) $entity->id()],
+    );
+  }
+  elseif (in_array($after, ['published', 'approved'], TRUE) && in_array($before, ['draft', 'review', 'needs_review', 'rejected'], TRUE)) {
+    // Optional soft info — skip to avoid noise unless previously rejected.
+    if ($before === 'rejected') {
+      $official->notifyUser(
+        $owner,
+        'moderation',
+        '违规处理结果更新',
+        '你的内容《' . $entity->label() . '》状态已更新。',
+        'moderation:restored:node:' . (int) $entity->id() . ':' . $after,
+        'entity.node.canonical',
+        ['node' => (int) $entity->id()],
+      );
+    }
+  }
+  elseif ($after === 'archived' || ($entity->isPublished() === FALSE && $original->isPublished())) {
+    if ($after !== 'rejected') {
+      $official->notifyUser(
+        $owner,
+        'moderation',
+        '内容已被撤下',
+        '你的内容《' . $entity->label() . '》已被撤下或取消发布。',
+        // Stable key: one notice per node+target-state transition, not per save.
+        'moderation:unpublished:node:' . (int) $entity->id() . ':' . ($after !== '' ? $after : 'unpublished'),
+        'xedc_member.submissions',
+      );
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_delete() cleanup.
+ */
+function xedc_notify_entity_delete(EntityInterface $entity): void {
+  if ($entity instanceof UserInterface) {
+    $uid = (int) $entity->id();
+    $db = \Drupal::database();
+    $db->delete('xedc_notification')->condition('uid', $uid)->execute();
+    $db->delete('xedc_notification_pref')->condition('uid', $uid)->execute();
+    $db->delete('xedc_follow')->condition('follower_uid', $uid)->execute();
+    $db->delete('xedc_follow')->condition('following_uid', $uid)->execute();
+    $db->delete('xedc_vip_notify_sent')->condition('uid', $uid)->execute();
+    $db->delete('xedc_pm_thread_state')->condition('uid', $uid)->execute();
+    // Leave message rows for the other participant's history integrity.
+  }
+}
+
+/**
+ * Called from LikeManager after a successful like activation.
+ */
+function xedc_notify_on_like(int $uid, $node): void {
+  if ($uid > 0 && $node) {
+    \Drupal::service('xedc_notify.social')->onLike($uid, $node);
+  }
+}
+
+/**
+ * Called from FavoriteManager after a successful favorite insert.
+ */
+function xedc_notify_on_favorite(int $uid, $node): void {
+  if ($uid > 0 && $node) {
+    \Drupal::service('xedc_notify.social')->onFavorite($uid, $node);
+  }
+}
+
+/**
+ * Called from MembershipManager after grant/extend/expire.
+ */
+function xedc_notify_on_vip(int $uid, string $action, int $starts, int $expires, int $actor = 0): void {
+  $vip = \Drupal::service('xedc_notify.vip');
+  if ($action === 'expire') {
+    $vip->onExpired($uid, $starts, $expires);
+  }
+  elseif (in_array($action, ['grant', 'extend'], TRUE)) {
+    $vip->onWrite($uid, $action, $starts, $expires, $actor);
+  }
+}

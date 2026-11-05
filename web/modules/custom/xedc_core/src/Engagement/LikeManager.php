@@ -133,6 +133,9 @@ final class LikeManager {
     }
     unset($transaction);
     $this->invalidate('node', $nid);
+    if ($liked && $uid > 0 && \Drupal::moduleHandler()->moduleExists('xedc_notify')) {
+      xedc_notify_on_like($uid, $node);
+    }
     return [
       'liked' => $liked,
       'count' => $this->count('node', $nid),
@@ -149,6 +152,9 @@ final class LikeManager {
     $added = $this->activate($uid, '', $node, $this->time->getRequestTime());
     if ($added) {
       $this->invalidate('node', (int) $node->id());
+      if (\Drupal::moduleHandler()->moduleExists('xedc_notify')) {
+        xedc_notify_on_like($uid, $node);
+      }
     }
     return $added;
   }

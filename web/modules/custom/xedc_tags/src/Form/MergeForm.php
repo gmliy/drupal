@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\xedc_tags\Form;
 
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
 use Drupal\xedc_tags\TagCatalog;
 use Drupal\xedc_tags\TagMerger;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -29,7 +32,10 @@ final class MergeForm extends AdminFormBase {
   }
 
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $form = $this->chrome($form);
+    $form = $this->chrome($form, [
+      'title' => $this->t('标签合并'),
+      'description' => $this->t('分步预览影响后再执行。默认不创建 301，来源标签不会被删除。'),
+    ]);
     $options = [];
     foreach ($this->catalog->terms() as $term) {
       $options[(int) $term['tid']] = $term['name'] . ' (' . $term['tid'] . ')';
@@ -37,50 +43,99 @@ final class MergeForm extends AdminFormBase {
     $request = $this->getRequest();
     $defaultSources = array_filter(array_map('intval', explode(',', (string) $request->query->get('sources', ''))));
     $defaultTarget = (int) $request->query->get('target', 0);
-    $form['intro'] = [
-      '#markup' => '<p>' . $this->t('合并只迁移内容上的标签引用。来源标签不会被删除，目标标签的 URL 保持不变，描述也不会被覆盖。') . '</p>',
+    $preview = $form_state->get('preview');
+    $hasPreview = is_array($preview);
+    $canExecute = $hasPreview && !empty($preview['ok']);
+
+    $form['steps'] = [
+      '#markup' => $this->stepsMarkup($hasPreview, $canExecute),
     ];
-    $form['target'] = [
+
+    $form['intro'] = $this->callout((string) $this->t('合并只迁移内容上的标签引用。目标标签的 URL 保持不变，描述也不会被覆盖。危险操作必须先预览、再勾选确认。'), 'warning');
+
+    $form['select_panel'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['xt-merge-panel']],
+    ];
+    $form['select_panel']['sources'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('第一步 · 选择来源标签'),
+      '#description' => $this->t('来源标签的引用会被迁移到目标标签；术语本身保留。'),
+      '#options' => $options,
+      '#default_value' => $defaultSources,
+      '#required' => TRUE,
+      '#prefix' => '<div class="xt-merge-sources">',
+      '#suffix' => '</div>',
+    ];
+    $form['select_panel']['target'] = [
       '#type' => 'select',
-      '#title' => $this->t('目标标签'),
+      '#title' => $this->t('第二步 · 选择目标标签'),
       '#options' => ['' => $this->t('请选择')] + $options,
       '#default_value' => $defaultTarget ?: '',
       '#required' => TRUE,
     ];
-    $form['sources'] = [
-      '#type' => 'checkboxes',
-      '#title' => $this->t('来源标签'),
-      '#options' => $options,
-      '#default_value' => $defaultSources,
-      '#required' => TRUE,
-    ];
-    $form['preview'] = [
+    $form['select_panel']['preview'] = [
       '#type' => 'submit',
-      '#value' => $this->t('预览影响'),
+      '#value' => $this->t('第三步 · 预览影响'),
       '#submit' => ['::preview'],
       '#limit_validation_errors' => [['target'], ['sources']],
+      '#attributes' => ['class' => ['button--primary']],
     ];
-    $preview = $form_state->get('preview');
-    if (is_array($preview)) {
-      $form['report'] = $this->report($preview);
-      if (!empty($preview['ok'])) {
-        $form['add_redirects'] = [
+
+    if ($hasPreview) {
+      $form['preview_panel'] = [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['xt-merge-panel', $canExecute ? '' : 'xt-merge-panel--danger']],
+      ];
+      $form['preview_panel']['heading'] = [
+        '#markup' => '<h2 class="xt-admin__section-title">' . $this->t('第四步 · 合并预览与影响范围') . '</h2>',
+      ];
+      $form['preview_panel']['report'] = $this->report($preview);
+
+      if ($canExecute) {
+        $form['confirm_panel'] = [
+          '#type' => 'container',
+          '#attributes' => ['class' => ['xt-merge-panel', 'xt-merge-panel--danger']],
+        ];
+        $form['confirm_panel']['heading'] = [
+          '#markup' => '<h2 class="xt-admin__section-title">' . $this->t('第五步 · 人工确认后执行') . '</h2>',
+        ];
+        $form['confirm_panel']['add_redirects'] = [
           '#type' => 'checkbox',
-          '#title' => $this->t('为来源标签的现有 path alias 创建到目标标签的 301（不覆盖他人别名；来源术语仍保留）'),
+          '#title' => $this->t('为来源标签的现有 path alias 创建到目标标签的 301（默认关闭；不覆盖他人别名；来源术语仍保留）'),
           '#default_value' => FALSE,
           '#access' => \Drupal::moduleHandler()->moduleExists('redirect'),
         ];
-        $form['confirm'] = [
+        $form['confirm_panel']['confirm_redirect'] = [
+          '#type' => 'checkbox',
+          '#title' => $this->t('我确认需要创建 301 跳转'),
+          '#states' => [
+            'visible' => [
+              ':input[name="add_redirects"]' => ['checked' => TRUE],
+            ],
+            'required' => [
+              ':input[name="add_redirects"]' => ['checked' => TRUE],
+            ],
+          ],
+          '#access' => \Drupal::moduleHandler()->moduleExists('redirect'),
+        ];
+        $form['confirm_panel']['confirm'] = [
           '#type' => 'checkbox',
           '#title' => $this->t('我已核对来源、目标、语言、URL、SEO 和影响数量，确认执行合并'),
         ];
-        $form['execute'] = [
+        $form['confirm_panel']['execute'] = [
           '#type' => 'submit',
           '#value' => $this->t('执行合并'),
           '#submit' => ['::executeMerge'],
+          '#attributes' => ['class' => ['button--danger']],
+        ];
+        $history = Url::fromRoute('xedc_tags.admin_history')->toString();
+        $form['confirm_panel']['rollback_hint'] = [
+          '#markup' => '<p class="xt-admin__note">' . $this->t('第六步 · 执行完成后可在 <a href="@url">操作历史</a> 查看结果并进入回滚。', ['@url' => $history]) . '</p>',
         ];
       }
     }
+
     $form['#cache']['tags'] = $this->catalog->cacheTags();
     return $form;
   }
@@ -98,11 +153,17 @@ final class MergeForm extends AdminFormBase {
       $form_state->setRebuild(TRUE);
       return;
     }
+    $addRedirects = (bool) $form_state->getValue('add_redirects');
+    if ($addRedirects && !$form_state->getValue('confirm_redirect')) {
+      $form_state->setErrorByName('confirm_redirect', $this->t('创建 301 需要二次确认。'));
+      $form_state->setRebuild(TRUE);
+      return;
+    }
     $result = $this->merger->execute(
       $this->sources($form_state),
       (int) $form_state->getValue('target'),
       (int) $this->currentUser()->id(),
-      (bool) $form_state->getValue('add_redirects'),
+      $addRedirects,
     );
     if ($result['ok']) {
       $this->messenger()->addStatus($result['message']);
@@ -121,6 +182,25 @@ final class MergeForm extends AdminFormBase {
    */
   private function sources(FormStateInterface $form_state): array {
     return array_values(array_filter(array_map('intval', (array) $form_state->getValue('sources'))));
+  }
+
+  private function stepsMarkup(bool $hasPreview, bool $canExecute): string {
+    $steps = [
+      [TRUE, $this->t('选择来源')],
+      [TRUE, $this->t('选择目标')],
+      [$hasPreview, $this->t('预览影响')],
+      [$canExecute, $this->t('确认执行')],
+    ];
+    $html = '<div class="xt-merge-steps" role="list">';
+    foreach ($steps as $i => [$active, $label]) {
+      $class = $active ? 'xt-merge-step is-active' : 'xt-merge-step';
+      $html .= '<div class="' . $class . '" role="listitem">';
+      $html .= '<span class="xt-merge-step__n">' . $this->t('步骤 @n', ['@n' => $i + 1]) . '</span>';
+      $html .= '<span class="xt-merge-step__t">' . $label . '</span>';
+      $html .= '</div>';
+    }
+    $html .= '</div>';
+    return $html;
   }
 
   /**
@@ -147,16 +227,18 @@ final class MergeForm extends AdminFormBase {
         '@count' => $preview['entities'],
         '@already' => $preview['already'],
       ]),
+      $this->t('Redirect 计划：默认不创建 301；勾选后才会为来源别名写入跳转。'),
     ];
     foreach ($preview['aliases'] as $tid => $aliases) {
       $text = is_array($aliases) ? implode('，', $aliases) : (string) $aliases;
       $items[] = $this->t('来源 @tid 的现有别名：@alias。这些别名不会批量修改。', ['@tid' => $tid, '@alias' => $text]);
     }
-    $build = [
+    return [
       '#theme' => 'item_list',
       '#items' => array_merge($items, $lines),
+      '#prefix' => '<div class="xt-merge-preview">',
+      '#suffix' => '</div>',
     ];
-    return $build;
   }
 
 }

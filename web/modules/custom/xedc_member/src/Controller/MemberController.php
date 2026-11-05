@@ -80,9 +80,25 @@ class MemberController extends ControllerBase {
       }
     }
 
+    $snapshot = \Drupal::service('xedc_core.membership')->snapshot($account);
+    $format = static function (int $timestamp) {
+      return $timestamp > 0 ? \Drupal::service('date.formatter')->format($timestamp, 'custom', 'Y-m-d') : '—';
+    };
+
     $content = [
       '#theme' => 'xedc_member_overview',
       '#account' => $this->accountData($account),
+      '#avatar' => $this->avatar($account),
+      '#membership' => [
+        'label' => $snapshot['label'],
+        'active' => $snapshot['active'],
+        'starts' => $format((int) $snapshot['starts']),
+        'expires' => $format((int) $snapshot['expires']),
+        'remaining' => (int) $snapshot['remaining'],
+        'expiring_soon' => $snapshot['expiring_soon'],
+        'expired' => $snapshot['expired'],
+        'cancelled' => $snapshot['cancelled'],
+      ],
       '#stats' => [
         'favorites' => $this->favoriteManager->countVisible($uid),
         'likes' => \Drupal::service('xedc_core.like_manager')->countVisible($uid),
@@ -267,6 +283,7 @@ class MemberController extends ControllerBase {
         'cancelled' => $snapshot['cancelled'],
         'benefits' => $snapshot['benefits'],
       ],
+      '#urls' => $this->memberUrls(),
     ]);
   }
 
@@ -390,6 +407,12 @@ class MemberController extends ControllerBase {
       '#pager' => ['#type' => 'pager'],
       '#urls' => $this->memberUrls(),
       '#create_links' => $this->submissionCreateLinks(),
+      '#guidelines' => [
+        $this->t('请先填写标题，再上传图片或压缩包。'),
+        $this->t('可先保存草稿，确认内容后再提交审核。'),
+        $this->t('退回修改后请根据处理说明调整，再重新提交。'),
+        $this->t('请勿上传无版权或不适合公开的内容。'),
+      ],
       '#empty' => $this->t('还没有投稿。'),
     ];
 
@@ -546,12 +569,25 @@ class MemberController extends ControllerBase {
     return $ordered;
   }
 
+  /**
+   * Public shell entry for sibling XEDC modules (messages, notifications).
+   */
+  public function renderShell(string $active, array $content): array {
+    return $this->shell($active, $content);
+  }
+
   protected function shell(string $active, array $content): array {
     $account = $this->loadAccount();
     $urls = $this->memberUrls();
 
     $nav = [
       ['key' => 'overview', 'label' => $this->t('概览'), 'url' => $urls['overview']],
+    ];
+    if (\Drupal::moduleHandler()->moduleExists('xedc_notify')) {
+      $nav[] = ['key' => 'messages', 'label' => $this->t('私信'), 'url' => $urls['messages']];
+      $nav[] = ['key' => 'notifications', 'label' => $this->t('通知'), 'url' => $urls['notifications']];
+    }
+    $nav = array_merge($nav, [
       ['key' => 'favorites', 'label' => $this->t('我的收藏'), 'url' => $urls['favorites']],
       ['key' => 'likes', 'label' => $this->t('我的点赞'), 'url' => $urls['likes']],
       ['key' => 'downloads', 'label' => $this->t('我的下载'), 'url' => $urls['downloads']],
@@ -560,8 +596,11 @@ class MemberController extends ControllerBase {
       ['key' => 'comments', 'label' => $this->t('我的评论'), 'url' => $urls['comments']],
       ['key' => 'submissions', 'label' => $this->t('我的投稿'), 'url' => $urls['submissions']],
       ['key' => 'profile', 'label' => $this->t('个人资料'), 'url' => $urls['profile']],
-      ['key' => 'security', 'label' => $this->t('账户安全'), 'url' => $urls['security']],
-    ];
+    ]);
+    if (\Drupal::moduleHandler()->moduleExists('xedc_core') && \Drupal::currentUser()->hasPermission('redeem xedc vip codes')) {
+      $nav[] = ['key' => 'redeem', 'label' => $this->t('VIP 卡密兑换'), 'url' => $urls['redeem']];
+    }
+    $nav[] = ['key' => 'security', 'label' => $this->t('账户安全'), 'url' => $urls['security']];
 
     return [
       '#theme' => 'xedc_member_shell',
@@ -672,7 +711,7 @@ class MemberController extends ControllerBase {
    * Builds the member center URLs.
    */
   protected function memberUrls(): array {
-    return [
+    $urls = [
       'overview' => Url::fromRoute('xedc_member.overview')->toString(),
       'favorites' => Url::fromRoute('xedc_member.favorites')->toString(),
       'likes' => Url::fromRoute('xedc_member.likes')->toString(),
@@ -688,6 +727,22 @@ class MemberController extends ControllerBase {
       'logout' => Url::fromRoute('user.logout')->toString(),
       'login' => Url::fromRoute('user.login')->toString(),
     ];
+    // Optional sibling module routes; keep member center usable if notify is off.
+    if (\Drupal::moduleHandler()->moduleExists('xedc_notify')) {
+      $urls['messages'] = Url::fromRoute('xedc_notify.messages')->toString();
+      $urls['notifications'] = Url::fromRoute('xedc_notify.notifications')->toString();
+    }
+    else {
+      $urls['messages'] = $urls['overview'];
+      $urls['notifications'] = $urls['overview'];
+    }
+    if (\Drupal::moduleHandler()->moduleExists('xedc_core') && $this->currentUser()->hasPermission('redeem xedc vip codes')) {
+      $urls['redeem'] = Url::fromRoute('xedc_core.vip_redeem')->toString();
+    }
+    else {
+      $urls['redeem'] = $urls['membership'];
+    }
+    return $urls;
   }
 
   /**
@@ -821,17 +876,70 @@ class MemberController extends ControllerBase {
   protected function submissionCard(NodeInterface $node, array $state): array {
     $node = $this->translatedNode($node);
     $review_note = '';
-    if ($node->hasField('revision_log') && in_array($state['id'], ['changes_requested', 'rejected'], TRUE)) {
-      $review_note = (string) $node->get('revision_log')->value;
+    if ($node->hasField('revision_log') && in_array($state['id'], ['changes_requested', 'rejected', 'unpublished'], TRUE)) {
+      $review_note = trim((string) $node->get('revision_log')->value);
     }
 
+    $destination = Url::fromRoute('xedc_member.submissions')->toString();
     $edit_url = '';
     if ($node->access('update')) {
       $edit_url = Url::fromRoute('entity.node.edit_form', ['node' => $node->id()], [
-        'query' => ['destination' => Url::fromRoute('xedc_member.submissions')->toString()],
+        'query' => ['destination' => $destination],
       ])->toString();
     }
-    $view_url = $node->isPublished() ? $node->toUrl()->toString() : '';
+    $view_url = '';
+    if ($node->access('view') && ($node->isPublished() || in_array($state['id'], ['published'], TRUE))) {
+      $view_url = $node->toUrl()->toString();
+    }
+
+    $actions = [];
+    switch ($state['id']) {
+      case 'draft':
+        if ($edit_url !== '') {
+          $actions[] = ['label' => $this->t('继续编辑'), 'url' => $edit_url, 'primary' => TRUE];
+        }
+        break;
+
+      case 'needs_review':
+        if ($view_url !== '') {
+          $actions[] = ['label' => $this->t('查看详情'), 'url' => $view_url, 'primary' => FALSE];
+        }
+        elseif ($edit_url !== '') {
+          $actions[] = ['label' => $this->t('查看详情'), 'url' => $edit_url, 'primary' => FALSE];
+        }
+        break;
+
+      case 'changes_requested':
+        if ($edit_url !== '') {
+          $actions[] = ['label' => $this->t('修改并重新提交'), 'url' => $edit_url, 'primary' => TRUE];
+        }
+        break;
+
+      case 'published':
+        if ($view_url !== '') {
+          $actions[] = ['label' => $this->t('查看内容'), 'url' => $view_url, 'primary' => TRUE];
+        }
+        break;
+
+      case 'rejected':
+      case 'unpublished':
+        if ($edit_url !== '') {
+          $actions[] = ['label' => $this->t('查看详情'), 'url' => $edit_url, 'primary' => FALSE];
+        }
+        elseif ($view_url !== '') {
+          $actions[] = ['label' => $this->t('查看详情'), 'url' => $view_url, 'primary' => FALSE];
+        }
+        break;
+
+      default:
+        if ($edit_url !== '') {
+          $actions[] = ['label' => $this->t('编辑'), 'url' => $edit_url, 'primary' => TRUE];
+        }
+        elseif ($view_url !== '') {
+          $actions[] = ['label' => $this->t('查看'), 'url' => $view_url, 'primary' => FALSE];
+        }
+        break;
+    }
 
     return [
       'nid' => (int) $node->id(),
@@ -845,6 +953,7 @@ class MemberController extends ControllerBase {
       'review_note' => $review_note,
       'edit_url' => $edit_url,
       'view_url' => $view_url,
+      'actions' => $actions,
     ];
   }
 
@@ -897,17 +1006,45 @@ class MemberController extends ControllerBase {
    * Builds new submission links.
    */
   protected function submissionCreateLinks(): array {
+    $photo = Url::fromRoute('node.add', ['node_type' => 'photo'])->toString();
     return [
       [
-        'label' => $this->t('投稿美图'),
-        'url' => Url::fromRoute('node.add', ['node_type' => 'photo'])->toString(),
+        'key' => 'photo',
+        'label' => $this->t('图片投稿'),
+        'description' => $this->t('上传单张或少量图片，填写标题与描述。'),
+        'icon' => '图',
+        'url' => $photo,
       ],
       [
-        'label' => $this->t('投稿视频'),
+        'key' => 'gallery',
+        'label' => $this->t('图片集投稿'),
+        'description' => $this->t('一次选择多张图片，适合成组作品。'),
+        'icon' => '集',
+        'url' => Url::fromRoute('node.add', ['node_type' => 'photo'], [
+          'query' => ['upload' => 'gallery'],
+        ])->toString(),
+      ],
+      [
+        'key' => 'archive',
+        'label' => $this->t('压缩包投稿'),
+        'description' => $this->t('上传 ZIP / 7z，适合大批量图片。'),
+        'icon' => '包',
+        'url' => Url::fromRoute('node.add', ['node_type' => 'photo'], [
+          'query' => ['upload' => 'archive'],
+        ])->toString(),
+      ],
+      [
+        'key' => 'video',
+        'label' => $this->t('视频投稿'),
+        'description' => $this->t('上传视频文件或填写视频链接。'),
+        'icon' => '影',
         'url' => Url::fromRoute('node.add', ['node_type' => 'video'])->toString(),
       ],
       [
-        'label' => $this->t('投稿文章'),
+        'key' => 'article',
+        'label' => $this->t('文章投稿'),
+        'description' => $this->t('撰写图文内容并提交审核。'),
+        'icon' => '文',
         'url' => Url::fromRoute('node.add', ['node_type' => 'article'])->toString(),
       ],
     ];

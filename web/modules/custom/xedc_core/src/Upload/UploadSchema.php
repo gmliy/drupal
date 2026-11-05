@@ -37,6 +37,9 @@ final class UploadSchema {
           'final_uri' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
           'client_upload_id' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
           'reimport' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          // none | pending | completed | failed — independent of upload cancel success.
+          'cleanup_status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'none'],
+          'cleanup_error' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
           'error' => ['type' => 'text', 'not null' => FALSE],
           'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
           'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
@@ -46,6 +49,7 @@ final class UploadSchema {
           'uid_status' => ['uid', 'status'],
           'uid_client' => ['uid', 'client_upload_id'],
           'changed' => ['changed'],
+          'cleanup' => ['status', 'cleanup_status'],
         ],
       ],
       'xedc_blob_claim' => [

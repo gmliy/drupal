@@ -10,6 +10,9 @@ use Drupal\Core\Field\FieldStorageDefinitionInterface;
 
 /**
  * Finds references that must block a delete or be migrated during a merge.
+ *
+ * Only fields that can target the tags vocabulary are migratable. Other
+ * taxonomy references are ignored for merge (they cannot hold tags tids).
  */
 final class TagGuard {
 
@@ -85,7 +88,16 @@ final class TagGuard {
   }
 
   /**
-   * @return array<int, array{entity_type: string, field: string, table: string, column: string, migratable: bool}>
+   * Declares every entity_reference field considered for tags integrity.
+   *
+   * @return array<int, array{entity_type: string, field: string, table: string, column: string, migratable: bool, allows_tags: bool, bundles: string[]}>
+   */
+  public function referenceScope(): array {
+    return $this->referenceFields();
+  }
+
+  /**
+   * @return array<int, array{entity_type: string, field: string, table: string, column: string, migratable: bool, allows_tags: bool, bundles: string[]}>
    */
   private function referenceFields(): array {
     $out = [];
@@ -111,17 +123,43 @@ final class TagGuard {
         if (!$this->database->schema()->tableExists($table) || !$this->database->schema()->fieldExists($table, $column)) {
           continue;
         }
-        $migratable = !($entityType === 'taxonomy_term' && $fieldName === 'parent');
+        $bundles = $this->bundlesAllowingTags($entityType, $fieldName);
+        $allowsTags = $bundles !== [];
+        // parent is structural; never auto-migrate.
+        $migratable = $allowsTags && !($entityType === 'taxonomy_term' && $fieldName === 'parent');
         $out[] = [
           'entity_type' => $entityType,
           'field' => $fieldName,
           'table' => $table,
           'column' => $column,
           'migratable' => $migratable,
+          'allows_tags' => $allowsTags,
+          'bundles' => $bundles,
         ];
       }
     }
     return $out;
+  }
+
+  /**
+   * @return string[]
+   */
+  private function bundlesAllowingTags(string $entityType, string $fieldName): array {
+    $map = $this->fields->getFieldMapByFieldType('entity_reference');
+    $bundles = array_keys($map[$entityType][$fieldName]['bundles'] ?? []);
+    $allowed = [];
+    foreach ($bundles as $bundle) {
+      $definitions = $this->fields->getFieldDefinitions($entityType, $bundle);
+      if (!isset($definitions[$fieldName])) {
+        continue;
+      }
+      $targets = $definitions[$fieldName]->getSetting('handler_settings')['target_bundles'] ?? NULL;
+      // NULL / empty means any vocabulary is allowed.
+      if ($targets === NULL || $targets === [] || isset($targets[TagCatalog::VOCAB]) || in_array(TagCatalog::VOCAB, (array) $targets, TRUE)) {
+        $allowed[] = $bundle;
+      }
+    }
+    return $allowed;
   }
 
   /**

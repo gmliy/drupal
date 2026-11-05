@@ -1,5 +1,5 @@
 xedc_tags.admin_overview_tab:
-  title: '总览'
+  title: '仪表盘'
   route_name: xedc_tags.admin_overview
   base_route: xedc_tags.admin_overview
   weight: 0

@@ -105,9 +105,17 @@ final class OpenAiChatClient {
     }
     $content = $this->content(is_array($decoded) ? $decoded : NULL);
     if ($content === NULL) {
-      return ChatResponse::failure($model->providerId, $model->modelName, 'bad_response', '模型返回里没有文本内容。', $duration, FALSE, FALSE, $prompt, $completion);
+      return ChatResponse::failure($model->providerId, $model->modelName, 'bad_response', '模型返回里没有文本内容。', $duration, FALSE, FALSE, $prompt, $completion, $this->finishReason(is_array($decoded) ? $decoded : NULL));
     }
-    return new ChatResponse(TRUE, $content, $prompt, $completion, $duration, $model->providerId, $model->modelName, '', '', FALSE, FALSE);
+    return new ChatResponse(TRUE, $content, $prompt, $completion, $duration, $model->providerId, $model->modelName, '', '', FALSE, FALSE, $this->finishReason(is_array($decoded) ? $decoded : NULL));
+  }
+
+  /**
+   * OpenAI-compatible finish_reason from the first choice, if present.
+   */
+  private function finishReason(?array $decoded): string {
+    $reason = $decoded['choices'][0]['finish_reason'] ?? '';
+    return is_string($reason) ? $reason : '';
   }
 
   /**

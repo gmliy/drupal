@@ -1033,3 +1033,59 @@ function xedc_core_update_10017(): string {
   $still = (int) $database->query('SELECT COUNT(*) FROM {xedc_image_file} WHERE original_bytes = 0')->fetchField();
   return '原图大小回填：开始缺失 ' . $missing . '，本次可靠恢复 ' . $fixed . '，仍缺失 ' . $still . '。没有伪造大小。';
 }
+
+/**
+ * Adds upload-session cleanup status for cancelled temp files.
+ *
+ * Existing sessions keep cleanup_status=none. No historical files are deleted.
+ */
+function xedc_core_update_10018(): string {
+  $schema = \Drupal::database()->schema();
+  $tables = \Drupal\xedc_core\Upload\UploadSchema::tables();
+  if (!$schema->tableExists('xedc_upload_session') || !isset($tables['xedc_upload_session'])) {
+    return '没有上传会话表，跳过清理状态字段。';
+  }
+  $added = [];
+  foreach (['cleanup_status', 'cleanup_error'] as $field) {
+    if ($schema->fieldExists('xedc_upload_session', $field) || !isset($tables['xedc_upload_session']['fields'][$field])) {
+      continue;
+    }
+    $schema->addField('xedc_upload_session', $field, $tables['xedc_upload_session']['fields'][$field]);
+    $added[] = 'xedc_upload_session.' . $field;
+  }
+  if (!$schema->indexExists('xedc_upload_session', 'cleanup') && isset($tables['xedc_upload_session']['indexes']['cleanup'])) {
+    $schema->addIndex('xedc_upload_session', 'cleanup', ['status', 'cleanup_status'], $tables['xedc_upload_session']);
+    $added[] = 'xedc_upload_session.cleanup';
+  }
+  return $added ? '已增加上传清理状态：' . implode(', ', $added) . '。历史会话未改写。' : '上传清理状态字段已存在，未改动。';
+}
+
+/**
+ * Creates VIP redeem code tables and grants redeem permission.
+ */
+function xedc_core_update_10019(): string {
+  $schema = \Drupal::database()->schema();
+  $tables = \Drupal\xedc_core\Engagement\EngagementSchema::tables();
+  $created = [];
+  foreach (['xedc_vip_code_batch', 'xedc_vip_code'] as $name) {
+    if (!$schema->tableExists($name) && isset($tables[$name])) {
+      $schema->createTable($name, $tables[$name]);
+      $created[] = $name;
+    }
+  }
+  $role = \Drupal\user\Entity\Role::load('authenticated');
+  if ($role && !$role->hasPermission('redeem xedc vip codes')) {
+    $role->grantPermission('redeem xedc vip codes');
+    $role->save();
+    $created[] = 'permission:redeem xedc vip codes';
+  }
+  $admin = \Drupal\user\Entity\Role::load('administrator');
+  if ($admin && !$admin->hasPermission('administer xedc vip codes')) {
+    $admin->grantPermission('administer xedc vip codes');
+    $admin->save();
+    $created[] = 'permission:administer xedc vip codes';
+  }
+  return $created
+    ? 'VIP 卡密：' . implode(', ', $created)
+    : 'VIP 卡密表与权限已存在，未改动。';
+}

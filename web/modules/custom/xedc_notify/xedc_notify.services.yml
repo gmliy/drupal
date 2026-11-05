@@ -1,0 +1,77 @@
+services:
+  xedc_notify.identity:
+    class: Drupal\xedc_notify\Service\MemberIdentity
+    arguments:
+      - '@entity_type.manager'
+      - '@xedc_member.alias_manager'
+      - '@file_url_generator'
+
+  xedc_notify.messages:
+    class: Drupal\xedc_notify\Service\MessageManager
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@config.factory'
+      - '@xedc_notify.identity'
+
+  xedc_notify.notifications:
+    class: Drupal\xedc_notify\Service\NotificationManager
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@xedc_notify.identity'
+
+  xedc_notify.preferences:
+    class: Drupal\xedc_notify\Service\PreferenceManager
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@config.factory'
+
+  xedc_notify.follow:
+    class: Drupal\xedc_notify\Service\FollowManager
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@xedc_notify.identity'
+
+  xedc_notify.social:
+    class: Drupal\xedc_notify\Service\SocialNotifier
+    arguments:
+      - '@xedc_notify.notifications'
+      - '@xedc_notify.preferences'
+      - '@xedc_notify.identity'
+
+  xedc_notify.vip:
+    class: Drupal\xedc_notify\Service\VipNotifier
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@config.factory'
+      - '@xedc_core.membership'
+      - '@xedc_notify.notifications'
+      - '@entity_type.manager'
+
+  xedc_notify.official:
+    class: Drupal\xedc_notify\Service\OfficialCampaignManager
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@config.factory'
+      - '@queue'
+      - '@entity_type.manager'
+      - '@xedc_core.membership'
+      - '@xedc_notify.notifications'
+
+  xedc_notify.lazy_builders:
+    class: Drupal\xedc_notify\NotifyLazyBuilders
+    arguments:
+      - '@current_user'
+      - '@xedc_notify.messages'
+      - '@xedc_notify.notifications'
+
+  xedc_notify.profile_actions:
+    class: Drupal\xedc_notify\ProfileActionsBuilder
+    arguments:
+      - '@current_user'
+      - '@xedc_notify.follow'

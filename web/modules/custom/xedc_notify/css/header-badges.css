@@ -1,0 +1,26 @@
+.xn-notify-icon {
+  position: relative;
+}
+.xn-notify-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.xn-notify-count {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  font-weight: 600;
+}
+:is(html[data-bs-theme=dark], html[data-theme=dark]) .xn-notify-count {
+  background: #f87171;
+  color: #18181b;
+}

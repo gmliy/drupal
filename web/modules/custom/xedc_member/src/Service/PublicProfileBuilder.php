@@ -142,6 +142,10 @@ class PublicProfileBuilder implements TrustedCallbackInterface {
         '#lazy_builder' => ['xedc_member.public_profile:ownerLink', [(string) $uid]],
         '#create_placeholder' => TRUE,
       ] : [],
+      '#profile_actions' => \Drupal::moduleHandler()->moduleExists('xedc_notify') ? [
+        '#lazy_builder' => ['xedc_notify.profile_actions:actions', [(string) $uid]],
+        '#create_placeholder' => TRUE,
+      ] : [],
       '#attached' => [
         'library' => ['xedc/public_profile'],
       ],

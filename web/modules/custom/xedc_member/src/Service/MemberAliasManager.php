@@ -51,6 +51,10 @@ class MemberAliasManager {
     'profile' => '/member/profile',
     'security' => '/member/security',
     'settings' => '/member/security',
+    'messages' => '/member/messages',
+    'notifications' => '/member/notifications',
+    'notification-settings' => '/member/notifications',
+    'redeem' => '/member/redeem',
   ];
 
   /**
@@ -236,10 +240,29 @@ class MemberAliasManager {
 
   /**
    * Maps a vanity suffix to an internal member path.
+   *
+   * Supports nested suffixes such as messages/12 or messages/to/3 by matching
+   * the longest known section prefix and appending the remainder.
    */
   public function internalPath(string $suffix): ?string {
     $suffix = trim($suffix, '/');
-    return $this->sections[$suffix] ?? NULL;
+    if ($suffix === '') {
+      return $this->sections[''] ?? '/member';
+    }
+    if (isset($this->sections[$suffix])) {
+      return $this->sections[$suffix];
+    }
+    $parts = explode('/', $suffix);
+    for ($len = count($parts) - 1; $len >= 1; $len--) {
+      $candidate = implode('/', array_slice($parts, 0, $len));
+      if (!isset($this->sections[$candidate])) {
+        continue;
+      }
+      $base = $this->sections[$candidate];
+      $rest = implode('/', array_slice($parts, $len));
+      return $rest === '' ? $base : rtrim($base, '/') . '/' . $rest;
+    }
+    return NULL;
   }
 
   /**

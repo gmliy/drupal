@@ -1,0 +1,98 @@
+{#
+/**
+ * @file
+ * Member-facing node add/edit form. Staff-only fields are excluded upstream.
+ */
+#}
+<div class="xm-submit">
+  <header class="xm-submit__head">
+    <div>
+      <p class="xm-submit__eyebrow"><a href="{{ xm_back_url }}">{{ '返回投稿中心'|t }}</a></p>
+      <h1 class="xm-submit__title">{{ xm_title }}</h1>
+      <p class="xm-submit__lead">{{ '填写必要信息后保存草稿，或直接提交审核。'|t }}</p>
+    </div>
+  </header>
+
+  <div class="xm-submit__body xm-submit__body--{{ xm_bundle }}">
+    {% if xm_bundle == 'photo' %}
+      <section class="xm-submit__section">
+        <h2 class="xm-submit__section-title">{{ '基本信息'|t }}</h2>
+        {{ form.title }}
+        {{ form.field_summary }}
+      </section>
+      <section class="xm-submit__section xm-submit__section--media">
+        <h2 class="xm-submit__section-title">{{ '图片内容'|t }}</h2>
+        <p class="xm-submit__hint">{{ '可用媒体库添加单张图片，或使用下方批量上传 / 压缩包。'|t }}</p>
+        {{ form.field_cover_image }}
+        {{ form.field_images }}
+        {{ form.xedc_import }}
+      </section>
+      <section class="xm-submit__section">
+        <h2 class="xm-submit__section-title">{{ '分类与标签'|t }}</h2>
+        {{ form.field_categories }}
+        {{ form.field_model }}
+        {{ form.field_tags }}
+      </section>
+    {% elseif xm_bundle == 'video' %}
+      <section class="xm-submit__section">
+        <h2 class="xm-submit__section-title">{{ '基本信息'|t }}</h2>
+        {{ form.title }}
+        {{ form.field_body }}
+      </section>
+      <section class="xm-submit__section xm-submit__section--media">
+        <h2 class="xm-submit__section-title">{{ '视频内容'|t }}</h2>
+        {{ form.field_video_cover }}
+        {{ form.field_video_file }}
+        {{ form.field_video_url }}
+        {{ form.field_duration }}
+      </section>
+      <section class="xm-submit__section">
+        <h2 class="xm-submit__section-title">{{ '分类与标签'|t }}</h2>
+        {{ form.field_categories }}
+        {{ form.field_tags }}
+      </section>
+    {% elseif xm_bundle == 'article' %}
+      <section class="xm-submit__section">
+        <h2 class="xm-submit__section-title">{{ '基本信息'|t }}</h2>
+        {{ form.title }}
+        {{ form.field_cover }}
+        {{ form.field_summary }}
+        {{ form.field_body }}
+      </section>
+      <section class="xm-submit__section">
+        <h2 class="xm-submit__section-title">{{ '分类与标签'|t }}</h2>
+        {{ form.field_categories }}
+        {{ form.field_tags }}
+      </section>
+      <section class="xm-submit__section">
+        <h2 class="xm-submit__section-title">{{ '来源（可选）'|t }}</h2>
+        {{ form.field_author }}
+        {{ form.field_source }}
+        {{ form.field_source_url }}
+      </section>
+    {% else %}
+      {{ form.title }}
+    {% endif %}
+
+    {% if xm_leftover %}
+      <section class="xm-submit__section xm-submit__section--extra">
+        {% for key in xm_leftover %}
+          {{ attribute(form, key) }}
+        {% endfor %}
+      </section>
+    {% endif %}
+
+    <section class="xm-submit__section xm-submit__section--actions">
+      <h2 class="xm-submit__section-title">{{ '提交'|t }}</h2>
+      {{ form.moderation_state }}
+      <div class="xm-submit__actions">{{ form.actions }}</div>
+    </section>
+  </div>
+</div>
+<div hidden>
+  {{ form.form_build_id }}
+  {{ form.form_token }}
+  {{ form.form_id }}
+  {% if form.changed %}{{ form.changed }}{% endif %}
+  {% if form.footer %}{{ form.footer }}{% endif %}
+</div>

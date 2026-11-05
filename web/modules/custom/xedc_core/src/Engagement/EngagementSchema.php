@@ -144,6 +144,53 @@ final class EngagementSchema {
           'content_id' => ['content_id'],
         ],
       ],
+      'xedc_vip_code_batch' => [
+        'description' => 'VIP redeem code batches. Plaintext codes are never stored here.',
+        'fields' => [
+          'batch_id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+          'batch_uuid' => ['type' => 'varchar', 'length' => 36, 'not null' => TRUE, 'default' => ''],
+          'vip_days' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'quantity' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'expires_at' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'note' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+          'created_uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'active'],
+        ],
+        'primary key' => ['batch_id'],
+        'unique keys' => [
+          'batch_uuid' => ['batch_uuid'],
+        ],
+        'indexes' => [
+          'created' => ['created'],
+          'status_created' => ['status', 'created'],
+        ],
+      ],
+      'xedc_vip_code' => [
+        'description' => 'VIP redeem codes stored as hashes only.',
+        'fields' => [
+          'code_id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+          'batch_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'code_hash' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+          'code_prefix' => ['type' => 'varchar', 'length' => 8, 'not null' => TRUE, 'default' => ''],
+          'status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'unused'],
+          'vip_days' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'expires_at' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'redeemed_uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'redeemed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+          'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+        ],
+        'primary key' => ['code_id'],
+        'unique keys' => [
+          'code_hash' => ['code_hash'],
+        ],
+        'indexes' => [
+          'batch_status' => ['batch_id', 'status'],
+          'status' => ['status'],
+          'redeemed_uid' => ['redeemed_uid'],
+          'prefix' => ['code_prefix'],
+        ],
+      ],
     ];
   }
 

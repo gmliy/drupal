@@ -1,0 +1,99 @@
+{#
+  Smart tag admin dashboard. Values come from TagCatalog / audit / tasks.
+#}
+<div class="xt-admin xt-admin--dashboard">
+  <header class="xt-admin__header xt-admin__header--dashboard">
+    <div class="xt-admin__header-main">
+      <p class="xt-admin__eyebrow">{{ '内容管理'|t }}</p>
+      <h1 class="xt-admin__title">{{ '标签统计'|t }}</h1>
+      <p class="xt-admin__lede">{{ '统一管理标签、分析标签质量、维护内容关联。'|t }}</p>
+      <div class="xt-admin__meta">
+        <span class="xt-admin__meta-item">
+          <span class="xt-admin__meta-label">{{ '最近扫描'|t }}</span>
+          <span class="xt-admin__meta-value">{{ scan.last_label }}</span>
+        </span>
+        <span class="xt-admin__meta-item">
+          <span class="xt-admin__meta-label">{{ '扫描状态'|t }}</span>
+          <span class="xt-badge xt-badge--{{ scan.status_tone }}">{{ scan.status_label }}</span>
+        </span>
+      </div>
+    </div>
+    <div class="xt-admin__actions">
+      {% if refresh_url %}
+        <a class="button button--small" href="{{ refresh_url }}">{{ '刷新统计'|t }}</a>
+      {% endif %}
+      {% if scan_url %}
+        <a class="button button--primary button--small" href="{{ scan_url }}">{{ '执行扫描'|t }}</a>
+      {% elseif scan_locked %}
+        <span class="button button--small is-disabled" aria-disabled="true">{{ '执行扫描'|t }}</span>
+      {% endif %}
+    </div>
+  </header>
+
+  <section class="xt-admin__section" aria-labelledby="xt-stats-heading">
+    <h2 id="xt-stats-heading" class="xt-admin__section-title">{{ '核心统计'|t }}</h2>
+    <div class="xt-stat-grid">
+      {% for item in metrics %}
+        <a class="xt-stat" href="{{ item.url }}">
+          <span class="xt-stat__label">{{ item.label }}</span>
+          <span class="xt-stat__value">{{ item.value }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="xt-admin__section" aria-labelledby="xt-shortcuts-heading">
+    <h2 id="xt-shortcuts-heading" class="xt-admin__section-title">{{ '管理快捷入口'|t }}</h2>
+    {% if shortcuts is empty %}
+      <div class="xt-card">
+        <p class="xt-empty">{{ '当前账号没有可用的标签管理入口。'|t }}</p>
+      </div>
+    {% else %}
+      <div class="xt-shortcut-grid">
+        {% for item in shortcuts %}
+          <a class="xt-shortcut" href="{{ item.url }}">
+            <span class="xt-shortcut__icon" aria-hidden="true">{{ item.icon }}</span>
+            <span class="xt-shortcut__body">
+              <span class="xt-shortcut__title">{{ item.title }}</span>
+              <span class="xt-shortcut__desc">{{ item.description }}</span>
+            </span>
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="xt-admin__section" aria-labelledby="xt-activity-heading">
+    <h2 id="xt-activity-heading" class="xt-admin__section-title">{{ '最近活动'|t }}</h2>
+    <div class="xt-card xt-card--flush">
+      {% if activity is empty %}
+        <p class="xt-empty">{{ '还没有标签操作记录。'|t }}</p>
+      {% else %}
+        <div class="xt-table-wrap">
+          <table class="xt-table">
+            <thead>
+              <tr>
+                <th>{{ '操作类型'|t }}</th>
+                <th>{{ '标签'|t }}</th>
+                <th>{{ '操作者'|t }}</th>
+                <th>{{ '时间'|t }}</th>
+                <th>{{ '状态'|t }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in activity %}
+                <tr>
+                  <td>{{ row.op }}</td>
+                  <td>{{ row.tag }}</td>
+                  <td>{{ row.actor }}</td>
+                  <td class="xt-num">{{ row.time }}</td>
+                  <td><span class="xt-badge xt-badge--{{ row.status_tone }}">{{ row.status }}</span></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+</div>

@@ -1,4 +1,11 @@
 services:
+  xedc_member.submission_theme_negotiator:
+    class: Drupal\xedc_member\Theme\MemberSubmissionThemeNegotiator
+    arguments:
+      - '@config.factory'
+    tags:
+      - { name: theme_negotiator, priority: 100 }
+
   xedc_member.lazy_builders:
     class: Drupal\xedc_member\MemberLazyBuilders
     arguments:

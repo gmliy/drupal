@@ -21,10 +21,11 @@ final class ChatResponse {
     public readonly string $errorMessage,
     public readonly bool $retryable,
     public readonly bool $fallbackEligible,
+    public readonly string $finishReason = '',
   ) {}
 
-  public static function failure(string $providerId, string $modelName, string $code, string $message, int $durationMs, bool $retryable, bool $fallbackEligible, int $promptTokens = 0, int $completionTokens = 0): self {
-    return new self(FALSE, '', $promptTokens, $completionTokens, $durationMs, $providerId, $modelName, $code, Redactor::text($message), $retryable, $fallbackEligible);
+  public static function failure(string $providerId, string $modelName, string $code, string $message, int $durationMs, bool $retryable, bool $fallbackEligible, int $promptTokens = 0, int $completionTokens = 0, string $finishReason = ''): self {
+    return new self(FALSE, '', $promptTokens, $completionTokens, $durationMs, $providerId, $modelName, $code, Redactor::text($message), $retryable, $fallbackEligible, $finishReason);
   }
 
 }

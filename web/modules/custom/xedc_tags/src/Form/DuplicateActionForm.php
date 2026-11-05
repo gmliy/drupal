@@ -33,13 +33,14 @@ final class DuplicateActionForm extends AdminFormBase {
   }
 
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $form = $this->chrome($form);
-    $form['intro'] = [
-      '#markup' => '<p>' . $this->t('完全相同和规范化后相同的名称会建议合并，但仍要人工确认。词序、包含关系和字符相近只作提示，不代表可以合并。本次没有接入语义模型。') . '</p>',
-    ];
+    $form = $this->chrome($form, [
+      'title' => $this->t('重复标签检测'),
+      'description' => $this->t('发现近似重复标签，并在确认后进入合并预览。'),
+    ]);
+    $form['intro'] = $this->callout((string) $this->t('完全相同和规范化后相同的名称会建议合并，但仍要人工确认。词序、包含关系和字符相近只作提示，不代表可以合并。本页不调用语义模型。'));
     $groups = $this->duplicates->groups();
     if (!$groups) {
-      $form['empty'] = ['#markup' => '<p>' . $this->t('当前没有待处理的重复或相似组。') . '</p>'];
+      $form['empty'] = ['#markup' => '<div class="xt-card"><p class="xt-empty">' . $this->t('当前没有待处理的重复或相似组。') . '</p></div>'];
       return $form;
     }
     $previews = $this->previews($groups);
@@ -51,12 +52,15 @@ final class DuplicateActionForm extends AdminFormBase {
       foreach ($group['terms'] as $term) {
         $tid = (int) $term['tid'];
         $rows[] = [
-          $term['name'],
-          (string) $tid,
-          (string) $term['all'],
-          (string) $term['photo'] . ' / ' . (string) $term['video'] . ' / ' . (string) $term['article'],
-          implode('、', array_slice($previews[$tid] ?? [], 0, 3)),
-          $group['keep_tid'] === $tid ? $this->t('建议保留') : '',
+          ['data' => ['#markup' => $this->tagNameMarkup((string) $term['name'], $tid)]],
+          ['data' => ['#markup' => '<span class="xt-num">' . (int) $term['all'] . '</span>']],
+          $this->t('图 @p · 视 @v · 文 @a', [
+            '@p' => (int) $term['photo'],
+            '@v' => (int) $term['video'],
+            '@a' => (int) $term['article'],
+          ]),
+          implode('、', array_slice($previews[$tid] ?? [], 0, 3)) ?: '—',
+          $group['keep_tid'] === $tid ? ['data' => ['#markup' => $this->badge((string) $this->t('建议保留'), 'success')]] : '—',
         ];
       }
       $form['groups'][$id] = [
@@ -64,12 +68,11 @@ final class DuplicateActionForm extends AdminFormBase {
         '#title' => implode('、', $group['reasons']),
         '#open' => TRUE,
       ];
-      $form['groups'][$id]['meta'] = [
-        '#markup' => '<p>' . $this->t('风险：@risk', ['@risk' => $group['risk']]) . '</p>',
-      ];
+      $form['groups'][$id]['meta'] = $this->callout((string) $this->t('风险：@risk', ['@risk' => $group['risk']]), 'warning');
       $form['groups'][$id]['table'] = [
         '#type' => 'table',
-        '#header' => [$this->t('标签'), $this->t('ID'), $this->t('内容'), $this->t('图片 / 视频 / 文章'), $this->t('内容预览'), $this->t('建议')],
+        '#attributes' => ['class' => ['xt-table']],
+        '#header' => [$this->t('标签'), $this->t('使用数量'), $this->t('内容类型'), $this->t('内容预览'), $this->t('建议')],
         '#rows' => $rows,
       ];
       $tids = array_map(static fn(array $term): int => (int) $term['tid'], $group['terms']);

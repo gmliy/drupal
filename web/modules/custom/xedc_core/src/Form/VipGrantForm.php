@@ -4,16 +4,33 @@ declare(strict_types=1);
 
 namespace Drupal\xedc_core\Form;
 
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\user\UserInterface;
 use Drupal\xedc_core\Engagement\MembershipManager;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Grants, extends or cancels VIP for one member.
  */
 final class VipGrantForm extends FormBase {
+
+  public function __construct(
+    protected EntityTypeManagerInterface $entityTypeManager,
+    protected MembershipManager $membership,
+  ) {}
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container): static {
+    return new static(
+      $container->get('entity_type.manager'),
+      $container->get('xedc_core.membership'),
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -27,11 +44,12 @@ final class VipGrantForm extends FormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $form['name'] = [
-      '#type' => 'entity_autocomplete',
-      '#title' => $this->t('会员'),
-      '#target_type' => 'user',
+      '#type' => 'textfield',
+      '#title' => $this->t('用户名'),
       '#required' => TRUE,
-      '#description' => $this->t('按用户名选择。不会使用前端传入的用户 ID。'),
+      '#maxlength' => 60,
+      '#attributes' => ['autocomplete' => 'off'],
+      '#description' => $this->t('输入会员登录用户名。系统会查询真实用户实体后再开通，不会把用户名当成 UID。'),
     ];
     $form['operation'] = [
       '#type' => 'radios',
@@ -87,9 +105,10 @@ final class VipGrantForm extends FormBase {
       '#title' => $this->t('备注'),
       '#maxlength' => 255,
     ];
+    $form['actions']['#type'] = 'actions';
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => $this->t('保存'),
+      '#value' => $this->t('开通 VIP'),
       '#button_type' => 'primary',
     ];
     return $form;
@@ -99,12 +118,18 @@ final class VipGrantForm extends FormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state): void {
-    $uid = (int) $form_state->getValue('name');
-    $user = $this->entityTypeManager()->getStorage('user')->load($uid);
-    if (!$user instanceof UserInterface || $user->isAnonymous()) {
-      $form_state->setErrorByName('name', $this->t('请选择一个会员。'));
+    $user = $this->resolveMember($form_state->getValue('name'));
+    if (!$user instanceof UserInterface) {
+      $form_state->setErrorByName('name', $this->t('找不到该用户名对应的会员，请确认用户名后重试。'));
       return;
     }
+    if (!$user->isActive()) {
+      $form_state->setErrorByName('name', $this->t('该账号已停用，不能开通或调整 VIP。'));
+      return;
+    }
+    $form_state->set('vip_uid', (int) $user->id());
+    $form_state->set('vip_account_name', $user->getAccountName());
+
     $operation = (string) $form_state->getValue('operation');
     $preset = (string) $form_state->getValue('preset');
     if ($operation === 'grant' && $preset === 'custom') {
@@ -126,40 +151,76 @@ final class VipGrantForm extends FormBase {
     if ($operation === 'extend' && !in_array((int) $preset, MembershipManager::PRESETS, TRUE)) {
       $form_state->setErrorByName('preset', $this->t('延长时请选择 7、30、90 或 365 天。'));
     }
+    if ($operation === 'grant' && $preset !== 'custom' && $this->membership->isActive($user)) {
+      $snap = $this->membership->snapshot($user);
+      $expiresText = $snap['expires'] > 0
+        ? \Drupal::service('date.formatter')->format($snap['expires'], 'custom', 'Y-m-d H:i')
+        : '-';
+      $form_state->setErrorByName('operation', $this->t('该会员已是有效 VIP（到期：@expires）。请使用「延长」操作，或选择「自定义日期」明确重设有效期。', [
+        '@expires' => $expiresText,
+      ]));
+    }
   }
 
   /**
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $uid = (int) $form_state->getValue('name');
+    $uid = (int) $form_state->get('vip_uid');
     $actor = (int) $this->currentUser()->id();
     $note = trim((string) $form_state->getValue('note'));
     $operation = (string) $form_state->getValue('operation');
-    /** @var \Drupal\xedc_core\Engagement\MembershipManager $membership */
-    $membership = \Drupal::service('xedc_core.membership');
-    if ($operation === 'cancel') {
-      $membership->cancel($uid, $actor, $note);
-      $this->messenger()->addStatus($this->t('已取消 VIP，权限立即失效。'));
-    }
-    elseif ($operation === 'extend') {
-      $membership->extend($uid, (int) $form_state->getValue('preset'), $actor, $note);
-      $this->messenger()->addStatus($this->t('已延长 VIP。'));
-    }
-    else {
-      $preset = (string) $form_state->getValue('preset');
-      if ($preset === 'custom') {
-        $starts = (int) $form_state->get('vip_starts');
-        $expires = (int) $form_state->get('vip_expires');
+    $name = (string) $form_state->get('vip_account_name');
+    try {
+      if ($operation === 'cancel') {
+        $this->membership->cancel($uid, $actor, $note);
+        $this->messenger()->addStatus($this->t('已取消 @name 的 VIP，权限立即失效。', ['@name' => $name]));
+      }
+      elseif ($operation === 'extend') {
+        $this->membership->extend($uid, (int) $form_state->getValue('preset'), $actor, $note);
+        $this->messenger()->addStatus($this->t('已延长 @name 的 VIP。', ['@name' => $name]));
       }
       else {
-        $starts = \Drupal::time()->getRequestTime();
-        $expires = $starts + ((int) $preset * 86400);
+        $preset = (string) $form_state->getValue('preset');
+        if ($preset === 'custom') {
+          $starts = (int) $form_state->get('vip_starts');
+          $expires = (int) $form_state->get('vip_expires');
+        }
+        else {
+          $starts = \Drupal::time()->getRequestTime();
+          $expires = $starts + ((int) $preset * 86400);
+        }
+        $this->membership->grant($uid, $starts, $expires, $actor, $note);
+        $this->messenger()->addStatus($this->t('已为 @name 开通 VIP。', ['@name' => $name]));
       }
-      $membership->grant($uid, $starts, $expires, $actor, $note);
-      $this->messenger()->addStatus($this->t('已开通 VIP。'));
     }
-    $form_state->setRedirectUrl(Url::fromRoute('xedc_core.vip_admin'));
+    catch (\InvalidArgumentException $e) {
+      $this->messenger()->addError($e->getMessage());
+      $this->logger('xedc_core')->warning('VIP 表单操作被拒绝：@m', ['@m' => $e->getMessage()]);
+    }
+    catch (\Throwable $e) {
+      $this->messenger()->addError($this->t('会员操作失败，请稍后重试或查看系统日志。'));
+      $this->logger('xedc_core')->error('VIP 表单操作异常：@m', ['@m' => $e->getMessage()]);
+    }
+    $form_state->setRedirectUrl(Url::fromRoute('xedc_core.vip_hub', [], ['query' => ['tab' => 'grant']]));
+  }
+
+  /**
+   * Resolves typed username to a user entity. Numeric UID input is rejected.
+   */
+  protected function resolveMember(mixed $value): ?UserInterface {
+    if (!is_string($value) && !is_numeric($value)) {
+      return NULL;
+    }
+    $name = trim((string) $value);
+    if ($name === '') {
+      return NULL;
+    }
+    // Admins must use the account name, not a raw UID string.
+    $storage = $this->entityTypeManager->getStorage('user');
+    $users = $storage->loadByProperties(['name' => $name]);
+    $user = $users ? reset($users) : NULL;
+    return $user instanceof UserInterface && !$user->isAnonymous() ? $user : NULL;
   }
 
 }

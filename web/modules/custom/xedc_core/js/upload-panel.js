@@ -71,7 +71,7 @@
         + ' · 完成 ' + counts.completed;
       if (!manager.persistOk()) {
         note.hidden = false;
-        note.textContent = '本地任务没有保存成功：' + (manager.persistError() || 'IndexedDB 不可用');
+        note.textContent = manager.persistError() || '文件暂存失败：无法保存所选文件，请重新选择文件后重试。';
       }
       else {
         note.hidden = true;
@@ -98,9 +98,9 @@
         }
         const actions = document.createElement('div');
         actions.className = 'xedc-uppanel__row-actions';
-        if (['failed', 'interrupted', 'paused', 'needs_title'].includes(job.phase)) {
-          if (job.phase === 'needs_title') {
-            // Title is entered on the upload center page.
+        if (['failed', 'interrupted', 'paused', 'needs_title', 'cancel_pending'].includes(job.phase)) {
+          if (job.phase === 'needs_title' || job.phase === 'cancel_pending') {
+            // Title is entered on the upload center; cancel_pending only needs retry cancel.
           }
           else if (job.file || job.blob) {
             const retry = document.createElement('button');

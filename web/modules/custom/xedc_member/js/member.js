@@ -163,6 +163,7 @@
     var drawer = root.querySelector('[data-xm-drawer]');
     var backdrop = root.querySelector('[data-xm-backdrop]');
     var openBtn = root.querySelector('[data-xm-open]');
+    var closeBtn = root.querySelector('[data-xm-close]') || (drawer && drawer.querySelector('[data-xm-close]'));
     if (!drawer || !backdrop || !openBtn) return;
     root.dataset.xmDrawerBound = '1';
 
@@ -213,6 +214,12 @@
       setOpen(false);
       openBtn.focus();
     });
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        setOpen(false);
+        openBtn.focus();
+      });
+    }
     drawer.addEventListener('click', function (event) {
       if (event.target.closest('a')) setOpen(false);
     });

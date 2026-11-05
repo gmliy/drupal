@@ -1,0 +1,8 @@
+<div class="xp-actions xn-profile-actions">
+  {% if follow_url %}
+    <a class="xp-action{{ following ? ' is-on' }}" href="{{ follow_url }}">{{ following ? '已关注'|t : '关注'|t }}</a>
+  {% endif %}
+  {% if message_url %}
+    <a class="xp-action xp-action--primary" href="{{ message_url }}">{{ '私信'|t }}</a>
+  {% endif %}
+</div>

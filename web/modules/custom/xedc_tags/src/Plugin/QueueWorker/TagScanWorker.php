@@ -58,6 +58,7 @@ final class TagScanWorker extends QueueWorkerBase implements ContainerFactoryPlu
 
   public function processItem($data): void {
     $taskId = (int) ($data['task_id'] ?? 0);
+    $this->tasks->expireStale();
     $task = $this->tasks->load($taskId);
     if (!$task || in_array($task->status, ['cancelled', 'completed', 'failed', 'partial'], TRUE)) {
       return;
@@ -65,12 +66,25 @@ final class TagScanWorker extends QueueWorkerBase implements ContainerFactoryPlu
     if ($task->status === 'paused') {
       return;
     }
-    $this->tasks->update($taskId, [
+    // Claim the task only while it is still pending/running.
+    $claimed = \Drupal::database()->update('xedc_tag_task')->fields([
       'status' => 'running',
       'started' => $task->started ?: time(),
       'message' => '执行中',
-    ]);
+      'changed' => time(),
+    ])
+      ->condition('id', $taskId)
+      ->condition('status', ['pending', 'running'], 'IN')
+      ->execute();
+    if (!$claimed) {
+      return;
+    }
     try {
+      // Analysis workers are read-only suggestions; cancel mid-flight must not
+      // overwrite the cancelled status with completed/failed.
+      if ($this->wasCancelled($taskId)) {
+        return;
+      }
       $result = match ($task->type) {
         'duplicate_scan' => $this->runDuplicates(),
         'health_scan', 'full_scan' => $this->runHealth($task->type === 'full_scan'),
@@ -79,9 +93,12 @@ final class TagScanWorker extends QueueWorkerBase implements ContainerFactoryPlu
         'recommend_scan' => $this->runRecommend(),
         default => ['total' => 0, 'processed' => 0, 'success' => 0, 'failed' => 1, 'result' => ['error' => 'unknown'], 'message' => '未知类型'],
       };
+      if ($this->wasCancelled($taskId)) {
+        return;
+      }
       $failed = (int) $result['failed'];
       $status = $failed > 0 && (int) $result['success'] > 0 ? 'partial' : ($failed > 0 ? 'failed' : 'completed');
-      $this->tasks->update($taskId, [
+      $this->tasks->finishIfActive($taskId, [
         'status' => $status,
         'total' => (int) $result['total'],
         'processed' => (int) $result['processed'],
@@ -89,17 +106,20 @@ final class TagScanWorker extends QueueWorkerBase implements ContainerFactoryPlu
         'failed' => $failed,
         'message' => (string) $result['message'],
         'result' => json_encode($result['result'], JSON_UNESCAPED_UNICODE) ?: '{}',
-        'finished' => time(),
       ]);
       \Drupal::service('cache_tags.invalidator')->invalidateTags($this->catalog->cacheTags());
     }
     catch (\Throwable $e) {
-      $this->tasks->update($taskId, [
+      $this->tasks->finishIfActive($taskId, [
         'status' => 'failed',
         'message' => mb_substr($e->getMessage(), 0, 500),
-        'finished' => time(),
       ]);
     }
+  }
+
+  private function wasCancelled(int $taskId): bool {
+    $task = $this->tasks->load($taskId);
+    return !$task || $task->status === 'cancelled' || $task->status === 'paused';
   }
 
   /**

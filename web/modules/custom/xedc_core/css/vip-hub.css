@@ -1,0 +1,225 @@
+/**
+ * VIP 管理 hub. Scoped to .xedc-vip-hub.
+ * Prefer XEDC admin tokens, fall back to Gin.
+ */
+
+.xedc-vip-hub {
+  --vh-bd: var(--xedc-admin-border, var(--gin-border-color, #e4e4e7));
+  --vh-fg: var(--xedc-admin-foreground, var(--gin-text, #18181b));
+  --vh-mut: var(--xedc-admin-secondary, var(--gin-text-color-secondary, #71717a));
+  --vh-soft: var(--xedc-admin-surface-secondary, var(--gin-bg-layer2, #f4f4f5));
+  --vh-surface: var(--xedc-admin-surface, var(--gin-bg-layer, #fff));
+  --vh-link: var(--xedc-admin-link, #2563eb);
+  --vh-shadow: var(--xedc-admin-shadow, none);
+  max-width: 1180px;
+  color: var(--vh-fg);
+}
+
+.xedc-vip-hub__header h1 {
+  margin: 0 0 6px;
+  font-size: 1.375rem;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--vh-fg);
+}
+
+.xedc-vip-hub__lead,
+.xedc-vip-hub__note {
+  color: var(--vh-mut);
+  margin: 0 0 16px;
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+.xedc-vip-hub__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+}
+
+.xedc-vip-hub__stat {
+  background: var(--vh-surface);
+  border: 1px solid var(--vh-bd);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: var(--vh-shadow);
+}
+
+.xedc-vip-hub__stat strong {
+  display: block;
+  font-size: 1.35rem;
+  line-height: 1.2;
+  color: var(--vh-fg);
+}
+
+.xedc-vip-hub__stat span {
+  color: var(--vh-mut);
+  font-size: 0.875rem;
+}
+
+.xedc-vip-hub__tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  border-bottom: 1px solid var(--vh-bd);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.xedc-vip-hub__tabs li {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.xedc-vip-hub__tabs a {
+  display: inline-block;
+  padding: 10px 16px;
+  color: var(--vh-mut);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.xedc-vip-hub__tabs a:hover {
+  color: var(--vh-fg);
+}
+
+.xedc-vip-hub__tabs li.is-active a {
+  color: var(--vh-fg);
+  border-bottom-color: var(--vh-fg);
+  font-weight: 600;
+}
+
+.xedc-vip-hub__panel {
+  background: var(--vh-surface);
+  border: 1px solid var(--vh-bd);
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: var(--vh-shadow);
+}
+
+.xedc-vip-hub__section {
+  margin: 20px 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.xedc-vip-hub__section:first-child {
+  margin-top: 0;
+}
+
+.xedc-vip-hub__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.xedc-vip-hub__actions .button,
+.xedc-vip-hub .button {
+  border-radius: 8px;
+  min-height: 36px;
+}
+
+.xedc-vip-hub__grant .xedc-ops__cards,
+.xedc-vip-hub__grant .xedc-ops__header {
+  display: none;
+}
+
+.xedc-vip-hub__grant .xedc-ops {
+  max-width: none;
+  gap: 14px;
+}
+
+.xedc-vip-hub table {
+  width: 100%;
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-collapse: collapse;
+}
+
+.xedc-vip-hub th,
+.xedc-vip-hub td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--vh-bd);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.xedc-vip-hub th {
+  background: var(--vh-soft);
+  color: var(--vh-mut);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.xedc-vip-hub a {
+  color: var(--vh-link);
+}
+
+.xedc-vip-hub .form-item {
+  margin-bottom: 12px;
+}
+
+.xedc-vip-hub .form-text,
+.xedc-vip-hub .form-select,
+.xedc-vip-hub .form-textarea,
+.xedc-vip-hub input[type="text"],
+.xedc-vip-hub input[type="number"],
+.xedc-vip-hub textarea,
+.xedc-vip-hub select {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.xedc-vip-hub .form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.xedc-vip-hub .xedc-vip-code-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.xedc-vip-hub .xedc-notify-admin__status,
+.xedc-vip-hub__badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--vh-soft);
+  color: var(--vh-fg);
+  font-size: 0.85rem;
+}
+
+.xedc-vip-hub caption {
+  caption-side: top;
+  text-align: left;
+  padding: 0 0 8px;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .xedc-vip-hub__panel {
+    padding: 12px;
+  }
+
+  .xedc-vip-hub__tabs a {
+    padding: 8px 12px;
+    font-size: 0.92rem;
+  }
+
+  .xedc-vip-hub {
+    overflow-x: hidden;
+  }
+}

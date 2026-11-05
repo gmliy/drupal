@@ -12,7 +12,9 @@ use Drupal\user\UserInterface;
 use Drupal\xedc_core\Engagement\MembershipManager;
 
 /**
- * VIP administration and engagement statistics.
+ * Member engagement administration (likes, downloads, shares).
+ *
+ * VIP grant / codes / reminders live in VipHubController only.
  */
 final class EngagementAdminController extends ControllerBase {
 
@@ -190,33 +192,38 @@ final class EngagementAdminController extends ControllerBase {
     $shares = $data['shares'];
     $shareSuccess = (int) ($shares['copy'] ?? 0) + (int) ($shares['native'] ?? 0);
     $delta = (int) $likes['week'] - (int) $data['likes_prev'];
-    $cards = [
-      ['有效点赞', (int) $likes['total'], '较前 7 天 ' . ($delta > 0 ? '+' : '') . $delta],
-      ['游客点赞', (int) $data['like_guest'], '有效记录'],
-      ['会员点赞', (int) $data['like_member'], '有效记录'],
-      ['已授权下载', (int) $downloads['total'], '今日 ' . (int) $downloads['today']],
-      ['普通会员下载', (int) $downloads['member'], '按当时等级'],
-      ['VIP 下载', (int) $downloads['vip'], '按当时等级'],
-      ['成功分享', $shareSuccess, '不含打开面板'],
-      ['有效 VIP', (int) $data['vip'], '7 天内到期 ' . (int) $data['vip_soon']],
-    ];
     $today = (int) $data['today_likes'] + (int) $data['today_downloads'];
-    return $this->present('互动总览', '数字来自点赞、下载、分享和 VIP 记录。打开分享面板不算成功分享。统计时间 ' . date('Y-m-d H:i', (int) $data['generated']) . '。', [
+    $cards = [
+      ['有效点赞', (int) $likes['total'], '近 7 天变化 ' . ($delta > 0 ? '+' : '') . $delta],
+      ['已授权下载', (int) $downloads['total'], '今日 ' . (int) $downloads['today']],
+      ['成功分享', $shareSuccess, '不含打开面板'],
+      ['今日互动', $today, '点赞 ' . (int) $data['today_likes'] . ' · 下载 ' . (int) $data['today_downloads']],
+    ];
+    $weekRows = $this->mergeSeriesRows($data['likes_7'] ?? [], $data['downloads_7'] ?? []);
+    return $this->present('前台统计', '汇总前台点赞、下载与分享数据。打开分享面板不算成功分享。统计时间 ' . date('Y-m-d H:i', (int) $data['generated']) . '。VIP 开通与卡密请前往 VIP 管理。', [
       'cards' => $this->cards($cards),
-      'today' => ['#markup' => '<p class="xedc-ops__meta">今日互动 ' . $today . '（有效点赞 ' . (int) $data['today_likes'] . '，下载授权 ' . (int) $data['today_downloads'] . '）。</p>'],
-      'charts' => [
-        '#type' => 'container',
-        '#attributes' => ['class' => ['xedc-ops__grid']],
-        'likes' => $this->bars('近 7 天点赞', $data['likes_7']),
-        'downloads' => $this->bars('近 7 天下载', $data['downloads_7']),
-        'mix' => $this->split((int) $data['like_guest'], (int) $data['like_member']),
-        'types' => $this->bars('内容类型点赞', [
-          '图片' => (int) ($data['bundles']['photo'] ?? 0),
-          '视频' => (int) ($data['bundles']['video'] ?? 0),
-          '文章' => (int) ($data['bundles']['article'] ?? 0),
-        ]),
+      'breakdown_title' => ['#markup' => '<h3 class="xedc-ops__section">构成说明</h3>'],
+      'breakdown' => [
+        '#type' => 'table',
+        '#header' => ['指标', '数量', '说明'],
+        '#rows' => [
+          ['游客点赞', (string) (int) $data['like_guest'], '有效记录'],
+          ['会员点赞', (string) (int) $data['like_member'], '有效记录'],
+          ['普通会员下载', (string) (int) $downloads['member'], '按当时等级'],
+          ['VIP 下载', (string) (int) $downloads['vip'], '按当时等级（侧写，非 VIP 管理）'],
+          ['图片点赞', (string) (int) ($data['bundles']['photo'] ?? 0), '内容类型'],
+          ['视频点赞', (string) (int) ($data['bundles']['video'] ?? 0), '内容类型'],
+          ['文章点赞', (string) (int) ($data['bundles']['article'] ?? 0), '内容类型'],
+        ],
+        '#empty' => '暂无构成数据。',
       ],
-      'month' => $this->bars('近 30 天点赞', $data['likes_30']),
+      'week_title' => ['#markup' => '<h3 class="xedc-ops__section">近 7 日明细</h3>'],
+      'week' => [
+        '#type' => 'table',
+        '#header' => ['日期', '有效点赞', '已授权下载'],
+        '#rows' => $weekRows,
+        '#empty' => '近 7 日没有记录。',
+      ],
       'rank_title' => ['#markup' => '<h3 class="xedc-ops__section">最受欢迎内容</h3>'],
       'likes' => [
         '#type' => 'table',
@@ -243,7 +250,6 @@ final class EngagementAdminController extends ControllerBase {
 
   public function zips(): array {
     $build = [
-      'note' => ['#markup' => '<p>这里是整组 ZIP 的最近一次状态。同一组原图没有变化时，成功文件保留 7 天并直接复用，不会重新压缩。临时文件约 6 小时清理，正在生成的文件不会删。已授权不等于浏览器已经收完文件。</p>'],
       'table' => [
         '#type' => 'table',
         '#header' => ['内容', '资源 ID', '状态', '说明', '创建', '更新'],
@@ -255,7 +261,7 @@ final class EngagementAdminController extends ControllerBase {
     if (\Drupal::currentUser()->hasPermission('administer xedc downloads') || \Drupal::currentUser()->hasPermission('administer xedc vip')) {
       $build['retry'] = \Drupal::formBuilder()->getForm(\Drupal\xedc_core\Form\ZipRetryForm::class);
     }
-    return $build;
+    return $this->present('ZIP 任务', '这里是整组 ZIP 的最近一次状态。同一组原图没有变化时，成功文件保留 7 天并直接复用。临时文件约 6 小时清理。已授权不等于浏览器已经收完文件。', $build);
   }
 
   public function shares(): array {
@@ -411,26 +417,35 @@ final class EngagementAdminController extends ControllerBase {
     $guest = array_sum($report->series('xedc_like', 'changed', $range['since'], 'guest'));
     $member = array_sum($report->series('xedc_like', 'changed', $range['since'], 'member'));
     $export = Url::fromRoute('xedc_core.engagement_export', [], ['query' => \Drupal::request()->query->all()])->toString();
-    return $this->present('互动数据', $range['label'] . '。导出的是按天汇总，不是逐条记录。', [
+    $bundles = $report->bundleCounts();
+    return $this->present('互动数据', $range['label'] . '。下方按天列出真实汇总，不使用趋势图。导出的是按天汇总，不是逐条记录。', [
       'form' => $this->rangeForm($range),
+      'actions' => [
+        '#markup' => '<p class="xedc-ops__actions"><a class="button button--primary" href="' . htmlspecialchars($export, ENT_QUOTES, 'UTF-8') . '">导出 CSV</a></p>',
+      ],
       'cards' => $this->cards([
         ['点赞', array_sum($likes), '有效记录'],
         ['下载', array_sum($downloads), '已授权'],
         ['分享', array_sum($shares), '复制或系统分享成功'],
         ['游客点赞', $guest, '同期会员点赞 ' . $member],
       ]),
-      'charts' => [
-        '#type' => 'container',
-        '#attributes' => ['class' => ['xedc-ops__grid']],
-        'likes' => $this->bars('点赞趋势', $likes),
-        'downloads' => $this->bars('下载趋势', $downloads),
-        'shares' => $this->bars('分享趋势', $shares),
+      'daily_title' => ['#markup' => '<h3 class="xedc-ops__section">按日汇总</h3>'],
+      'daily' => [
+        '#type' => 'table',
+        '#header' => ['日期', '有效点赞', '已授权下载', '成功分享'],
+        '#rows' => $this->mergeThreeSeriesRows($likes, $downloads, $shares),
+        '#empty' => '所选时间没有记录。',
       ],
-      'types' => $this->bars('内容类型点赞', [
-        '图片' => (int) ($report->bundleCounts()['photo'] ?? 0),
-        '视频' => (int) ($report->bundleCounts()['video'] ?? 0),
-        '文章' => (int) ($report->bundleCounts()['article'] ?? 0),
-      ]),
+      'types_title' => ['#markup' => '<h3 class="xedc-ops__section">内容类型点赞</h3>'],
+      'types' => [
+        '#type' => 'table',
+        '#header' => ['类型', '有效点赞'],
+        '#rows' => [
+          ['图片', (string) (int) ($bundles['photo'] ?? 0)],
+          ['视频', (string) (int) ($bundles['video'] ?? 0)],
+          ['文章', (string) (int) ($bundles['article'] ?? 0)],
+        ],
+      ],
       'hot' => [
         '#type' => 'table',
         '#caption' => '热门内容',
@@ -438,7 +453,6 @@ final class EngagementAdminController extends ControllerBase {
         '#rows' => $report->likeRank(),
         '#empty' => '还没有点赞。',
       ],
-      'export' => ['#markup' => '<p><a class="button" href="' . htmlspecialchars($export, ENT_QUOTES, 'UTF-8') . '">导出 CSV</a></p>'],
       '#cache' => ['max-age' => 0],
     ]);
   }
@@ -481,9 +495,9 @@ final class EngagementAdminController extends ControllerBase {
   protected function cards(array $items): array {
     $html = '<div class="xedc-ops__cards">';
     foreach ($items as $item) {
-      $html .= '<article class="xedc-ops__card"><span>' . htmlspecialchars($item[0], ENT_QUOTES, 'UTF-8') . '</span><strong>' . (int) $item[1] . '</strong>';
+      $html .= '<article class="xedc-ops__card"><span class="xedc-ops__card-label">' . htmlspecialchars($item[0], ENT_QUOTES, 'UTF-8') . '</span><strong class="xedc-ops__card-value">' . (int) $item[1] . '</strong>';
       if (($item[2] ?? '') !== '') {
-        $html .= '<em>' . htmlspecialchars($item[2], ENT_QUOTES, 'UTF-8') . '</em>';
+        $html .= '<em class="xedc-ops__card-hint">' . htmlspecialchars($item[2], ENT_QUOTES, 'UTF-8') . '</em>';
       }
       $html .= '</article>';
     }
@@ -551,10 +565,58 @@ final class EngagementAdminController extends ControllerBase {
     return $rows;
   }
 
+  /**
+   * @param array<string, int> $likes
+   * @param array<string, int> $downloads
+   *
+   * @return list<array{0: string, 1: string, 2: string}>
+   */
+  protected function mergeSeriesRows(array $likes, array $downloads): array {
+    $days = array_unique(array_merge(array_keys($likes), array_keys($downloads)));
+    sort($days);
+    $rows = [];
+    foreach ($days as $day) {
+      $rows[] = [
+        (string) $day,
+        (string) (int) ($likes[$day] ?? 0),
+        (string) (int) ($downloads[$day] ?? 0),
+      ];
+    }
+    return $rows;
+  }
+
+  /**
+   * @param array<string, int> $likes
+   * @param array<string, int> $downloads
+   * @param array<string, int> $shares
+   *
+   * @return list<array{0: string, 1: string, 2: string, 3: string}>
+   */
+  protected function mergeThreeSeriesRows(array $likes, array $downloads, array $shares): array {
+    $days = array_unique(array_merge(array_keys($likes), array_keys($downloads), array_keys($shares)));
+    rsort($days);
+    $rows = [];
+    foreach ($days as $day) {
+      $rows[] = [
+        (string) $day,
+        (string) (int) ($likes[$day] ?? 0),
+        (string) (int) ($downloads[$day] ?? 0),
+        (string) (int) ($shares[$day] ?? 0),
+      ];
+    }
+    return $rows;
+  }
+
   protected function present(string $title, string $lead, array $build): array {
     $build['#type'] = 'container';
     $build['#attributes']['class'][] = 'xedc-ops';
+    $build['#attributes']['class'][] = 'xedc-front-stats';
+    $build['#attributes']['class'][] = 'xedc-saas-admin';
     $build['#attached']['library'][] = 'xedc_admin/engagement';
+    $build['header'] = [
+      '#weight' => -60,
+      '#markup' => '<div class="xedc-ops__header"><h1 class="xedc-ops__title">' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</h1></div>',
+    ];
     $build['lead'] = [
       '#weight' => -50,
       '#markup' => '<p class="xedc-ops__lead">' . htmlspecialchars($lead, ENT_QUOTES, 'UTF-8') . '</p>',

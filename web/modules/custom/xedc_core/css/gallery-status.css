@@ -1,0 +1,20 @@
+.xedc-gallery-status {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 16rem;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--gin-bg-layer2, var(--xedc-admin-surface-secondary, #f4f4f5));
+  color: var(--gin-text, var(--xedc-admin-foreground, inherit));
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.xedc-gallery-status small {
+  color: var(--gin-text-muted, var(--xedc-admin-muted, #71717a));
+  font-size: 11px;
+  font-weight: 500;
+}

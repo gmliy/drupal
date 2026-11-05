@@ -1,0 +1,57 @@
+{#
+/**
+ * @file
+ * Notification center list.
+ */
+#}
+<div class="xn-ntf">
+  <header class="xn-ntf__head">
+    <div>
+      <h1>{{ '通知中心'|t }}</h1>
+      {% if unread_total %}
+        <span class="xn-badge">{{ unread_total > 99 ? '99+' : unread_total }}</span>
+      {% endif %}
+    </div>
+    <div class="xn-ntf__actions">
+      {% if unread_total and read_all_form %}
+        {{ read_all_form }}
+      {% endif %}
+    </div>
+  </header>
+
+  <nav class="xn-ntf__tabs" aria-label="{{ '通知分类'|t }}">
+    {% for tab in tabs %}
+      <a class="xn-ntf__tab{{ tab.active ? ' is-active' }}" href="{{ tab.url }}">
+        {{ tab.label }}
+        {% if tab.unread %}<span class="xn-badge">{{ tab.unread > 99 ? '99+' : tab.unread }}</span>{% endif %}
+      </a>
+    {% endfor %}
+  </nav>
+
+  {% if items %}
+    <ul class="xn-ntf__list">
+      {% for item in items %}
+        <li class="xn-ntf__item{{ item.is_read ? '' : ' is-unread' }}{{ item.important ? ' is-important' }}{{ item.pinned ? ' is-pinned' }}">
+          <a class="xn-ntf__body" href="{{ item.url }}">
+            {% if item.actor_avatar %}
+              <img class="xn-ntf__avatar" src="{{ item.actor_avatar }}" alt="" width="36" height="36" loading="lazy">
+            {% endif %}
+            <span>
+              <strong>{{ item.title }}</strong>
+              {% if item.body %}<span class="xn-ntf__text">{{ item.body|nl2br }}</span>{% endif %}
+              <span class="xn-ntf__meta">
+                <span class="xn-ntf__cat">{{ item.category }}</span>
+                <time>{{ item.time_label }}</time>
+                {% if item.important %}<em>{{ '重要'|t }}</em>{% endif %}
+              </span>
+            </span>
+          </a>
+          <a class="xn-ntf__delete" href="{{ item.delete_url }}">{{ '删除'|t }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+    {{ pager }}
+  {% else %}
+    <p class="xn-empty">{{ '暂无通知。'|t }}</p>
+  {% endif %}
+</div>

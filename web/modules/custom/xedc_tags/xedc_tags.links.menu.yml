@@ -1,84 +1,9 @@
+# Drupal Menu API backup entry under Content.
+# The visible Gin/XEDC left sidebar is defined in
+# themes/custom/xedc_admin/includes/navigation.theme.
 xedc_tags.admin:
-  title: '智能标签管理'
-  description: '查看、检查和合并现有标签。'
+  title: '标签统计'
+  description: '统一管理标签、分析标签质量、维护内容关联。'
   route_name: xedc_tags.admin_overview
   parent: system.admin_content
-  weight: 18
-
-xedc_tags.admin_overview_link:
-  title: '标签总览'
-  route_name: xedc_tags.admin_overview
-  parent: xedc_tags.admin
-  weight: 0
-
-xedc_tags.admin_list_link:
-  title: '标签列表'
-  route_name: xedc_tags.admin_list
-  parent: xedc_tags.admin
-  weight: 1
-
-xedc_tags.admin_health_link:
-  title: '健康检查'
-  route_name: xedc_tags.admin_health
-  parent: xedc_tags.admin
-  weight: 2
-
-xedc_tags.admin_duplicates_link:
-  title: '重复标签检测'
-  route_name: xedc_tags.admin_duplicates
-  parent: xedc_tags.admin
-  weight: 3
-
-xedc_tags.admin_merge_link:
-  title: '标签合并'
-  route_name: xedc_tags.admin_merge
-  parent: xedc_tags.admin
-  weight: 4
-
-xedc_tags.admin_aliases_link:
-  title: '标签别名'
-  route_name: xedc_tags.admin_aliases
-  parent: xedc_tags.admin
-  weight: 5
-
-xedc_tags.admin_recommend_link:
-  title: '标签智能推荐'
-  route_name: xedc_tags.admin_recommend
-  parent: xedc_tags.admin
-  weight: 6
-
-xedc_tags.admin_relations_link:
-  title: '标签关联分析'
-  route_name: xedc_tags.admin_relations
-  parent: xedc_tags.admin
-  weight: 7
-
-xedc_tags.admin_seo_link:
-  title: '标签 SEO 检查'
-  route_name: xedc_tags.admin_seo
-  parent: xedc_tags.admin
-  weight: 8
-
-xedc_tags.admin_ai_link:
-  title: 'AI 分析'
-  route_name: xedc_tags.admin_ai
-  parent: xedc_tags.admin
-  weight: 9
-
-xedc_tags.admin_tasks_link:
-  title: '分析任务'
-  route_name: xedc_tags.admin_tasks
-  parent: xedc_tags.admin
-  weight: 10
-
-xedc_tags.admin_unused_link:
-  title: '未使用标签'
-  route_name: xedc_tags.admin_unused
-  parent: xedc_tags.admin
-  weight: 11
-
-xedc_tags.admin_history_link:
-  title: '操作记录'
-  route_name: xedc_tags.admin_history
-  parent: xedc_tags.admin
-  weight: 12
+  weight: 20

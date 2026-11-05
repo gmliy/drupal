@@ -1,6 +1,6 @@
 view xedc tag center:
-  title: '查看智能标签管理中心'
-  description: '查看标签总览、列表、未使用标签和操作记录。'
+  title: '查看标签统计'
+  description: '查看标签统计仪表盘、列表、未使用标签和操作记录。'
   restrict access: true
 
 manage xedc tags:

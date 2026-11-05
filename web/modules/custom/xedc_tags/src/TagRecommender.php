@@ -111,6 +111,7 @@ final class TagRecommender {
     }
     $node->save();
     $this->audit->log('recommend_apply', '为内容 ' . $node->id() . ' 添加标签', ['tids' => $tids], 0, $uid);
+    \Drupal::service('cache_tags.invalidator')->invalidateTags($this->catalog->cacheTags());
     return $added;
   }
 

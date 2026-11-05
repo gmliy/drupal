@@ -5,7 +5,7 @@ quiet:
       css/quiet.css: { weight: 100 }
 
 member:
-  version: 2.0
+  version: 3.0
   css:
     theme:
       css/member.css: { weight: 200 }

@@ -3,7 +3,6 @@
 namespace Drupal\xedc_tags\Form;
 
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Url;
 use Drupal\xedc_tags\TagAliasManager;
 use Drupal\xedc_tags\TagCatalog;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -30,86 +29,113 @@ final class AliasForm extends AdminFormBase {
   }
 
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $form = $this->chrome($form);
+    $form = $this->chrome($form, [
+      'title' => $this->t('标签别名'),
+      'description' => $this->t('维护同义词别名。不会自动改写内容上的标签。'),
+    ]);
     $request = $this->getRequest()->query;
     $q = trim((string) $request->get('q', ''));
     $tid = (int) $request->get('tid', 0);
     $status = (string) $request->get('status', '');
-    $form['intro'] = [
-      '#markup' => '<p>' . $this->t('别名映射到标准标签，不会新建 Taxonomy Term，也不会自动改已发布内容的标签。') . '</p>',
-    ];
+    $form['intro'] = $this->callout((string) $this->t('别名映射到标准标签，不会新建 Taxonomy Term，也不会自动改已发布内容的标签。'));
+
     $options = [];
     foreach ($this->catalog->terms() as $term) {
       $options[(int) $term['tid']] = $term['name'] . ' (#' . $term['tid'] . ')';
     }
-    $form['alias'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('别名'),
-      '#required' => TRUE,
-      '#maxlength' => 191,
-    ];
-    $form['tid'] = [
-      '#type' => 'select',
-      '#title' => $this->t('标准标签'),
-      '#options' => $options,
-      '#required' => TRUE,
-      '#default_value' => $tid ?: NULL,
-    ];
-    $form['type'] = [
-      '#type' => 'select',
-      '#title' => $this->t('类型'),
-      '#options' => TagAliasManager::TYPES,
-      '#default_value' => 'synonym',
-    ];
-    $form['source'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('来源说明'),
-      '#default_value' => 'manual',
-      '#maxlength' => 64,
-    ];
-    $form['create'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('新增别名'),
-      '#submit' => ['::createAlias'],
-    ];
+
+    $form['create_panel'] = $this->panel([
+      'heading' => ['#markup' => '<h2 class="xt-panel__title">' . $this->t('新增别名') . '</h2>'],
+      'alias' => [
+        '#type' => 'textfield',
+        '#title' => $this->t('别名'),
+        '#required' => TRUE,
+        '#maxlength' => 191,
+      ],
+      'tid' => [
+        '#type' => 'select',
+        '#title' => $this->t('标准标签'),
+        '#options' => $options,
+        '#required' => TRUE,
+        '#default_value' => $tid ?: NULL,
+      ],
+      'type' => [
+        '#type' => 'select',
+        '#title' => $this->t('类型'),
+        '#options' => TagAliasManager::TYPES,
+        '#default_value' => 'synonym',
+      ],
+      'source' => [
+        '#type' => 'textfield',
+        '#title' => $this->t('来源说明'),
+        '#default_value' => 'manual',
+        '#maxlength' => 64,
+      ],
+      'create' => [
+        '#type' => 'submit',
+        '#value' => $this->t('新增别名'),
+        '#submit' => ['::createAlias'],
+        '#attributes' => ['class' => ['button--primary']],
+      ],
+    ], ['xt-form-narrow']);
+
     if ($form_state->getValue('alias') || $q) {
       $suggestInput = trim((string) ($form_state->getValue('alias') ?: $q));
       $suggestions = $this->aliases->suggestTargets($suggestInput);
       if ($suggestions) {
         $rows = [];
         foreach ($suggestions as $item) {
-          $rows[] = [$item['name'], $item['tid'], $item['score'], $item['reason']];
+          $rows[] = [$item['name'], '#' . $item['tid'], $item['score'], $item['reason']];
         }
-        $form['suggest'] = [
+        $form['suggest'] = $this->tableCard([
           '#type' => 'table',
+          '#attributes' => ['class' => ['xt-table']],
           '#caption' => $this->t('可能的标准标签（仅推荐）'),
-          '#header' => [$this->t('标签'), 'ID', $this->t('分'), $this->t('原因')],
+          '#header' => [$this->t('标签'), $this->t('ID'), $this->t('分'), $this->t('原因')],
           '#rows' => $rows,
-        ];
+        ]);
       }
     }
+
     $form['filter_q'] = [
       '#type' => 'textfield',
       '#title' => $this->t('搜索别名'),
       '#default_value' => $q,
+      '#attributes' => ['placeholder' => $this->t('别名关键词')],
+      '#prefix' => '<div class="xt-filter-bar">',
     ];
     $form['filter'] = [
       '#type' => 'submit',
       '#value' => $this->t('筛选'),
       '#submit' => ['::filter'],
       '#limit_validation_errors' => [['filter_q']],
+      '#suffix' => '</div>',
     ];
+
     $header = [$this->t('别名'), $this->t('标准标签'), $this->t('类型'), $this->t('状态'), $this->t('来源'), $this->t('操作')];
-    $form['table'] = ['#type' => 'table', '#header' => $header, '#empty' => $this->t('还没有别名。')];
+    $table = [
+      '#type' => 'table',
+      '#attributes' => ['class' => ['xt-table']],
+      '#header' => $header,
+      '#empty' => $this->t('还没有别名。'),
+    ];
     $terms = $this->catalog->terms();
     foreach ($this->aliases->list($q, $tid, $status) as $row) {
       $id = (int) $row->id;
-      $form['table'][$id]['alias'] = ['#plain_text' => (string) $row->alias];
-      $form['table'][$id]['term'] = ['#plain_text' => ($terms[(int) $row->tid]['name'] ?? '') . ' (#' . $row->tid . ')'];
-      $form['table'][$id]['type'] = ['#plain_text' => TagAliasManager::TYPES[$row->type] ?? $row->type];
-      $form['table'][$id]['status'] = ['#plain_text' => $row->status === 'active' ? (string) $this->t('启用') : (string) $this->t('停用')];
-      $form['table'][$id]['source'] = ['#plain_text' => (string) $row->source];
-      $form['table'][$id]['ops'] = [
+      $termName = (string) ($terms[(int) $row->tid]['name'] ?? '');
+      $table[$id]['alias'] = ['#plain_text' => (string) $row->alias];
+      $table[$id]['term'] = ['#markup' => $this->tagNameMarkup($termName, (int) $row->tid)];
+      $table[$id]['type'] = ['#plain_text' => TagAliasManager::TYPES[$row->type] ?? $row->type];
+      $table[$id]['status'] = [
+        '#markup' => $this->badge(
+          $row->status === 'active' ? (string) $this->t('启用') : (string) $this->t('停用'),
+          $row->status === 'active' ? 'success' : 'neutral'
+        ),
+      ];
+      $table[$id]['source'] = ['#plain_text' => $this->sourceLabel((string) $row->source)];
+      $table[$id]['ops'] = [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['xt-ops']],
         'disable' => [
           '#type' => 'submit',
           '#value' => $row->status === 'active' ? $this->t('停用') : $this->t('启用'),
@@ -126,10 +152,14 @@ final class AliasForm extends AdminFormBase {
           '#alias_id' => $id,
           '#submit' => ['::deleteAlias'],
           '#limit_validation_errors' => [],
-          '#attributes' => ['onclick' => 'return confirm("确认删除这个别名？");'],
+          '#attributes' => [
+            'class' => ['button--danger'],
+            'onclick' => 'return confirm("确认删除这个别名？");',
+          ],
         ],
       ];
     }
+    $form['list'] = $this->tableCard($table);
     return $form;
   }
 
@@ -164,6 +194,17 @@ final class AliasForm extends AdminFormBase {
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
+  }
+
+  private function sourceLabel(string $source): string {
+    $map = [
+      'manual' => (string) $this->t('人工录入'),
+      'import' => (string) $this->t('导入'),
+      'ai' => (string) $this->t('AI 建议'),
+      'merge' => (string) $this->t('合并产生'),
+      'system' => (string) $this->t('系统'),
+    ];
+    return $map[$source] ?? ($source !== '' ? $source : (string) $this->t('未知'));
   }
 
 }

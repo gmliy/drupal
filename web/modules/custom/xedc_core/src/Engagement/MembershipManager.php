@@ -99,7 +99,7 @@ final class MembershipManager {
   }
 
   public function extend(int $uid, int $days, int $actor, string $note = ''): void {
-    if (!in_array($days, self::PRESETS, TRUE) && $days < 1) {
+    if ($days < 1 || $days > 3650) {
       throw new \InvalidArgumentException('延长天数无效。');
     }
     $now = $this->time->getRequestTime();
@@ -221,6 +221,19 @@ final class MembershipManager {
       $user->save();
     }
     $this->invalidate($uid);
+    if (\Drupal::moduleHandler()->moduleExists('xedc_notify')) {
+      try {
+        xedc_notify_on_vip($uid, $action, $starts, $expires, $actor);
+      }
+      catch (\Throwable $e) {
+        // VIP write already succeeded; notification failure must not roll it back.
+        \Drupal::logger('xedc_core')->error('VIP 通知失败 uid=@u action=@a: @m', [
+          '@u' => $uid,
+          '@a' => $action,
+          '@m' => $e->getMessage(),
+        ]);
+      }
+    }
   }
 
   protected function expireOne(int $uid): bool {
@@ -244,6 +257,9 @@ final class MembershipManager {
       $user->save();
     }
     $this->invalidate($uid);
+    if (\Drupal::moduleHandler()->moduleExists('xedc_notify')) {
+      xedc_notify_on_vip($uid, 'expire', (int) $row->starts, (int) $row->expires, 0);
+    }
     return TRUE;
   }
 

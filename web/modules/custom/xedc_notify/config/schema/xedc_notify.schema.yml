@@ -1,0 +1,24 @@
+xedc_notify.settings:
+  type: config_object
+  label: 'XEDC 通知设置'
+  mapping:
+    vip_reminders_enabled:
+      type: boolean
+      label: '启用 VIP 到期提醒'
+    vip_reminder_offsets:
+      type: sequence
+      label: 'VIP 提前提醒天数'
+      sequence:
+        type: integer
+    favorite_notify_default:
+      type: boolean
+      label: '收藏通知默认开启'
+    message_max_length:
+      type: integer
+      label: '私信最大长度'
+    message_rate_limit:
+      type: integer
+      label: '私信每分钟上限'
+    official_batch_size:
+      type: integer
+      label: '官方通知每批人数'

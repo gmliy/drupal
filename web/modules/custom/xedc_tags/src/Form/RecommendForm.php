@@ -32,34 +32,38 @@ final class RecommendForm extends AdminFormBase {
   }
 
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $form = $this->chrome($form);
-    $form['intro'] = [
-      '#markup' => '<p>' . $this->t('只从现有标签里推荐。分析不会保存，也不会删除原标签。匹配程度来自本地规则，不是语义模型。一次最多 @count 篇。', ['@count' => self::LIMIT]) . '</p>',
-    ];
-    $form['mode'] = [
-      '#type' => 'select',
-      '#title' => $this->t('范围'),
-      '#options' => [
-        'single' => $this->t('单篇内容或一段文字'),
-        'batch' => $this->t('最近 @count 篇已发布内容', ['@count' => self::LIMIT]),
+    $form = $this->chrome($form, [
+      'title' => $this->t('智能推荐'),
+      'description' => $this->t('查看并人工确认内容级标签推荐。'),
+    ]);
+    $form['intro'] = $this->callout((string) $this->t('只从现有标签里推荐。分析不会保存，也不会删除原标签。匹配程度来自本地规则，不是语义模型。一次最多 @count 篇。', ['@count' => self::LIMIT]));
+    $form['input_panel'] = $this->panel([
+      'mode' => [
+        '#type' => 'select',
+        '#title' => $this->t('范围'),
+        '#options' => [
+          'single' => $this->t('单篇内容或一段文字'),
+          'batch' => $this->t('最近 @count 篇已发布内容', ['@count' => self::LIMIT]),
+        ],
+        '#default_value' => 'single',
       ],
-      '#default_value' => 'single',
-    ];
-    $form['nid'] = [
-      '#type' => 'number',
-      '#title' => $this->t('内容 ID'),
-      '#min' => 1,
-      '#states' => ['visible' => [':input[name="mode"]' => ['value' => 'single']]],
-    ];
-    $form['title'] = ['#type' => 'textfield', '#title' => $this->t('标题')];
-    $form['description'] = ['#type' => 'textarea', '#title' => $this->t('描述'), '#rows' => 2];
-    $form['body'] = ['#type' => 'textarea', '#title' => $this->t('正文'), '#rows' => 4];
-    $form['analyze'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('分析'),
-      '#submit' => ['::analyze'],
-      '#limit_validation_errors' => [['mode'], ['nid'], ['title'], ['description'], ['body']],
-    ];
+      'nid' => [
+        '#type' => 'number',
+        '#title' => $this->t('内容 ID'),
+        '#min' => 1,
+        '#states' => ['visible' => [':input[name="mode"]' => ['value' => 'single']]],
+      ],
+      'title' => ['#type' => 'textfield', '#title' => $this->t('标题')],
+      'description' => ['#type' => 'textarea', '#title' => $this->t('描述'), '#rows' => 2],
+      'body' => ['#type' => 'textarea', '#title' => $this->t('正文'), '#rows' => 4],
+      'analyze' => [
+        '#type' => 'submit',
+        '#value' => $this->t('分析'),
+        '#submit' => ['::analyze'],
+        '#limit_validation_errors' => [['mode'], ['nid'], ['title'], ['description'], ['body']],
+        '#attributes' => ['class' => ['button--primary']],
+      ],
+    ], ['xt-form-narrow']);
     $groups = $form_state->get('suggestions');
     if (is_array($groups) && $groups) {
       foreach ($groups as $group) {

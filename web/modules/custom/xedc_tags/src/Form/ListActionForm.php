@@ -36,7 +36,10 @@ final class ListActionForm extends AdminFormBase {
   }
 
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $form = $this->chrome($form);
+    $form = $this->chrome($form, [
+      'title' => $this->t('标签列表'),
+      'description' => $this->t('搜索、筛选和管理现有标签。数量包含未发布内容；列表里不能直接删除。'),
+    ]);
     $request = $this->getRequest()->query;
     $q = trim((string) $request->get('q', ''));
     $lang = (string) $request->get('lang', '');
@@ -47,51 +50,57 @@ final class ListActionForm extends AdminFormBase {
     $pager = \Drupal::service('pager.manager')->createPager($total, 20);
     $slice = array_slice($rows, $pager->getCurrentPage() * 20, 20);
 
-    $form['intro'] = [
-      '#markup' => '<p>' . $this->t('共 @count 个标签。数量包含未发布内容。列表里不能直接删除。', ['@count' => $total]) . '</p>',
-    ];
-    $form['q'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('名称或 ID'),
-      '#default_value' => $q,
-      '#size' => 24,
-    ];
+    $form['intro'] = $this->callout((string) $this->t('当前筛选共 @count 个标签。数量含未发布内容；删除请从详情/未使用页单独确认。', ['@count' => $total]));
+
     $bundle = (string) $request->get('bundle', '');
     $health = (string) $request->get('health', '');
     $seoStatus = (string) $request->get('seo', '');
     $minUse = (string) $request->get('min_use', '');
-    $form['lang'] = [
+
+    $form['filters'] = [
+      '#type' => 'container',
+      '#tree' => TRUE,
+      '#attributes' => ['class' => ['xt-filter-bar']],
+    ];
+    $form['filters']['q'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('关键词'),
+      '#default_value' => $q,
+      '#size' => 20,
+      '#attributes' => ['placeholder' => $this->t('名称或 ID')],
+    ];
+    $form['filters']['lang'] = [
       '#type' => 'select',
       '#title' => $this->t('语言'),
       '#options' => ['' => $this->t('全部语言'), 'zh-hans' => '简体中文', 'en' => 'English', 'ja' => '日本語', 'ru' => 'Русский'],
       '#default_value' => $lang,
     ];
-    $form['bundle'] = [
+    $form['filters']['bundle'] = [
       '#type' => 'select',
       '#title' => $this->t('内容类型'),
       '#options' => ['' => $this->t('全部'), 'photo' => $this->t('图片'), 'video' => $this->t('视频'), 'article' => $this->t('文章')],
       '#default_value' => $bundle,
     ];
-    $form['health'] = [
+    $form['filters']['health'] = [
       '#type' => 'select',
-      '#title' => $this->t('健康状态'),
+      '#title' => $this->t('健康'),
       '#options' => ['' => $this->t('全部'), 'ok' => $this->t('正常'), 'warning' => $this->t('警告'), 'error' => $this->t('异常')],
       '#default_value' => $health,
     ];
-    $form['seo'] = [
+    $form['filters']['seo'] = [
       '#type' => 'select',
-      '#title' => $this->t('SEO 状态'),
+      '#title' => $this->t('SEO'),
       '#options' => ['' => $this->t('全部'), 'ok' => $this->t('正常'), 'improve' => $this->t('建议完善'), 'noindex' => $this->t('建议 noindex'), 'merge' => $this->t('建议合并'), 'manual' => $this->t('需人工检查')],
       '#default_value' => $seoStatus,
     ];
-    $form['min_use'] = [
+    $form['filters']['min_use'] = [
       '#type' => 'number',
-      '#title' => $this->t('最少使用次数'),
+      '#title' => $this->t('最少使用'),
       '#default_value' => $minUse,
       '#min' => 0,
-      '#size' => 6,
+      '#size' => 5,
     ];
-    $form['sort'] = [
+    $form['filters']['sort'] = [
       '#type' => 'select',
       '#title' => $this->t('排序'),
       '#options' => [
@@ -102,63 +111,72 @@ final class ListActionForm extends AdminFormBase {
       ],
       '#default_value' => $sort,
     ];
-    $form['order'] = [
+    $form['filters']['order'] = [
       '#type' => 'select',
       '#title' => $this->t('方向'),
       '#options' => ['desc' => $this->t('降序'), 'asc' => $this->t('升序')],
       '#default_value' => $order,
     ];
-    $form['filter'] = [
+    $form['filters']['filter'] = [
       '#type' => 'submit',
       '#value' => $this->t('筛选'),
       '#submit' => ['::applyFilter'],
-      '#limit_validation_errors' => [['q'], ['lang'], ['bundle'], ['health'], ['seo'], ['min_use'], ['sort'], ['order']],
+      '#limit_validation_errors' => [
+        ['filters', 'q'],
+        ['filters', 'lang'],
+        ['filters', 'bundle'],
+        ['filters', 'health'],
+        ['filters', 'seo'],
+        ['filters', 'min_use'],
+        ['filters', 'sort'],
+        ['filters', 'order'],
+      ],
     ];
     $form['links'] = ['#markup' => $this->quickLinks()];
 
     $header = [
       'name' => $this->t('标签名称'),
-      'tid' => $this->t('ID'),
-      'alias' => $this->t('别名'),
-      'lang' => $this->t('语言'),
-      'all' => $this->t('使用内容'),
-      'photo' => $this->t('图片'),
-      'video' => $this->t('视频'),
-      'article' => $this->t('文章'),
-      'created' => $this->t('创建时间'),
+      'all' => $this->t('使用数量'),
+      'types' => $this->t('内容类型'),
+      'status' => $this->t('健康状态'),
+      'seo' => $this->t('SEO 状态'),
       'changed' => $this->t('更新时间'),
-      'seo' => $this->t('SEO'),
-      'status' => $this->t('健康'),
       'ops' => $this->t('操作'),
     ];
     $seoMap = $this->seo->all();
     $options = [];
     foreach ($slice as $term) {
       $tid = (int) $term['tid'];
+      $seoRow = $seoMap[$tid] ?? NULL;
       $options[$tid] = [
-        'name' => $term['name'],
-        'tid' => (string) $tid,
-        'alias' => $term['alias'],
-        'lang' => implode(', ', $term['langcodes']),
-        'all' => (string) $term['all'],
-        'photo' => (string) $term['photo'],
-        'video' => (string) $term['video'],
-        'article' => (string) $term['article'],
-        'created' => $this->date((int) $term['created']),
-        'changed' => $this->date((int) $term['changed']),
-        'seo' => (string) ($seoMap[$tid]['label'] ?? $this->t('未知')),
-        'status' => $this->statusLabel($term),
+        'name' => ['data' => ['#markup' => $this->tagNameMarkup((string) $term['name'], $tid)]],
+        'all' => ['data' => ['#markup' => '<span class="xt-num">' . (int) $term['all'] . '</span>']],
+        'types' => $this->typeSummary($term),
+        'status' => ['data' => ['#markup' => $this->statusBadge($term)]],
+        'seo' => ['data' => ['#markup' => $this->seoBadge($seoRow)]],
+        'changed' => $this->date((int) ($term['changed'] ?? $term['created'])),
         'ops' => ['data' => ['#markup' => $this->operations($tid)]],
       ];
     }
-    $form['tags'] = [
+    $form['table_wrap'] = [
+      '#type' => 'container',
+      '#tree' => TRUE,
+      '#attributes' => ['class' => ['xt-card', 'xt-card--flush', 'xt-table-wrap']],
+    ];
+    $form['table_wrap']['tags'] = [
       '#type' => 'tableselect',
       '#header' => $header,
       '#options' => $options,
       '#empty' => $this->t('没有符合条件的标签。'),
+      '#attributes' => ['class' => ['xt-table']],
     ];
     $form['pager'] = ['#type' => 'pager'];
-    $form['action'] = [
+    $form['batch'] = [
+      '#type' => 'container',
+      '#tree' => TRUE,
+      '#attributes' => ['class' => ['xt-batch-bar']],
+    ];
+    $form['batch']['action'] = [
       '#type' => 'select',
       '#title' => $this->t('对当前页选中的标签'),
       '#options' => [
@@ -166,11 +184,11 @@ final class ListActionForm extends AdminFormBase {
         'not_duplicate' => $this->t('标记为非重复'),
       ],
     ];
-    $form['confirm'] = [
+    $form['batch']['confirm'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('我确认对当前页选中的标签执行这个操作'),
     ];
-    $form['submit'] = [
+    $form['batch']['submit'] = [
       '#type' => 'submit',
       '#value' => $this->t('执行'),
     ];
@@ -179,25 +197,25 @@ final class ListActionForm extends AdminFormBase {
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
-    $trigger = $form_state->getTriggeringElement()['#parents'][0] ?? '';
-    if ($trigger !== 'submit') {
+    $parents = $form_state->getTriggeringElement()['#parents'] ?? [];
+    if (!in_array('submit', $parents, TRUE)) {
       return;
     }
-    $selected = array_filter(array_map('intval', (array) $form_state->getValue('tags')));
+    $selected = array_filter(array_map('intval', (array) $form_state->getValue(['table_wrap', 'tags'])));
     if (!$selected) {
-      $form_state->setErrorByName('tags', $this->t('请先选择标签。'));
+      $form_state->setError($form['table_wrap']['tags'], $this->t('请先选择标签。'));
     }
-    if (!$form_state->getValue('confirm')) {
-      $form_state->setErrorByName('confirm', $this->t('请先确认。'));
+    if (!$form_state->getValue(['batch', 'confirm'])) {
+      $form_state->setError($form['batch']['confirm'], $this->t('请先确认。'));
     }
-    if ($form_state->getValue('action') === 'not_duplicate' && count($selected) < 2) {
-      $form_state->setErrorByName('tags', $this->t('标记为非重复至少要选择两个标签。'));
+    if ($form_state->getValue(['batch', 'action']) === 'not_duplicate' && count($selected) < 2) {
+      $form_state->setError($form['table_wrap']['tags'], $this->t('标记为非重复至少要选择两个标签。'));
     }
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $selected = array_values(array_filter(array_map('intval', (array) $form_state->getValue('tags'))));
-    if ($form_state->getValue('action') === 'merge') {
+    $selected = array_values(array_filter(array_map('intval', (array) $form_state->getValue(['table_wrap', 'tags']))));
+    if ($form_state->getValue(['batch', 'action']) === 'merge') {
       $query = ['sources' => implode(',', $selected)];
       if ($this->currentUser()->hasPermission('merge xedc tags')) {
         $form_state->setRedirect('xedc_tags.admin_merge', [], ['query' => $query]);
@@ -219,15 +237,16 @@ final class ListActionForm extends AdminFormBase {
   }
 
   public function applyFilter(array &$form, FormStateInterface $form_state): void {
+    $filters = (array) $form_state->getValue('filters');
     $query = array_filter([
-      'q' => trim((string) $form_state->getValue('q')),
-      'lang' => (string) $form_state->getValue('lang'),
-      'bundle' => (string) $form_state->getValue('bundle'),
-      'health' => (string) $form_state->getValue('health'),
-      'seo' => (string) $form_state->getValue('seo'),
-      'min_use' => (string) $form_state->getValue('min_use'),
-      'sort' => (string) $form_state->getValue('sort'),
-      'order' => (string) $form_state->getValue('order'),
+      'q' => trim((string) ($filters['q'] ?? '')),
+      'lang' => (string) ($filters['lang'] ?? ''),
+      'bundle' => (string) ($filters['bundle'] ?? ''),
+      'health' => (string) ($filters['health'] ?? ''),
+      'seo' => (string) ($filters['seo'] ?? ''),
+      'min_use' => (string) ($filters['min_use'] ?? ''),
+      'sort' => (string) ($filters['sort'] ?? ''),
+      'order' => (string) ($filters['order'] ?? ''),
     ], static fn($value): bool => $value !== '' && $value !== NULL);
     $kept = array_intersect_key($this->getRequest()->query->all(), array_flip(['unused', 'anomaly', 'used', 'created', 'changed', 'pending', 'freq']));
     $form_state->setRedirect('xedc_tags.admin_list', [], ['query' => $query + $kept]);
@@ -325,18 +344,52 @@ final class ListActionForm extends AdminFormBase {
   /**
    * @param array<string, mixed> $term
    */
-  private function statusLabel(array $term): string {
+  private function typeSummary(array $term): string {
+    $parts = [];
+    if ((int) $term['photo'] > 0) {
+      $parts[] = $this->t('图 @n', ['@n' => $term['photo']]);
+    }
+    if ((int) $term['video'] > 0) {
+      $parts[] = $this->t('视 @n', ['@n' => $term['video']]);
+    }
+    if ((int) $term['article'] > 0) {
+      $parts[] = $this->t('文 @n', ['@n' => $term['article']]);
+    }
+    return $parts ? implode(' · ', $parts) : (string) $this->t('无');
+  }
+
+  /**
+   * @param array<string, mixed> $term
+   */
+  private function statusBadge(array $term): string {
     $health = $term['_health'] ?? $this->health->status($term);
     if ($health === 'error') {
-      return (string) $this->t('异常');
+      return $this->badge((string) $this->t('异常'), 'danger');
     }
     if ($health === 'warning' || !empty($term['_duplicate'])) {
-      return (string) $this->t('警告');
+      return $this->badge((string) $this->t('警告'), 'warning');
     }
     if ((int) $term['all'] === 0) {
-      return (string) $this->t('未使用');
+      return $this->badge((string) $this->t('未使用'), 'neutral');
     }
-    return (string) $this->t('正常');
+    return $this->badge((string) $this->t('正常'), 'success');
+  }
+
+  /**
+   * @param array<string, mixed>|null $seo
+   */
+  private function seoBadge(?array $seo): string {
+    if (!$seo) {
+      return $this->badge((string) $this->t('未知'), 'neutral');
+    }
+    $tone = match ((string) ($seo['status'] ?? '')) {
+      'ok' => 'success',
+      'improve' => 'info',
+      'noindex', 'merge' => 'warning',
+      'manual' => 'danger',
+      default => 'neutral',
+    };
+    return $this->badge((string) ($seo['label'] ?? $this->t('未知')), $tone);
   }
 
   private function operations(int $tid): string {
@@ -347,11 +400,9 @@ final class ListActionForm extends AdminFormBase {
     if ($edit->access($this->currentUser())) {
       $links[] = '<a href="' . $edit->toString() . '">' . $this->t('编辑') . '</a>';
     }
-    $links[] = $this->link('关联内容', 'xedc_tags.admin_term', $tid);
-    $links[] = '<a href="' . Url::fromRoute('xedc_tags.admin_relations', [], ['query' => ['tid' => $tid]])->toString() . '">' . $this->t('关联标签') . '</a>';
+    $links[] = '<a href="' . Url::fromRoute('xedc_tags.admin_relations', [], ['query' => ['tid' => $tid]])->toString() . '">' . $this->t('关联') . '</a>';
     $links[] = '<a href="' . Url::fromRoute('xedc_tags.admin_seo', [], ['query' => ['tid' => $tid]])->toString() . '">' . $this->t('SEO') . '</a>';
-    $links[] = '<a href="' . Url::fromRoute('xedc_tags.admin_history', [], ['query' => ['tid' => $tid]])->toString() . '">' . $this->t('历史') . '</a>';
-    return implode(' · ', $links);
+    return '<div class="xt-ops">' . implode('', $links) . '</div>';
   }
 
   private function link(string $text, string $route, int $tid): string {
@@ -360,17 +411,17 @@ final class ListActionForm extends AdminFormBase {
 
   private function quickLinks(): string {
     $items = [
-      'used' => $this->t('只看已使用'),
-      'unused' => $this->t('只看未使用'),
-      'anomaly' => $this->t('只看异常'),
-      'pending' => $this->t('只看待处理'),
+      'used' => $this->t('已使用'),
+      'unused' => $this->t('未使用'),
+      'anomaly' => $this->t('异常'),
+      'pending' => $this->t('待处理'),
     ];
-    $links = ['<a href="' . Url::fromRoute('xedc_tags.admin_list')->toString() . '">' . $this->t('全部') . '</a>'];
+    $links = ['<a class="xt-chip" href="' . Url::fromRoute('xedc_tags.admin_list')->toString() . '">' . $this->t('全部') . '</a>'];
     foreach ($items as $key => $label) {
-      $links[] = '<a href="' . Url::fromRoute('xedc_tags.admin_list', [], ['query' => [$key => 1]])->toString() . '">' . $label . '</a>';
+      $links[] = '<a class="xt-chip" href="' . Url::fromRoute('xedc_tags.admin_list', [], ['query' => [$key => 1]])->toString() . '">' . $label . '</a>';
     }
-    $links[] = '<a href="' . Url::fromRoute('xedc_tags.admin_list', [], ['query' => ['created' => 'month']])->toString() . '">' . $this->t('本月新增') . '</a>';
-    return '<p class="xt-admin-links">' . implode(' · ', $links) . '</p>';
+    $links[] = '<a class="xt-chip" href="' . Url::fromRoute('xedc_tags.admin_list', [], ['query' => ['created' => 'month']])->toString() . '">' . $this->t('本月新增') . '</a>';
+    return '<div class="xt-chip-row">' . implode('', $links) . '</div>';
   }
 
 }

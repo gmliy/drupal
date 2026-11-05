@@ -49,6 +49,22 @@ function xedc_tags_theme() {
       ],
       'template' => 'xedc-tags-metrics',
     ],
+    'xedc_tags_admin_dashboard' => [
+      'variables' => [
+        'metrics' => [],
+        'shortcuts' => [],
+        'activity' => [],
+        'scan' => [
+          'last_label' => '',
+          'status_label' => '',
+          'status_tone' => 'neutral',
+        ],
+        'refresh_url' => '',
+        'scan_url' => '',
+        'scan_locked' => FALSE,
+      ],
+      'template' => 'xedc-tags-admin-dashboard',
+    ],
   ];
 }
 

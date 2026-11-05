@@ -39,6 +39,37 @@ class TaskRepository {
   }
 
   /**
+   * Finds an import task linked to an upload session without trusting the browser.
+   *
+   * Archives store session_id on upload_token. Image batches store session_id on
+   * the item relative_path and may leave upload_token empty.
+   */
+  public function findLinkedToUploadSession(string $sessionId): ?object {
+    $sessionId = strtolower(trim($sessionId));
+    if (!preg_match('/^[a-f0-9]{32}$/', $sessionId)) {
+      return NULL;
+    }
+    $byToken = $this->findByUploadToken($sessionId);
+    if ($byToken) {
+      return $byToken;
+    }
+    if (!$this->database->schema()->tableExists('xedc_import_item')) {
+      return NULL;
+    }
+    $taskId = $this->database->select('xedc_import_item', 'i')
+      ->fields('i', ['task_id'])
+      ->condition('relative_path', $sessionId)
+      ->orderBy('id', 'DESC')
+      ->range(0, 1)
+      ->execute()
+      ->fetchField();
+    if (!is_numeric($taskId) || (int) $taskId < 1) {
+      return NULL;
+    }
+    return $this->load((int) $taskId);
+  }
+
+  /**
    * Latest task that already stored this archive hash.
    */
   public function findByArchiveHash(string $hash): ?object {

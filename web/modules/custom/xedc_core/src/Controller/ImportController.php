@@ -503,8 +503,9 @@ class ImportController extends ControllerBase {
       $caption .= ' — 文件已存在，已复用';
     }
     $figure = [
-      '#type' => 'container',
-      'caption' => ['#plain_text' => $caption . ($alt !== '' ? ' / ' . $alt : '')],
+      '#type' => 'html_tag',
+      '#tag' => 'figure',
+      '#attributes' => ['class' => ['xedc-import-grid__item']],
     ];
     if ($src !== '') {
       $figure['image'] = [
@@ -517,6 +518,11 @@ class ImportController extends ControllerBase {
         ],
       ];
     }
+    $figure['caption'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'figcaption',
+      '#value' => $caption . ($alt !== '' ? ' / ' . $alt : ''),
+    ];
     return $figure;
   }
 

@@ -186,6 +186,10 @@ final class UploadSessionManager {
       $fields['client_upload_id'] = $clientId;
       $fields['reimport'] = $reimport;
     }
+    if ($this->database->schema()->fieldExists('xedc_upload_session', 'cleanup_status')) {
+      $fields['cleanup_status'] = 'none';
+      $fields['cleanup_error'] = '';
+    }
     $this->database->insert('xedc_upload_session')->fields($fields)->execute();
     $row = $this->load($sessionId);
     return $this->result(201, $this->present($row));
@@ -323,7 +327,14 @@ final class UploadSessionManager {
     }
     $fresh = $this->load($sessionId) ?: $row;
     if (!$stored['ok']) {
-      return $this->result((int) $stored['http'], array_merge($this->present($fresh), $this->fail((string) $stored['error'])));
+      // Late chunk after cancel: drop any directory recreate leftovers.
+      if (in_array((string) $fresh->status, ['cancelled', 'expired'], TRUE) && (int) $fresh->task_id < 1) {
+        $this->cleanupCancelledSession($fresh);
+        $fresh = $this->load($sessionId) ?: $fresh;
+      }
+      return $this->result((int) $stored['http'], array_merge($this->present($fresh), $this->fail((string) $stored['error']), [
+        'outcome' => (string) $fresh->status,
+      ]));
     }
     return $this->result(200, $this->present($fresh) + ['duplicate' => !empty($stored['duplicate'])]);
   }
@@ -338,41 +349,64 @@ final class UploadSessionManager {
       return $this->result(404, $this->fail('上传会话不存在。'));
     }
     if ((string) $row->status === 'completed' && (int) $row->task_id > 0) {
-      return $this->result(200, $this->taskPayload($row, '上传已经完成，没有重复创建任务。'));
+      return $this->result(200, $this->taskPayload($row, '上传已经完成，没有重复创建任务。') + ['outcome' => 'already_completed']);
     }
     if ($this->markIfExpired($row)) {
-      return $this->result(410, $this->fail('上传会话已过期。'));
+      return $this->result(410, array_merge($this->fail('上传会话已过期。'), ['outcome' => 'expired']));
     }
     if (in_array((string) $row->status, ['cancelled', 'expired'], TRUE)) {
-      return $this->result(409, $this->fail('这个上传会话已经结束。'));
+      return $this->result(409, array_merge($this->present($row), $this->fail('这个上传会话已经取消或过期。'), ['outcome' => (string) $row->status]));
     }
     $lockName = 'xedc_upload_complete:' . $sessionId;
     if (!$this->lock->acquire($lockName, 180.0)) {
       $fresh = $this->load($sessionId) ?: $row;
       if ((string) $fresh->status === 'completed' && (int) $fresh->task_id > 0) {
-        return $this->result(200, $this->taskPayload($fresh, '上传已经完成，没有重复创建任务。'));
+        return $this->result(200, $this->taskPayload($fresh, '上传已经完成，没有重复创建任务。') + ['outcome' => 'already_completed']);
       }
-      return $this->result(409, $this->fail('合并正在进行，请稍后查询。'));
+      if (in_array((string) $fresh->status, ['cancelled', 'expired'], TRUE)) {
+        return $this->result(409, array_merge($this->present($fresh), $this->fail('这个上传会话已经取消或过期。'), ['outcome' => (string) $fresh->status]));
+      }
+      return $this->result(409, array_merge($this->present($fresh), $this->fail('合并正在进行，请稍后查询。'), ['outcome' => 'completing']));
     }
     try {
-      $row = $this->load($sessionId) ?: $row;
-      if ((string) $row->status === 'completed' && (int) $row->task_id > 0) {
-        return $this->result(200, $this->taskPayload($row, '上传已经完成，没有重复创建任务。'));
+      $claimed = $this->claimComplete($sessionId);
+      if (empty($claimed['ok'])) {
+        $fresh = $this->load($sessionId) ?: $row;
+        $outcome = (string) ($claimed['outcome'] ?? 'conflict');
+        if ($outcome === 'already_completed' || $outcome === 'handed_off') {
+          return $this->result(200, $this->taskPayload($fresh, (string) ($claimed['message'] ?? '上传已经完成，没有重复创建任务。')) + ['outcome' => $outcome]);
+        }
+        return $this->result((int) ($claimed['http'] ?? 409), array_merge(
+          $this->present($fresh),
+          $this->fail((string) ($claimed['error'] ?? '无法完成上传。')),
+          ['outcome' => $outcome],
+        ));
       }
-      $linked = $this->tasks->findByUploadToken($sessionId);
+      $row = $claimed['row'];
+      $linked = $this->tasks->findLinkedToUploadSession($sessionId);
       if ($linked) {
         $this->rememberTask($row, (int) $linked->id, '');
-        return $this->result(200, $this->taskPayload($this->load($sessionId) ?: $row, '这次上传已经创建过任务，没有重复创建。'));
+        return $this->result(200, $this->taskPayload($this->load($sessionId) ?: $row, '这次上传已经创建过任务，没有重复创建。') + ['outcome' => 'already_completed']);
       }
       $missing = $this->missing($row);
       if ($missing) {
-        return $this->result(409, array_merge($this->present($row), $this->fail('还有分块没有上传完成。')));
+        $this->update($sessionId, [
+          'status' => 'uploading',
+          'error' => '还有分块没有上传完成。',
+          'changed' => $this->now(),
+        ]);
+        $fresh = $this->load($sessionId) ?: $row;
+        return $this->result(409, array_merge($this->present($fresh), $this->fail('还有分块没有上传完成。'), ['outcome' => 'incomplete']));
       }
       $clientSha = strtolower(trim((string) ($payload['file_sha256'] ?? $row->file_sha256)));
       if ($clientSha !== '' && !preg_match('/^[a-f0-9]{64}$/', $clientSha)) {
-        return $this->result(400, $this->fail('文件 SHA256 格式无效。'));
+        $this->update($sessionId, [
+          'status' => 'uploading',
+          'error' => '文件 SHA256 格式无效。',
+          'changed' => $this->now(),
+        ]);
+        return $this->result(400, array_merge($this->fail('文件 SHA256 格式无效。'), ['outcome' => 'invalid']));
       }
-      $this->update($sessionId, ['status' => 'merging', 'error' => '', 'changed' => $this->now()]);
       $merged = $this->merge($row);
       if (isset($merged['error'])) {
         $this->update($sessionId, [
@@ -381,7 +415,7 @@ final class UploadSessionManager {
           'error' => (string) $merged['error'],
           'changed' => $this->now(),
         ]);
-        return $this->result(422, $this->fail((string) $merged['error']));
+        return $this->result(422, array_merge($this->fail((string) $merged['error']), ['outcome' => 'failed']));
       }
       $sha = (string) $merged['sha'];
       if ($clientSha !== '' && !hash_equals($clientSha, $sha)) {
@@ -392,7 +426,7 @@ final class UploadSessionManager {
           'error' => '文件 SHA256 和浏览器提交的不一致，没有创建导入任务。',
           'changed' => $this->now(),
         ]);
-        return $this->result(422, $this->fail('文件 SHA256 和浏览器提交的不一致，没有创建导入任务。'));
+        return $this->result(422, array_merge($this->fail('文件 SHA256 和浏览器提交的不一致，没有创建导入任务。'), ['outcome' => 'failed']));
       }
       $this->update($sessionId, [
         'file_sha256' => $sha,
@@ -400,6 +434,10 @@ final class UploadSessionManager {
         'changed' => $this->now(),
       ]);
       $row = $this->load($sessionId) ?: $row;
+      // Re-check cancel did not win while merging files (should be impossible after claim).
+      if (in_array((string) $row->status, ['cancelled', 'expired'], TRUE)) {
+        return $this->result(409, array_merge($this->present($row), $this->fail('这个上传会话已经取消。'), ['outcome' => 'cancelled']));
+      }
       $handed = match ((string) $row->kind) {
         'archive' => $this->handoffArchive($row, (string) $merged['path']),
         'quick' => $this->handoffQuick($row, (string) $merged['path']),
@@ -414,11 +452,13 @@ final class UploadSessionManager {
           'changed' => $this->now(),
         ]);
         $fresh = $this->load($sessionId) ?: $row;
-        return $this->result((int) ($handed['http'] ?? 422), array_merge($this->present($fresh), $this->fail((string) ($handed['error'] ?? '导入任务没有创建。'))));
+        $outcome = !empty($handed['task_id']) ? 'handed_off' : 'failed';
+        return $this->result((int) ($handed['http'] ?? 422), array_merge($this->present($fresh), $this->fail((string) ($handed['error'] ?? '导入任务没有创建。')), ['outcome' => $outcome]));
       }
       $this->rememberTask($row, (int) ($handed['task_id'] ?? 0), (string) ($handed['final_uri'] ?? ''));
       $this->deleteUploadTree($row);
       $done = $this->taskPayload($this->load($sessionId) ?: $row, (string) ($handed['message'] ?? '上传已完成。'));
+      $done['outcome'] = 'handed_off';
       foreach (['mid', 'dup', 'original_bytes', 'optimized_bytes', 'fid', 'reused'] as $extra) {
         if (array_key_exists($extra, $handed)) {
           $done[$extra] = $handed[$extra];
@@ -434,17 +474,21 @@ final class UploadSessionManager {
         '@id' => $sessionId,
         '@message' => $e->getMessage(),
       ]);
-      $linked = $this->tasks->findByUploadToken($sessionId);
+      $linked = $this->tasks->findLinkedToUploadSession($sessionId);
       if ($linked) {
         $this->rememberTask($row, (int) $linked->id, '');
-        return $this->result(200, $this->taskPayload($this->load($sessionId) ?: $row, '任务已经创建，没有重复创建。'));
+        return $this->result(200, $this->taskPayload($this->load($sessionId) ?: $row, '任务已经创建，没有重复创建。') + ['outcome' => 'handed_off']);
+      }
+      $fresh = $this->load($sessionId);
+      if ($fresh && in_array((string) $fresh->status, ['cancelled', 'expired'], TRUE)) {
+        return $this->result(409, array_merge($this->present($fresh), $this->fail('这个上传会话已经取消。'), ['outcome' => (string) $fresh->status]));
       }
       $this->update($sessionId, [
         'status' => 'uploading',
         'error' => '合并没有完成，已保留分块，可以再次完成。',
         'changed' => $this->now(),
       ]);
-      return $this->result(500, $this->fail('合并没有完成，已保留分块，可以再次完成。'));
+      return $this->result(500, array_merge($this->fail('合并没有完成，已保留分块，可以再次完成。'), ['outcome' => 'retry']));
     }
     finally {
       $this->lock->release($lockName);
@@ -457,31 +501,68 @@ final class UploadSessionManager {
   public function cancel(string $sessionId): array {
     $row = $this->owned($sessionId);
     if (!$row) {
-      return $this->result(404, $this->fail('上传会话不存在。'));
-    }
-    if ((string) $row->status === 'completed') {
-      return $this->result(409, $this->fail('上传已经完成，不能取消。'));
+      return $this->result(404, array_merge($this->fail('上传会话不存在。'), ['outcome' => 'unknown']));
     }
     $lockName = 'xedc_upload_complete:' . $sessionId;
     if (!$this->lock->acquire($lockName, 30.0)) {
-      return $this->result(409, $this->fail('合并正在进行，暂时不能取消。'));
+      $fresh = $this->load($sessionId) ?: $row;
+      if ((string) $fresh->status === 'completed' || (int) $fresh->task_id > 0) {
+        return $this->result(409, array_merge(
+          $this->present($fresh),
+          $this->fail('上传已经完成并交给导入任务，不能通过上传取消。'),
+          ['outcome' => 'handed_off'],
+        ));
+      }
+      if ((string) $fresh->status === 'cancelled') {
+        return $this->result(200, $this->present($fresh) + [
+          'ok' => TRUE,
+          'message' => '上传已取消。',
+          'outcome' => 'already_cancelled',
+        ]);
+      }
+      return $this->result(409, array_merge(
+        $this->present($fresh),
+        $this->fail('合并或交接正在进行，上传取消与完成由服务器裁决，请稍后查询。'),
+        ['outcome' => 'completing'],
+      ));
     }
     try {
-      $row = $this->load($sessionId) ?: $row;
-      if ((string) $row->status === 'completed') {
-        return $this->result(409, $this->fail('上传已经完成，不能取消。'));
+      $claimed = $this->claimCancel($sessionId);
+      if (empty($claimed['ok'])) {
+        $fresh = $this->load($sessionId) ?: $row;
+        $outcome = (string) ($claimed['outcome'] ?? 'conflict');
+        $http = (int) ($claimed['http'] ?? 409);
+        if ($outcome === 'already_cancelled') {
+          $cleanup = $this->cleanupCancelledSession($fresh);
+          $fresh = $this->load($sessionId) ?: $fresh;
+          return $this->result(200, $this->present($fresh) + [
+            'ok' => TRUE,
+            'message' => '上传已取消。',
+            'outcome' => 'already_cancelled',
+            'cleanup' => $cleanup['status'],
+          ]);
+        }
+        return $this->result($http, array_merge(
+          $this->present($fresh),
+          $this->fail((string) ($claimed['error'] ?? '不能取消这个上传会话。')),
+          ['outcome' => $outcome],
+        ));
       }
-      if (!$this->deleteUploadTree($row)) {
-        return $this->result(500, $this->fail('上传文件路径不安全，没有删除。'));
+      $row = $claimed['row'];
+      $cleanup = $this->cleanupCancelledSession($row);
+      $fresh = $this->load($sessionId) ?: $row;
+      $payload = $this->present($fresh) + [
+        'ok' => TRUE,
+        'message' => $cleanup['status'] === 'failed'
+          ? '上传已取消，临时文件清理失败，稍后会重试。'
+          : '上传已取消。',
+        'outcome' => 'cancelled',
+        'cleanup' => $cleanup['status'],
+      ];
+      if ($cleanup['status'] === 'failed') {
+        $payload['cleanup_error'] = (string) ($cleanup['error'] ?? '');
       }
-      $this->database->delete('xedc_upload_chunk')->condition('session_id', $sessionId)->execute();
-      $this->update($sessionId, [
-        'status' => 'cancelled',
-        'received_bytes' => 0,
-        'error' => '用户取消了上传。',
-        'changed' => $this->now(),
-      ]);
-      return $this->result(200, $this->present($this->load($sessionId) ?: $row) + ['ok' => TRUE, 'message' => '上传已取消。']);
+      return $this->result(200, $payload);
     }
     finally {
       $this->lock->release($lockName);
@@ -495,6 +576,7 @@ final class UploadSessionManager {
     if (!$this->database->schema()->tableExists('xedc_upload_session')) {
       return 0;
     }
+    $count = $this->retryPendingCleanups();
     $cutoff = $this->now() - $this->ttl();
     $rows = $this->database->select('xedc_upload_session', 's')
       ->fields('s')
@@ -503,7 +585,6 @@ final class UploadSessionManager {
       ->range(0, 50)
       ->execute()
       ->fetchAll();
-    $count = 0;
     foreach ($rows as $row) {
       $lockName = 'xedc_upload_complete:' . $row->session_id;
       if (!$this->lock->acquire($lockName, 30.0)) {
@@ -515,22 +596,33 @@ final class UploadSessionManager {
         if (!$fresh || (int) $fresh->changed >= $cutoff || (string) $fresh->status === 'completed') {
           continue;
         }
-        if ((int) $fresh->task_id > 0 || $this->tasks->findByUploadToken((string) $fresh->session_id)) {
+        if ((int) $fresh->task_id > 0 || $this->tasks->findLinkedToUploadSession((string) $fresh->session_id)) {
           $this->logger->notice('跳过清理上传会话 @id，已经关联导入任务。', ['@id' => $fresh->session_id]);
           $this->update((string) $fresh->session_id, ['status' => 'completed', 'changed' => $this->now()]);
+          continue;
+        }
+        // Cancelled sessions stay cancelled; only expire unfinished upload states.
+        if ((string) $fresh->status === 'cancelled') {
+          $this->cleanupCancelledSession($fresh);
+          $count++;
           continue;
         }
         if (!$this->deleteUploadTree($fresh)) {
           continue;
         }
         $this->database->delete('xedc_upload_chunk')->condition('session_id', $fresh->session_id)->execute();
-        $this->update((string) $fresh->session_id, [
+        $fields = [
           'status' => 'expired',
           'received_bytes' => 0,
           'final_uri' => '',
           'error' => '会话过期，已清理未完成的分块。',
           'changed' => $this->now(),
-        ]);
+        ];
+        if ($this->hasCleanupFields()) {
+          $fields['cleanup_status'] = 'completed';
+          $fields['cleanup_error'] = '';
+        }
+        $this->update((string) $fresh->session_id, $fields);
         $this->logger->notice('已清理过期上传会话 @id，用户 @uid，原状态 @status。', [
           '@id' => $fresh->session_id,
           '@uid' => $fresh->uid,
@@ -542,6 +634,8 @@ final class UploadSessionManager {
         $this->lock->release($lockName);
       }
     }
+    // Completed sessions: only leftover staging under private://xedc-upload/{uid}/{session}.
+    // Worker sources are copies in inbox / task work_uri / quick storage and are never deleted here.
     $done = $this->database->select('xedc_upload_session', 's')
       ->fields('s')
       ->condition('status', 'completed')
@@ -550,10 +644,18 @@ final class UploadSessionManager {
       ->execute()
       ->fetchAll();
     foreach ($done as $row) {
+      $final = (string) ($row->final_uri ?? '');
+      if ($final !== '' && str_starts_with($final, 'private://xedc-upload/')) {
+        $this->logger->error('跳过清理已完成会话 @id，final_uri 仍在上传暂存树内。', ['@id' => $row->session_id]);
+        continue;
+      }
       $uri = $this->directoryUri((int) $row->uid, (string) $row->session_id);
       $real = $this->fileSystem->realpath($uri);
       if ($real && $this->pathIsUploadTree($uri)) {
-        $this->deleteUploadTree($row);
+        if (!$this->deleteUploadTree($row)) {
+          $this->logger->error('已完成会话残留分块清理失败 @id。', ['@id' => $row->session_id]);
+          continue;
+        }
         $this->logger->notice('已清理已完成会话残留分块 @id。', ['@id' => $row->session_id]);
       }
     }
@@ -679,6 +781,317 @@ final class UploadSessionManager {
       ->fields($fields)
       ->condition('session_id', $sessionId)
       ->execute();
+  }
+
+  private function hasCleanupFields(): bool {
+    return $this->database->schema()->fieldExists('xedc_upload_session', 'cleanup_status');
+  }
+
+  /**
+   * Atomically claims an upload session for merge/handoff.
+   *
+   * @return array{ok: bool, row?: object, http?: int, error?: string, outcome?: string, message?: string}
+   */
+  private function claimComplete(string $sessionId): array {
+    $transaction = $this->database->startTransaction();
+    try {
+      $locked = $this->database->select('xedc_upload_session', 's')
+        ->fields('s')
+        ->condition('session_id', $sessionId)
+        ->forUpdate()
+        ->execute()
+        ->fetchObject();
+      if (!$locked) {
+        $transaction->rollBack();
+        return ['ok' => FALSE, 'http' => 404, 'error' => '上传会话不存在。', 'outcome' => 'unknown'];
+      }
+      if ((int) $locked->task_id > 0 || (string) $locked->status === 'completed') {
+        $linked = $this->tasks->findLinkedToUploadSession($sessionId);
+        if ($linked && (int) $locked->task_id < 1) {
+          $this->rememberTask($locked, (int) $linked->id, '');
+          $locked = $this->load($sessionId) ?: $locked;
+        }
+        unset($transaction);
+        return [
+          'ok' => FALSE,
+          'http' => 200,
+          'outcome' => 'already_completed',
+          'message' => '上传已经完成，没有重复创建任务。',
+          'row' => $locked,
+        ];
+      }
+      if (in_array((string) $locked->status, ['cancelled', 'expired'], TRUE)) {
+        unset($transaction);
+        return [
+          'ok' => FALSE,
+          'http' => 409,
+          'error' => '这个上传会话已经取消或过期。',
+          'outcome' => (string) $locked->status,
+          'row' => $locked,
+        ];
+      }
+      if ((string) $locked->status === 'merging') {
+        // Same request path retries under the session lock; treat as ownership.
+        unset($transaction);
+        return ['ok' => TRUE, 'row' => $locked, 'outcome' => 'merging'];
+      }
+      $affected = (int) $this->database->update('xedc_upload_session')
+        ->fields([
+          'status' => 'merging',
+          'error' => '',
+          'changed' => $this->now(),
+        ])
+        ->condition('session_id', $sessionId)
+        ->condition('status', ['open', 'uploading', 'failed'], 'IN')
+        ->condition('task_id', 0)
+        ->execute();
+      if ($affected !== 1) {
+        $locked = $this->load($sessionId) ?: $locked;
+        $transaction->rollBack();
+        if ((string) $locked->status === 'cancelled' || (string) $locked->status === 'expired') {
+          return [
+            'ok' => FALSE,
+            'http' => 409,
+            'error' => '这个上传会话已经取消或过期。',
+            'outcome' => (string) $locked->status,
+            'row' => $locked,
+          ];
+        }
+        if ((string) $locked->status === 'completed' || (int) $locked->task_id > 0) {
+          return [
+            'ok' => FALSE,
+            'http' => 200,
+            'outcome' => 'already_completed',
+            'message' => '上传已经完成，没有重复创建任务。',
+            'row' => $locked,
+          ];
+        }
+        return [
+          'ok' => FALSE,
+          'http' => 409,
+          'error' => '无法获得完成权，请稍后查询。',
+          'outcome' => 'conflict',
+          'row' => $locked,
+        ];
+      }
+      $locked = $this->load($sessionId) ?: $locked;
+      unset($transaction);
+      return ['ok' => TRUE, 'row' => $locked, 'outcome' => 'merging'];
+    }
+    catch (\Throwable $e) {
+      $transaction->rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Atomically claims an upload session for cancel. Never touches handed-off tasks.
+   *
+   * @return array{ok: bool, row?: object, http?: int, error?: string, outcome?: string}
+   */
+  private function claimCancel(string $sessionId): array {
+    $transaction = $this->database->startTransaction();
+    try {
+      $locked = $this->database->select('xedc_upload_session', 's')
+        ->fields('s')
+        ->condition('session_id', $sessionId)
+        ->forUpdate()
+        ->execute()
+        ->fetchObject();
+      if (!$locked) {
+        $transaction->rollBack();
+        return ['ok' => FALSE, 'http' => 404, 'error' => '上传会话不存在。', 'outcome' => 'unknown'];
+      }
+      if ((int) $locked->task_id > 0 || (string) $locked->status === 'completed') {
+        unset($transaction);
+        return [
+          'ok' => FALSE,
+          'http' => 409,
+          'error' => '上传已经完成并交给导入任务，不能通过上传取消。',
+          'outcome' => 'handed_off',
+          'row' => $locked,
+        ];
+      }
+      if ($this->tasks->findLinkedToUploadSession($sessionId)) {
+        unset($transaction);
+        return [
+          'ok' => FALSE,
+          'http' => 409,
+          'error' => '上传已经完成并交给导入任务，不能通过上传取消。',
+          'outcome' => 'handed_off',
+          'row' => $locked,
+        ];
+      }
+      if ((string) $locked->status === 'cancelled') {
+        unset($transaction);
+        return ['ok' => FALSE, 'http' => 200, 'outcome' => 'already_cancelled', 'row' => $locked];
+      }
+      if ((string) $locked->status === 'expired') {
+        unset($transaction);
+        return [
+          'ok' => FALSE,
+          'http' => 410,
+          'error' => '上传会话已过期。',
+          'outcome' => 'expired',
+          'row' => $locked,
+        ];
+      }
+      if ((string) $locked->status === 'merging') {
+        unset($transaction);
+        return [
+          'ok' => FALSE,
+          'http' => 409,
+          'error' => '合并或交接正在进行，不能取消。',
+          'outcome' => 'completing',
+          'row' => $locked,
+        ];
+      }
+      $fields = [
+        'status' => 'cancelled',
+        'error' => '用户取消了上传。',
+        'changed' => $this->now(),
+      ];
+      if ($this->hasCleanupFields()) {
+        $fields['cleanup_status'] = 'pending';
+        $fields['cleanup_error'] = '';
+      }
+      $affected = (int) $this->database->update('xedc_upload_session')
+        ->fields($fields)
+        ->condition('session_id', $sessionId)
+        ->condition('status', ['open', 'uploading', 'failed'], 'IN')
+        ->condition('task_id', 0)
+        ->execute();
+      if ($affected !== 1) {
+        $locked = $this->load($sessionId) ?: $locked;
+        $transaction->rollBack();
+        if ((string) $locked->status === 'cancelled') {
+          return ['ok' => FALSE, 'http' => 200, 'outcome' => 'already_cancelled', 'row' => $locked];
+        }
+        if ((string) $locked->status === 'completed' || (int) $locked->task_id > 0) {
+          return [
+            'ok' => FALSE,
+            'http' => 409,
+            'error' => '上传已经完成并交给导入任务，不能通过上传取消。',
+            'outcome' => 'handed_off',
+            'row' => $locked,
+          ];
+        }
+        if ((string) $locked->status === 'merging') {
+          return [
+            'ok' => FALSE,
+            'http' => 409,
+            'error' => '合并或交接正在进行，不能取消。',
+            'outcome' => 'completing',
+            'row' => $locked,
+          ];
+        }
+        return [
+          'ok' => FALSE,
+          'http' => 409,
+          'error' => '无法获得取消权。',
+          'outcome' => 'conflict',
+          'row' => $locked,
+        ];
+      }
+      $locked = $this->load($sessionId) ?: $locked;
+      unset($transaction);
+      return ['ok' => TRUE, 'row' => $locked, 'outcome' => 'cancelled'];
+    }
+    catch (\Throwable $e) {
+      $transaction->rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Removes temp chunks for a cancelled session. Cancel status is already final.
+   *
+   * @return array{status: string, error?: string}
+   */
+  private function cleanupCancelledSession(object $session): array {
+    if ((int) ($session->task_id ?? 0) > 0 || $this->tasks->findLinkedToUploadSession((string) $session->session_id)) {
+      return ['status' => 'skipped', 'error' => '会话已交接，跳过上传目录清理。'];
+    }
+    if ((string) ($session->status ?? '') !== 'cancelled' && (string) ($session->status ?? '') !== 'expired') {
+      return ['status' => 'skipped', 'error' => '会话未取消。'];
+    }
+    $sessionId = (string) $session->session_id;
+    try {
+      $this->database->delete('xedc_upload_chunk')->condition('session_id', $sessionId)->execute();
+      if (!$this->deleteUploadTree($session)) {
+        $error = '上传临时目录清理失败或路径不安全。';
+        if ($this->hasCleanupFields()) {
+          $this->update($sessionId, [
+            'cleanup_status' => 'failed',
+            'cleanup_error' => mb_substr($error, 0, 255),
+            'received_bytes' => 0,
+            'changed' => $this->now(),
+          ]);
+        }
+        $this->logger->error('取消会话 @id 清理失败：@error', ['@id' => $sessionId, '@error' => $error]);
+        return ['status' => 'failed', 'error' => $error];
+      }
+      $fields = [
+        'received_bytes' => 0,
+        'changed' => $this->now(),
+      ];
+      if ($this->hasCleanupFields()) {
+        $fields['cleanup_status'] = 'completed';
+        $fields['cleanup_error'] = '';
+      }
+      $this->update($sessionId, $fields);
+      return ['status' => 'completed'];
+    }
+    catch (\Throwable $e) {
+      $error = mb_substr($e->getMessage(), 0, 255);
+      if ($this->hasCleanupFields()) {
+        $this->update($sessionId, [
+          'cleanup_status' => 'failed',
+          'cleanup_error' => $error,
+          'changed' => $this->now(),
+        ]);
+      }
+      $this->logger->error('取消会话 @id 清理异常：@error', ['@id' => $sessionId, '@error' => $error]);
+      return ['status' => 'failed', 'error' => $error];
+    }
+  }
+
+  /**
+   * Retries temp cleanup for cancelled sessions without restoring upload.
+   */
+  private function retryPendingCleanups(): int {
+    if (!$this->hasCleanupFields()) {
+      return 0;
+    }
+    $rows = $this->database->select('xedc_upload_session', 's')
+      ->fields('s')
+      ->condition('status', 'cancelled')
+      ->condition('cleanup_status', ['pending', 'failed'], 'IN')
+      ->condition('task_id', 0)
+      ->range(0, 50)
+      ->execute()
+      ->fetchAll();
+    $count = 0;
+    foreach ($rows as $row) {
+      $lockName = 'xedc_upload_complete:' . $row->session_id;
+      if (!$this->lock->acquire($lockName, 15.0)) {
+        continue;
+      }
+      try {
+        $fresh = $this->load((string) $row->session_id);
+        if (!$fresh || (string) $fresh->status !== 'cancelled' || (int) $fresh->task_id > 0) {
+          continue;
+        }
+        $result = $this->cleanupCancelledSession($fresh);
+        if (($result['status'] ?? '') === 'completed') {
+          $count++;
+        }
+      }
+      finally {
+        $this->lock->release($lockName);
+      }
+    }
+    return $count;
   }
 
   private function expectedSize(object $row, int $index): int {
@@ -1151,7 +1564,7 @@ final class UploadSessionManager {
   private function present(object $session): array {
     $received = $this->receivedIndexes($session);
     $missing = $this->missing($session);
-    return [
+    $data = [
       'ok' => !in_array((string) $session->status, ['failed', 'cancelled', 'expired'], TRUE),
       'session_id' => (string) $session->session_id,
       'filename' => (string) $session->filename,
@@ -1176,6 +1589,11 @@ final class UploadSessionManager {
       'created' => (int) $session->created,
       'changed' => (int) $session->changed,
     ];
+    if ($this->hasCleanupFields()) {
+      $data['cleanup_status'] = (string) ($session->cleanup_status ?? 'none');
+      $data['cleanup_error'] = (string) ($session->cleanup_error ?? '');
+    }
+    return $data;
   }
 
   /**

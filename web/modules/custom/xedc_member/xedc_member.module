@@ -8,6 +8,7 @@
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Element;
 use Drupal\Core\Url;
 use Drupal\file\FileInterface;
 use Drupal\image\Entity\ImageStyle;
@@ -36,6 +37,8 @@ function xedc_member_theme($existing, $type, $theme, $path) {
     'xedc_member_overview' => [
       'variables' => [
         'account' => [],
+        'avatar' => [],
+        'membership' => [],
         'stats' => [],
         'recent_favorites' => [],
         'urls' => [],
@@ -73,6 +76,7 @@ function xedc_member_theme($existing, $type, $theme, $path) {
     'xedc_member_membership' => [
       'variables' => [
         'membership' => [],
+        'urls' => [],
       ],
       'template' => 'xedc-member-membership',
     ],
@@ -139,9 +143,14 @@ function xedc_member_theme($existing, $type, $theme, $path) {
         'pager' => [],
         'urls' => [],
         'create_links' => [],
+        'guidelines' => [],
         'empty' => '',
       ],
       'template' => 'xedc-member-submissions',
+    ],
+    'xedc_member_node_form' => [
+      'render element' => 'form',
+      'template' => 'xedc-member-node-form',
     ],
     'xedc_public_profile' => [
       'variables' => [
@@ -158,6 +167,7 @@ function xedc_member_theme($existing, $type, $theme, $path) {
         'share_url' => '',
         'offer_submission' => FALSE,
         'owner_link' => [],
+        'profile_actions' => [],
       ],
       'template' => 'xedc-public-profile',
     ],
@@ -184,11 +194,29 @@ function xedc_member_form_node_form_alter(array &$form, FormStateInterface $form
     return;
   }
 
-  foreach (['advanced', 'options', 'status', 'uid', 'created', 'revision_log', 'path', 'menu', 'field_views', 'field_published_at', 'field_show_cover'] as $key) {
+  // Hide staff-only / editorial chrome from ordinary members at the render
+  // layer (#access), not via CSS.
+  foreach ([
+    'advanced', 'options', 'status', 'uid', 'created', 'revision_log', 'path',
+    'menu', 'field_views', 'field_published_at', 'field_show_cover',
+    'field_featured', 'field_slideshow', 'field_comment', 'langcode',
+    'author', 'revision_information', 'revision', 'meta',
+    'simple_sitemap', 'simple_sitemap_index_now', 'url_redirects',
+    'publish_on', 'unpublish_on',
+  ] as $key) {
     if (isset($form[$key])) {
       $form[$key]['#access'] = FALSE;
     }
   }
+  foreach (Element::children($form) as $key) {
+    if (is_string($key) && str_starts_with($key, 'scheduler_settings') && isset($form[$key])) {
+      $form[$key]['#access'] = FALSE;
+    }
+  }
+
+  $form['#theme'] = 'xedc_member_node_form';
+  $form['#attributes']['class'][] = 'xm-submission-form';
+  $form['#attributes']['class'][] = 'xm-submission-form--' . $node->bundle();
 
   $weights = [
     'photo' => [
@@ -260,10 +288,45 @@ function xedc_member_form_node_form_alter(array &$form, FormStateInterface $form
     xedc_member_translate_moderation_widget($form['moderation_state'], $node->isNew());
   }
   $form['#after_build'][] = 'xedc_member_submission_moderation_default';
-
-  $form['#attributes']['class'][] = 'xm-submission-form';
-  $form['#attributes']['class'][] = 'xm-submission-form--' . $node->bundle();
   $form['#attached']['library'][] = 'xedc_member/member';
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for xedc_member_node_form.
+ */
+function xedc_member_preprocess_xedc_member_node_form(array &$variables): void {
+  $form = $variables['form'];
+  $form_id = (string) ($form['#form_id'] ?? '');
+  $bundle = 'default';
+  if (preg_match('/^node_(.+)_form$/', $form_id, $matches)) {
+    $bundle = $matches[1];
+    if (str_ends_with($bundle, '_edit')) {
+      $bundle = substr($bundle, 0, -strlen('_edit'));
+    }
+  }
+  $variables['xm_bundle'] = $bundle;
+  $titles = [
+    'photo' => t('投稿美图'),
+    'video' => t('投稿视频'),
+    'article' => t('投稿文章'),
+  ];
+  $variables['xm_title'] = $titles[$bundle] ?? t('内容投稿');
+  $variables['xm_back_url'] = Url::fromRoute('xedc_member.submissions')->toString();
+  $main = match ($bundle) {
+    'article' => ['title', 'field_cover', 'field_summary', 'field_body', 'field_categories', 'field_tags', 'field_author', 'field_source', 'field_source_url', 'moderation_state', 'actions'],
+    'video' => ['title', 'field_video_cover', 'field_video_file', 'field_video_url', 'field_duration', 'field_body', 'field_categories', 'field_tags', 'moderation_state', 'actions'],
+    'photo' => ['title', 'field_cover_image', 'field_images', 'xedc_import', 'field_summary', 'field_categories', 'field_model', 'field_tags', 'moderation_state', 'actions'],
+    default => ['title', 'moderation_state', 'actions'],
+  };
+  $skip = array_flip($main);
+  $leftover = [];
+  foreach (Element::children($form) as $key) {
+    if (!isset($skip[$key]) && ($form[$key]['#access'] ?? TRUE) !== FALSE) {
+      $leftover[] = $key;
+    }
+  }
+  $variables['xm_main'] = $main;
+  $variables['xm_leftover'] = $leftover;
 }
 
 /**
@@ -815,7 +878,10 @@ function xedc_member_preprocess_html(array &$variables) {
   if ($route === 'xedc_member.public_profile') {
     $variables['attributes']['class'][] = 'xp-page';
   }
-  if (is_string($route) && str_starts_with($route, 'xedc_member.') && $route !== 'xedc_member.public_profile') {
+  if (is_string($route) && (
+    (str_starts_with($route, 'xedc_member.') && $route !== 'xedc_member.public_profile')
+    || xedc_member_is_member_shell_route($route)
+  )) {
     $variables['attributes']['class'][] = 'xm-page';
     if ($route === 'xedc_member.history_clear') {
       $variables['attributes']['class'][] = 'xm-page--confirm';
@@ -826,6 +892,26 @@ function xedc_member_preprocess_html(array &$variables) {
   }
   $variables['#cache']['contexts'][] = 'route';
   $variables['#cache']['contexts'][] = 'user.permissions';
+}
+
+/**
+ * Member-shell routes owned by sibling modules (notify / VIP redeem).
+ *
+ * Presentation only: they render through MemberController::renderShell()
+ * and need the same xm-page canvas tokens as native member routes.
+ */
+function xedc_member_is_member_shell_route(string $route): bool {
+  static $routes = [
+    'xedc_notify.messages',
+    'xedc_notify.message_thread',
+    'xedc_notify.message_start',
+    'xedc_notify.message_delete',
+    'xedc_notify.notifications',
+    'xedc_notify.notifications_category',
+    'xedc_notify.notification_settings',
+    'xedc_core.vip_redeem',
+  ];
+  return in_array($route, $routes, TRUE);
 }
 
 /**

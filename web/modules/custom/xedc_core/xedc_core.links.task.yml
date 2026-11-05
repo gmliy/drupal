@@ -82,56 +82,51 @@ xedc_core.storage_readiness_tab:
   base_route: xedc_core.storage
   weight: 7
 
-xedc_core.vip_tab:
-  route_name: xedc_core.vip_admin
-  title: 'VIP 会员'
-  base_route: xedc_core.vip_admin
-  weight: 0
-
-xedc_core.downloads_tab:
-  route_name: entity.xedc_download.collection
-  title: '下载资源'
-  base_route: xedc_core.vip_admin
-  weight: 1
-
+# VIP 功能已迁至 /admin/people/xedc-vip，不再作为前台统计本地任务。
 xedc_core.overview_tab:
   route_name: xedc_core.engagement_hub
-  title: '互动总览'
-  base_route: xedc_core.vip_admin
-  weight: 2
+  title: '总览'
+  base_route: xedc_core.engagement_hub
+  weight: 0
 
 xedc_core.like_stats_tab:
   route_name: xedc_core.engagement_likes
   title: '点赞管理'
-  base_route: xedc_core.vip_admin
-  weight: 3
+  base_route: xedc_core.engagement_hub
+  weight: 1
 
 xedc_core.download_stats_tab:
   route_name: xedc_core.engagement_downloads
   title: '下载管理'
-  base_route: xedc_core.vip_admin
-  weight: 4
+  base_route: xedc_core.engagement_hub
+  weight: 2
 
 xedc_core.share_stats_tab:
   route_name: xedc_core.engagement_shares
   title: '分享管理'
-  base_route: xedc_core.vip_admin
-  weight: 5
+  base_route: xedc_core.engagement_hub
+  weight: 3
 
 xedc_core.members_tab:
   route_name: xedc_core.engagement_members
   title: '会员互动'
-  base_route: xedc_core.vip_admin
-  weight: 6
+  base_route: xedc_core.engagement_hub
+  weight: 4
 
 xedc_core.statistics_tab:
   route_name: xedc_core.engagement_statistics
   title: '互动数据'
-  base_route: xedc_core.vip_admin
-  weight: 7
+  base_route: xedc_core.engagement_hub
+  weight: 5
 
 xedc_core.zip_jobs_tab:
   route_name: xedc_core.zip_jobs
   title: 'ZIP 任务'
-  base_route: xedc_core.vip_admin
-  weight: 8
+  base_route: xedc_core.engagement_hub
+  weight: 6
+
+xedc_core.downloads_tab:
+  route_name: entity.xedc_download.collection
+  title: '下载资源'
+  base_route: xedc_core.engagement_hub
+  weight: 7

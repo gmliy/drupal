@@ -141,3 +141,12 @@ administer xedc engagement:
   title: '管理互动记录'
   description: '把点赞标为有效或已取消。不能通过此权限删除记录或查看游客身份原文。'
   restrict access: true
+
+administer xedc vip codes:
+  title: '管理 VIP 卡密'
+  description: '生成、查看、作废 VIP 兑换卡密。不能通过此权限修改现有 VIP 主记录以外的会员资料。'
+  restrict access: true
+
+redeem xedc vip codes:
+  title: '兑换 VIP 卡密'
+  description: '在会员中心输入卡密兑换 VIP。'

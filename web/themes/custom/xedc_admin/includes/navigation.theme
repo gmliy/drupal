@@ -115,9 +115,10 @@ function _xedc_admin_navigation_definitions(): array {
       'icon' => 'files',
       'children' => [
         ['title' => t('内容列表'), 'route' => 'system.admin_content', 'match' => 'content-list'],
-        ['title' => t('创建内容'), 'route' => 'entity.node.add_page', 'match' => 'prefix', 'prefix' => '/node/add'],
-        ['title' => t('图片导入'), 'route' => 'xedc_core.import_list', 'match' => 'prefix', 'prefix' => '/admin/content/image-imports'],
+        ['title' => t('创建内容'), 'route' => 'entity.node.add_page', 'match' => 'prefix', 'prefix' => '/node/add', 'permission' => 'administer nodes'],
+        ['title' => t('图片导入'), 'route' => 'xedc_core.import_list', 'match' => 'prefix', 'prefix' => '/admin/content/image-imports', 'permission' => 'administer xedc image imports'],
         ['title' => t('快速发布'), 'route' => 'xedc_quick.page', 'match' => 'prefix', 'prefix' => '/admin/quick-gallery'],
+        ['title' => t('标签统计'), 'route' => 'xedc_tags.admin_overview', 'match' => 'prefix', 'prefix' => '/admin/content/tags'],
       ],
     ],
     [
@@ -156,15 +157,25 @@ function _xedc_admin_navigation_definitions(): array {
       'title' => t('用户管理'),
       'icon' => 'users',
       'children' => [
-        ['title' => t('会员管理'), 'route' => 'view.user_admin_people.page_1', 'match' => 'prefix', 'prefix' => '/admin/people'],
+        [
+          'title' => t('会员管理'),
+          'route' => 'view.user_admin_people.page_1',
+          'match' => 'prefix',
+          'prefix' => '/admin/people',
+          // VIP / 通知管理也挂在 /admin/people 下，避免误高亮。
+          'exclude_prefixes' => [
+            '/admin/people/xedc-vip',
+            '/admin/people/xedc-vip-codes',
+            '/admin/people/xedc-notifications',
+          ],
+        ],
         ['title' => t('内容审核'), 'route' => 'view.moderated_content.moderated_content', 'match' => 'prefix', 'prefix' => '/admin/content/moderated'],
         [
-          'title' => t('会员与互动'),
-          'route' => 'xedc_core.vip_admin',
+          'title' => t('前台统计'),
+          'route' => 'xedc_core.engagement_hub',
           'icon' => 'users',
           'match' => 'prefixes',
           'prefixes' => [
-            '/admin/xedc/vip',
             '/admin/xedc/overview',
             '/admin/xedc/likes',
             '/admin/xedc/download-stats',
@@ -172,6 +183,28 @@ function _xedc_admin_navigation_definitions(): array {
             '/admin/xedc/zip',
             '/admin/xedc/downloads',
             '/admin/xedc/engagement',
+          ],
+        ],
+        [
+          'title' => t('通知管理'),
+          'route' => 'xedc_notify.admin_overview',
+          'match' => 'prefixes',
+          'prefixes' => [
+            '/admin/people/xedc-notifications',
+          ],
+          'exclude_prefixes' => [
+            '/admin/people/xedc-notifications/vip',
+          ],
+        ],
+        [
+          'title' => t('VIP 管理'),
+          'route' => 'xedc_core.vip_hub',
+          'match' => 'prefixes',
+          'prefixes' => [
+            '/admin/people/xedc-vip',
+            '/admin/people/xedc-vip-codes',
+            '/admin/xedc/vip',
+            '/admin/people/xedc-notifications/vip',
           ],
         ],
       ],
@@ -754,6 +787,9 @@ function _xedc_admin_link_path(Url $url): string {
  *   A visible link, or NULL when the route or permission is missing.
  */
 function _xedc_admin_link(array $item): ?array {
+  if (!empty($item['permission']) && !\Drupal::currentUser()->hasPermission((string) $item['permission'])) {
+    return NULL;
+  }
   try {
     $url = Url::fromRoute(
       (string) $item['route'],
@@ -809,15 +845,17 @@ function _xedc_admin_link_active(array $item): bool {
     if (!is_array($prefixes)) {
       return FALSE;
     }
+    $hit = FALSE;
     foreach ($prefixes as $prefix) {
       if (is_string($prefix) && $prefix !== '' && str_starts_with($path, $prefix)) {
-        return TRUE;
+        $hit = TRUE;
+        break;
       }
     }
-    return FALSE;
+    return $hit && !_xedc_admin_path_excluded($path, $item);
   }
 
-  return match ($match) {
+  $active = match ($match) {
     'route' => $route === (string) ($item['route_name'] ?? ''),
     'content-list' => $route === 'system.admin_content'
       || $route === 'view.content.page_1'
@@ -829,6 +867,26 @@ function _xedc_admin_link_active(array $item): bool {
     'structure' => str_starts_with($path, '/admin/structure') && !str_starts_with($path, '/admin/structure/taxonomy'),
     default => FALSE,
   };
+  return $active && !_xedc_admin_path_excluded($path, $item);
+}
+
+/**
+ * Optional exclude_prefixes on nav items (longer VIP/notify paths under /admin/people).
+ *
+ * @param array<string, mixed> $item
+ *   Link definition.
+ */
+function _xedc_admin_path_excluded(string $path, array $item): bool {
+  $excludes = $item['exclude_prefixes'] ?? [];
+  if (!is_array($excludes)) {
+    return FALSE;
+  }
+  foreach ($excludes as $prefix) {
+    if (is_string($prefix) && $prefix !== '' && str_starts_with($path, $prefix)) {
+      return TRUE;
+    }
+  }
+  return FALSE;
 }
 
 /**

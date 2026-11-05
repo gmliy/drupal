@@ -1,0 +1,33 @@
+{#
+/**
+ * @file
+ * Member VIP code redeem page.
+ */
+#}
+<div class="xm-redeem">
+  <header class="xm-redeem__head">
+    <h1>{{ 'VIP 卡密兑换'|t }}</h1>
+    <p class="xm-sub">{{ '输入管理员发放的卡密兑换 VIP。每张卡密只能成功兑换一次。'|t }}</p>
+  </header>
+
+  <section class="xm-redeem__card">
+    {{ form }}
+  </section>
+
+  <section class="xm-redeem__history">
+    <h2>{{ '我的兑换记录'|t }}</h2>
+    {% if history %}
+      <ul class="xm-redeem__list">
+        {% for row in history %}
+          <li>
+            <strong>{{ row.mask }}</strong>
+            <span>{{ '@days 天'|t({'@days': row.days}) }}</span>
+            <time>{{ row.redeemed }}</time>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="xm-empty">{{ '还没有兑换记录。'|t }}</p>
+    {% endif %}
+  </section>
+</div>

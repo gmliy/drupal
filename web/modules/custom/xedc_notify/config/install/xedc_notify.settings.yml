@@ -1,0 +1,9 @@
+vip_reminders_enabled: true
+vip_reminder_offsets:
+  - 7
+  - 3
+  - 1
+favorite_notify_default: true
+message_max_length: 2000
+message_rate_limit: 20
+official_batch_size: 50

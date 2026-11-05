@@ -60,7 +60,7 @@ final class GalleryStatus extends FieldPluginBase {
       '#type' => 'inline_template',
       '#template' => '<span class="xedc-gallery-status">{{ text }}<small>{{ detail }}</small></span>',
       '#context' => ['text' => $text, 'detail' => $detail],
-      '#attached' => ['library' => ['xedc_core/asset_upload']],
+      '#attached' => ['library' => ['xedc_core/gallery_status']],
     ];
   }
 

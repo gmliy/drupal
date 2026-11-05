@@ -1,0 +1,217 @@
+xedc_notify.messages:
+  path: '/member/messages'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\MessageController::inbox'
+    _title: '私信'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _xedc_member_center: 'TRUE'
+    _permission: 'access own xedc messages'
+  options:
+    no_cache: TRUE
+
+xedc_notify.message_thread:
+  path: '/member/messages/{tid}'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\MessageController::thread'
+    _title: '私信对话'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _xedc_member_center: 'TRUE'
+    _permission: 'access own xedc messages'
+    tid: \d+
+  options:
+    no_cache: TRUE
+
+xedc_notify.message_start:
+  path: '/member/messages/to/{user}'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\MessageController::start'
+    _title: '发送私信'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _xedc_member_center: 'TRUE'
+    _permission: 'access send xedc messages'
+  options:
+    no_cache: TRUE
+    parameters:
+      user:
+        type: entity:user
+
+xedc_notify.message_delete:
+  path: '/member/messages/{tid}/delete'
+  defaults:
+    _form: '\Drupal\xedc_notify\Form\MessageDeleteForm'
+    _title: '删除会话'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _xedc_member_center: 'TRUE'
+    _permission: 'access own xedc messages'
+    tid: \d+
+  options:
+    no_cache: TRUE
+
+xedc_notify.notifications:
+  path: '/member/notifications'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\NotificationController::list'
+    _title: '通知中心'
+    category: 'all'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _xedc_member_center: 'TRUE'
+    _permission: 'access own xedc notifications'
+  options:
+    no_cache: TRUE
+
+xedc_notify.notifications_category:
+  path: '/member/notifications/{category}'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\NotificationController::list'
+    _title: '通知中心'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _xedc_member_center: 'TRUE'
+    _permission: 'access own xedc notifications'
+    category: 'all|social|vip|official'
+  options:
+    no_cache: TRUE
+
+xedc_notify.notification_read:
+  path: '/member/notifications/{id}/read'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\NotificationController::markRead'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _permission: 'access own xedc notifications'
+    _csrf_token: 'TRUE'
+    id: \d+
+  options:
+    no_cache: TRUE
+
+xedc_notify.notification_read_all:
+  path: '/member/notifications/read-all'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\NotificationController::markAllRead'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _permission: 'access own xedc notifications'
+    _csrf_token: 'TRUE'
+  options:
+    no_cache: TRUE
+
+xedc_notify.notification_delete:
+  path: '/member/notifications/{id}/delete'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\NotificationController::delete'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _permission: 'access own xedc notifications'
+    _csrf_token: 'TRUE'
+    id: \d+
+  options:
+    no_cache: TRUE
+
+xedc_notify.notification_open:
+  path: '/member/notifications/{id}/open'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\NotificationController::open'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _permission: 'access own xedc notifications'
+    id: \d+
+  options:
+    no_cache: TRUE
+
+xedc_notify.preferences:
+  path: '/member/notification-settings'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\PreferenceController::page'
+    _title: '通知中心'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+  options:
+    no_cache: TRUE
+
+xedc_notify.follow_toggle:
+  path: '/xedc/follow/{user}'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\FollowController::toggle'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _csrf_token: 'TRUE'
+  options:
+    no_cache: TRUE
+    parameters:
+      user:
+        type: entity:user
+
+# Admin routes
+xedc_notify.admin_overview:
+  path: '/admin/people/xedc-notifications'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\AdminNotificationController::overview'
+    _title: '通知管理'
+  requirements:
+    _permission: 'administer xedc notifications+view xedc notification records+administer xedc vip notifications'
+
+xedc_notify.admin_official:
+  path: '/admin/people/xedc-notifications/official'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\AdminNotificationController::officialList'
+    _title: '官方通知'
+  requirements:
+    _permission: 'administer xedc notifications'
+
+xedc_notify.admin_official_add:
+  path: '/admin/people/xedc-notifications/official/add'
+  defaults:
+    _form: '\Drupal\xedc_notify\Form\OfficialCampaignForm'
+    _title: '创建官方通知'
+  requirements:
+    _permission: 'administer xedc notifications'
+
+xedc_notify.admin_official_view:
+  path: '/admin/people/xedc-notifications/official/{cid}'
+  defaults:
+    _controller: '\Drupal\xedc_notify\Controller\AdminNotificationController::officialView'
+    _title: '官方通知详情'
+  requirements:
+    _permission: 'administer xedc notifications+view xedc notification records'
+    cid: \d+
+
+xedc_notify.admin_official_send:
+  path: '/admin/people/xedc-notifications/official/{cid}/send'
+  defaults:
+    _form: '\Drupal\xedc_notify\Form\OfficialSendConfirmForm'
+    _title: '发送官方通知'
+  requirements:
+    _permission: 'administer xedc notifications'
+    cid: \d+
+
+xedc_notify.admin_official_cancel:
+  path: '/admin/people/xedc-notifications/official/{cid}/cancel'
+  defaults:
+    _form: '\Drupal\xedc_notify\Form\OfficialCancelForm'
+    _title: '取消发送'
+  requirements:
+    _permission: 'administer xedc notifications'
+    cid: \d+
+
+xedc_notify.admin_vip:
+  path: '/admin/people/xedc-notifications/vip'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\VipHubController::redirectTab'
+    tab: 'records'
+    _title: 'VIP 通知记录'
+  requirements:
+    _permission: 'administer xedc vip notifications+view xedc notification records'
+
+xedc_notify.admin_vip_settings:
+  path: '/admin/people/xedc-notifications/vip/settings'
+  defaults:
+    _controller: '\Drupal\xedc_core\Controller\VipHubController::redirectTab'
+    tab: 'reminders'
+    _title: 'VIP 提醒设置'
+  requirements:
+    _permission: 'administer xedc vip notifications'

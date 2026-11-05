@@ -1,51 +1,107 @@
-<header class="xm-head">
-  <div>
-    <h1 class="xm-title">{{ '会员中心'|t }}</h1>
-    <p class="xm-sub">{{ '欢迎回来，@name'|t({'@name': account.name}) }}</p>
+<section class="xm-welcome">
+  <div class="xm-welcome__identity">
+    <span class="xm-welcome__avatar" aria-hidden="true">
+      {% if avatar %}{{ avatar }}{% else %}{{ account.initial }}{% endif %}
+    </span>
+    <div class="xm-welcome__text">
+      <p class="xm-welcome__eyebrow">{{ '会员中心'|t }}</p>
+      <h1 class="xm-title xm-welcome__title">{{ '你好，@name'|t({'@name': account.name}) }}</h1>
+      <p class="xm-sub xm-welcome__meta">
+        <span>{{ '加入于 @date'|t({'@date': account.member_since}) }}</span>
+        <span aria-hidden="true">·</span>
+        <span>{{ '最近登录 @date'|t({'@date': account.last_login}) }}</span>
+      </p>
+    </div>
   </div>
-  <a class="xm-btn xm-btn--primary" href="{{ urls.profile }}">{{ '编辑资料'|t }}</a>
-</header>
+  <div class="xm-welcome__actions">
+    <a class="xm-btn xm-btn--primary" href="{{ urls.profile }}">{{ '编辑资料'|t }}</a>
+    <a class="xm-btn" href="{{ urls.submissions }}">{{ '我的投稿'|t }}</a>
+  </div>
+</section>
 
-<div class="xm-stats">
+<section class="xm-vip-strip{% if membership.active %} is-active{% endif %}{% if membership.expiring_soon %} is-warn{% endif %}" aria-label="{{ '会员状态'|t }}">
+  <div class="xm-vip-strip__main">
+    {% if membership.active %}
+      <em class="xm-tier xm-tier--vip">VIP</em>
+      <div>
+        <strong>{{ membership.label }}</strong>
+        <p>{{ '有效期至 @date · 剩余 @count 天'|t({'@date': membership.expires, '@count': membership.remaining}) }}</p>
+      </div>
+    {% elseif membership.expired %}
+      <em class="xm-tier">{{ '普通会员'|t }}</em>
+      <div>
+        <strong>{{ 'VIP 已到期'|t }}</strong>
+        <p>{{ '已于 @date 到期，当前按普通会员权限使用。'|t({'@date': membership.expires}) }}</p>
+      </div>
+    {% else %}
+      <em class="xm-tier">{{ '普通会员'|t }}</em>
+      <div>
+        <strong>{{ membership.label }}</strong>
+        <p>{{ 'VIP 由管理员开通或卡密兑换，这里不能在线支付。'|t }}</p>
+      </div>
+    {% endif %}
+  </div>
+  <div class="xm-vip-strip__actions">
+    <a class="xm-btn" href="{{ urls.membership }}">{{ '查看权益'|t }}</a>
+    {% if urls.redeem %}
+      <a class="xm-btn xm-btn--primary" href="{{ urls.redeem }}">{{ '卡密兑换'|t }}</a>
+    {% endif %}
+  </div>
+</section>
+
+<div class="xm-stats xm-stats--compact" aria-label="{{ '数据概览'|t }}">
   <a class="xm-stat" href="{{ urls.favorites }}">
-    <span class="xm-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4.5h10a1 1 0 0 1 1 1V20l-6-3.2L6 20V5.5a1 1 0 0 1 1-1z"></path></svg></span>
     <b>{{ stats.favorites }}</b>
-    <span>{{ '我的收藏'|t }}</span>
+    <span>{{ '收藏'|t }}</span>
   </a>
   <a class="xm-stat" href="{{ urls.likes }}">
-    <span class="xm-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 19.2s-6.2-3.7-6.2-8.1A3.4 3.4 0 0 1 12 8.6a3.4 3.4 0 0 1 6.2 2.5c0 4.4-6.2 8.1-6.2 8.1z"></path></svg></span>
     <b>{{ stats.likes }}</b>
-    <span>{{ '我的点赞'|t }}</span>
+    <span>{{ '点赞'|t }}</span>
   </a>
   <a class="xm-stat" href="{{ urls.downloads }}">
-    <span class="xm-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4.5v10"></path><path d="m8 11 4 4 4-4"></path><path d="M5 19.5h14"></path></svg></span>
     <b>{{ stats.downloads }}</b>
-    <span>{{ '我的下载'|t }}</span>
-  </a>
-  <a class="xm-stat" href="{{ urls.membership }}">
-    <span class="xm-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.8 14.4 9l5.6.5-4.3 3.6 1.3 5.4L12 15.8 6.9 18.5 8.2 13 4 9.5 9.6 9z"></path></svg></span>
-    <b>{{ account.tier == 'vip' ? 'VIP' : '普通' }}</b>
-    <span>{{ '会员等级'|t }}</span>
-  </a>
-  <a class="xm-stat" href="{{ urls.comments }}">
-    <span class="xm-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6.5h12a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 18 16.5H10l-4 3v-3H6A1.5 1.5 0 0 1 4.5 15V8A1.5 1.5 0 0 1 6 6.5z"></path></svg></span>
-    <b>{{ stats.comments }}</b>
-    <span>{{ '我的评论'|t }}</span>
+    <span>{{ '下载'|t }}</span>
   </a>
   <a class="xm-stat" href="{{ urls.submissions }}">
-    <span class="xm-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4.5h8l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-10.5A1.5 1.5 0 0 1 4.5 19V6A1.5 1.5 0 0 1 6 4.5z"></path><path d="M14 4.5V9h4.5"></path></svg></span>
     <b>{{ stats.submissions }}</b>
-    <span>{{ '我的投稿'|t }}</span>
-  </a>
-  <a class="xm-stat" href="{{ urls.history }}">
-    <span class="xm-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4.2l2.8 1.8"></path></svg></span>
-    <b>{{ stats.history }}</b>
-    <span>{{ '浏览历史'|t }}</span>
+    <span>{{ '投稿'|t }}</span>
   </a>
 </div>
 
-<section class="xm-panel">
-  <div class="xm-panel__head">
+<section class="xm-section xm-shortcuts">
+  <div class="xm-section__head">
+    <h2>{{ '常用入口'|t }}</h2>
+  </div>
+  <div class="xm-shortcut-grid">
+    <a class="xm-shortcut" href="{{ urls.history }}">
+      <span class="xm-shortcut__label">{{ '浏览历史'|t }}</span>
+      <span class="xm-shortcut__meta">{{ '@count 条'|t({'@count': stats.history}) }}</span>
+    </a>
+    <a class="xm-shortcut" href="{{ urls.comments }}">
+      <span class="xm-shortcut__label">{{ '我的评论'|t }}</span>
+      <span class="xm-shortcut__meta">{{ '@count 条'|t({'@count': stats.comments}) }}</span>
+    </a>
+    <a class="xm-shortcut" href="{{ urls.messages }}">
+      <span class="xm-shortcut__label">{{ '私信'|t }}</span>
+      <span class="xm-shortcut__meta">{{ '会话列表'|t }}</span>
+    </a>
+    <a class="xm-shortcut" href="{{ urls.notifications }}">
+      <span class="xm-shortcut__label">{{ '通知'|t }}</span>
+      <span class="xm-shortcut__meta">{{ '站内提醒'|t }}</span>
+    </a>
+    <a class="xm-shortcut" href="{{ urls.security }}">
+      <span class="xm-shortcut__label">{{ '账号安全'|t }}</span>
+      <span class="xm-shortcut__meta">{{ '邮箱与密码'|t }}</span>
+    </a>
+    <a class="xm-shortcut" href="{{ urls.profile }}">
+      <span class="xm-shortcut__label">{{ '个人资料'|t }}</span>
+      <span class="xm-shortcut__meta">{{ '头像与主页'|t }}</span>
+    </a>
+  </div>
+</section>
+
+<section class="xm-section">
+  <div class="xm-section__head">
     <h2>{{ '最近收藏'|t }}</h2>
     <a href="{{ urls.favorites }}">{{ '查看全部'|t }}</a>
   </div>
@@ -57,7 +113,7 @@
       {% endfor %}
     </div>
   {% else %}
-    <div class="xm-empty">
+    <div class="xm-empty xm-empty--inset">
       <strong>{{ '还没有收藏'|t }}</strong>
       <p>{{ '打开美图、视频或文章，点一下收藏就会出现在这里。'|t }}</p>
       <div class="xm-empty__links">
