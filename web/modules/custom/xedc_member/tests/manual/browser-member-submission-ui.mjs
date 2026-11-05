@@ -52,7 +52,10 @@ try {
   const adminShell = await page.locator('.xedc-admin-shell, .xedc-admin-header').count();
   const title = await page.locator('.xm-title').first().innerText().catch(() => '');
   await shot(page, 'submissions-hub-desktop');
-  record('hub-cards', hub >= 5 ? 'PASS' : 'FAIL', `cards=${hub} title=${title}`);
+  const hubText = await page.locator('.xm-submit-hub').innerText().catch(() => '');
+  record('hub-cards', hub >= 4 ? 'PASS' : 'FAIL', `cards=${hub} title=${title}`);
+  record('hub-no-gallery-entry', !hubText.includes('图片集投稿') ? 'PASS' : 'FAIL', hubText.slice(0, 160));
+  record('hub-has-photo-and-archive', hubText.includes('图片投稿') && hubText.includes('压缩包投稿') ? 'PASS' : 'FAIL');
   record('hub-no-admin-shell', adminShell === 0 ? 'PASS' : 'FAIL', `adminShell=${adminShell}`);
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -79,11 +82,19 @@ try {
   record('photo-hide-task-table', hasTaskTable === 0 ? 'PASS' : 'FAIL', `tasks=${hasTaskTable}`);
   record('photo-upload-present', hasUpload > 0 ? 'PASS' : 'FAIL', `upload=${hasUpload}`);
   record('photo-no-admin-chrome', (hasAdminNav === 0 && hasImportNavText === 0) ? 'PASS' : 'FAIL', `admin=${hasAdminNav} importText=${hasImportNavText}`);
+  const photoImageDrop = await page.locator('.xedc-upload--images [data-xedc-drop="image"] input[data-xedc-images][multiple]').count();
+  const photoArchiveDrop = await page.locator('[data-xedc-archive]').count();
+  record('photo-has-multi-image', photoImageDrop > 0 ? 'PASS' : 'FAIL', `multi=${photoImageDrop}`);
+  record('photo-no-zip-control', photoArchiveDrop === 0 ? 'PASS' : 'FAIL', `zip=${photoArchiveDrop}`);
 
   await page.goto(`${BASE}/node/add/photo?upload=archive`, { waitUntil: 'networkidle', timeout: 90000 });
-  const preferArchive = await page.locator('.xedc-upload__drop[data-xedc-drop="archive"].is-preferred').count();
+  const archiveDrop = await page.locator('.xedc-upload--archive [data-xedc-drop="archive"] input[data-xedc-archive]').count();
+  const archiveImageDrop = await page.locator('[data-xedc-images]').count();
+  const archiveTitle = await page.locator('.xm-submit__title').innerText().catch(() => '');
   await shot(page, 'photo-archive-mode');
-  record('archive-preferred', preferArchive > 0 ? 'PASS' : 'FAIL', `prefer=${preferArchive}`);
+  record('archive-has-zip', archiveDrop > 0 ? 'PASS' : 'FAIL', `zip=${archiveDrop}`);
+  record('archive-no-batch-image', archiveImageDrop === 0 ? 'PASS' : 'FAIL', `images=${archiveImageDrop}`);
+  record('archive-title', archiveTitle.includes('压缩包') ? 'PASS' : 'FAIL', archiveTitle);
 
   await page.goto(`${BASE}/node/add/video`, { waitUntil: 'networkidle', timeout: 90000 });
   const videoForm = await page.locator('.xm-submission-form--video, .xm-submit__body--video').count();

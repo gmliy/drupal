@@ -102,6 +102,12 @@ body:has(.field--name-field-body) form.contact-message-form,
   border-radius:8px;padding:9px 12px;font-size:15px;
   background:var(--bs-body-bg,#fff);color:var(--bs-body-color,#0a0a0a);
 }
+@media (max-width:767px){
+  .contact-message-form .form-text,
+  .contact-message-form .form-email,
+  .contact-message-form .form-textarea,
+  .contact-message-form select{font-size:16px}
+}
 .contact-message-form .form-text,
 .contact-message-form .form-email{height:40px}
 .contact-message-form .form-textarea{min-height:140px;resize:vertical}

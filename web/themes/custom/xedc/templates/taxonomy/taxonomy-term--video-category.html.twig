@@ -1,9 +1,16 @@
 {{ content|cache_metadata }}
-<header class="vc-term">
-  <p class="xv-kicker">{{ '分类'|t }}</p>
-  <h1 class="vc-term__title">{{ term.label }}</h1>
-  {% if term.description.value %}
-    <div class="vc-term__desc">{{ content.description }}</div>
-  {% endif %}
-  <p class="vc-term__count">{{ '共 @count 个视频'|t({'@count': video_count|default(0)}) }}</p>
+<nav class="xv-crumb" aria-label="{{ '面包屑'|t }}">
+  <a href="{{ path('view.video_list.page_1') }}">{{ '视频'|t }}</a>
+  <span aria-hidden="true">/</span>
+  <span class="cur" aria-current="page">{{ term.label }}</span>
+</nav>
+<header class="xv-head vc-term">
+  <div class="xv-head__main">
+    <p class="xv-kicker">{{ '分类'|t }}</p>
+    <h1 class="vc-term__title">{{ term.label }}</h1>
+    {% if term.description.value %}
+      <div class="vc-term__desc">{{ content.description }}</div>
+    {% endif %}
+  </div>
+  <p class="xv-count vc-term__count">{{ '@count 个视频'|t({'@count': video_count|default(0)}) }}</p>
 </header>

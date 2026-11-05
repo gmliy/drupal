@@ -38,6 +38,7 @@ function xedc_ai_schema(): array {
       'enabled' => ['type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 1],
       'input_price' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
       'output_price' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
+      'cache_price' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
       'currency' => ['type' => 'varchar', 'length' => 8, 'not null' => TRUE, 'default' => 'CNY'],
       'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
@@ -127,6 +128,14 @@ function xedc_ai_schema(): array {
       'review_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
       'call_state' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'finished'],
+      'entity_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'revision_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'usage_reported' => ['type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'cache_read_tokens' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'http_status' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'finish_reason' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''],
+      'retry_index' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'cost_status' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''],
     ],
     'primary key' => ['id'],
     'indexes' => [
@@ -242,6 +251,30 @@ function xedc_ai_update_10002(): string {
     $rules->setData(\Drupal\xedc_ai\Review\RuleLimits::defaults())->save(TRUE);
   }
   return 'AI 运营中心已补充模型能力、审核备注和操作日志字段。';
+}
+
+/**
+ * Stores real token usage, cache reads and the cache-token price.
+ */
+function xedc_ai_update_10003(): string {
+  $database = \Drupal::database();
+  $schema = $database->schema();
+  $spec = xedc_ai_schema();
+  $fields = [
+    'xedc_ai_model' => ['cache_price'],
+    'xedc_ai_usage' => ['entity_id', 'revision_id', 'usage_reported', 'cache_read_tokens', 'http_status', 'finish_reason', 'retry_index', 'cost_status'],
+  ];
+  foreach ($fields as $table => $names) {
+    foreach ($names as $name) {
+      if ($schema->tableExists($table) && !$schema->fieldExists($table, $name)) {
+        $schema->addField($table, $name, $spec[$table]['fields'][$name]);
+      }
+    }
+  }
+  if ($schema->fieldExists('xedc_ai_usage', 'usage_reported') && $schema->fieldExists('xedc_ai_usage', 'cost_status')) {
+    $database->query("UPDATE {xedc_ai_usage} SET usage_reported = 1 WHERE usage_reported = 0 AND (prompt_tokens + completion_tokens) > 0 AND cost_status = ''");
+  }
+  return 'AI 用量已可以区分 Token 未返回、单价未配置和已核算费用。';
 }
 
 /**

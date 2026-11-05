@@ -15,6 +15,7 @@
     <span aria-hidden="true">/</span>
     <span class="cur" aria-current="page">{{ label }}</span>
   </nav>
+
   <div class="vd-layout">
     <article{{ attributes.addClass('vd') }}>
       <div class="vd-player{{ vd.cover_height > vd.cover_width and vd.cover_width > 0 ? ' is-portrait' : '' }}" data-xedc-player data-nid="{{ node.id }}" data-duration="{{ vd_seconds|default(0) }}" data-playback-state="{{ vd.playback_state|default('original') }}">
@@ -40,6 +41,7 @@
           </div>
         {% endif %}
       </div>
+
       {% if vd.type == 'video' or vd.type == 'hls' %}
         <div class="vd-state" hidden>
           <p class="vd-state__text"></p>
@@ -54,34 +56,43 @@
 
       <div class="vd-card">
         <h1 class="vd-title">{{ label }}</h1>
-        <div class="vd-meta">
+
+        <p class="vd-meta">
           {% if vd_duration %}<span>{{ vd_duration }}</span>{% endif %}
           <span>{{ '@count 次播放'|t({'@count': vd_views|default(0)}) }}</span>
           {% if vd_date %}<span>{{ vd_date }}</span>{% endif %}
-        </div>
+        </p>
+
         {% include '@xedc/templates/video/video-member.html.twig' with {
           name: vd_author.name,
           url: vd_author.url,
           avatar: vd_author.avatar,
           extra: 'vd-by'
         } only %}
+
         <div class="vd-actions">{{ xedc_engagement }}</div>
-        {% if vd_categories %}
-          <div class="vd-classify">
-            <span>{{ '分类'|t }}</span>
-            {% for item in vd_categories %}
-              <a href="{{ item.url }}">{{ item.name }}</a>
-            {% endfor %}
+
+        {% if vd_categories or vd_tags %}
+          <div class="vd-tax">
+            {% if vd_categories %}
+              <div class="vd-classify">
+                <span>{{ '分类'|t }}</span>
+                {% for item in vd_categories %}
+                  <a href="{{ item.url }}">{{ item.name }}</a>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% if vd_tags %}
+              <div class="vd-tags">
+                <span>{{ '标签'|t }}</span>
+                {% for item in vd_tags %}
+                  <a href="{{ item.url }}">{{ item.name }}</a>
+                {% endfor %}
+              </div>
+            {% endif %}
           </div>
         {% endif %}
-        {% if vd_tags %}
-          <div class="vd-tags">
-            <span>{{ '标签'|t }}</span>
-            {% for item in vd_tags %}
-              <a href="{{ item.url }}">{{ item.name }}</a>
-            {% endfor %}
-          </div>
-        {% endif %}
+
         {% if node.field_body.value %}
           <div class="vd-body" data-vd-body>
             <div class="vd-body__content">{{ content.field_body }}</div>

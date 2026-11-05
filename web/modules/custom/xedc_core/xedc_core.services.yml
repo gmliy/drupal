@@ -363,6 +363,10 @@ services:
     class: Drupal\xedc_core\Video\VideoListing
     arguments: ['@entity_type.manager', '@entity.repository', '@database']
 
+  xedc_core.video_recommend:
+    class: Drupal\xedc_core\Video\VideoRecommend
+    arguments: ['@entity_type.manager', '@database', '@cache.data']
+
   xedc_core.image_style_files:
     class: Drupal\xedc_core\Ops\Storage\ImageStyleFileSystem
     decorates: file_system

@@ -15,9 +15,10 @@
   const ARRAYBUFFER_FALLBACK_MAX = 64 * 1024 * 1024;
   const ACTIVE = ['pending', 'hashing', 'uploading', 'merging', 'validating', 'queued', 'processing', 'extracting', 'importing', 'retrying', 'interrupted', 'paused', 'open', 'needs_title', 'cancel_pending'];
   const NEED_FILE = ['pending', 'hashing', 'uploading', 'merging', 'validating', 'retrying', 'interrupted', 'paused', 'open', 'needs_title'];
-  const DONE = ['completed', 'duplicate', 'cancelled', 'canceled', 'success', 'review'];
+  const DONE = ['completed', 'duplicate', 'cancelled', 'canceled', 'success', 'review', 'saved', 'published'];
   const CANCELABLE = ['pending', 'needs_title', 'hashing', 'uploading', 'merging', 'validating', 'retrying', 'interrupted', 'paused', 'open', 'failed', 'queued', 'cancel_pending'];
   const WORKER_PHASES = ['queued', 'processing', 'extracting', 'importing', 'review', 'completed', 'success', 'duplicate'];
+  const HIDDEN_PHASES = ['saved', 'cancelled', 'canceled'];
   const TOMBSTONE_KEY = 'xedcUploadCancelled';
 
   const labels = {
@@ -44,6 +45,8 @@
     cancel_pending: '取消状态待确认',
     interrupted: '上传中断',
     review: '待审核',
+    saved: '已保存投稿',
+    published: '已发布',
     expired: '已过期',
     hashing: '正在校验',
   };
@@ -353,7 +356,9 @@
   }
 
   function list() {
-    return [...jobs.values()].sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    return [...jobs.values()]
+      .filter((job) => !HIDDEN_PHASES.includes(job.phase) && !job.memberSaved)
+      .sort((a, b) => (b.updated || 0) - (a.updated || 0));
   }
 
   function counts() {
@@ -586,7 +591,13 @@
         continue;
       }
       if (jobs.has(row.id)) continue;
-      if (isTombstoned(row.id, row.sessionId, row.clientId) || row.phase === 'cancelled' || row.phase === 'canceled') {
+      if (
+        isTombstoned(row.id, row.sessionId, row.clientId)
+        || row.phase === 'cancelled'
+        || row.phase === 'canceled'
+        || row.phase === 'saved'
+        || row.memberSaved
+      ) {
         await removePersisted(row.id);
         continue;
       }
@@ -975,25 +986,101 @@
     }
   }
 
+  async function dismissJob(job, reason) {
+    if (!job) return;
+    job.memberSaved = true;
+    job.phase = 'saved';
+    job.error = '';
+    job.updated = now();
+    job.dismissReason = reason || 'saved';
+    if (job.preview) {
+      try { URL.revokeObjectURL(job.preview); } catch (e) { /* ignore */ }
+      job.preview = '';
+    }
+    job.file = null;
+    job.blob = null;
+    jobs.delete(job.id);
+    await removePersisted(job.id).catch(() => {});
+    if (channel) {
+      try { channel.postMessage({ type: 'dismiss', tabId, id: job.id, taskId: job.taskId || 0, nid: job.nid || 0 }); }
+      catch (e) { /* ignore */ }
+    }
+    emit();
+  }
+
+  async function dismissSavedForNode(nid) {
+    const target = Number(nid) || 0;
+    if (target < 1) return 0;
+    let count = 0;
+    for (const job of [...jobs.values()]) {
+      if (Number(job.nid) === target) {
+        await dismissJob(job, 'node-saved');
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  async function fetchTaskProgress(taskId) {
+    const cfg = settings();
+    if (!cfg.progressBase || !taskId) return null;
+    const response = await fetch(cfg.progressBase + taskId + '/progress', {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) return null;
+    return response.json();
+  }
+
+  function applyProgress(job, json) {
+    if (!json) return;
+    if (json.nid) job.nid = Number(json.nid) || job.nid || 0;
+    // Prefer machine status over translated label so DONE checks stay stable.
+    const status = String(json.status || '').trim();
+    if (status) job.phase = status;
+    else if (json.phase && !/[\u4e00-\u9fff]/.test(String(json.phase))) job.phase = json.phase;
+    job.error = json.error || '';
+    job.updated = now();
+  }
+
+  async function reconcileSavedJobs() {
+    const candidates = [...jobs.values()].filter((job) => job.taskId && !job.memberSaved && !HIDDEN_PHASES.includes(job.phase));
+    for (const job of candidates) {
+      try {
+        const json = await fetchTaskProgress(job.taskId);
+        if (!json) continue;
+        applyProgress(job, json);
+        if (json.member_saved || json.status === 'published') {
+          await dismissJob(job, json.status === 'published' ? 'published' : 'member-saved');
+          continue;
+        }
+        if (json.done && !DONE.includes(job.phase)) {
+          job.phase = 'completed';
+        }
+        await persist(job, false).catch(() => {});
+      }
+      catch (e) { /* best-effort */ }
+    }
+    emit();
+  }
+
   async function pollTask(job) {
     const cfg = settings();
     if (!job.taskId || !cfg.progressBase || job.phase === 'duplicate') return;
     const startedAt = Date.now();
     while (Date.now() - startedAt < 6 * 60 * 60 * 1000) {
       await new Promise((done) => setTimeout(done, 2500));
-      if (!jobs.has(job.id)) return;
+      if (!jobs.has(job.id) || job.memberSaved) return;
       try {
-        const response = await fetch(cfg.progressBase + job.taskId + '/progress', {
-          credentials: 'same-origin',
-          headers: { Accept: 'application/json' },
-        });
-        if (!response.ok) return;
-        const json = await response.json();
-        job.phase = json.label || json.status || job.phase;
-        job.error = json.error || '';
-        job.updated = now();
+        const json = await fetchTaskProgress(job.taskId);
+        if (!json) return;
+        applyProgress(job, json);
         await persist(job, false);
         emit();
+        if (json.member_saved || json.status === 'published') {
+          await dismissJob(job, json.status === 'published' ? 'published' : 'member-saved');
+          return;
+        }
         if (json.done) {
           if (!DONE.includes(job.phase)) job.phase = 'completed';
           await persist(job, false);
@@ -1449,10 +1536,17 @@
               });
             }
           }
+          if (data.type === 'dismiss' && data.tabId !== tabId) {
+            const local = jobs.get(data.id) || [...jobs.values()].find((job) => data.taskId && Number(job.taskId) === Number(data.taskId));
+            if (local) {
+              dismissJob(local, 'remote-dismiss').catch(() => {});
+            }
+          }
           if (data.type === 'state' && data.tabId !== tabId && Array.isArray(data.jobs)) {
             // Followers refresh metadata from the leader without taking over uploads.
             data.jobs.forEach((remote) => {
               if (isTombstoned(remote.id, remote.sessionId, remote.clientId)) return;
+              if (remote.memberSaved || HIDDEN_PHASES.includes(remote.phase)) return;
               const local = jobs.get(remote.id);
               if (!local) {
                 jobs.set(remote.id, Object.assign({}, remote, { file: null, blob: null, inflight: 0 }));
@@ -1485,10 +1579,13 @@
     });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        syncSessions().then(() => { if (leader) pump(); });
+        syncSessions()
+          .then(() => reconcileSavedJobs())
+          .then(() => { if (leader) pump(); });
       }
     });
     await syncSessions();
+    await reconcileSavedJobs();
     if (leader) pump();
     emit();
   }
@@ -1508,6 +1605,9 @@
     statusText,
     formatBytes,
     syncSessions,
+    reconcileSavedJobs,
+    dismissSavedForNode,
+    dismissJob,
     persistOk: () => persistOk,
     persistError: () => persistError,
     isLeader: () => leader,

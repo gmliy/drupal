@@ -1,7 +1,7 @@
 {{ attach_library('xedc/video_list') }}
-<div class="xv-page{{ video_hero ? ' xv-page--hero' : '' }}">
+<div class="xv-page">
   <header class="xv-head">
-    <div>
+    <div class="xv-head__main">
       <h1>{{ '视频'|t }}</h1>
       <p>{{ '浏览已发布的视频。'|t }}</p>
     </div>
@@ -9,6 +9,7 @@
       <p class="xv-count">{{ '@count 个视频'|t({'@count': video_total}) }}</p>
     {% endif %}
   </header>
+
   {% include directory ~ '/templates/video/video-toolbar.html.twig' with {
     categories: video_categories,
     sort_urls: video_sort_urls,
@@ -16,40 +17,46 @@
     keys: video_keys,
     action: video_action
   } only %}
-  {% if video_hero %}
-    <section class="xv-hero" aria-label="{{ '推荐'|t }}">
-      <a class="xv-hero__media" href="{{ video_hero.url }}">
-        {% if video_hero.cover %}
-          <img src="{{ video_hero.cover }}" alt="{{ video_hero.alt }}" width="1200" height="675"{% if video_hero.srcset %} srcset="{{ video_hero.srcset }}" sizes="(max-width: 800px) 100vw, 68vw"{% endif %}>
-        {% else %}
-          <span class="vcard__placeholder"></span>
-        {% endif %}
-        {% if video_hero.duration %}<span class="vcard__dur">{{ video_hero.duration }}</span>{% endif %}
-      </a>
-      <div class="xv-hero__copy">
-        <p class="xv-kicker">{{ '最新'|t }}</p>
-        <h2><a href="{{ video_hero.url }}">{{ video_hero.title }}</a></h2>
-        {% if video_hero.excerpt %}<p class="xv-hero__excerpt">{{ video_hero.excerpt }}</p>{% endif %}
-        <p class="xv-hero__meta">
-          {% include '@xedc/templates/video/video-member.html.twig' with {
-            name: video_hero.author,
-            url: video_hero.author_url,
-            avatar: video_hero.author_avatar
-          } only %}
-          <span>{{ '@count 次播放'|t({'@count': video_hero.views|default(0)}) }}</span>
-          {% if video_hero.date %}<span>{{ video_hero.date }}</span>{% endif %}
-        </p>
-        <a class="xv-hero__go" href="{{ video_hero.url }}">{{ '观看'|t }}</a>
+
+  {% if video_recommended %}
+    <section class="xv-block" aria-label="{{ '推荐视频'|t }}">
+      <h2 class="xv-section">{{ '推荐视频'|t }}</h2>
+      <div class="xv-grid xv-grid--cards">
+        {% for card in video_recommended %}
+          <article class="vcard">
+            {% include '@xedc/templates/video/video-card.html.twig' with { card: card } only %}
+          </article>
+        {% endfor %}
       </div>
     </section>
-    <h2 class="xv-section">{{ '最新视频'|t }}</h2>
   {% endif %}
-  {% if rows %}
-    <div class="xv-grid">{{ rows }}</div>
-  {% elseif empty %}
-    {{ empty }}
+
+  {% if video_hot %}
+    <section class="xv-block" aria-label="{{ '热门视频'|t }}">
+      <h2 class="xv-section">{{ '热门视频'|t }}</h2>
+      <div class="xv-grid xv-grid--cards">
+        {% for card in video_hot %}
+          <article class="vcard">
+            {% include '@xedc/templates/video/video-card.html.twig' with { card: card } only %}
+          </article>
+        {% endfor %}
+      </div>
+    </section>
   {% endif %}
-  {% if pager %}
-    <div class="xv-pager">{{ pager }}</div>
+
+  {% if rows or empty or pager %}
+    <section class="xv-block" aria-label="{{ '最新视频'|t }}">
+      {% if video_recommended or video_hot %}
+        <h2 class="xv-section">{{ video_sort == 'hot' ? '热门排序'|t : '最新视频'|t }}</h2>
+      {% endif %}
+      {% if rows %}
+        <div class="xv-grid">{{ rows }}</div>
+      {% elseif empty %}
+        {{ empty }}
+      {% endif %}
+      {% if pager %}
+        <div class="xv-pager">{{ pager }}</div>
+      {% endif %}
+    </section>
   {% endif %}
 </div>

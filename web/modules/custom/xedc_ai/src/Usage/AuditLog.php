@@ -22,6 +22,21 @@ final class AuditLog {
     private readonly LoggerInterface $logger,
   ) {}
 
+  /**
+   * @return list<array<string, mixed>>
+   *   Recent actions for one target.
+   */
+  public function forTarget(string $type, string $id, int $limit = 20): array {
+    return $this->database->select('xedc_ai_audit', 'a')
+      ->fields('a')
+      ->condition('target_type', $type)
+      ->condition('target_id', $id)
+      ->orderBy('id', 'DESC')
+      ->range(0, $limit)
+      ->execute()
+      ->fetchAll(\PDO::FETCH_ASSOC);
+  }
+
   public function log(string $action, string $message, ?int $uid = NULL, array $context = []): void {
     $message = Redactor::text($message);
     $uid = $uid ?? (int) $this->account->id();

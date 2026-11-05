@@ -231,7 +231,7 @@ function xedc_admin_preprocess_node_form(array &$variables): void {
 
   $main = match ($bundle) {
     'article' => ['title', 'field_cover', 'field_summary', 'field_body', 'field_categories', 'field_tags', 'field_source', 'field_source_url'],
-    'video' => ['title', 'field_video_cover', 'field_video_file', 'field_video_url', 'field_duration', 'field_body', 'field_categories', 'field_tags'],
+    'video' => ['title', 'field_video_cover', 'field_video_file', 'field_video_url', 'field_duration', 'field_body', 'field_categories', 'field_tags', 'xedc_video_recommend', 'field_featured', 'field_slideshow'],
     'photo' => ['title', 'field_cover_image', 'field_images', 'xedc_import', 'field_summary', 'field_categories', 'field_model', 'field_tags', 'field_featured', 'field_slideshow'],
     default => ['title', 'field_body'],
   };

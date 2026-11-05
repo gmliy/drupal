@@ -7,14 +7,14 @@ dependencies:
     - field.field.node.video.field_body
     - field.field.node.video.field_categories
     - field.field.node.video.field_duration
+    - field.field.node.video.field_featured
+    - field.field.node.video.field_slideshow
     - field.field.node.video.field_tags
     - field.field.node.video.field_video_cover
     - field.field.node.video.field_video_file
     - field.field.node.video.field_video_url
-    - image.style.video_cover
     - node.type.video
   module:
-    - media
     - user
 id: node.video.teaser
 targetEntityType: node
@@ -26,6 +26,8 @@ hidden:
   field_body: true
   field_categories: true
   field_duration: true
+  field_featured: true
+  field_slideshow: true
   field_tags: true
   field_video_cover: true
   field_video_file: true

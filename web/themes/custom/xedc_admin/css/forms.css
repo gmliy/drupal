@@ -252,21 +252,37 @@ html.xedc-admin-active th .js-form-type-radio > label {
   color: var(--xedc-admin-danger);
 }
 
-@media (max-width: 1023px) {
+/* iOS Safari zooms focused controls under 16px. Keep pinch-zoom enabled. */
+@media screen and (max-width: 1023px) {
   .xedc-admin-active input.form-text,
   .xedc-admin-active input.form-email,
   .xedc-admin-active input.form-url,
   .xedc-admin-active input.form-tel,
   .xedc-admin-active input.form-number,
   .xedc-admin-active input.form-search,
+  .xedc-admin-active input.form-date,
+  .xedc-admin-active input.form-time,
   .xedc-admin-active input.form-control:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]),
+  .xedc-admin-active input[type="text"],
+  .xedc-admin-active input[type="email"],
+  .xedc-admin-active input[type="password"],
+  .xedc-admin-active input[type="search"],
+  .xedc-admin-active input[type="url"],
+  .xedc-admin-active input[type="tel"],
+  .xedc-admin-active input[type="number"],
+  .xedc-admin-active input[type="date"],
+  .xedc-admin-active input[type="time"],
   .xedc-admin-active .form-textarea,
+  .xedc-admin-active textarea,
   .xedc-admin-active textarea.form-control,
   .xedc-admin-active .form-select,
-  .xedc-admin-active select.form-control {
-    font-size: 16px;
+  .xedc-admin-active select,
+  .xedc-admin-active select.form-control,
+  .xedc-admin-active [contenteditable="true"],
+  .xedc-admin-active .ck-editor__editable,
+  .xedc-admin-active .ck-content {
+    font-size: 16px !important;
   }
-
 }
 
 @media (max-width: 767px) {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\xedc_ai\Review;
 
 use Drupal\Component\Datetime\TimeInterface;
+use Drupal\node\NodeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Lock\LockBackendInterface;
 use Drupal\Core\State\StateInterface;
@@ -13,6 +14,7 @@ use Drupal\xedc_ai\Budget\Money;
 use Drupal\xedc_ai\Client\ChatResponse;
 use Drupal\xedc_ai\Client\OpenAiChatClient;
 use Drupal\xedc_ai\Client\Redactor;
+use Drupal\xedc_ai\Seo\SeoResult;
 use Drupal\xedc_ai\Provider\ModelProfile;
 use Drupal\xedc_ai\Provider\ModelRepository;
 use Drupal\xedc_ai\Usage\AuditLog;
@@ -112,9 +114,10 @@ final class ReviewRunner {
       return 'done';
     }
 
-    $node = $this->extractor->loadRevision((string) $review['entity_type'], (int) $review['entity_id'], 0);
+    $pinned = (string) $review['depth'] === 'seo';
+    $node = $this->extractor->loadRevision((string) $review['entity_type'], (int) $review['entity_id'], $pinned ? (int) $review['revision_id'] : 0, $pinned);
     if ($node === NULL) {
-      $this->fail($reviewId, 'missing_entity', '内容不存在。');
+      $this->fail($reviewId, $pinned ? 'missing_revision' : 'missing_entity', $pinned ? '指定的修订版本不存在，未改用其他版本。' : '内容不存在。');
       return 'done';
     }
     $fields = $this->extractor->extract($node);
@@ -205,16 +208,41 @@ final class ReviewRunner {
     if (!$response->ok) {
       return $this->finishError($review, $response, $maxCalls);
     }
+    if ((string) $review['depth'] === 'seo') {
+      $rejected = SeoResult::rejectedFinish($response->finishReason);
+      if ($rejected !== NULL) {
+        $this->fail($reviewId, $response->finishReason === 'length' ? 'truncated' : 'filtered', $rejected . ' 内容没有被修改。');
+        return 'done';
+      }
+    }
     $parsed = match (TRUE) {
       (string) $review['source'] === 'translation' || (string) $review['depth'] === 'translation' => ReviewParser::translation($response->content),
-      (string) $review['depth'] === 'seo' => ReviewParser::seo($response->content),
+      (string) $review['depth'] === 'seo' => ReviewParser::seo($response->content, $fields + ['known' => TRUE]),
       default => ReviewParser::review($response->content),
     };
     if (!$parsed['ok']) {
-      $this->fail($reviewId, 'invalid_json', (string) $parsed['error'] . ' 内容没有被修改。');
+      $snippet = trim(preg_replace('/\s+/u', ' ', $response->content) ?? '');
+      $this->fail($reviewId, 'invalid_json', (string) $parsed['error'] . ' finish_reason=' . ($response->finishReason !== '' ? $response->finishReason : '无') . '。内容没有被修改。片段：' . $snippet);
       return 'done';
     }
-    $this->complete($reviewId, $parsed['result']);
+    $result = $parsed['result'];
+    if ((string) $review['depth'] === 'seo') {
+      $result['base_revision_id'] = (int) $review['revision_id'];
+      $result['source_snapshot'] = $this->extractor->snapshot($node);
+      $alts = is_array($fields['alts'] ?? NULL) ? $fields['alts'] : [];
+      $shared = $this->sharedMediaCounts($node, $alts);
+      foreach ($alts as $index => $alt) {
+        if (is_array($alt)) {
+          $alts[$index]['shared'] = $shared[(int) ($alt['mid'] ?? 0)] ?? 0;
+        }
+      }
+      $result['alt_report'] = \Drupal\xedc_ai\Seo\AltInspector::inspect($alts, (string) ($fields['title'] ?? ''), (string) ($fields['bundle'] ?? ''));
+      $result = \Drupal\xedc_ai\Seo\SeoResult::mergeLocalAlt($result, $result['alt_report']);
+      $result['analysis_metadata']['finish_reason'] = $response->finishReason;
+      $result['analysis_metadata']['usage_reported'] = $response->usageReported;
+      $result['analysis_metadata']['from_reasoning'] = $response->usedReasoning;
+    }
+    $this->complete($reviewId, $result);
     return 'done';
   }
 
@@ -249,15 +277,23 @@ final class ReviewRunner {
    *   Text messages.
    */
   private function call(array $review, ModelProfile $model, array $messages, int $hold, bool $priceKnown): ChatResponse {
-    $usageId = $this->usage->start((int) $review['id'], (string) $review['source'], $model->providerId, $model->modelName, (int) $review['uid']);
+    $usageId = $this->usage->start((int) $review['id'], (string) $review['source'], $model->providerId, $model->modelName, (int) $review['uid'], [
+      'entity_id' => (int) $review['entity_id'],
+      'revision_id' => (int) $review['revision_id'],
+      'retry_index' => (int) $review['attempts'],
+    ]);
     try {
-      $response = $this->client->once($model, $messages);
+      $response = $this->client->once($model, $messages, NULL, NULL, (string) $review['depth'] === 'seo');
     }
     catch (\Throwable $exception) {
       $response = ChatResponse::failure($model->providerId, $model->modelName, 'network', $exception->getMessage(), 0, TRUE, TRUE);
     }
-    $cost = $priceKnown ? Money::costMicro($response->promptTokens, $response->completionTokens, $model->inputPrice, $model->outputPrice) : NULL;
-    $this->usage->finish($usageId, $response, $cost, (int) $review['uid']);
+    $quote = $response->usageReported
+      ? Money::quote($response->promptTokens, $response->completionTokens, $response->cacheReadTokens, $priceKnown ? $model->inputPrice : '', $priceKnown ? $model->outputPrice : '', $priceKnown ? $model->cachePrice : '')
+      : ['status' => 'no_usage', 'total' => 0];
+    $costStatus = (string) $quote['status'];
+    $cost = in_array($costStatus, ['known', 'zero', 'cache_unpriced'], TRUE) ? (int) $quote['total'] : NULL;
+    $this->usage->finish($usageId, $response, $cost, (int) $review['uid'], $costStatus);
     if ($cost !== NULL && ($response->promptTokens + $response->completionTokens) > 0) {
       $this->budget->settle($hold);
     }
@@ -325,6 +361,44 @@ final class ReviewRunner {
       'error_message' => '',
       'completed' => $this->time->getRequestTime(),
     ]);
+  }
+
+  /**
+   * @param list<array<string, mixed>> $alts
+   *   Image rows on this node.
+   *
+   * @return array<int, int>
+   *   Other nodes referencing each media id. Four grouped queries at most.
+   */
+  private function sharedMediaCounts(NodeInterface $node, array $alts): array {
+    $mids = [];
+    foreach ($alts as $alt) {
+      $mid = (int) ($alt['mid'] ?? 0);
+      if ($mid > 0) {
+        $mids[$mid] = $mid;
+      }
+    }
+    if ($mids === []) {
+      return [];
+    }
+    $counts = array_fill_keys($mids, 0);
+    $database = \Drupal::database();
+    foreach (['field_images', 'field_cover_image', 'field_cover', 'field_video_cover'] as $field) {
+      $table = 'node__' . $field;
+      if (!$database->schema()->tableExists($table)) {
+        continue;
+      }
+      $query = $database->select($table, 't');
+      $query->addField('t', $field . '_target_id', 'mid');
+      $query->addExpression('COUNT(DISTINCT t.entity_id)', 'uses');
+      $query->condition($field . '_target_id', array_values($mids), 'IN');
+      $query->condition('entity_id', (int) $node->id(), '<>');
+      $query->groupBy($field . '_target_id');
+      foreach ($query->execute() ?? [] as $row) {
+        $counts[(int) $row->mid] = ($counts[(int) $row->mid] ?? 0) + (int) $row->uses;
+      }
+    }
+    return $counts;
   }
 
   private function fail(int $reviewId, string $code, string $message): void {

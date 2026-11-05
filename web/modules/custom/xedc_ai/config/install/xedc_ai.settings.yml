@@ -18,3 +18,14 @@ allow_unpriced_manual: true
 unpriced_daily_tokens: 100000
 rule_version: 1
 retention_days: 180
+seo_schedule_enabled: false
+seo_schedule_daily_new: false
+seo_schedule_weekly: false
+seo_schedule_changed: false
+seo_schedule_stale: false
+seo_schedule_stale_days: 30
+seo_schedule_limit: 3
+seo_schedule_photo: false
+seo_schedule_video: false
+seo_schedule_article: false
+seo_schedule_page: false

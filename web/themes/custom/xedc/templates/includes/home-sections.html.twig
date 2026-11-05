@@ -57,6 +57,29 @@
   </div>
 </section>
 {% endif %}
+{% if home_videos_recommended %}
+<section class="xedc-section">
+  <div class="xedc-section__head"><h2>{{ '推荐视频'|t }}</h2><a href="{{ xedc_href.video|default('/video') }}">{{ '查看更多'|t }} ›</a></div>
+  <div class="xedc-grid xedc-grid--video">
+  {% for item in home_videos_recommended %}
+    <article class="xedc-card">
+      <a href="{{ item.url }}">
+        <span class="xedc-card__media">
+          {% if item.img %}
+            <img src="{{ item.img }}" alt="{{ item.title }}"{% if item.width %} width="{{ item.width }}" height="{{ item.height }}"{% endif %} loading="lazy" decoding="async">
+          {% endif %}
+          <span class="xedc-play" aria-hidden="true"></span>
+          {% if item.duration %}
+            <span class="xedc-badge">{{ item.duration }}</span>
+          {% endif %}
+        </span>
+        <span class="xedc-card__title">{{ item.title }}</span>
+      </a>
+    </article>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
 {% if home_videos %}
 <section class="xedc-section">
   <div class="xedc-section__head"><h2>{{ '热门视频'|t }}</h2><a href="{{ xedc_href.video|default('/video') }}">{{ '查看更多'|t }} ›</a></div>

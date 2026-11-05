@@ -32,7 +32,7 @@ final class LocalInspector {
    */
   public function inspect(NodeInterface $node): array {
     $limits = RuleLimits::fromConfig($this->configFactory);
-    $extractor = new TextExtractor($this->entities);
+    $extractor = new TextExtractor($this->entities, $this->configFactory);
     $fields = $extractor->extract($node);
     $text = TextRules::assess($fields, $this->duplicateTitles($node, $fields['title']), $this->duplicateText($node, $fields), $limits);
     $text = array_merge($text, $this->referenceIssues($node), $this->contentIssues($node, $limits));

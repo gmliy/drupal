@@ -1,5 +1,9 @@
-/* Focused fields keep a white (or theme) fill and a border change.
-   A gray focus fill, an outward ring, or a sub-16px font shifts the page. */
+/* Mobile input zoom guard.
+ *
+ * iOS Safari auto-zooms focused form controls whose computed font-size is
+ * below 16px. Keep pinch-zoom available (no user-scalable=no / max-scale=1).
+ * Desktop layout is left unchanged via a mobile-width media query.
+ */
 
 html {
   -webkit-text-size-adjust: 100%;
@@ -42,12 +46,48 @@ html {
   box-shadow: none;
 }
 
-@media (pointer: coarse) {
-  :where(
-    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]):not([type="color"]),
-    textarea,
-    select
-  ) {
+/* Use max-width (not only pointer:coarse): coarse pointer can miss when a
+   keyboard/mouse is attached, and fails in some emulator setups. */
+@media screen and (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]):not([type="color"]),
+  textarea,
+  select,
+  .form-control:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="hidden"]),
+  .form-select,
+  .form-text,
+  .form-email,
+  .form-tel,
+  .form-url,
+  .form-number,
+  .form-search,
+  .form-textarea,
+  .form-date,
+  .sr-input,
+  .xa-input,
+  .xn-search input,
+  .xn-msearch input,
+  .xv-search input,
+  .photo-drop__search input,
+  [contenteditable="true"],
+  .ck-editor__editable,
+  .ck-content {
+    font-size: 16px !important;
+  }
+}
+
+/* Coarse-pointer tablets / large phones above 767px still need the guard. */
+@media (pointer: coarse) and (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]):not([type="color"]),
+  textarea,
+  select,
+  .form-control:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="hidden"]),
+  .form-select,
+  .form-textarea,
+  .sr-input,
+  .xa-input,
+  [contenteditable="true"],
+  .ck-editor__editable,
+  .ck-content {
     font-size: 16px !important;
   }
 }

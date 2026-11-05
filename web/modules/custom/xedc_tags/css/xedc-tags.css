@@ -66,6 +66,7 @@
 .xt-search { flex: 1 1 240px; max-width: 420px; position: relative; display: block; }
 .xt-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--xt-mut); pointer-events: none; }
 .xt-search input { width: 100%; height: 40px; padding: 0 12px 0 36px; font: inherit; font-size: 14px; color: var(--xt-fg); background: var(--xt-bg); border: 1px solid var(--xt-bd); border-radius: 10px; }
+@media (max-width: 767px) { .xt-search input { font-size: 16px; } }
 .xt-tags { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 @media (min-width: 768px) { .xt-tags { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; } }
 .xt-tag { display: block; padding: 14px 14px 12px; background: var(--xt-bg); border: 1px solid var(--xt-bd); border-radius: var(--xt-r); transition: border-color .15s, box-shadow .15s; }

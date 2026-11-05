@@ -7,11 +7,15 @@
 
 declare(strict_types=1);
 
+use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
+use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Url;
 use Drupal\file\FileInterface;
 use Drupal\views\ViewExecutable;
@@ -25,8 +29,15 @@ use Drupal\xedc_core\ImportStatus;
  * Implements hook_page_attachments().
  *
  * Attaches the shared upload manager on admin routes for users who can upload.
+ * Also loads the Gin/Claro mobile input zoom guard when those themes are active
+ * (production admin theme is xedc_admin; this is a defensive fallback).
  */
 function xedc_core_page_attachments(array &$attachments): void {
+  $activeTheme = \Drupal::theme()->getActiveTheme()->getName();
+  if (in_array($activeTheme, ['gin', 'claro'], TRUE)) {
+    $attachments['#attached']['library'][] = 'xedc_core/mobile_inputs_admin';
+  }
+
   $account = \Drupal::currentUser();
   if (!$account->isAuthenticated()) {
     return;
@@ -99,6 +110,7 @@ function xedc_core_form_node_form_alter(array &$form, FormStateInterface $form_s
   $node = $form_object->getEntity();
   if ($node instanceof NodeInterface) {
     xedc_core_download_form_attach($form, $node);
+    xedc_core_video_recommend_form_alter($form, $node);
   }
   if (!$node instanceof NodeInterface || $node->bundle() !== 'photo') {
     return;
@@ -116,11 +128,122 @@ function xedc_core_form_node_form_alter(array &$form, FormStateInterface $form_s
 }
 
 /**
- * Member-facing photo upload: progress and file pickers only, no staff tooling.
+ * Labels the two independent video recommendation checkboxes.
+ *
+ * Admin Twig prints the fields inside a "推荐设置" card. A fieldset is still
+ * added for non-admin form renders so the same copy appears there.
+ */
+function xedc_core_video_recommend_form_alter(array &$form, NodeInterface $node): void {
+  if ($node->bundle() !== 'video') {
+    return;
+  }
+  $has_home = isset($form['field_slideshow']) && ($form['field_slideshow']['#access'] ?? TRUE);
+  $has_category = isset($form['field_featured']) && ($form['field_featured']['#access'] ?? TRUE);
+  if (!$has_home && !$has_category) {
+    return;
+  }
+  $form['xedc_video_recommend'] = [
+    '#type' => 'fieldset',
+    '#title' => t('推荐设置'),
+    '#weight' => 125,
+    '#tree' => FALSE,
+    '#attributes' => ['class' => ['xedc-video-recommend']],
+  ];
+  if ($has_home) {
+    if (isset($form['field_slideshow']['widget']['value']['#title'])) {
+      $form['field_slideshow']['widget']['value']['#title'] = t('设为首页推荐');
+    }
+    $form['field_slideshow']['widget']['#description'] = t('勾选后，该视频在正式发布并通过审核后，可以显示在网站首页推荐视频区域。');
+    $form['field_slideshow']['#weight'] = 126;
+    $form['field_slideshow']['#group'] = 'xedc_video_recommend';
+  }
+  if ($has_category) {
+    if (isset($form['field_featured']['widget']['value']['#title'])) {
+      $form['field_featured']['widget']['value']['#title'] = t('设为当前分类栏目推荐');
+    }
+    $form['field_featured']['widget']['#description'] = t('勾选后，该视频在正式发布并通过审核后，可以显示在所属视频分类栏目页面的推荐区域。');
+    $form['field_featured']['#weight'] = 127;
+    $form['field_featured']['#group'] = 'xedc_video_recommend';
+  }
+}
+
+/**
+ * Keeps recommendation flags staff-only even if a crafted entity save sets them.
+ */
+function xedc_core_lock_recommend_flags(NodeInterface $node): void {
+  if (!in_array($node->bundle(), ['photo', 'video'], TRUE)) {
+    return;
+  }
+  $account = \Drupal::currentUser();
+  // CLI / system saves run as uid 0 and must keep working for migrations.
+  if (!$account->isAuthenticated()) {
+    return;
+  }
+  if ($account->hasPermission('administer nodes') || $account->hasPermission('edit any ' . $node->bundle() . ' content')) {
+    return;
+  }
+  foreach (['field_featured', 'field_slideshow'] as $field) {
+    if (!$node->hasField($field)) {
+      continue;
+    }
+    if ($node->isNew() || !($node->original instanceof NodeInterface) || !$node->original->hasField($field)) {
+      $node->set($field, 0);
+      continue;
+    }
+    $node->set($field, (int) $node->original->get($field)->value ? 1 : 0);
+  }
+}
+
+/**
+ * Implements hook_entity_field_access().
+ *
+ * Recommendation flags are staff-only. Ordinary members with "edit own"
+ * cannot flip them by crafting a POST request.
+ */
+function xedc_core_entity_field_access(string $operation, FieldDefinitionInterface $field_definition, AccountInterface $account, ?FieldItemListInterface $items = NULL): AccessResult {
+  if ($operation !== 'edit') {
+    return AccessResult::neutral();
+  }
+  $name = $field_definition->getName();
+  if (!in_array($name, ['field_featured', 'field_slideshow'], TRUE)) {
+    return AccessResult::neutral();
+  }
+  if ($field_definition->getTargetEntityTypeId() !== 'node') {
+    return AccessResult::neutral();
+  }
+  $bundle = (string) $field_definition->getTargetBundle();
+  if (!in_array($bundle, ['photo', 'video'], TRUE)) {
+    return AccessResult::neutral();
+  }
+  $allowed = $account->hasPermission('administer nodes')
+    || $account->hasPermission('edit any ' . $bundle . ' content');
+  // Must return forbidden (not neutral) so "edit own" cannot flip staff flags.
+  return ($allowed ? AccessResult::allowed() : AccessResult::forbidden())
+    ->cachePerPermissions();
+}
+
+/**
+ * Resolves member photo upload UI mode: image (default) or archive.
+ *
+ * Legacy ?upload=gallery|images folds into image mode so multi-image gallery
+ * upload stays on the normal 图片投稿 page. Archive stays a separate entry.
+ */
+function xedc_core_member_photo_upload_mode(): string {
+  $mode = strtolower(trim((string) (\Drupal::requestStack()->getCurrentRequest()?->query->get('upload') ?? '')));
+  if (in_array($mode, ['archive', 'zip'], TRUE)) {
+    return 'archive';
+  }
+  return 'image';
+}
+
+/**
+ * Member-facing photo upload: image multi-upload or archive-only, never mixed.
  */
 function xedc_core_attach_member_photo_upload(array &$form, NodeInterface $node): void {
   $settings = \Drupal::config('xedc_core.settings');
   $limit = (int) $settings->get('max_archive_bytes') ?: 209715200;
+  $mode = xedc_core_member_photo_upload_mode();
+  $isArchive = $mode === 'archive';
   $form['#attached']['library'][] = 'xedc_core/member_upload';
   $form['#attached']['drupalSettings']['xedcAsset'] = [
     'archiveUrl' => Url::fromRoute('xedc_core.asset_archive')->toString(),
@@ -141,43 +264,64 @@ function xedc_core_attach_member_photo_upload(array &$form, NodeInterface $node)
     'titleSelector' => '#edit-title-0-value',
     'entry' => 'member',
     'requireTitle' => TRUE,
+    'kinds' => $isArchive ? ['archive'] : ['image'],
+    'uploadMode' => $mode,
   ];
   $form['#attached']['drupalSettings']['xedcUpload'] = $form['#attached']['drupalSettings']['xedcAsset'];
   $form['xedc_import'] = [
     '#type' => 'container',
     '#tree' => TRUE,
     '#weight' => 8,
-    '#attributes' => ['class' => ['xedc-import', 'xedc-import--member', 'xm-upload-card']],
-  ];
-  $mode = trim((string) (\Drupal::requestStack()->getCurrentRequest()?->query->get('upload') ?? ''));
-  $preferArchive = $mode === 'archive' || $mode === 'zip';
-  $preferImages = $mode === 'gallery' || $mode === 'images';
-  $form['xedc_import']['uploader'] = [
-    '#type' => 'inline_template',
-    '#template' => '<section class="xedc-upload xedc-upload--member" data-xedc-asset-upload data-nid="{{ nid }}" data-prefer="{{ prefer }}"><header class="xedc-upload__head"><div><h2>{{ heading }}</h2><p class="xedc-upload__help">{{ help }}</p></div></header><div class="xedc-upload__stats" data-xedc-stats></div><div class="xedc-upload__grid"><section class="xedc-upload__drop{% if prefer_archive %} is-preferred{% endif %}" data-xedc-drop="archive"><h3>{{ archive_heading }}</h3><label class="xedc-upload__pick">{{ archive_label }}<input type="file" data-xedc-archive accept=".zip,.7z,application/zip,application/x-7z-compressed"></label></section><section class="xedc-upload__drop{% if prefer_images %} is-preferred{% endif %}" data-xedc-drop="image"><h3>{{ image_heading }}</h3><label class="xedc-upload__pick">{{ image_label }}<input type="file" data-xedc-images accept="image/jpeg,image/png,image/gif,image/webp" multiple></label></section></div><p class="xedc-upload__note" data-xedc-note></p><div class="xedc-upload__queue" data-xedc-list></div></section>',
-    '#context' => [
-      'nid' => (int) $node->id(),
-      'prefer' => $preferArchive ? 'archive' : ($preferImages ? 'image' : ''),
-      'prefer_archive' => $preferArchive,
-      'prefer_images' => $preferImages,
-      'heading' => t('上传图片或压缩包'),
-      'archive_heading' => t('压缩包'),
-      'archive_label' => t('选择 ZIP / 7z'),
-      'image_heading' => t('图片集'),
-      'image_label' => t('一次选择多张图片'),
-      'help' => t('先填写标题，再选择文件。上传可中断后续传；刷新后如提示重新选择，请选回同一文件。'),
+    '#attributes' => [
+      'class' => [
+        'xedc-import',
+        'xedc-import--member',
+        'xm-upload-card',
+        $isArchive ? 'xedc-import--archive' : 'xedc-import--images',
+      ],
     ],
   ];
-  $archive = \Drupal::service('xedc_core.archive');
-  if (!$archive->privateReady()) {
-    $form['xedc_import']['missing'] = [
-      '#markup' => '<p class="xm-upload-note">' . t('压缩包上传暂不可用，请改用上方图片集或联系管理员。') . '</p>',
+  if ($isArchive) {
+    $template = '<section class="xedc-upload xedc-upload--member xedc-upload--archive" data-xedc-asset-upload data-nid="{{ nid }}" data-prefer="archive" data-kinds="archive"><header class="xedc-upload__head"><div><h2>{{ heading }}</h2><p class="xedc-upload__help">{{ help }}</p></div></header><div class="xedc-upload__stats" data-xedc-stats></div><div class="xedc-upload__grid"><section class="xedc-upload__drop is-preferred" data-xedc-drop="archive"><h3>{{ archive_heading }}</h3><label class="xedc-upload__pick">{{ archive_label }}<input type="file" data-xedc-archive accept=".zip,.7z,application/zip,application/x-7z-compressed"></label><p class="xedc-upload__hint">{{ archive_hint }}</p></section></div><p class="xedc-upload__note" data-xedc-note></p><div class="xedc-upload__queue" data-xedc-list></div></section>';
+    $context = [
+      'nid' => (int) $node->id(),
+      'heading' => t('压缩包上传'),
+      'archive_heading' => t('ZIP / 7z'),
+      'archive_label' => t('选择压缩包'),
+      'archive_hint' => t('支持分片上传与断点续传。处理完成后可预览图片集并保存投稿。'),
+      'help' => t('先填写标题，再选择 ZIP 或 7z。上传可中断后续传；刷新后如提示重新选择，请选回同一文件。'),
     ];
   }
-  elseif (!$archive->sevenZipBinary()) {
-    $form['xedc_import']['sevenzip'] = [
-      '#markup' => '<p class="xm-upload-note">' . t('目前仅支持 ZIP 压缩包。') . '</p>',
+  else {
+    // Image投稿: keep default multi-image gallery picker; never show ZIP here.
+    $template = '<section class="xedc-upload xedc-upload--member xedc-upload--images" data-xedc-asset-upload data-nid="{{ nid }}" data-prefer="image" data-kinds="image"><header class="xedc-upload__head"><div><h2>{{ heading }}</h2><p class="xedc-upload__help">{{ help }}</p></div></header><div class="xedc-upload__stats" data-xedc-stats></div><div class="xedc-upload__grid"><section class="xedc-upload__drop is-preferred" data-xedc-drop="image"><h3>{{ image_heading }}</h3><label class="xedc-upload__pick">{{ image_label }}<input type="file" data-xedc-images accept="image/jpeg,image/png,image/gif,image/webp" multiple></label><p class="xedc-upload__hint">{{ image_hint }}</p></section></div><p class="xedc-upload__note" data-xedc-note></p><div class="xedc-upload__queue" data-xedc-list></div></section>';
+    $context = [
+      'nid' => (int) $node->id(),
+      'heading' => t('批量上传图片'),
+      'image_heading' => t('图片 / 图片集'),
+      'image_label' => t('选择一张或多张图片'),
+      'image_hint' => t('可多选或拖放。一张按普通图片投稿；多张会组成同一个图片集。'),
+      'help' => t('先填写标题，再选择图片。支持批量上传、失败重试与刷新后续传。压缩包请使用「压缩包投稿」。'),
     ];
+  }
+  $form['xedc_import']['uploader'] = [
+    '#type' => 'inline_template',
+    '#template' => $template,
+    '#context' => $context,
+  ];
+  $form['#xedc_member_upload_mode'] = $mode;
+  $archive = \Drupal::service('xedc_core.archive');
+  if ($isArchive) {
+    if (!$archive->privateReady()) {
+      $form['xedc_import']['missing'] = [
+        '#markup' => '<p class="xm-upload-note">' . t('压缩包上传暂不可用，请稍后再试或联系管理员。') . '</p>',
+      ];
+    }
+    elseif (!$archive->sevenZipBinary()) {
+      $form['xedc_import']['sevenzip'] = [
+        '#markup' => '<p class="xm-upload-note">' . t('目前仅支持 ZIP 压缩包。') . '</p>',
+      ];
+    }
   }
 }
 
@@ -390,6 +534,7 @@ function xedc_core_filter_info_alter(array &$info): void {
  * Implements hook_node_presave().
  */
 function xedc_core_node_presave(NodeInterface $node): void {
+  xedc_core_lock_recommend_flags($node);
   if (\Drupal::hasService('xedc_core.image_optimize') && \Drupal::service('xedc_core.image_optimize')->blocksPublish($node)) {
     $publishing = $node->isPublished() || ($node->hasField('moderation_state') && $node->get('moderation_state')->value === 'published');
     if ($publishing) {
@@ -485,6 +630,9 @@ function xedc_core_node_update(NodeInterface $node): void {
     if ($node->isPublished() && !$node->original->isPublished()) {
       \Drupal::service('xedc_core.tasks')->markNodePublished((int) $node->id(), (int) \Drupal::currentUser()->id());
     }
+    // Member confirmed the imported gallery (draft or submit-for-review).
+    // Import-internal writes must not stamp this.
+    \Drupal::service('xedc_core.tasks')->markMemberSaved((int) $node->id(), (int) \Drupal::currentUser()->id());
   }
   xedc_core_import_after_save($node);
   xedc_core_video_after_save($node);
@@ -862,6 +1010,9 @@ function xedc_core_entity_delete(EntityInterface $entity): void {
     \Drupal::service('xedc_core.like_manager')->deleteForEntity('node', (int) $entity->id());
     \Drupal::service('xedc_core.download_recorder')->deleteForContent((int) $entity->id());
     xedc_core_video_after_delete($entity);
+    if ($entity->bundle() === 'video') {
+      \Drupal::service('xedc_core.video_recommend')->invalidateNode($entity);
+    }
     Cache::invalidateTags(['xedc_download_list']);
     return;
   }
@@ -998,6 +1149,8 @@ function xedc_core_video_after_save(NodeInterface $node): void {
   catch (\Throwable $e) {
     \Drupal::logger('xedc_video')->error('视频保存后未能加入时长队列：@message', ['@message' => $e->getMessage()]);
   }
+  $original = $node->original instanceof NodeInterface ? $node->original : NULL;
+  \Drupal::service('xedc_core.video_recommend')->invalidateNode($node, $original);
 }
 
 /**
@@ -1055,6 +1208,7 @@ function xedc_core_preprocess_taxonomy_term(array &$variables): void {
     ->count()
     ->execute();
   $variables['#cache']['tags'][] = 'node_list:video';
+  $variables['#cache']['tags'][] = \Drupal::service('xedc_core.video_recommend')->categoryTag((int) $term->id());
 }
 
 /**

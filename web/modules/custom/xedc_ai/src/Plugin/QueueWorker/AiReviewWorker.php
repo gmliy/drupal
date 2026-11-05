@@ -18,7 +18,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 #[QueueWorker(
   id: 'xedc_ai_review',
   title: new TranslatableMarkup('XEDC AI text review'),
-  cron: ['time' => 30],
+  cron: ['time' => 120],
 )]
 final class AiReviewWorker extends QueueWorkerBase implements ContainerFactoryPluginInterface {
 

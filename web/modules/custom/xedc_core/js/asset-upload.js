@@ -19,10 +19,37 @@
         const titleInput = root.querySelector('[data-xedc-title]');
         const archiveInput = root.querySelector('[data-xedc-archive]');
         const imageInput = root.querySelector('[data-xedc-images]');
-        let nid = Number((drupalSettings.xedcAsset || {}).nid || root.getAttribute('data-nid') || 0);
+        const cfgAsset = drupalSettings.xedcAsset || {};
+        const allowedKinds = String(root.getAttribute('data-kinds') || (cfgAsset.kinds || []).join(',') || root.getAttribute('data-prefer') || '')
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean);
+        let nid = Number(cfgAsset.nid || root.getAttribute('data-nid') || 0);
         let syncTimer = null;
         let lastGesture = '';
         let lastGestureAt = 0;
+
+        function jobAllowed(job) {
+          if (!job) return false;
+          if (job.entry === 'quick' && !root.hasAttribute('data-xedc-include-quick')) return false;
+          if (!allowedKinds.length) return true;
+          return allowedKinds.includes(job.kind);
+        }
+
+        function visibleJobs(jobs) {
+          return (jobs || manager.list()).filter(jobAllowed);
+        }
+
+        function countPhases(jobs) {
+          const all = jobs.filter((job) => job.phase !== 'cancelled' && job.phase !== 'canceled');
+          const count = (names) => all.filter((job) => names.includes(job.phase)).length;
+          return {
+            uploading: count(['uploading', 'hashing', 'merging', 'validating', 'retrying']),
+            waiting: count(['pending', 'needs_title', 'queued', 'paused', 'interrupted', 'open', 'processing', 'extracting', 'importing', 'cancel_pending']),
+            failed: count(['failed']),
+            completed: count(['completed', 'duplicate', 'uploaded', 'success', 'review']),
+          };
+        }
 
         function say(text) {
           if (note) note.textContent = text || '';
@@ -36,7 +63,7 @@
 
         function drawStats(jobs) {
           if (!stats) return;
-          const counts = manager.counts();
+          const counts = countPhases(jobs);
           const cards = [
             ['当前任务', jobs.length],
             ['正在上传', counts.uploading],
@@ -173,7 +200,7 @@
         }
 
         function render(jobs) {
-          const visible = jobs.filter((job) => job.entry !== 'quick' || root.hasAttribute('data-xedc-include-quick'));
+          const visible = visibleJobs(jobs);
           const keys = new Set(visible.map((job) => job.id || job.clientId || job.sessionId));
           if (list) {
             [...list.querySelectorAll('[data-key]')].forEach((node) => {
@@ -190,6 +217,10 @@
         async function take(files, kind) {
           const selected = [...files].filter(Boolean);
           if (!selected.length) return;
+          if (allowedKinds.length && !allowedKinds.includes(kind)) {
+            say(kind === 'archive' ? '请到「压缩包投稿」上传 ZIP / 7z。' : '当前页面只接受图片文件。');
+            return;
+          }
           const signature = kind + ':' + selected.map((file) => [file.name, file.size, file.lastModified].join(':')).join('|');
           const stamp = Date.now();
           if (signature === lastGesture && stamp - lastGestureAt < 800) return;
@@ -199,10 +230,10 @@
           try {
             const created = await manager.enqueue(selected, {
               kind,
-              entry: 'admin',
+              entry: cfgAsset.entry || 'member',
               nid,
               title,
-              requireTitle: !(nid > 0),
+              requireTitle: cfgAsset.requireTitle !== false && !(nid > 0),
             });
             if (created.some((job) => job.phase === 'needs_title')) {
               say('请先填写作品标题。文件已保留，可取消，或填写标题后继续。');
@@ -260,7 +291,7 @@
         }
 
         function syncDelay() {
-          const counts = manager.counts();
+          const counts = countPhases(visibleJobs());
           const busy = counts.uploading + counts.waiting + counts.failed > 0;
           if (document.visibilityState === 'hidden') return busy ? 15000 : 30000;
           return busy ? 4000 : 20000;
@@ -311,6 +342,20 @@
         manager.subscribe(render);
         scheduleSync();
         drawStats([]);
+        // Server is authoritative: only drop jobs after member_saved / published.
+        if (manager.reconcileSavedJobs) {
+          const pendingNid = Number(window.sessionStorage.getItem('xedcPendingDismissNid') || 0);
+          manager.reconcileSavedJobs()
+            .then(() => {
+              if (pendingNid > 0) {
+                try { window.sessionStorage.removeItem('xedcPendingDismissNid'); } catch (e) { /* ignore */ }
+                const still = manager.list().some((job) => Number(job.nid) === pendingNid);
+                if (!still) say('投稿已保存。可以开始下一次上传。');
+              }
+              render(manager.list());
+            })
+            .catch(() => {});
+        }
       });
     },
   };

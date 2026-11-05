@@ -2,12 +2,22 @@
   {
     "name": "login",
     "status": "PASS",
-    "detail": "https://gitxx.xyz/user/2/edit?pass-reset-token=KddH0_-yFF9jpDEm3PQewIkzeAirbXZBoEZyCDtU7uDImefdjpIXm7yG3ear-ZpyRFFWz2RS2g"
+    "detail": "https://gitxx.xyz/user/2/edit?pass-reset-token=gB-7EC6EYNKaVHAjIG1ZGHun9u4tOdrjQeBc5sRkeCfNihHkGLQCKX4T87aRShmfFsVA3n5-ng"
   },
   {
     "name": "hub-cards",
     "status": "PASS",
-    "detail": "cards=5 title=内容投稿"
+    "detail": "cards=4 title=内容投稿"
+  },
+  {
+    "name": "hub-no-gallery-entry",
+    "status": "PASS",
+    "detail": "图\n图片投稿\n单张或多张图片。多张会组成同一个图片集。\n包\n压缩包投稿\n上传 ZIP / 7z，适合大批量图片。\n影\n视频投稿\n上传视频文件或填写视频链接。\n文\n文章投稿\n撰写图文内容并提交审核。"
+  },
+  {
+    "name": "hub-has-photo-and-archive",
+    "status": "PASS",
+    "detail": ""
   },
   {
     "name": "hub-no-admin-shell",
@@ -60,9 +70,29 @@
     "detail": "admin=0 importText=0"
   },
   {
-    "name": "archive-preferred",
+    "name": "photo-has-multi-image",
     "status": "PASS",
-    "detail": "prefer=1"
+    "detail": "multi=1"
+  },
+  {
+    "name": "photo-no-zip-control",
+    "status": "PASS",
+    "detail": "zip=0"
+  },
+  {
+    "name": "archive-has-zip",
+    "status": "PASS",
+    "detail": "zip=1"
+  },
+  {
+    "name": "archive-no-batch-image",
+    "status": "PASS",
+    "detail": "images=0"
+  },
+  {
+    "name": "archive-title",
+    "status": "PASS",
+    "detail": "压缩包投稿"
   },
   {
     "name": "video-member-form",

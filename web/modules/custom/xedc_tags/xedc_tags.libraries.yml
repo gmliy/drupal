@@ -1,5 +1,5 @@
 xedc_tags:
-  version: 2.0
+  version: 2.1
   css:
     theme:
       css/xedc-tags.css: {}

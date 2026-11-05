@@ -1,0 +1,107 @@
+{
+  "started": "2026-11-05T08:29:43.213Z",
+  "base": "https://gitxx.xyz",
+  "results": [
+    {
+      "id": "desktop-light",
+      "openSel": ".field--name-field-images .js-media-library-open-button",
+      "ok": true,
+      "cols": 1,
+      "itemCount": 24,
+      "dialogWidth": 1120,
+      "objectFit": "contain",
+      "overflowX": false,
+      "buttonpaneVisible": true,
+      "listScrollable": true,
+      "hasExposed": true,
+      "dialogClass": "ui-dialog media-library-widget-modal ui-widget ui-widget-content ui-front ui-dialog-buttons",
+      "cssDialogFix": false,
+      "selectOk": true,
+      "expectCols": [
+        5,
+        6
+      ],
+      "colsOk": false,
+      "objectFitOk": true,
+      "noOverflow": true,
+      "errors": [],
+      "shot": "/var/www/drupal/docs/tasks/screenshots/xedc-public-profile/desktop-light.png"
+    },
+    {
+      "id": "tablet-light",
+      "openSel": ".field--name-field-images .js-media-library-open-button",
+      "ok": true,
+      "cols": 1,
+      "itemCount": 24,
+      "dialogWidth": 744,
+      "objectFit": "contain",
+      "overflowX": false,
+      "buttonpaneVisible": true,
+      "listScrollable": true,
+      "hasExposed": true,
+      "dialogClass": "ui-dialog media-library-widget-modal ui-widget ui-widget-content ui-front ui-dialog-buttons",
+      "cssDialogFix": false,
+      "selectOk": true,
+      "expectCols": [
+        3,
+        4
+      ],
+      "colsOk": false,
+      "objectFitOk": true,
+      "noOverflow": true,
+      "errors": [],
+      "shot": "/var/www/drupal/docs/tasks/screenshots/xedc-public-profile/tablet-light.png"
+    },
+    {
+      "id": "mobile-light",
+      "openSel": ".field--name-field-images .js-media-library-open-button",
+      "ok": true,
+      "cols": 1,
+      "itemCount": 24,
+      "dialogWidth": 366,
+      "objectFit": "contain",
+      "overflowX": false,
+      "buttonpaneVisible": true,
+      "listScrollable": true,
+      "hasExposed": true,
+      "dialogClass": "ui-dialog media-library-widget-modal ui-widget ui-widget-content ui-front ui-dialog-buttons",
+      "cssDialogFix": false,
+      "selectOk": true,
+      "expectCols": [
+        2,
+        3
+      ],
+      "colsOk": false,
+      "objectFitOk": true,
+      "noOverflow": true,
+      "errors": [],
+      "shot": "/var/www/drupal/docs/tasks/screenshots/xedc-public-profile/mobile-light.png"
+    },
+    {
+      "id": "desktop-dark",
+      "openSel": ".field--name-field-images .js-media-library-open-button",
+      "ok": true,
+      "cols": 1,
+      "itemCount": 24,
+      "dialogWidth": 1120,
+      "objectFit": "contain",
+      "overflowX": false,
+      "buttonpaneVisible": true,
+      "listScrollable": true,
+      "hasExposed": true,
+      "dialogClass": "ui-dialog media-library-widget-modal ui-widget ui-widget-content ui-front ui-dialog-buttons",
+      "cssDialogFix": false,
+      "selectOk": true,
+      "expectCols": [
+        5,
+        6
+      ],
+      "colsOk": false,
+      "objectFitOk": true,
+      "noOverflow": true,
+      "errors": [],
+      "shot": "/var/www/drupal/docs/tasks/screenshots/xedc-public-profile/desktop-dark.png"
+    }
+  ],
+  "finished": "2026-11-05T08:30:08.686Z"
+}

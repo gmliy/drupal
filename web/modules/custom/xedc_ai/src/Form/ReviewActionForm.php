@@ -156,15 +156,31 @@ final class ReviewActionForm extends FormBase {
       return;
     }
     $review = $this->reviewRow((int) $form_state->get('review_id'));
-    $node = $review ? $this->node($review) : NULL;
+    if ($review === NULL) {
+      $this->messenger()->addError($this->t('没有可写入的建议。'));
+      return;
+    }
+    $node = $this->node($review);
     $result = json_decode((string) ($review['result'] ?? ''), TRUE);
     if (!$node instanceof NodeInterface || !is_array($result)) {
       $this->messenger()->addError($this->t('没有可写入的建议。'));
       return;
     }
-    $error = $this->seo->apply($node, $result, (bool) $form_state->getValue('use_title'), (bool) $form_state->getValue('use_summary'), (int) $this->currentUser()->id());
-    if ($error !== NULL) {
-      $this->messenger()->addError($error);
+    $keys = [];
+    if ($form_state->getValue('use_title')) {
+      $keys[] = 'title';
+    }
+    if ($form_state->getValue('use_summary')) {
+      $keys[] = 'summary';
+    }
+    $default = $this->extractor->loadRevision('node', (int) $review['entity_id'], 0);
+    $target = $default instanceof NodeInterface ? $default : $node;
+    $outcome = $this->seo->applySelected($target, $result, $keys, (int) $this->currentUser()->id(), (int) $review['revision_id'], (int) ($result['applied_revision_id'] ?? 0), FALSE, TRUE, (int) $review['id']);
+    \Drupal::service('xedc_ai.reviews')->update((int) $review['id'], [
+      'result' => json_encode($outcome['result'], JSON_UNESCAPED_UNICODE) ?: (string) $review['result'],
+    ]);
+    if ($outcome['error'] !== NULL) {
+      $this->messenger()->addError($outcome['error']);
       return;
     }
     $this->messenger()->addStatus($this->t('已写入所选文字。发布状态没有改变。'));

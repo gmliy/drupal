@@ -111,13 +111,8 @@ final class VideoCards {
         continue;
       }
       $tags = Cache::mergeTags($tags, $user->getCacheTags());
-      $name = $user->getDisplayName();
-      if ($user->hasField('field_xedc_nickname') && !$user->get('field_xedc_nickname')->isEmpty()) {
-        $nickname = trim((string) $user->get('field_xedc_nickname')->value);
-        if ($nickname !== '') {
-          $name = $nickname;
-        }
-      }
+      // Public video UI shows the Drupal account username (user.name), never the nickname field.
+      $name = trim((string) $user->getAccountName());
       $avatar = '';
       if ($user->hasField('user_picture') && !$user->get('user_picture')->isEmpty()) {
         $picture = $user->get('user_picture')->entity;

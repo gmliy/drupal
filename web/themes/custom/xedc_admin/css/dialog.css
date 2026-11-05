@@ -78,12 +78,8 @@ html.xedc-admin-active .media-library-item--grid.is-focus {
   background: var(--xedc-admin-hover);
 }
 
-html.xedc-admin-active .ui-dialog .views-exposed-form,
-html.xedc-admin-active .media-library-views-form .views-exposed-form {
-  background: var(--xedc-admin-surface);
-  border-color: var(--xedc-admin-border);
-  color: var(--xedc-admin-foreground);
-}
+/* Media Library widget modal layout is xedc_member/css/media-library-modal.css
+   (shared with the member theme). This file keeps non-media dialogs. */
 
 /* Dialog shell. jQuery UI writes width and position inline, so these win. */
 html.xedc-admin-active:has(.ui-dialog),
@@ -197,7 +193,9 @@ html.xedc-admin-active .ui-dialog-off-canvas .ui-dialog-titlebar-close {
 
 html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close .ui-button-icon,
 html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close .ui-icon,
-html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close .ui-button-icon-space {
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close .ui-button-icon-space,
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close .ui-button-icon-primary,
+html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close .ui-button-text {
   display: none !important;
 }
 
@@ -215,7 +213,9 @@ html.xedc-admin-active .ui-dialog .ui-dialog-titlebar-close:hover {
   background: var(--xedc-admin-hover);
 }
 
-html.xedc-admin-active .ui-dialog .ui-dialog-content {
+/* Non–media-library dialogs scroll the content pane. Media Library must NOT:
+   overflow:auto here captures wheel and breaks .view-content independent scroll. */
+html.xedc-admin-active .ui-dialog:not(.media-library-widget-modal):not(:has(#media-library-wrapper)):not(:has(.media-library-wrapper)) .ui-dialog-content {
   flex: 1 1 auto;
   min-height: 0;
   height: auto !important;
@@ -244,22 +244,7 @@ html.xedc-admin-active .ui-dialog .ui-dialog-buttonset {
   width: 100%;
 }
 
-html.xedc-admin-active .ui-dialog .media-library-widget-modal .ui-dialog-buttonpane,
-html.xedc-admin-active .media-library-widget-modal .ui-dialog-buttonpane {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-html.xedc-admin-active .media-library-selected-count,
-html.xedc-admin-active .js-media-library-selected-count {
-  float: none;
-  margin: 0;
-  color: var(--xedc-admin-muted);
-  font-size: 13px;
-}
+/* Media Library footer rules live with the compact modal block above. */
 
 /* Views JS and body-scroll-lock expect .scroll to be the scroller.
    A forced overflow:visible made the list as tall as its content, so the
@@ -822,9 +807,9 @@ html.xedc-admin-active .ui-dialog fieldset .fieldset-wrapper {
     min-width: 44px;
   }
 
-  html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane .button,
-  html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane button,
-  html.xedc-admin-active .ui-dialog .ui-dialog-buttonpane input.form-submit {
+  html.xedc-admin-active .ui-dialog:not(.media-library-widget-modal):not(:has(#media-library-wrapper)) .ui-dialog-buttonpane .button,
+  html.xedc-admin-active .ui-dialog:not(.media-library-widget-modal):not(:has(#media-library-wrapper)) .ui-dialog-buttonpane button,
+  html.xedc-admin-active .ui-dialog:not(.media-library-widget-modal):not(:has(#media-library-wrapper)) .ui-dialog-buttonpane input.form-submit {
     height: 44px;
     min-height: 44px;
     line-height: 42px;

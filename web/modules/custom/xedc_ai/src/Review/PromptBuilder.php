@@ -26,7 +26,12 @@ final class PromptBuilder {
       $system = '你是翻译编辑。只根据给出的文字提供 ' . $langcode . ' 译文建议，不能声称已经写入网站。不要判断图片或视频画面。只输出一个 JSON 对象，不要使用 Markdown。键为 summary、items（对象数组，每项含 field、original、suggested、langcode）。';
     }
     elseif ($depth === 'seo') {
-      $system = '你是 SEO 编辑。只能根据给出的文字提建议，不能声称已经修改网站。不要判断图片或视频画面。只输出一个 JSON 对象，不要使用 Markdown。键为 seo_title、meta_description、tags（字符串数组）、stuffing（true 或 false）、relevance、summary、issues（字符串数组）、suggestions（字符串数组）。可以另给标题、简介、图片 alt、标签和分类建议，但不要输出 JSON 以外的内容。';
+      $system = '你是 SEO 编辑。只根据给出的文字和元数据提建议，不能声称已经修改网站，也不要评价图片或视频画面。不要输出 seo_score，评分由系统按规则计算。只输出一个 JSON 对象，不要使用 Markdown。'
+        . '必须包含 summary（非空字符串）、issues（数组，每项含 field、severity（low、medium 或 high）、message、suggestion）、suggestions（数组，每项含 field、current、suggested、reason、priority（low、medium 或 high）、applicable）。'
+        . '另外给出 suggested_title、suggested_description、suggested_keywords（字符串数组）、suggested_alt（数组，每项含 media_id、current、suggested、reason）、internal_link_suggestions（数组，每项含 anchor、target、reason）、content_quality、tags（字符串数组）、stuffing（true 或 false）。'
+        . '不适用的项把 applicable 设为 false，并说明原因。没有问题时 issues 用空数组，但 summary 仍要说明依据。'
+        . 'issues 最多 6 条，suggestions 最多 8 条，每条文字不超过 80 个字。'
+        . '建议必须能从本次给出的文字里找到依据。不要编造人物、地点、品牌、事件或图片里看不到的属性。栏目名不是内容事实。信息不够时在 summary 里说明信息不足，不要补写没有给出的内容。';
     }
     else {
       $system = '你是网站文字审核员。只能根据给出的文字判断，不能把图片或视频说成画面违规。只输出一个 JSON 对象，不要使用 Markdown。键为 status（pass、attention、fail 或 review_required）、risk_level（normal、low、medium 或 high）、score（0 到 100 的整数）、summary、issues（对象数组，每项含 type、severity、field、message、suggestion）、suggestions（对象数组，每项含 field、original、suggested、reason）。也可以用字符串数组，并额外给出 seo_score。';
@@ -55,7 +60,13 @@ final class PromptBuilder {
       $truncated = TRUE;
     }
     $bundle = (string) ($fields['bundle'] ?? '');
-    $focus = match ($bundle) {
+    $focus = $depth === 'seo' ? match ($bundle) {
+      'article' => '文章重点：标题、摘要、正文结构、关键词、Meta Description、内部链接和可读性。',
+      'photo' => '美图重点：标题是否准确、描述是否完整、ALT 是否合理、栏目和标签是否匹配、页面 SEO 标题和 Meta Description。不要评价画面。',
+      'video' => '视频重点：标题、描述、时长、栏目、标签和页面 SEO。不要评价画面，也不要根据文件名猜测视频内容。',
+      'page' => '基础页重点：标题、正文结构、Meta Description 和可读性。',
+      default => '只检查给出的文字。',
+    } : match ($bundle) {
       'article' => '检查标题是否合理、正文是否完整、垃圾内容、重复文本、关键词堆砌、内容质量、可疑违规文字、简介是否匹配标题和正文、明显 SEO 问题。',
       'photo' => '这是图片内容的文字元数据。检查标题、简介、分类、重复或不相关标签、垃圾关键词和明显 SEO 问题。不要评价画面。',
       'video' => '这是视频内容的文字元数据。检查标题、简介、分类、标签和垃圾信息。不要评价画面，也不要假设视频内容。',
@@ -74,6 +85,11 @@ final class PromptBuilder {
       '标签：' . implode('、', (array) ($fields['tags'] ?? [])),
       '人物：' . implode('、', (array) ($fields['people'] ?? [])),
       '其他文字：' . (string) ($fields['extra'] ?? ''),
+      '当前 Meta Title：' . (string) ($fields['meta_title'] ?? ''),
+      '当前 Meta Description：' . (string) ($fields['meta_description'] ?? ''),
+      'Meta 来源：' . (string) ($fields['meta_title_source'] ?? '') . ' ' . (string) ($fields['meta_description_source'] ?? ''),
+      '图片 ALT：' . $this->altLine($fields),
+      '视频时长秒：' . (string) ($fields['duration'] ?? ''),
     ];
     if ($truncated) {
       $lines[] = '正文已截断。只评价给出的部分。';
@@ -95,6 +111,21 @@ final class PromptBuilder {
     }
     $lines[] = '本地程序检查（不是视觉模型）：' . ($localLines === [] ? '无' : implode('；', $localLines));
     return implode("\n", $lines);
+  }
+
+  /**
+   * @param array<string, mixed> $fields
+   *   Extracted text.
+   */
+  private function altLine(array $fields): string {
+    $parts = [];
+    foreach ((array) ($fields['alts'] ?? []) as $alt) {
+      if (!is_array($alt)) {
+        continue;
+      }
+      $parts[] = (int) ($alt['mid'] ?? 0) . '=' . (string) ($alt['alt'] ?? '');
+    }
+    return $parts === [] ? '无' : implode('；', $parts);
   }
 
 }

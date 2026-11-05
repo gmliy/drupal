@@ -526,6 +526,58 @@ class TaskRepository {
   }
 
   /**
+   * Records that the member confirmed/saved the imported photo node.
+   *
+   * Uses the existing snapshot JSON (no schema change). Idempotent.
+   */
+  public function markMemberSaved(int $nid, int $uid): int {
+    if ($nid < 1) {
+      return 0;
+    }
+    $rows = $this->database->select('xedc_import_task', 't')
+      ->fields('t', ['id', 'snapshot', 'status'])
+      ->condition('nid', $nid)
+      ->condition('status', [
+        ImportStatus::REVIEW,
+        ImportStatus::COMPLETED,
+        ImportStatus::PUBLISHED,
+        ImportStatus::PARTIAL,
+      ], 'IN')
+      ->execute()
+      ->fetchAll();
+    $updated = 0;
+    $now = time();
+    foreach ($rows as $row) {
+      $snapshot = json_decode((string) ($row->snapshot ?? ''), TRUE);
+      if (!is_array($snapshot)) {
+        $snapshot = [];
+      }
+      if (!empty($snapshot['member_saved_at'])) {
+        continue;
+      }
+      $snapshot['member_saved_at'] = $now;
+      $snapshot['member_saved_uid'] = $uid;
+      $this->update((int) $row->id, [
+        'snapshot' => json_encode($snapshot, JSON_UNESCAPED_UNICODE),
+        'message' => ((string) $row->status === ImportStatus::PUBLISHED) ? '已发布' : '会员已保存投稿',
+      ]);
+      $updated++;
+    }
+    return $updated;
+  }
+
+  /**
+   * Whether the member has already confirmed the import on this task.
+   */
+  public function isMemberSaved(object $task): bool {
+    if ((string) ($task->status ?? '') === ImportStatus::PUBLISHED) {
+      return TRUE;
+    }
+    $snapshot = json_decode((string) ($task->snapshot ?? ''), TRUE);
+    return is_array($snapshot) && !empty($snapshot['member_saved_at']);
+  }
+
+  /**
    * Tasks whose archives can be removed.
    *
    * @return object[]

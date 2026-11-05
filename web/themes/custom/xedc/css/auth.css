@@ -91,11 +91,11 @@ form.xedc-auth .form-actions :is(input[type=submit],button,.form-submit)+:is(inp
 .xedc-embed form.xedc-auth{margin:0;max-width:none;border:0;border-radius:0;box-shadow:none;padding:32px 24px 24px}
 .xedc-embed :is(.messages,.alert){max-width:none;margin:16px 24px 0}
 
-/* iPhone 上输入框 16px，避免聚焦时页面被放大 */
-@media (max-width:640px){
+/* iPhone 上输入框 ≥16px，避免聚焦时页面被放大；保留用户双指缩放 */
+@media (max-width:767px){
   form.xedc-auth{margin:8px auto 40px;border-radius:12px}
   .xedc-auth__brand{margin-bottom:18px;font-size:1.625rem;letter-spacing:-.05em}
-  form.xedc-auth :is(input[type=text],input[type=password],input[type=email],input[type=tel],input[type=url],input[type=number],select,textarea){font-size:16px}
+  form.xedc-auth :is(input[type=text],input[type=password],input[type=email],input[type=tel],input[type=url],input[type=number],input[type=date],input[type=search],select,textarea){font-size:16px!important}
 }
 @media (prefers-reduced-motion:reduce){
   form.xedc-auth *{transition:none!important}

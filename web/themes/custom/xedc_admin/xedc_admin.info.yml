@@ -21,6 +21,7 @@ libraries:
 libraries-extend:
   core/drupal.dialog:
     - xedc_admin/dialog
+    - xedc_member/media_library_modal
   ckeditor5/internal.drupal.ckeditor5:
     - xedc_admin/editor
 

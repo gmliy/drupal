@@ -6,6 +6,12 @@ services:
     tags:
       - { name: theme_negotiator, priority: 100 }
 
+  # Above easy_breadcrumb (1003) so member add/edit forms get hub crumbs only.
+  xedc_member.submission_breadcrumb:
+    class: Drupal\xedc_member\Breadcrumb\MemberSubmissionBreadcrumbBuilder
+    tags:
+      - { name: breadcrumb_builder, priority: 2000 }
+
   xedc_member.lazy_builders:
     class: Drupal\xedc_member\MemberLazyBuilders
     arguments:

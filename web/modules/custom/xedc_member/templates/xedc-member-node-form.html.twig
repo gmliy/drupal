@@ -20,12 +20,23 @@
         {{ form.title }}
         {{ form.field_summary }}
       </section>
-      <section class="xm-submit__section xm-submit__section--media">
-        <h2 class="xm-submit__section-title">{{ '图片内容'|t }}</h2>
-        <p class="xm-submit__hint">{{ '可用媒体库添加单张图片，或使用下方批量上传 / 压缩包。'|t }}</p>
+      <section class="xm-submit__section xm-submit__section--media xm-submit__section--media-{{ xm_upload_mode|default('image') }}">
+        <h2 class="xm-submit__section-title">{{ xm_upload_mode == 'archive' ? '压缩包内容'|t : '图片内容'|t }}</h2>
+        {% if xm_upload_hint %}
+          <p class="xm-submit__hint">{{ xm_upload_hint }}</p>
+        {% endif %}
         {{ form.field_cover_image }}
-        {{ form.field_images }}
+        {% if xm_upload_mode != 'archive' %}
+          {{ form.field_images }}
+        {% endif %}
         {{ form.xedc_import }}
+        {% if xm_upload_mode == 'archive' %}
+          {# After Worker finishes, members edit cover/images via the save flow. Keep fields available but secondary. #}
+          <details class="xm-submit__advanced">
+            <summary>{{ '高级：手动调整封面与图片'|t }}</summary>
+            {{ form.field_images }}
+          </details>
+        {% endif %}
       </section>
       <section class="xm-submit__section">
         <h2 class="xm-submit__section-title">{{ '分类与标签'|t }}</h2>

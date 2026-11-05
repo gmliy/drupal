@@ -48,8 +48,13 @@ function xedc_ai_theme(): array {
       'path' => $path . '/templates',
     ],
     'xedc_ai_seo' => [
-      'variables' => ['audit' => [], 'rows' => [], 'suggest' => NULL],
+      'variables' => ['audit' => [], 'rows' => [], 'suggest' => NULL, 'filters' => [], 'pager' => NULL, 'summary' => []],
       'template' => 'xedc-ai-seo',
+      'path' => $path . '/templates',
+    ],
+    'xedc_ai_seo_detail' => [
+      'variables' => ['review' => [], 'apply' => NULL],
+      'template' => 'xedc-ai-seo-detail',
       'path' => $path . '/templates',
     ],
     'xedc_ai_duplicates' => [
@@ -80,6 +85,17 @@ function xedc_ai_theme(): array {
  */
 function xedc_ai_cron(): void {
   \Drupal::service('xedc_ai.maintenance')->purge();
+  if (!\Drupal::service('config.factory')->get('xedc_ai.settings')->get('seo_schedule_enabled')) {
+    return;
+  }
+  try {
+    \Drupal::service('xedc_ai.schedule')->run();
+  }
+  catch (\Throwable $exception) {
+    \Drupal::logger('xedc_ai')->error('定期 SEO 检查没有入队：@message', [
+      '@message' => \Drupal\xedc_ai\Client\Redactor::text($exception->getMessage()),
+    ]);
+  }
 }
 
 /**

@@ -1,0 +1,168 @@
+{
+  "generatedAt": "2026-11-05T10:46:50.610Z",
+  "note": "Playwright Chromium mobile emulation is not a substitute for real iPhone Safari / Android Chrome.",
+  "results": [
+    {
+      "name": "viewport-meta",
+      "status": "PASS",
+      "detail": "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual"
+    },
+    {
+      "name": "viewport-no-lock",
+      "status": "PASS",
+      "detail": "pinch zoom must remain available"
+    },
+    {
+      "name": "login-name",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=308x40"
+    },
+    {
+      "name": "login-pass",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=308x40"
+    },
+    {
+      "name": "register-mail",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=308x40"
+    },
+    {
+      "name": "password-reset",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=308x40"
+    },
+    {
+      "name": "site-search",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=0x0"
+    },
+    {
+      "name": "member-auth",
+      "status": "PASS",
+      "detail": "https://gitxx.xyz/user/1/edit?pass-reset-token=P9V2eJNH_ppHmjJjtj0BjSrst4MM361iyUjxZArIPdyAVIMkzMA3mkO5RWdbWSqTPo560k3cRQ&check_logged_in=1"
+    },
+    {
+      "name": "member-home-input",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=0x0"
+    },
+    {
+      "name": "member-profile-input",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=0x0"
+    },
+    {
+      "name": "member-profile-edit-input",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=0x0"
+    },
+    {
+      "name": "member-security-input",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=0x0"
+    },
+    {
+      "name": "member-submissions-input",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=0x0"
+    },
+    {
+      "name": "photo-submit-input",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=358x52"
+    },
+    {
+      "name": "video-submit-input",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=358x52"
+    },
+    {
+      "name": "article-submit-input",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=358x52"
+    },
+    {
+      "name": "messages-input",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=0x0"
+    },
+    {
+      "name": "media-library-search",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=326x40"
+    },
+    {
+      "name": "admin-theme-marker",
+      "status": "PASS",
+      "detail": "xedc-admin-active xedc-admin-js touchevents js toolbar-loading xedc-admin-active path-admin language--zh-hans"
+    },
+    {
+      "name": "admin-filter",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=332x42"
+    },
+    {
+      "name": "admin-or-member-title",
+      "status": "PASS",
+      "detail": "font=16px scale=1 overflowX=false beforeScale=1 w=358x52"
+    },
+    {
+      "name": "android-login-name",
+      "status": "NOT TESTED",
+      "detail": "missing #edit-name, input[name=\"name\"]"
+    },
+    {
+      "name": "tablet-login-name",
+      "status": "NOT TESTED",
+      "detail": "missing #edit-name, input[name=\"name\"]"
+    },
+    {
+      "name": "desktop-login-no-layout-break",
+      "status": "PASS",
+      "detail": "font=14px scale=1 overflowX=false beforeFont=14px"
+    },
+    {
+      "name": "pinch-zoom-meta-intact",
+      "status": "PASS",
+      "detail": "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual"
+    }
+  ],
+  "extra": [
+    {
+      "name": "android-pixel7-login",
+      "status": "PASS",
+      "detail": "{\"before\":{\"scale\":1,\"overflowX\":false,\"font\":\"16px\",\"innerH\":915,\"vvH\":915},\"after\":{\"scale\":1,\"overflowX\":false,\"font\":\"16px\",\"fontPx\":16,\"innerH\":915,\"vvH\":915,\"w\":330}}"
+    },
+    {
+      "name": "tablet-ipad-login",
+      "status": "PASS",
+      "detail": "{\"before\":{\"scale\":1,\"overflowX\":false,\"font\":\"16px\",\"innerH\":1024,\"vvH\":1024},\"after\":{\"scale\":1,\"overflowX\":false,\"font\":\"16px\",\"fontPx\":16,\"innerH\":1024,\"vvH\":1024,\"w\":350}}"
+    },
+    {
+      "name": "iphone13-fresh-login",
+      "status": "PASS",
+      "detail": "{\"before\":{\"scale\":1,\"overflowX\":false,\"font\":\"16px\",\"innerH\":664,\"vvH\":664},\"after\":{\"scale\":1,\"overflowX\":false,\"font\":\"16px\",\"fontPx\":16,\"innerH\":664,\"vvH\":664,\"w\":308}}"
+    },
+    {
+      "name": "member-nav-links",
+      "status": "PASS",
+      "detail": "[\"/aa/profile\",\"/aa/profile\",\"/aa/profile\",\"/aa/profile\"]"
+    },
+    {
+      "name": "account-edit",
+      "status": "PASS",
+      "detail": "{\"font\":\"16px\",\"scale\":1,\"overflowX\":false,\"tag\":\"INPUT\",\"type\":\"email\"}"
+    },
+    {
+      "name": "pm-list",
+      "status": "PASS",
+      "detail": "{\"font\":\"16px\",\"scale\":1,\"overflowX\":false,\"tag\":\"INPUT\",\"type\":\"search\"}"
+    },
+    {
+      "name": "soft-keyboard-approx",
+      "status": "PASS",
+      "detail": "{\"full\":{\"h\":844,\"vv\":844,\"scale\":1,\"overflowX\":false},\"keyed\":{\"h\":420,\"vv\":420,\"scale\":1,\"overflowX\":false,\"font\":\"16px\"},\"closed\":{\"h\":844,\"vv\":844,\"scale\":1,\"overflowX\":false}}"
+    }
+  ]
+}

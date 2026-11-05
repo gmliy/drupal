@@ -33,7 +33,7 @@ function xedc_home_theme($existing, $type, $theme, $path) {
  */
 function xedc_home_node_presave(NodeInterface $node): void {
   _xedc_home_publish_new_staff_node($node);
-  if ($node->bundle() !== 'photo') {
+  if (!in_array($node->bundle(), ['photo', 'video'], TRUE)) {
     return;
   }
   foreach (['field_featured', 'field_slideshow'] as $name) {

@@ -1,0 +1,804 @@
+{
+  "checks": [
+    {
+      "name": "home_has_lead",
+      "status": "PASS",
+      "detail": "视频电话的吉村久夫记得记得"
+    },
+    {
+      "name": "home_lead_username_admin",
+      "status": "PASS",
+      "detail": "admin"
+    },
+    {
+      "name": "home_no_nickname_管理员",
+      "status": "PASS",
+      "detail": "[\"admin\",\"admin\",\"admin\",\"admin\",\"admin\"]"
+    },
+    {
+      "name": "home_lead_not_in_grid",
+      "status": "PASS",
+      "detail": "密密麻麻买买买"
+    },
+    {
+      "name": "home_cards_structure_equal",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "home_cards_same_height",
+      "status": "PASS",
+      "detail": "291/291/291"
+    },
+    {
+      "name": "home_member_href_public",
+      "status": "PASS",
+      "detail": "/r/aa"
+    },
+    {
+      "name": "home_no_overflow",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "home_no_legacy_hero",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "lead_member_click",
+      "status": "PASS",
+      "detail": "https://gitxx.xyz/r/aa"
+    },
+    {
+      "name": "home_375_overflow",
+      "status": "PASS",
+      "detail": "sw=375"
+    },
+    {
+      "name": "home_375_username",
+      "status": "PASS",
+      "detail": "admin,admin,admin"
+    },
+    {
+      "name": "home_390_overflow",
+      "status": "PASS",
+      "detail": "sw=390"
+    },
+    {
+      "name": "home_390_username",
+      "status": "PASS",
+      "detail": "admin,admin,admin"
+    },
+    {
+      "name": "home_430_overflow",
+      "status": "PASS",
+      "detail": "sw=430"
+    },
+    {
+      "name": "home_430_username",
+      "status": "PASS",
+      "detail": "admin,admin,admin"
+    },
+    {
+      "name": "home_768_overflow",
+      "status": "PASS",
+      "detail": "sw=768"
+    },
+    {
+      "name": "home_768_username",
+      "status": "PASS",
+      "detail": "admin,admin,admin"
+    },
+    {
+      "name": "home_1024_overflow",
+      "status": "PASS",
+      "detail": "sw=1024"
+    },
+    {
+      "name": "home_1024_username",
+      "status": "PASS",
+      "detail": "admin,admin,admin"
+    },
+    {
+      "name": "home_1280_overflow",
+      "status": "PASS",
+      "detail": "sw=1280"
+    },
+    {
+      "name": "home_1280_username",
+      "status": "PASS",
+      "detail": "admin,admin,admin"
+    },
+    {
+      "name": "home_1440_overflow",
+      "status": "PASS",
+      "detail": "sw=1440"
+    },
+    {
+      "name": "home_1440_username",
+      "status": "PASS",
+      "detail": "admin,admin,admin"
+    },
+    {
+      "name": "home_dark_dark_title",
+      "status": "PASS",
+      "detail": "rgb(228, 228, 231)"
+    },
+    {
+      "name": "home_dark_no_nick",
+      "status": "PASS",
+      "detail": "[\"admin\",\"admin\",\"admin\",\"admin\"]"
+    },
+    {
+      "name": "detail_dark_dark_title",
+      "status": "PASS",
+      "detail": "rgb(228, 228, 231)"
+    },
+    {
+      "name": "detail_dark_no_nick",
+      "status": "PASS",
+      "detail": "[\"admin\",\"admin\",\"admin\",\"admin\"]"
+    },
+    {
+      "name": "category_1440_username",
+      "status": "PASS",
+      "detail": "admin"
+    },
+    {
+      "name": "category_1440_overflow",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "category_375_username",
+      "status": "PASS",
+      "detail": "admin"
+    },
+    {
+      "name": "category_375_overflow",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "tag_1440_username",
+      "status": "PASS",
+      "detail": "admin"
+    },
+    {
+      "name": "tag_1440_overflow",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "tag_375_username",
+      "status": "PASS",
+      "detail": "admin"
+    },
+    {
+      "name": "tag_375_overflow",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "detail_author_admin",
+      "status": "PASS",
+      "detail": "admin"
+    },
+    {
+      "name": "detail_author_href",
+      "status": "PASS",
+      "detail": "/r/aa"
+    },
+    {
+      "name": "related_no_nick",
+      "status": "PASS",
+      "detail": "admin,admin,admin,admin,admin"
+    },
+    {
+      "name": "related_count",
+      "status": "PASS",
+      "detail": "7"
+    },
+    {
+      "name": "detail_author_click",
+      "status": "PASS",
+      "detail": "https://gitxx.xyz/r/aa"
+    }
+  ],
+  "pages": {
+    "home1440": {
+      "overflow": false,
+      "scrollW": 1440,
+      "vw": 1440,
+      "lead": {
+        "box": {
+          "w": 1248,
+          "h": 430,
+          "top": 339
+        },
+        "title": "视频电话的吉村久夫记得记得",
+        "author": "admin",
+        "href": "/r/aa",
+        "media": {
+          "w": 719,
+          "h": 404,
+          "top": 352
+        }
+      },
+      "cards": [
+        {
+          "i": 1,
+          "title": "密密麻麻买买买",
+          "author": "admin",
+          "href": "/r/aa",
+          "outer": {
+            "w": 302,
+            "h": 291,
+            "top": 841
+          },
+          "thumb": {
+            "w": 300,
+            "h": 168,
+            "top": 842
+          },
+          "structure": [
+            "vcard__hit",
+            "vcard__foot"
+          ],
+          "foot": [
+            "vmember",
+            "vcard__stats"
+          ],
+          "stats": "14 次播放 2026-10-30"
+        },
+        {
+          "i": 2,
+          "title": "测试youtube视频标题",
+          "author": "admin",
+          "href": "/r/aa",
+          "outer": {
+            "w": 302,
+            "h": 291,
+            "top": 841
+          },
+          "thumb": {
+            "w": 300,
+            "h": 168,
+            "top": 842
+          },
+          "structure": [
+            "vcard__hit",
+            "vcard__foot"
+          ],
+          "foot": [
+            "vmember",
+            "vcard__stats"
+          ],
+          "stats": "27 次播放 2026-10-21"
+        },
+        {
+          "i": 3,
+          "title": "视频内容详情页测试内容标题测试",
+          "author": "admin",
+          "href": "/r/aa",
+          "outer": {
+            "w": 302,
+            "h": 291,
+            "top": 841
+          },
+          "thumb": {
+            "w": 300,
+            "h": 168,
+            "top": 842
+          },
+          "structure": [
+            "vcard__hit",
+            "vcard__foot"
+          ],
+          "foot": [
+            "vmember",
+            "vcard__stats"
+          ],
+          "stats": "63 次播放 2026-10-20"
+        }
+      ],
+      "names": [
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin"
+      ],
+      "detailAuthor": null,
+      "detailAuthorHref": "",
+      "related": [],
+      "relatedCount": 0,
+      "heroLegacy": false,
+      "cardCount": 7,
+      "nickLeak": false
+    },
+    "home_w375": {
+      "overflow": false,
+      "leadH": 408,
+      "c1": {
+        "w": 343,
+        "h": 315,
+        "top": 884
+      },
+      "authors": [
+        "admin",
+        "admin",
+        "admin"
+      ]
+    },
+    "home_w390": {
+      "overflow": false,
+      "leadH": 417,
+      "c1": {
+        "w": 358,
+        "h": 323,
+        "top": 892
+      },
+      "authors": [
+        "admin",
+        "admin",
+        "admin"
+      ]
+    },
+    "home_w430": {
+      "overflow": false,
+      "leadH": 439,
+      "c1": {
+        "w": 398,
+        "h": 346,
+        "top": 915
+      },
+      "authors": [
+        "admin",
+        "admin",
+        "admin"
+      ]
+    },
+    "home_w768": {
+      "overflow": false,
+      "leadH": 629,
+      "c1": {
+        "w": 361,
+        "h": 325,
+        "top": 1105
+      },
+      "authors": [
+        "admin",
+        "admin",
+        "admin"
+      ]
+    },
+    "home_w1024": {
+      "overflow": false,
+      "leadH": 344,
+      "c1": {
+        "w": 489,
+        "h": 397,
+        "top": 749
+      },
+      "authors": [
+        "admin",
+        "admin",
+        "admin"
+      ]
+    },
+    "home_w1280": {
+      "overflow": false,
+      "leadH": 430,
+      "c1": {
+        "w": 407,
+        "h": 350,
+        "top": 841
+      },
+      "authors": [
+        "admin",
+        "admin",
+        "admin"
+      ]
+    },
+    "home_w1440": {
+      "overflow": false,
+      "leadH": 430,
+      "c1": {
+        "w": 302,
+        "h": 291,
+        "top": 841
+      },
+      "authors": [
+        "admin",
+        "admin",
+        "admin"
+      ]
+    },
+    "home_dark": {
+      "overflow": false,
+      "scrollW": 1440,
+      "vw": 1440,
+      "lead": {
+        "box": {
+          "w": 1248,
+          "h": 430,
+          "top": 339
+        },
+        "title": "视频电话的吉村久夫记得记得",
+        "author": "admin",
+        "href": "/r/aa",
+        "media": {
+          "w": 719,
+          "h": 404,
+          "top": 352
+        }
+      },
+      "cards": [
+        {
+          "i": 1,
+          "title": "密密麻麻买买买",
+          "author": "admin",
+          "href": "/r/aa",
+          "outer": {
+            "w": 302,
+            "h": 291,
+            "top": 841
+          },
+          "thumb": {
+            "w": 300,
+            "h": 168,
+            "top": 842
+          },
+          "structure": [
+            "vcard__hit",
+            "vcard__foot"
+          ],
+          "foot": [
+            "vmember",
+            "vcard__stats"
+          ],
+          "stats": "14 次播放 2026-10-30"
+        },
+        {
+          "i": 2,
+          "title": "测试youtube视频标题",
+          "author": "admin",
+          "href": "/r/aa",
+          "outer": {
+            "w": 302,
+            "h": 291,
+            "top": 841
+          },
+          "thumb": {
+            "w": 300,
+            "h": 168,
+            "top": 842
+          },
+          "structure": [
+            "vcard__hit",
+            "vcard__foot"
+          ],
+          "foot": [
+            "vmember",
+            "vcard__stats"
+          ],
+          "stats": "27 次播放 2026-10-21"
+        },
+        {
+          "i": 3,
+          "title": "视频内容详情页测试内容标题测试",
+          "author": "admin",
+          "href": "/r/aa",
+          "outer": {
+            "w": 302,
+            "h": 291,
+            "top": 841
+          },
+          "thumb": {
+            "w": 300,
+            "h": 168,
+            "top": 842
+          },
+          "structure": [
+            "vcard__hit",
+            "vcard__foot"
+          ],
+          "foot": [
+            "vmember",
+            "vcard__stats"
+          ],
+          "stats": "63 次播放 2026-10-20"
+        }
+      ],
+      "names": [
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin"
+      ],
+      "detailAuthor": null,
+      "detailAuthorHref": "",
+      "related": [],
+      "relatedCount": 0,
+      "heroLegacy": false,
+      "cardCount": 7,
+      "nickLeak": false
+    },
+    "detail_dark": {
+      "overflow": false,
+      "scrollW": 1440,
+      "vw": 1440,
+      "lead": null,
+      "cards": [],
+      "names": [
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin"
+      ],
+      "detailAuthor": "admin",
+      "detailAuthorHref": "/r/aa",
+      "related": [
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin"
+      ],
+      "relatedCount": 7,
+      "heroLegacy": false,
+      "cardCount": 0,
+      "nickLeak": false
+    },
+    "category_1440": {
+      "overflow": false,
+      "scrollW": 1440,
+      "vw": 1440,
+      "lead": null,
+      "cards": [
+        {
+          "i": 1,
+          "title": "视频内容详情页测试内容标题测试",
+          "author": "admin",
+          "href": "/r/aa",
+          "outer": {
+            "w": 302,
+            "h": 291,
+            "top": 332
+          },
+          "thumb": {
+            "w": 300,
+            "h": 168,
+            "top": 333
+          },
+          "structure": [
+            "vcard__hit",
+            "vcard__foot"
+          ],
+          "foot": [
+            "vmember",
+            "vcard__stats"
+          ],
+          "stats": "63 次播放 2026-10-20"
+        }
+      ],
+      "names": [
+        "admin"
+      ],
+      "detailAuthor": null,
+      "detailAuthorHref": "",
+      "related": [],
+      "relatedCount": 0,
+      "heroLegacy": false,
+      "cardCount": 1,
+      "nickLeak": false
+    },
+    "category_375": {
+      "overflow": false,
+      "scrollW": 375,
+      "vw": 375,
+      "lead": null,
+      "cards": [
+        {
+          "i": 1,
+          "title": "视频内容详情页测试内容标题测试",
+          "author": "admin",
+          "href": "/r/aa",
+          "outer": {
+            "w": 343,
+            "h": 315,
+            "top": 425
+          },
+          "thumb": {
+            "w": 341,
+            "h": 192,
+            "top": 426
+          },
+          "structure": [
+            "vcard__hit",
+            "vcard__foot"
+          ],
+          "foot": [
+            "vmember",
+            "vcard__stats"
+          ],
+          "stats": "63 次播放 2026-10-20"
+        }
+      ],
+      "names": [
+        "admin"
+      ],
+      "detailAuthor": null,
+      "detailAuthorHref": "",
+      "related": [],
+      "relatedCount": 0,
+      "heroLegacy": false,
+      "cardCount": 1,
+      "nickLeak": false
+    },
+    "tag_1440": {
+      "overflow": false,
+      "scrollW": 1440,
+      "vw": 1440,
+      "lead": null,
+      "cards": [
+        {
+          "i": 1,
+          "title": "密密麻麻买买买",
+          "author": "admin",
+          "href": "/r/aa",
+          "outer": {
+            "w": 302,
+            "h": 291,
+            "top": 318
+          },
+          "thumb": {
+            "w": 300,
+            "h": 168,
+            "top": 319
+          },
+          "structure": [
+            "vcard__hit",
+            "vcard__foot"
+          ],
+          "foot": [
+            "vmember",
+            "vcard__stats"
+          ],
+          "stats": "14 次播放 2026-10-30"
+        }
+      ],
+      "names": [
+        "admin"
+      ],
+      "detailAuthor": null,
+      "detailAuthorHref": "",
+      "related": [],
+      "relatedCount": 0,
+      "heroLegacy": false,
+      "cardCount": 1,
+      "nickLeak": false
+    },
+    "tag_375": {
+      "overflow": false,
+      "scrollW": 375,
+      "vw": 375,
+      "lead": null,
+      "cards": [
+        {
+          "i": 1,
+          "title": "密密麻麻买买买",
+          "author": "admin",
+          "href": "/r/aa",
+          "outer": {
+            "w": 343,
+            "h": 315,
+            "top": 336
+          },
+          "thumb": {
+            "w": 341,
+            "h": 192,
+            "top": 337
+          },
+          "structure": [
+            "vcard__hit",
+            "vcard__foot"
+          ],
+          "foot": [
+            "vmember",
+            "vcard__stats"
+          ],
+          "stats": "14 次播放 2026-10-30"
+        }
+      ],
+      "names": [
+        "admin"
+      ],
+      "detailAuthor": null,
+      "detailAuthorHref": "",
+      "related": [],
+      "relatedCount": 0,
+      "heroLegacy": false,
+      "cardCount": 1,
+      "nickLeak": false
+    },
+    "detail_1440": {
+      "overflow": false,
+      "scrollW": 1440,
+      "vw": 1440,
+      "lead": null,
+      "cards": [],
+      "names": [
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin"
+      ],
+      "detailAuthor": "admin",
+      "detailAuthorHref": "/r/aa",
+      "related": [
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin"
+      ],
+      "relatedCount": 7,
+      "heroLegacy": false,
+      "cardCount": 0,
+      "nickLeak": false
+    },
+    "detail_375": {
+      "overflow": false,
+      "scrollW": 375,
+      "vw": 375,
+      "lead": null,
+      "cards": [],
+      "names": [
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin"
+      ],
+      "detailAuthor": "admin",
+      "detailAuthorHref": "/r/aa",
+      "related": [
+        "admin",
+        "admin",
+        "admin",
+        "admin",
+        "admin"
+      ],
+      "relatedCount": 7,
+      "heroLegacy": false,
+      "cardCount": 0,
+      "nickLeak": false
+    }
+  },
+  "summary": {
+    "pass": 41,
+    "fail": 0,
+    "fails": []
+  }
+}

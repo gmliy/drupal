@@ -23,6 +23,7 @@ final class ModelProfile {
     public readonly string $inputPrice,
     public readonly string $outputPrice,
     public readonly bool $enabled,
+    public readonly string $cachePrice = '',
   ) {}
 
   public function modelKey(): string {

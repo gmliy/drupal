@@ -1,0 +1,116 @@
+{
+  "pass": true,
+  "steps": [
+    {
+      "name": "只保留内容 ID，没有修订版本输入框",
+      "pass": true,
+      "detail": "{\"revision\":false,\"hasId\":true,\"button\":true,\"help\":true,\"placeholder\":\"请输入内容 ID\",\"machine\":false,\"workflowNoise\":false,\"phase\":\"等待处理\",\"path\":\"/admin/xedc/ai/seo\"}"
+    },
+    {
+      "name": "内容 ID 区域不混入工作流信息",
+      "pass": true,
+      "detail": "{\"revision\":false,\"hasId\":true,\"button\":true,\"help\":true,\"placeholder\":\"请输入内容 ID\",\"machine\":false,\"workflowNoise\":false,\"phase\":\"等待处理\",\"path\":\"/admin/xedc/ai/seo\"}"
+    },
+    {
+      "name": "打开页面能恢复等待中的任务",
+      "pass": true,
+      "detail": "等待处理"
+    },
+    {
+      "name": "列表字段都有明确标签",
+      "pass": true,
+      "detail": "{\"hasTable\":true,\"headers\":[\"内容信息\",\"SEO 结果\",\"AI 用量\",\"分析时间\",\"处理状态\",\"操作\"],\"scoreLabel\":true,\"issueLabel\":true,\"suggestLabel\":true,\"modelLabel\":true,\"tokenLabel\":true,\"costLabel\":true,\"idLabel\":true,\"typeLabel\":true,\"revisionCol\":false,\"action\":true}"
+    },
+    {
+      "name": "刷新后仍显示等待处理",
+      "pass": true,
+      "detail": "等待处理"
+    },
+    {
+      "name": "状态自动经过分析、建议并完成",
+      "pass": true,
+      "detail": "{\"seen\":[\"等待处理\",\"正在分析\",\"正在生成建议\",\"已完成\"],\"score\":true,\"issue\":true}"
+    },
+    {
+      "name": "点击开始分析不整页刷新",
+      "pass": true,
+      "detail": "{\"path\":\"/admin/xedc/ai/seo\",\"navigations\":0,\"posts\":1}"
+    },
+    {
+      "name": "提交后先显示等待，再显示失败原因",
+      "pass": true,
+      "detail": "[\"等待处理\",\"分析失败\"] 分析失败\n\n分析失败，可修正后重新提交。\n\n没有可用密钥 供应商没有可用的 API Key，未调用模型。"
+    },
+    {
+      "name": "已发布内容",
+      "pass": true,
+      "detail": "{\"expect\":{\"nid\":1,\"vid\":248,\"bundle\":\"美图\",\"publish\":\"暂无\",\"status\":\"已发布\",\"workflow\":\"DcLili 会员投稿审核\",\"state\":\"已发布\",\"review\":211,\"analysis_vid\":248,\"match\":true,\"required_state\":\"已发布\"},\"text\":\"内容基本信息\\n内容类型\\n美图\\n内容 ID\\n1\\n分析修订\\n248\\n当前修订\\n248\\n发布\\n暂无\\n状态\\n已发布\\n工作流\\nDcLili 会员投稿审核\\n工作流状态\\n已发布\\n\\n查看内容\",\"stats\":\"分析成功 待确认 0 · 已采纳 0 · 已忽略 0 · 采纳失败 0 · 版本冲突 0\",\"rules\":false}"
+    },
+    {
+      "name": "已发布且有发布时间",
+      "pass": true,
+      "detail": "{\"expect\":{\"nid\":56,\"vid\":262,\"bundle\":\"文章\",\"publish\":\"2026-10-23 23:01\",\"status\":\"已发布\",\"workflow\":\"DcLili 会员投稿审核\",\"state\":\"已发布\",\"review\":213,\"analysis_vid\":262,\"match\":true},\"text\":\"内容基本信息\\n内容类型\\n文章\\n内容 ID\\n56\\n分析修订\\n262\\n当前修订\\n262\\n发布\\n2026-10-23 23:01\\n状态\\n已发布\\n工作流\\nDcLili 会员投稿审核\\n工作流状态\\n已发布\\n\\n查看内容\",\"stats\":\"分析成功 待确认 0 · 已采纳 0 · 已忽略 0 · 采纳失败 0 · 版本冲突 0\",\"rules\":false}"
+    },
+    {
+      "name": "草稿内容",
+      "pass": true,
+      "detail": "{\"expect\":{\"nid\":1015,\"vid\":2386,\"bundle\":\"文章\",\"publish\":\"暂无\",\"status\":\"未发布\",\"workflow\":\"DcLili 会员投稿审核\",\"state\":\"草稿\",\"review\":208,\"analysis_vid\":2386,\"match\":true,\"required_state\":\"草稿\"},\"text\":\"内容基本信息\\n内容类型\\n文章\\n内容 ID\\n1015\\n分析修订\\n2386\\n当前修订\\n2386\\n发布\\n暂无\\n状态\\n未发布\\n工作流\\nDcLili 会员投稿审核\\n工作流状态\\n草稿\\n\\n查看内容\",\"stats\":\"分析成功 待确认 0 · 已采纳 0 · 已忽略 0 · 采纳失败 0 · 版本冲突 0\",\"rules\":false}"
+    },
+    {
+      "name": "待审核内容",
+      "pass": true,
+      "detail": "{\"expect\":{\"nid\":578,\"vid\":1359,\"bundle\":\"美图\",\"publish\":\"暂无\",\"status\":\"未发布\",\"workflow\":\"DcLili 会员投稿审核\",\"state\":\"待审核\",\"review\":209,\"analysis_vid\":1359,\"match\":true,\"required_state\":\"待审核\"},\"text\":\"内容基本信息\\n内容类型\\n美图\\n内容 ID\\n578\\n分析修订\\n1359\\n当前修订\\n1359\\n发布\\n暂无\\n状态\\n未发布\\n工作流\\nDcLili 会员投稿审核\\n工作流状态\\n待审核\\n\\n查看内容\",\"stats\":\"分析成功 待确认 0 · 已采纳 0 · 已忽略 0 · 采纳失败 0 · 版本冲突 0\",\"rules\":false}"
+    },
+    {
+      "name": "退回修改内容",
+      "pass": true,
+      "detail": "{\"expect\":{\"nid\":1016,\"vid\":2389,\"bundle\":\"文章\",\"publish\":\"暂无\",\"status\":\"未发布\",\"workflow\":\"DcLili 会员投稿审核\",\"state\":\"退回修改\",\"review\":210,\"analysis_vid\":2389,\"match\":true,\"required_state\":\"退回修改\"},\"text\":\"内容基本信息\\n内容类型\\n文章\\n内容 ID\\n1016\\n分析修订\\n2389\\n当前修订\\n2389\\n发布\\n暂无\\n状态\\n未发布\\n工作流\\nDcLili 会员投稿审核\\n工作流状态\\n退回修改\\n\\n查看内容\",\"stats\":\"分析成功 待确认 0 · 已采纳 0 · 已忽略 0 · 采纳失败 0 · 版本冲突 0\",\"rules\":false}"
+    },
+    {
+      "name": "已拒绝内容",
+      "pass": true,
+      "detail": "{\"expect\":{\"nid\":1017,\"vid\":2392,\"bundle\":\"文章\",\"publish\":\"暂无\",\"status\":\"未发布\",\"workflow\":\"DcLili 会员投稿审核\",\"state\":\"已拒绝\",\"review\":212,\"analysis_vid\":2392,\"match\":true,\"required_state\":\"已拒绝\"},\"text\":\"内容基本信息\\n内容类型\\n文章\\n内容 ID\\n1017\\n分析修订\\n2392\\n当前修订\\n2392\\n发布\\n暂无\\n状态\\n未发布\\n工作流\\nDcLili 会员投稿审核\\n工作流状态\\n已拒绝\\n\\n查看内容\",\"stats\":\"分析成功 待确认 0 · 已采纳 0 · 已忽略 0 · 采纳失败 0 · 版本冲突 0\",\"rules\":false}"
+    },
+    {
+      "name": "已撤下内容",
+      "pass": true,
+      "detail": "{\"expect\":{\"nid\":13,\"vid\":2384,\"bundle\":\"美图\",\"publish\":\"暂无\",\"status\":\"未发布\",\"workflow\":\"DcLili 会员投稿审核\",\"state\":\"已撤下\",\"review\":205,\"analysis_vid\":2383,\"match\":false,\"required_state\":\"已撤下\"},\"text\":\"内容基本信息\\n内容类型\\n美图\\n内容 ID\\n13\\n分析修订\\n2383\\n当前修订\\n2384\\n发布\\n暂无\\n状态\\n未发布\\n工作流\\nDcLili 会员投稿审核\\n工作流状态\\n已撤下\\n分析修订审核状态\\n已撤下\\n\\n内容已有新修订，本次分析基于历史版本。\\n\\n查看内容\",\"stats\":\"部分已采纳 待确认 3 · 已采纳 3 · 已忽略 0 · 采纳失败 0 · 版本冲突 0\",\"rules\":false}"
+    },
+    {
+      "name": "没有工作流的页面",
+      "pass": true,
+      "detail": "{\"expect\":{\"nid\":1014,\"vid\":2385,\"bundle\":\"页面\",\"publish\":\"暂无\",\"status\":\"未发布\",\"workflow\":\"未配置\",\"state\":\"无审核工作流\",\"review\":206,\"analysis_vid\":2385,\"match\":true},\"text\":\"内容基本信息\\n内容类型\\n基本页面\\n内容 ID\\n1014\\n分析修订\\n2385\\n当前修订\\n2385\\n发布\\n暂无\\n状态\\n未发布\\n工作流\\n未配置\\n工作流状态\\n无审核工作流\\n\\n查看内容\",\"stats\":\"分析失败 待确认 0 · 已采纳 0 · 已忽略 0 · 采纳失败 0 · 版本冲突 0\",\"rules\":false}"
+    },
+    {
+      "name": "分析修订和当前修订不一致",
+      "pass": true,
+      "detail": "{\"expect\":{\"nid\":13,\"vid\":2384,\"bundle\":\"美图\",\"publish\":\"暂无\",\"status\":\"未发布\",\"workflow\":\"DcLili 会员投稿审核\",\"state\":\"已撤下\",\"review\":205,\"analysis_vid\":2383,\"match\":false,\"historical_state\":\"已撤下\"},\"text\":\"内容基本信息\\n内容类型\\n美图\\n内容 ID\\n13\\n分析修订\\n2383\\n当前修订\\n2384\\n发布\\n暂无\\n状态\\n未发布\\n工作流\\nDcLili 会员投稿审核\\n工作流状态\\n已撤下\\n分析修订审核状态\\n已撤下\\n\\n内容已有新修订，本次分析基于历史版本。\\n\\n查看内容\",\"stats\":\"部分已采纳 待确认 3 · 已采纳 3 · 已忽略 0 · 采纳失败 0 · 版本冲突 0\",\"rules\":false}"
+    },
+    {
+      "name": "部分已采纳在建议统计里",
+      "pass": true,
+      "detail": "{\"basic\":\"内容基本信息\\n内容类型\\n美图\\n内容 ID\\n13\\n分析修订\\n2384\\n当前修订\\n2384\\n发布\\n暂无\\n状态\\n未发布\\n工作流\\nDcLili 会员投稿审核\\n工作流状态\\n已撤下\\n\\n查看内容\",\"stats\":\"部分已采纳 待确认 1 · 已采纳 1 · 已忽略 1 · 采纳失败 1 · 版本冲突 1\",\"rules\":false}"
+    },
+    {
+      "name": "英文枚举显示为中文",
+      "pass": true,
+      "detail": "{\"highDesc\":true,\"rawHigh\":false,\"rawDesc\":false,\"rules\":false,\"score\":true}"
+    },
+    {
+      "name": "详情页已移除评分规则且保留总分",
+      "pass": true,
+      "detail": "{\"highDesc\":true,\"rawHigh\":false,\"rawDesc\":false,\"rules\":false,\"score\":true}"
+    },
+    {
+      "name": "移动端列表有字段标签且无横向溢出",
+      "pass": true,
+      "detail": "{\"overflow\":false,\"hasDataLabel\":true,\"labels\":[\"内容信息\",\"SEO 结果\",\"AI 用量\",\"分析时间\",\"处理状态\",\"操作\"]}"
+    },
+    {
+      "name": "390 详情没有横向溢出",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "errors": []
+}

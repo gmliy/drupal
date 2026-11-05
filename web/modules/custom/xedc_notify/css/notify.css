@@ -227,6 +227,12 @@
   font-size: 14px;
   resize: vertical;
 }
+@media screen and (max-width: 767px) {
+  .xn-msg__composer textarea,
+  .xn-msg__composer .form-textarea {
+    font-size: 16px;
+  }
+}
 .xn-msg__composer .form-actions {
   display: flex;
   justify-content: flex-end;

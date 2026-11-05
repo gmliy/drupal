@@ -1,0 +1,165 @@
+{
+  "report": {
+    "steps": [
+      {
+        "name": "列表使用新的分组布局",
+        "pass": true,
+        "detail": "{\"path\":\"/admin/xedc/ai/seo\",\"board\":true,\"rows\":16,\"display\":\"grid\",\"columns\":\"278.484px 172px 204.781px 155.625px 147.438px 114.672px\",\"headers\":[\"内容信息\",\"SEO 结果\",\"AI 用量\",\"分析时间\",\"处理状态\",\"操作\"],\"labels\":true,\"revisionHeader\":false,\"oldTable\":false,\"waiting\":false,\"rules\":false,\"library\":false,\"boardRule\":true,\"overflow\":-15,\"security\":true}"
+      },
+      {
+        "name": "列表样式已经加载到页面",
+        "pass": false,
+        "detail": "{\"boardRule\":true,\"library\":false}"
+      },
+      {
+        "name": "打开页面没有等待提示",
+        "pass": true,
+        "detail": ""
+      },
+      {
+        "name": "桌面端没有横向溢出",
+        "pass": true,
+        "detail": "-15"
+      },
+      {
+        "name": "390 宽改为纵向卡片且不溢出",
+        "pass": true,
+        "detail": "{\"columns\":\"294px\",\"head\":\"none\",\"overflow\":0,\"labeled\":true}"
+      },
+      {
+        "name": "深色模式下列表仍是网格",
+        "pass": true,
+        "detail": "{\"theme\":\"dark\",\"bg\":\"rgb(24, 24, 27)\",\"color\":\"rgb(228, 228, 231)\"}"
+      },
+      {
+        "name": "筛选后列表区域仍在",
+        "pass": true,
+        "detail": "{\"board\":true,\"path\":\"?bundle=photo&score=high\"}"
+      },
+      {
+        "name": "详情页没有评分规则区域",
+        "pass": true,
+        "detail": "[{\"name\":\"内容类型\",\"value\":\"美图\"},{\"name\":\"内容 ID\",\"value\":\"13\"},{\"name\":\"分析修订\",\"value\":\"2384\"},{\"name\":\"当前修订\",\"value\":\"2384\"},{\"name\":\"发布\",\"value\":\"暂无\"},{\"name\":\"状态\",\"value\":\"未发布\"},{\"name\":\"工作流\",\"value\":\"DcLili 会员投稿审核\"},{\"name\":\"工作流状态\",\"value\":\"已撤下\"}]"
+      },
+      {
+        "name": "发布和状态后面有数据",
+        "pass": true,
+        "detail": "[{\"name\":\"内容类型\",\"value\":\"美图\"},{\"name\":\"内容 ID\",\"value\":\"13\"},{\"name\":\"分析修订\",\"value\":\"2384\"},{\"name\":\"当前修订\",\"value\":\"2384\"},{\"name\":\"发布\",\"value\":\"暂无\"},{\"name\":\"状态\",\"value\":\"未发布\"},{\"name\":\"工作流\",\"value\":\"DcLili 会员投稿审核\"},{\"name\":\"工作流状态\",\"value\":\"已撤下\"}]"
+      },
+      {
+        "name": "详情页 390 宽不横向溢出",
+        "pass": true,
+        "detail": "0"
+      },
+      {
+        "name": "内容 13 显示标题、类型和状态",
+        "pass": true,
+        "detail": "\"海边风景手机壁纸高清下载\\n\\n内容类型：美图\\n\\n内容状态：已撤下\""
+      },
+      {
+        "name": "修改 ID 后不残留上一条",
+        "pass": true,
+        "detail": "{\"first\":\"海边风景手机壁纸高清下载\\n\\n内容类型：美图\\n\\n内容状态：已撤下\",\"immediate\":\"\",\"second\":\"关于我们\\n\\n内容类型：基本页面\\n\\n内容状态：已发布\",\"missing\":\"未找到对应内容\",\"restored\":\"海边风景手机壁纸高清下载\\n\\n内容类型：美图\\n\\n内容状态：已撤下\",\"waiting\":false}"
+      },
+      {
+        "name": "不存在的 ID 显示未找到",
+        "pass": true,
+        "detail": "\"未找到对应内容\""
+      },
+      {
+        "name": "预览过程没有等待卡片",
+        "pass": true,
+        "detail": ""
+      },
+      {
+        "name": "安全更新提示仍按真实状态显示",
+        "pass": true,
+        "detail": "true"
+      }
+    ]
+  },
+  "errors": [],
+  "list": {
+    "path": "/admin/xedc/ai/seo",
+    "board": true,
+    "rows": 16,
+    "display": "grid",
+    "columns": "278.484px 172px 204.781px 155.625px 147.438px 114.672px",
+    "headers": [
+      "内容信息",
+      "SEO 结果",
+      "AI 用量",
+      "分析时间",
+      "处理状态",
+      "操作"
+    ],
+    "labels": true,
+    "revisionHeader": false,
+    "oldTable": false,
+    "waiting": false,
+    "rules": false,
+    "library": false,
+    "boardRule": true,
+    "overflow": -15,
+    "security": true
+  },
+  "mobile": {
+    "columns": "294px",
+    "head": "none",
+    "overflow": 0,
+    "labeled": true
+  },
+  "dark": {
+    "theme": "dark",
+    "bg": "rgb(24, 24, 27)",
+    "color": "rgb(228, 228, 231)"
+  },
+  "detail": {
+    "rules": false,
+    "score": true,
+    "pairs": [
+      {
+        "name": "内容类型",
+        "value": "美图"
+      },
+      {
+        "name": "内容 ID",
+        "value": "13"
+      },
+      {
+        "name": "分析修订",
+        "value": "2384"
+      },
+      {
+        "name": "当前修订",
+        "value": "2384"
+      },
+      {
+        "name": "发布",
+        "value": "暂无"
+      },
+      {
+        "name": "状态",
+        "value": "未发布"
+      },
+      {
+        "name": "工作流",
+        "value": "DcLili 会员投稿审核"
+      },
+      {
+        "name": "工作流状态",
+        "value": "已撤下"
+      }
+    ],
+    "overflow": -15
+  },
+  "preview": {
+    "first": "海边风景手机壁纸高清下载\n\n内容类型：美图\n\n内容状态：已撤下",
+    "immediate": "",
+    "second": "关于我们\n\n内容类型：基本页面\n\n内容状态：已发布",
+    "missing": "未找到对应内容",
+    "restored": "海边风景手机壁纸高清下载\n\n内容类型：美图\n\n内容状态：已撤下",
+    "waiting": false
+  },
+  "security": true
+}

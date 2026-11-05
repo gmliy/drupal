@@ -1061,6 +1061,79 @@ function xedc_core_update_10018(): string {
 }
 
 /**
+ * Attaches photo recommendation flags to the video bundle as two independent states.
+ *
+ * field_slideshow = homepage recommendation
+ * field_featured = category recommendation
+ *
+ * Existing photo field storage and photo behavior are unchanged.
+ */
+function xedc_core_update_10020(): string {
+  $messages = [];
+  $fields = [
+    'field_slideshow' => [
+      'label' => '设为首页推荐',
+      'description' => '勾选后，该视频在正式发布并通过审核后，可以显示在网站首页推荐视频区域。',
+      'weight' => 126,
+    ],
+    'field_featured' => [
+      'label' => '设为当前分类栏目推荐',
+      'description' => '勾选后，该视频在正式发布并通过审核后，可以显示在所属视频分类栏目页面的推荐区域。',
+      'weight' => 127,
+    ],
+  ];
+  foreach ($fields as $name => $info) {
+    $storage = \Drupal\field\Entity\FieldStorageConfig::loadByName('node', $name);
+    if (!$storage) {
+      $messages[] = $name . ' storage missing';
+      continue;
+    }
+    if (!\Drupal\field\Entity\FieldConfig::loadByName('node', 'video', $name)) {
+      \Drupal\field\Entity\FieldConfig::create([
+        'field_storage' => $storage,
+        'bundle' => 'video',
+        'label' => $info['label'],
+        'description' => $info['description'],
+        'required' => FALSE,
+        'translatable' => FALSE,
+        'default_value' => [['value' => 0]],
+        'settings' => [
+          'on_label' => '开启',
+          'off_label' => '关闭',
+        ],
+      ])->save();
+      $messages[] = 'field config node.video.' . $name;
+    }
+    $display = \Drupal::entityTypeManager()
+      ->getStorage('entity_form_display')
+      ->load('node.video.default');
+    if ($display && !$display->getComponent($name)) {
+      $display->setComponent($name, [
+        'type' => 'boolean_checkbox',
+        'weight' => $info['weight'],
+        'region' => 'content',
+        'settings' => ['display_label' => TRUE],
+        'third_party_settings' => [],
+      ])->save();
+      $messages[] = 'form display ' . $name;
+    }
+    $view = \Drupal::entityTypeManager()
+      ->getStorage('entity_view_display')
+      ->load('node.video.default');
+    if ($view && $view->getComponent($name) !== NULL) {
+      $view->removeComponent($name)->save();
+      $messages[] = 'view hide ' . $name;
+    }
+    elseif ($view && !array_key_exists($name, $view->get('hidden') ?? [])) {
+      $view->removeComponent($name)->save();
+    }
+  }
+  return $messages
+    ? '视频双推荐字段：' . implode(', ', $messages)
+    : '视频双推荐字段已存在，未改动。';
+}
+
+/**
  * Creates VIP redeem code tables and grants redeem permission.
  */
 function xedc_core_update_10019(): string {

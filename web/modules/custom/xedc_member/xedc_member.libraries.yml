@@ -4,8 +4,19 @@ quiet:
     theme:
       css/quiet.css: { weight: 100 }
 
+media_library_modal:
+  version: 1.2
+  css:
+    theme:
+      css/media-library-modal.css: { weight: 60 }
+  js:
+    js/media-library-modal.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+
 member:
-  version: 3.0
+  version: 3.5
   css:
     theme:
       css/member.css: { weight: 200 }

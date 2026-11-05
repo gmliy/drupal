@@ -1,15 +1,26 @@
 style:
-  version: 1.4
+  version: 1.5
   css:
     theme:
       build/css/main.style.css: {}
-      css/inputs.css: {}
+      css/inputs.css: { weight: 50 }
       css/xedc-pill.css: {}
       css/xedc-layout.css: {}
   js:
     build/js/main.script.js: {}
   dependencies:
     - core/drupal
+
+dialog_fix:
+  version: 1.10
+  css:
+    theme:
+      css/dialog-fix.css: { weight: 50 }
+  js:
+    js/dialog-fix.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
 
 xedc_auth:
   css:
@@ -21,7 +32,7 @@ xedc_auth:
     - core/drupal
 
 xedc_auth_form:
-  version: 1.1
+  version: 1.2
   css:
     theme:
       css/auth.css: {}
@@ -44,7 +55,7 @@ engagement:
     - core/drupalSettings
 
 navbar:
-  version: 1.8
+  version: 1.9
   css:
     theme:
       css/xedc-navbar.css: {}
@@ -52,6 +63,7 @@ navbar:
     js/xedc-navbar.js: {}
 
 legal:
+  version: 1.1
   css:
     theme:
       css/legal.css: {}
@@ -63,10 +75,11 @@ html-sitemap:
       css/sitemap.css: {}
 
 video-detail:
-  version: 3.7.1
+  version: 4.0.0
   css:
     theme:
       css/video-detail.css: {}
+      css/video-card.css: {}
 
 video-player:
   version: 2.4
@@ -83,20 +96,20 @@ video-player:
     - core/once
 
 video_list:
-  version: 3.6.2
+  version: 4.1.1
   css:
     theme:
       css/video-list.css: {}
       css/video-card.css: {}
 
 video-card:
-  version: 3.5
+  version: 4.0.0
   css:
     theme:
       css/video-card.css: {}
 
 search-page:
-  version: 1.1
+  version: 1.2
   css:
     theme:
       css/search.css: {}
@@ -106,7 +119,7 @@ search-page:
     - core/drupal
 
 article-list:
-  version: 1.1
+  version: 1.2
   css:
     theme:
       css/tokens.css: {}
@@ -124,7 +137,7 @@ article-detail:
     - core/drupal
 
 photo-detail:
-  version: 1.20
+  version: 1.22
   css:
     theme:
       css/photo-detail.css: {}
@@ -159,7 +172,7 @@ term-intro:
     - core/drupal
 
 photo-list:
-  version: 1.10
+  version: 1.11
   css:
     theme:
       css/photo-list.css: {}
@@ -177,7 +190,7 @@ meitu-card:
       css/meitu-card.css: {}
 
 home-page:
-  version: 1.0
+  version: 1.1
   css:
     theme:
       css/home.css: {}
@@ -191,7 +204,7 @@ home:
     - core/once
 
 public_profile:
-  version: 1.1
+  version: 2.0
   css:
     theme:
       css/public-profile.css: {}

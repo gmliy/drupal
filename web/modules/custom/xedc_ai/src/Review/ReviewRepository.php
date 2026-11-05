@@ -96,6 +96,22 @@ final class ReviewRepository {
    * @return array<string, mixed>|null
    *   Pending row for the same fingerprint.
    */
+  public function latestOpenForUser(int $uid, string $source): ?array {
+    if ($uid < 1 || $source === '') {
+      return NULL;
+    }
+    $row = $this->database->select('xedc_ai_review', 'r')
+      ->fields('r')
+      ->condition('uid', $uid)
+      ->condition('source', $source)
+      ->condition('status', ['pending', 'processing'], 'IN')
+      ->orderBy('id', 'DESC')
+      ->range(0, 1)
+      ->execute()
+      ->fetchAssoc();
+    return $row === FALSE ? NULL : $row;
+  }
+
   public function findOpen(string $fingerprint): ?array {
     $row = $this->database->select('xedc_ai_review', 'r')
       ->fields('r')
@@ -207,6 +223,69 @@ final class ReviewRepository {
       ->fetchAll(\PDO::FETCH_ASSOC);
   }
 
+  /**
+   * @param list<string> $bundles
+   *   Content types.
+   *
+   * @return list<int>
+   *   Entity ids whose newest completed SEO review is older than $before.
+   */
+  public function staleSeoEntities(array $bundles, int $before, int $limit): array {
+    if ($bundles === []) {
+      return [];
+    }
+    $rows = $this->database->select('xedc_ai_review', 'r')
+      ->fields('r', ['entity_id', 'id', 'created'])
+      ->condition('source', 'seo_optimization')
+      ->condition('status', 'completed')
+      ->condition('bundle', $bundles, 'IN')
+      ->condition('created', $before, '<')
+      ->orderBy('id', 'DESC')
+      ->range(0, 80)
+      ->execute()
+      ->fetchAll(\PDO::FETCH_ASSOC);
+    $ids = [];
+    foreach ($rows as $row) {
+      $latest = $this->latestForEntity((int) $row['entity_id'], 'seo_optimization');
+      if ($latest !== NULL && (int) $latest['id'] === (int) $row['id'] && (int) $latest['created'] < $before) {
+        $ids[] = (int) $row['entity_id'];
+      }
+      if (count($ids) >= $limit) {
+        break;
+      }
+    }
+    return array_values(array_unique($ids));
+  }
+
+  public function hasOpenForEntity(int $entityId, string $source): bool {
+    $count = $this->database->select('xedc_ai_review', 'r')
+      ->condition('entity_type', 'node')
+      ->condition('entity_id', $entityId)
+      ->condition('source', $source)
+      ->condition('status', ['pending', 'processing'], 'IN')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    return (int) $count > 0;
+  }
+
+  /**
+   * @return array<string, mixed>|null
+   *   Latest review for one node and source.
+   */
+  public function latestForEntity(int $entityId, string $source): ?array {
+    $row = $this->database->select('xedc_ai_review', 'r')
+      ->fields('r')
+      ->condition('entity_type', 'node')
+      ->condition('entity_id', $entityId)
+      ->condition('source', $source)
+      ->orderBy('id', 'DESC')
+      ->range(0, 1)
+      ->execute()
+      ->fetchAssoc();
+    return $row === FALSE ? NULL : $row;
+  }
+
   public function recent(int $limit, string $source = ''): array {
     $query = $this->database->select('xedc_ai_review', 'r')
       ->fields('r')
@@ -292,6 +371,39 @@ final class ReviewRepository {
     if (($filters['submission'] ?? '') === '1') {
       $query->condition('r.is_submission', 1);
     }
+    if (($filters['model_name'] ?? '') !== '') {
+      $query->condition('r.model_name', (string) $filters['model_name']);
+    }
+    if (($filters['seo_min'] ?? '') !== '' && is_numeric($filters['seo_min'])) {
+      $query->condition('r.seo_score', (int) $filters['seo_min'], '>=');
+    }
+    if (($filters['seo_max'] ?? '') !== '' && is_numeric($filters['seo_max'])) {
+      $query->condition('r.seo_score', (int) $filters['seo_max'], '<=');
+    }
+    if (($filters['issues'] ?? '') === '1') {
+      $query->condition('r.issues', '[]', '<>');
+      $query->isNotNull('r.issues');
+    }
+    $ops = (string) ($filters['ops'] ?? '');
+    if ($ops === 'queued') {
+      $query->condition('r.status', 'pending');
+    }
+    elseif ($ops === 'running') {
+      $query->condition('r.status', 'processing');
+    }
+    elseif ($ops === 'failed') {
+      $query->condition('r.status', 'failed');
+    }
+    elseif ($ops === 'ignored') {
+      $query->condition('r.status', 'ignored');
+    }
+    elseif ($ops === 'awaiting') {
+      $query->condition('r.status', 'completed');
+      $query->condition('r.handled_status', 'open');
+    }
+    elseif ($ops === 'adopted') {
+      $query->condition('r.handled_status', 'confirmed');
+    }
     if (!empty($filters['from'])) {
       $query->condition('r.created', (int) $filters['from'], '>=');
     }
@@ -300,7 +412,12 @@ final class ReviewRepository {
     }
     $search = trim((string) ($filters['q'] ?? ''));
     if ($search !== '') {
-      $query->condition('r.title', '%' . $this->database->escapeLike($search) . '%', 'LIKE');
+      $group = $query->orConditionGroup()
+        ->condition('r.title', '%' . $this->database->escapeLike($search) . '%', 'LIKE');
+      if (preg_match('/^\d+$/', $search)) {
+        $group->condition('r.entity_id', (int) $search);
+      }
+      $query->condition($group);
     }
   }
 

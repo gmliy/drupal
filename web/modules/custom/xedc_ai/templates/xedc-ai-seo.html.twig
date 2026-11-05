@@ -2,11 +2,122 @@
   <header class="xedc-ai-head">
     <div>
       <p class="xedc-ai-kicker">AI 运营中心</p>
-      <h2 class="xedc-ai-title">AI SEO 优化</h2>
+      <h2 class="xedc-ai-title">SEO 分析中心</h2>
+      <p class="xedc-ai-detail">文字建议来自已保存的分析。图片 ALT 在本地检查，不调用视觉模型，Token 为 0。下面的数字只统计当前这一页。</p>
     </div>
+    <p><a class="button" href="{{ path('xedc_ai.seo') }}">刷新数据</a></p>
   </header>
+  <section class="xedc-ai-cards" aria-label="本页统计">
+    <article class="xedc-ai-card"><h3>已分析</h3><p class="xedc-ai-value">{{ summary.analyzed|default(0) }}</p></article>
+    <article class="xedc-ai-card"><h3>待处理建议</h3><p class="xedc-ai-value">{{ summary.pending|default(0) }}</p></article>
+    <article class="xedc-ai-card"><h3>已采纳</h3><p class="xedc-ai-value">{{ summary.adopted|default(0) }}</p></article>
+    <article class="xedc-ai-card"><h3>低于 80 分</h3><p class="xedc-ai-value">{{ summary.needs_work|default(0) }}</p></article>
+    <article class="xedc-ai-card"><h3>平均分</h3><p class="xedc-ai-value">{{ summary.average|default('—') }}</p></article>
+  </section>
+  {% if suggest %}
+    <section class="xedc-ai-panel xedc-ai-seo-start">
+      <h3>新建分析</h3>
+      <p class="xedc-ai-detail">输入内容 ID，分析当前修订版本。</p>
+      {{ suggest }}
+    </section>
+  {% endif %}
   <section class="xedc-ai-panel">
-    <h3>已保存的 Site Audit</h3>
+    <h3>SEO 分析列表</h3>
+    <form class="xedc-ai-filters" method="get" action="{{ path('xedc_ai.seo') }}">
+      <label>内容类型
+        <select name="bundle">
+          <option value="">全部</option>
+          <option value="photo" {% if filters.bundle == 'photo' %}selected{% endif %}>美图</option>
+          <option value="video" {% if filters.bundle == 'video' %}selected{% endif %}>视频</option>
+          <option value="article" {% if filters.bundle == 'article' %}selected{% endif %}>文章</option>
+          <option value="page" {% if filters.bundle == 'page' %}selected{% endif %}>页面</option>
+        </select>
+      </label>
+      <label>评分
+        <select name="score">
+          <option value="">全部</option>
+          <option value="low" {% if filters.score == 'low' %}selected{% endif %}>0–59</option>
+          <option value="mid" {% if filters.score == 'mid' %}selected{% endif %}>60–79</option>
+          <option value="high" {% if filters.score == 'high' %}selected{% endif %}>80–100</option>
+        </select>
+      </label>
+      <label>状态
+        <select name="ops">
+          <option value="">全部</option>
+          <option value="queued" {% if filters.ops == 'queued' %}selected{% endif %}>等待分析</option>
+          <option value="running" {% if filters.ops == 'running' %}selected{% endif %}>分析中</option>
+          <option value="failed" {% if filters.ops == 'failed' %}selected{% endif %}>分析失败</option>
+          <option value="awaiting" {% if filters.ops == 'awaiting' %}selected{% endif %}>待人工确认</option>
+          <option value="adopted" {% if filters.ops == 'adopted' %}selected{% endif %}>已确认处理</option>
+          <option value="ignored" {% if filters.ops == 'ignored' %}selected{% endif %}>已忽略</option>
+        </select>
+      </label>
+      <label>问题
+        <select name="issues">
+          <option value="">全部</option>
+          <option value="1" {% if filters.issues == '1' %}selected{% endif %}>有问题的内容</option>
+        </select>
+      </label>
+      <label>模型
+        <input type="text" name="model" value="{{ filters.model }}">
+      </label>
+      <label>内容 ID 或标题
+        <input type="search" name="q" value="{{ filters.q }}">
+      </label>
+      <label>开始
+        <input type="date" name="from" value="{{ filters.from }}">
+      </label>
+      <label>结束
+        <input type="date" name="to" value="{{ filters.to }}">
+      </label>
+      <button type="submit">筛选</button>
+    </form>
+    {% if rows %}
+      <div class="xedc-ai-board">
+        <div class="xedc-ai-board-head">
+          <span>内容信息</span>
+          <span>SEO 结果</span>
+          <span>AI 用量</span>
+          <span>分析时间</span>
+          <span>处理状态</span>
+          <span>操作</span>
+        </div>
+        {% for row in rows %}
+          <article class="xedc-ai-board-row">
+            <div class="xedc-ai-board-cell">
+              <a class="xedc-ai-board-title" href="{{ row.url }}" title="{{ row.title ?: '无标题' }}">{{ row.title ?: '无标题' }}</a>
+              <p class="xedc-ai-board-line"><span class="xedc-ai-board-k">内容类型</span><span>{{ row.bundle }}</span></p>
+              <p class="xedc-ai-board-line"><span class="xedc-ai-board-k">内容 ID</span><span>{{ row.entity_id }}</span></p>
+            </div>
+            <div class="xedc-ai-board-cell">
+              <p class="xedc-ai-board-line"><span class="xedc-ai-board-k">SEO 评分</span><span>{{ row.score }}</span></p>
+              <p class="xedc-ai-board-line"><span class="xedc-ai-board-k">问题数</span><span>{{ row.issues }}</span></p>
+              <p class="xedc-ai-board-line"><span class="xedc-ai-board-k">建议数</span><span>{{ row.suggestions }}</span></p>
+            </div>
+            <div class="xedc-ai-board-cell">
+              <p class="xedc-ai-board-line"><span class="xedc-ai-board-k">模型</span><span>{{ row.model }}</span></p>
+              <p class="xedc-ai-board-line"><span class="xedc-ai-board-k">Token</span><span>{{ row.tokens }}</span></p>
+              <p class="xedc-ai-board-line"><span class="xedc-ai-board-k">费用</span><span>{{ row.cost }}</span></p>
+            </div>
+            <div class="xedc-ai-board-cell">
+              <p class="xedc-ai-board-line"><span class="xedc-ai-board-k">分析时间</span><span>{{ row.time }}</span></p>
+            </div>
+            <div class="xedc-ai-board-cell">
+              <p class="xedc-ai-board-line"><span class="xedc-ai-board-k">处理状态</span><span class="xedc-ai-status is-{{ row.ops_key }}">{{ row.ops }}</span></p>
+            </div>
+            <div class="xedc-ai-board-cell xedc-ai-board-actions">
+              <a class="xedc-ai-button" href="{{ row.url }}">查看详情</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+      {{ pager }}
+    {% else %}
+      <p class="xedc-ai-empty">这个筛选条件下没有 SEO 分析。</p>
+    {% endif %}
+  </section>
+  <details class="xedc-ai-panel">
+    <summary>已保存的站点检查</summary>
     <p class="xedc-ai-detail">{{ audit.message }}</p>
     {% if audit.items %}
       <div class="xedc-ai-table-wrap">
@@ -14,40 +125,15 @@
           <thead><tr><th>项目</th><th>结果</th><th>说明</th></tr></thead>
           <tbody>
           {% for item in audit.items %}
-            <tr>
-              <td>{{ item.label }}</td>
-              <td>{{ item.value }}</td>
-              <td>{{ item.meaning }}{% if item.detail %}<br>{{ item.detail }}{% endif %}</td>
-            </tr>
+            <tr><td>{{ item.label }}</td><td>{{ item.value }}</td><td>{{ item.meaning }}{% if item.detail %}<br>{{ item.detail }}{% endif %}</td></tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
-    {% else %}
-      <p class="xedc-ai-empty">没有可解释的已保存报告。</p>
     {% endif %}
     <p class="xedc-ai-links">
-      {% if audit.seo_url %}<a href="{{ audit.seo_url }}">SEO Audit</a>{% endif %}
-      {% if audit.site_url %}<a href="{{ audit.site_url }}">Site Audit</a>{% endif %}
+      {% if audit.seo_url %}<a href="{{ audit.seo_url }}">SEO 检查</a>{% endif %}
+      {% if audit.site_url %}<a href="{{ audit.site_url }}">站点检查</a>{% endif %}
     </p>
-  </section>
-  {% if suggest %}
-    <section class="xedc-ai-panel">
-      <h3>按需生成建议</h3>
-      <p class="xedc-ai-detail">建议不会自动覆盖标题、简介或发布状态。</p>
-      {{ suggest }}
-    </section>
-  {% endif %}
-  <section class="xedc-ai-panel">
-    <h3>最近的 SEO 建议</h3>
-    {% if rows %}
-      <ul class="xedc-ai-list">
-        {% for row in rows %}
-          <li><a href="{{ row.url }}">{{ row.title ?: '无标题' }}</a><span>{{ row.status }} · {{ row.time }}</span></li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="xedc-ai-empty">还没有 SEO 建议。</p>
-    {% endif %}
-  </section>
+  </details>
 </div>

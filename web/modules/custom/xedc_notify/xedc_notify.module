@@ -61,6 +61,7 @@ function xedc_notify_theme($existing, $type, $theme, $path): array {
         'follow_url' => '',
         'following' => FALSE,
         'message_url' => '',
+        'message_guest' => FALSE,
       ],
       'template' => 'xedc-notify-profile-actions',
     ],

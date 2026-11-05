@@ -189,6 +189,54 @@ final class SettingsForm extends ConfigFormBase {
       '#title' => $this->t('价格未知时允许手动调用，并标明费用未核算'),
       '#default_value' => (bool) $config->get('allow_unpriced_manual'),
     ];
+    $form['seo_schedule'] = [
+      '#type' => 'details',
+      '#title' => $this->t('定期 SEO 检查'),
+      '#open' => FALSE,
+    ];
+    $form['seo_schedule']['seo_schedule_enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('启用定期检查'),
+      '#default_value' => (bool) $config->get('seo_schedule_enabled'),
+      '#description' => $this->t('默认关闭。关闭时不会扫描历史内容，也不会产生 API 费用。'),
+    ];
+    foreach ([
+      'seo_schedule_daily_new' => '每日检查新发布内容',
+      'seo_schedule_weekly' => '每周一检查本周有变化、且已经分析过的内容',
+      'seo_schedule_changed' => '只检查修订版本已变化、且已经分析过的内容',
+      'seo_schedule_stale' => '重新检查长期没有新分析的已分析内容',
+    ] as $name => $title) {
+      $form['seo_schedule'][$name] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t($title),
+        '#default_value' => (bool) $config->get($name),
+      ];
+    }
+    $form['seo_schedule']['seo_schedule_stale_days'] = [
+      '#type' => 'number',
+      '#title' => $this->t('多少天没有新分析算作长期未优化'),
+      '#min' => 7,
+      '#default_value' => (int) ($config->get('seo_schedule_stale_days') ?: 30),
+    ];
+    $form['seo_schedule']['seo_schedule_limit'] = [
+      '#type' => 'number',
+      '#title' => $this->t('每次最多加入队列的内容数'),
+      '#min' => 1,
+      '#max' => 10,
+      '#default_value' => (int) ($config->get('seo_schedule_limit') ?: 3),
+    ];
+    foreach ([
+      'seo_schedule_photo' => '美图',
+      'seo_schedule_video' => '视频',
+      'seo_schedule_article' => '文章',
+      'seo_schedule_page' => '基础页',
+    ] as $name => $title) {
+      $form['seo_schedule'][$name] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t($title),
+        '#default_value' => (bool) $config->get($name),
+      ];
+    }
     $form['cost']['unpriced_daily_tokens'] = [
       '#type' => 'number',
       '#title' => $this->t('未标价模型的每日 Token 上限'),
@@ -231,13 +279,15 @@ final class SettingsForm extends ConfigFormBase {
       'deep_analysis', 'retry_limit', 'max_concurrent', 'rule_version', 'retention_days',
       'daily_budget', 'monthly_budget', 'budget_action', 'allow_manual_over_budget',
       'allow_unpriced_manual', 'unpriced_daily_tokens',
+      'seo_schedule_enabled', 'seo_schedule_daily_new', 'seo_schedule_weekly', 'seo_schedule_changed', 'seo_schedule_stale',
+      'seo_schedule_stale_days', 'seo_schedule_limit', 'seo_schedule_photo', 'seo_schedule_video', 'seo_schedule_article', 'seo_schedule_page',
     ];
     foreach ($names as $name) {
       $value = $form_state->getValue($name);
-      if (in_array($name, ['default_model_id', 'fallback_model_id', 'model_content_review', 'model_quality', 'model_seo', 'model_translation', 'model_general', 'timeout', 'max_tokens', 'retry_limit', 'max_concurrent', 'rule_version', 'retention_days', 'unpriced_daily_tokens'], TRUE)) {
+      if (in_array($name, ['default_model_id', 'fallback_model_id', 'model_content_review', 'model_quality', 'model_seo', 'model_translation', 'model_general', 'timeout', 'max_tokens', 'retry_limit', 'max_concurrent', 'rule_version', 'retention_days', 'unpriced_daily_tokens', 'seo_schedule_stale_days', 'seo_schedule_limit'], TRUE)) {
         $value = (int) $value;
       }
-      elseif (in_array($name, ['auto_review_article', 'auto_review_photo', 'auto_review_video', 'auto_review_submission', 'deep_analysis', 'allow_manual_over_budget', 'allow_unpriced_manual'], TRUE)) {
+      elseif (in_array($name, ['auto_review_article', 'auto_review_photo', 'auto_review_video', 'auto_review_submission', 'deep_analysis', 'allow_manual_over_budget', 'allow_unpriced_manual', 'seo_schedule_enabled', 'seo_schedule_daily_new', 'seo_schedule_weekly', 'seo_schedule_changed', 'seo_schedule_stale', 'seo_schedule_photo', 'seo_schedule_video', 'seo_schedule_article', 'seo_schedule_page'], TRUE)) {
         $value = (bool) $value;
       }
       else {

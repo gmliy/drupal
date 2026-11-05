@@ -1,0 +1,321 @@
+{
+  "w1440": [
+    {
+      "i": 1,
+      "title": "视频电话的吉村久夫记得记得",
+      "h": 283,
+      "thumbH": 169,
+      "metaH": 42,
+      "lines": [
+        "管理员 美女视频",
+        "23 次播放 2026-10-30"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 2,
+      "title": "密密麻麻买买买",
+      "h": 283,
+      "thumbH": 169,
+      "metaH": 42,
+      "lines": [
+        "管理员 美女视频",
+        "14 次播放 2026-10-30"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 3,
+      "title": "测试youtube视频标题",
+      "h": 283,
+      "thumbH": 169,
+      "metaH": 42,
+      "lines": [
+        "管理员 美女视频",
+        "27 次播放 2026-10-21"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 4,
+      "title": "视频内容详情页测试内容标题测试",
+      "h": 283,
+      "thumbH": 169,
+      "metaH": 42,
+      "lines": [
+        "管理员 短视频",
+        "63 次播放 2026-10-20"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 5,
+      "title": "墨迹二班测试视频标题183",
+      "h": 283,
+      "thumbH": 169,
+      "metaH": 42,
+      "lines": [
+        "管理员",
+        "13 次播放 2026-10-13"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 6,
+      "title": "墨迹二班测试视频标题",
+      "h": 283,
+      "thumbH": 169,
+      "metaH": 42,
+      "lines": [
+        "管理员",
+        "18 次播放 2026-10-13"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 7,
+      "title": "墨迹二班测试视频标题",
+      "h": 283,
+      "thumbH": 169,
+      "metaH": 42,
+      "lines": [
+        "管理员",
+        "20 次播放 2026-10-13"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 8,
+      "title": "视频栏目字段的测试内容",
+      "h": 283,
+      "thumbH": 169,
+      "metaH": 42,
+      "lines": [
+        "管理员",
+        "34 次播放 2026-10-13"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    }
+  ],
+  "w375": [
+    {
+      "i": 1,
+      "title": "视频电话的吉村久夫记得记得",
+      "h": 306,
+      "thumbH": 192,
+      "metaH": 42,
+      "lines": [
+        "管理员 美女视频",
+        "23 次播放 2026-10-30"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 2,
+      "title": "密密麻麻买买买",
+      "h": 306,
+      "thumbH": 192,
+      "metaH": 42,
+      "lines": [
+        "管理员 美女视频",
+        "14 次播放 2026-10-30"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 3,
+      "title": "测试youtube视频标题",
+      "h": 306,
+      "thumbH": 192,
+      "metaH": 42,
+      "lines": [
+        "管理员 美女视频",
+        "27 次播放 2026-10-21"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 4,
+      "title": "视频内容详情页测试内容标题测试",
+      "h": 306,
+      "thumbH": 192,
+      "metaH": 42,
+      "lines": [
+        "管理员 短视频",
+        "63 次播放 2026-10-20"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 5,
+      "title": "墨迹二班测试视频标题183",
+      "h": 306,
+      "thumbH": 192,
+      "metaH": 42,
+      "lines": [
+        "管理员",
+        "13 次播放 2026-10-13"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 6,
+      "title": "墨迹二班测试视频标题",
+      "h": 306,
+      "thumbH": 192,
+      "metaH": 42,
+      "lines": [
+        "管理员",
+        "18 次播放 2026-10-13"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 7,
+      "title": "墨迹二班测试视频标题",
+      "h": 306,
+      "thumbH": 192,
+      "metaH": 42,
+      "lines": [
+        "管理员",
+        "20 次播放 2026-10-13"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    },
+    {
+      "i": 8,
+      "title": "视频栏目字段的测试内容",
+      "h": 306,
+      "thumbH": 192,
+      "metaH": 42,
+      "lines": [
+        "管理员",
+        "34 次播放 2026-10-13"
+      ],
+      "structure": [
+        "vcard__hit",
+        "vcard__meta"
+      ],
+      "deep": [
+        "vcard__thumb",
+        "vcard__title"
+      ]
+    }
+  ],
+  "related": {
+    "count": 7,
+    "first": {
+      "w": 336,
+      "h": 107,
+      "lines": [
+        "管理员 美女视频",
+        "23 次播放 2026-10-30"
+      ]
+    }
+  }
+}

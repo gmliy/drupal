@@ -6,6 +6,8 @@ dependencies:
     - field.field.node.video.field_body
     - field.field.node.video.field_categories
     - field.field.node.video.field_duration
+    - field.field.node.video.field_featured
+    - field.field.node.video.field_slideshow
     - field.field.node.video.field_tags
     - field.field.node.video.field_video_cover
     - field.field.node.video.field_video_file
@@ -54,6 +56,20 @@ content:
     region: content
     settings:
       placeholder: ''
+    third_party_settings: {  }
+  field_featured:
+    type: boolean_checkbox
+    weight: 127
+    region: content
+    settings:
+      display_label: true
+    third_party_settings: {  }
+  field_slideshow:
+    type: boolean_checkbox
+    weight: 126
+    region: content
+    settings:
+      display_label: true
     third_party_settings: {  }
   field_tags:
     type: entity_reference_autocomplete

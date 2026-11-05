@@ -1,0 +1,23 @@
+uuid: 19db4b56-7d33-47a6-b985-e8f9fda19d94
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_featured
+    - node.type.video
+id: node.video.field_featured
+field_name: field_featured
+entity_type: node
+bundle: video
+label: 设为当前分类栏目推荐
+description: 勾选后，该视频在正式发布并通过审核后，可以显示在所属视频分类栏目页面的推荐区域。
+required: false
+translatable: false
+default_value:
+  -
+    value: 0
+default_value_callback: ''
+settings:
+  on_label: 开启
+  off_label: 关闭
+field_type: boolean

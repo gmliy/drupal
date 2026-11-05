@@ -68,41 +68,12 @@ final class ReviewParser {
    * @return array{ok: bool, error: string, result: array<string, mixed>}
    *   Parsed SEO suggestion.
    */
-  public static function seo(string $text): array {
-    $data = self::decode($text);
-    if ($data === NULL) {
-      return self::fail('模型没有返回有效 JSON。');
-    }
-    $title = trim((string) ($data['seo_title'] ?? ''));
-    $description = trim((string) ($data['meta_description'] ?? ''));
-    $summary = trim((string) ($data['summary'] ?? ''));
-    if ($title === '' || $description === '' || $summary === '') {
-      return self::fail('SEO 建议缺少标题、描述或摘要。');
-    }
-    if (!is_array($data['issues'] ?? NULL) || !is_array($data['suggestions'] ?? NULL) || !is_array($data['tags'] ?? NULL)) {
-      return self::fail('SEO 建议的列表字段无效。');
-    }
-    $stuffing = (bool) ($data['stuffing'] ?? FALSE);
-    return [
-      'ok' => TRUE,
-      'error' => '',
-      'result' => [
-        'status' => $stuffing ? 'attention' : 'pass',
-        'risk_level' => $stuffing ? 'medium' : 'low',
-        'score' => $stuffing ? 60 : 85,
-        'seo_score' => $stuffing ? 55 : 85,
-        'issues' => self::lines($data['issues']),
-        'suggestions' => self::lines($data['suggestions']),
-        'summary' => self::clip($summary, 800),
-        'seo_title' => self::clip($title, 180),
-        'meta_description' => self::clip($description, 300),
-        'tags' => self::lines($data['tags']),
-        'stuffing' => $stuffing,
-        'relevance' => self::clip(trim((string) ($data['relevance'] ?? '')), 300),
-        'issue_items' => self::issueItems($data['issues']),
-        'suggestion_items' => self::suggestionItems($data['suggestions']),
-      ],
-    ];
+  /**
+   * @param array<string, mixed> $context
+   *   Extracted node text. The score is calculated from this, not from the model.
+   */
+  public static function seo(string $text, array $context = []): array {
+    return \Drupal\xedc_ai\Seo\SeoResult::parse($text, $context);
   }
 
   /**

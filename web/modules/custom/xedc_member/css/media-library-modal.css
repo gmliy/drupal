@@ -1,0 +1,782 @@
+/**
+ * Media Library widget modal, shared by the member theme and the admin theme.
+ *
+ * Loaded only with core/drupal.dialog. Every rule stays under
+ * .ui-dialog.media-library-widget-modal so other dialogs and Views are left
+ * alone. Color comes from each theme's tokens.
+ *
+ * The only !important declarations beat jQuery UI inline sizes and the admin
+ * dialog shell (top/transform/height), which would otherwise pin the modal
+ * to a transformed 90vh box. iOS Safari does not deliver finger scrolling to
+ * an overflow child of a transformed fixed element.
+ */
+
+.ui-dialog.media-library-widget-modal {
+  --ml-bg: var(--xedc-admin-surface, var(--bs-body-bg, #fff));
+  --ml-fg: var(--xedc-admin-foreground, var(--bs-body-color, #18181b));
+  --ml-muted: var(--xedc-admin-muted, var(--bs-secondary-color, #71717a));
+  --ml-border: var(--xedc-admin-border, var(--bs-border-color, #e4e4e7));
+  --ml-soft: var(--xedc-admin-surface-secondary, var(--bs-tertiary-bg, #f4f4f5));
+  --ml-hover: var(--xedc-admin-hover, var(--bs-secondary-bg, #f4f4f5));
+  --ml-h: var(--xedc-ml-h, calc(100dvh - 16px));
+  --ml-top: var(--xedc-ml-top, 8px);
+}
+
+:is(html[data-theme="dark"], html[data-bs-theme="dark"]) .ui-dialog.media-library-widget-modal {
+  --ml-bg: var(--xedc-admin-surface, #202024);
+  --ml-fg: var(--xedc-admin-foreground, #e4e4e7);
+  --ml-muted: var(--xedc-admin-muted, #a1a1aa);
+  --ml-border: var(--xedc-admin-border, #3f3f46);
+  --ml-soft: var(--xedc-admin-surface-secondary, #27272a);
+  --ml-hover: var(--xedc-admin-hover, #27272a);
+}
+
+.ui-dialog.media-library-widget-modal:not(.ui-dialog-off-canvas),
+html.xedc-admin-active .ui-dialog.media-library-widget-modal:not(.ui-dialog-off-canvas) {
+  position: fixed !important;
+  top: var(--ml-top) !important;
+  right: 0 !important;
+  left: 0 !important;
+  bottom: auto !important;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(1120px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px);
+  height: var(--ml-h) !important;
+  max-height: min(var(--ml-h), 920px) !important;
+  margin: 0 auto !important;
+  overflow: hidden;
+  transform: none !important;
+  border: 1px solid var(--ml-border);
+  border-radius: 12px;
+  background: var(--ml-bg);
+  color: var(--ml-fg);
+}
+
+.ui-dialog.media-library-widget-modal .ui-dialog-titlebar,
+html.xedc-admin-active .ui-dialog.media-library-widget-modal .ui-dialog-titlebar {
+  flex: 0 0 auto;
+  min-height: 40px;
+  max-height: 44px;
+  padding: 6px 44px 6px 12px;
+  background: var(--ml-bg);
+  color: var(--ml-fg);
+  border-bottom: 1px solid var(--ml-border);
+}
+
+.ui-dialog.media-library-widget-modal .ui-dialog-title,
+html.xedc-admin-active .ui-dialog.media-library-widget-modal .ui-dialog-title {
+  font-size: 14px;
+  line-height: 1.25;
+  color: var(--ml-fg);
+}
+
+.ui-dialog.media-library-widget-modal .ui-dialog-content,
+html.xedc-admin-active .ui-dialog.media-library-widget-modal .ui-dialog-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  height: auto !important;
+  max-height: none !important;
+  overflow: hidden;
+  padding: 8px 10px;
+  background: var(--ml-bg);
+  color: var(--ml-fg);
+}
+
+.ui-dialog.media-library-widget-modal #media-library-wrapper,
+.ui-dialog.media-library-widget-modal #media-library-content,
+.ui-dialog.media-library-widget-modal #media-library-view,
+.ui-dialog.media-library-widget-modal .js-media-library-view {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: stretch;
+  gap: 0 10px;
+}
+
+/* Upload strip: one compact block, helper text stays readable. */
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  box-sizing: border-box;
+  margin: 0 0 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--ml-border);
+  border-radius: 8px;
+  background: var(--ml-soft);
+}
+
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .form-wrapper,
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper [id^="ajax-wrapper"] {
+  margin: 0;
+  padding: 0;
+}
+
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .xm-media-hint {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  color: var(--ml-muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .xm-media-hint::before {
+  content: "✓";
+  display: inline-flex;
+  flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--ml-fg);
+  color: var(--ml-bg);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+}
+
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .form-item,
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .form-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .form-item > label,
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .form-label {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--ml-fg);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .form-managed-file,
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .js-form-managed-file {
+  display: flex;
+  flex: 1 1 160px;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+}
+
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper input[type="file"] {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 30px;
+  margin: 0;
+  padding: 0 8px 0 0;
+  overflow: hidden;
+  border: 1px solid var(--ml-border);
+  border-radius: 6px;
+  background: var(--ml-bg);
+  color: var(--ml-muted);
+  font-size: 12px;
+  line-height: 28px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper input[type="file"]::file-selector-button {
+  box-sizing: border-box;
+  height: 28px;
+  margin: 0 8px 0 0;
+  padding: 0 10px;
+  border: 0;
+  border-right: 1px solid var(--ml-border);
+  border-radius: 5px 0 0 5px;
+  background: var(--ml-soft);
+  color: var(--ml-fg);
+  font-size: 12px;
+  line-height: 28px;
+}
+
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .description,
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .form-text {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 0;
+  color: var(--ml-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.ui-dialog.media-library-widget-modal #media-library-add-form-wrapper .description br {
+  display: none;
+}
+
+/* 格子 / 表格 as one segmented control. */
+.ui-dialog.media-library-widget-modal .js-media-library-view .view-header {
+  display: inline-flex;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  align-items: stretch;
+  box-sizing: border-box;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--ml-border);
+  border-radius: 6px;
+  background: var(--ml-bg);
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .view-header .views-display-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 28px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ml-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 28px;
+  text-decoration: none;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .view-header .views-display-link + .views-display-link {
+  box-shadow: inset 1px 0 0 var(--ml-border);
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .view-header .views-display-link.is-active {
+  background: var(--ml-fg);
+  color: var(--ml-bg);
+  font-weight: 600;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .view-header .views-display-link:hover {
+  color: var(--ml-fg);
+  background: var(--ml-hover);
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .view-header .views-display-link.is-active:hover {
+  background: var(--ml-fg);
+  color: var(--ml-bg);
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .view-filters {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ml-fg);
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-item,
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-group,
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-item > label,
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-label {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--ml-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 30px;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form input[type="text"],
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form select {
+  box-sizing: border-box;
+  height: 32px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid var(--ml-border);
+  border-radius: 6px;
+  background-color: var(--ml-bg);
+  color: var(--ml-fg);
+  font-size: 13px;
+  line-height: 30px;
+}
+
+/*
+ * xedc_admin forms.css sets width:100% and min-height:40px on inputs using
+ * six :not([type]) selectors. That specificity beats a normal modal rule,
+ * so only these sizing properties are forced inside this dialog.
+ */
+html.xedc-admin-active .ui-dialog.media-library-widget-modal .views-exposed-form input.form-control,
+html.xedc-admin-active .ui-dialog.media-library-widget-modal .views-exposed-form select.form-select,
+html.xedc-admin-active .ui-dialog.media-library-widget-modal .views-exposed-form select.form-control {
+  box-sizing: border-box !important;
+  width: auto !important;
+  max-width: none !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 8px !important;
+  font-size: 13px !important;
+  line-height: 30px !important;
+}
+
+/* Mobile: keep search/filter ≥16px so iOS does not zoom the whole dialog. */
+@media screen and (max-width: 767px) {
+  .ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form input[type="text"],
+  .ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form select,
+  html.xedc-admin-active .ui-dialog.media-library-widget-modal .views-exposed-form input.form-control,
+  html.xedc-admin-active .ui-dialog.media-library-widget-modal .views-exposed-form select.form-select,
+  html.xedc-admin-active .ui-dialog.media-library-widget-modal .views-exposed-form select.form-control {
+    height: 40px !important;
+    min-height: 40px !important;
+    font-size: 16px !important;
+    line-height: 1.25 !important;
+  }
+}
+
+@media (min-width: 768px) {
+  html.xedc-admin-active .ui-dialog.media-library-widget-modal .views-exposed-form .form-item-name input.form-control {
+    width: 180px !important;
+    min-width: 140px !important;
+    max-width: 220px !important;
+  }
+
+  html.xedc-admin-active .ui-dialog.media-library-widget-modal .views-exposed-form .form-item-sort-by select {
+    width: 148px !important;
+    min-width: 132px !important;
+    max-width: 200px !important;
+  }
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form select {
+  padding-right: 28px;
+  background-position: right 8px center;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-item-name input[type="text"] {
+  width: 180px;
+  min-width: 120px;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-item-sort-by select {
+  width: 148px;
+  min-width: 132px;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form input.form-submit,
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .button,
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .btn {
+  box-sizing: border-box;
+  height: 30px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--ml-fg);
+  border-radius: 6px;
+  background: var(--ml-fg);
+  color: var(--ml-bg);
+  font-size: 12px;
+  line-height: 28px;
+  white-space: nowrap;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form input.form-submit:hover,
+.ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .button:hover {
+  filter: brightness(1.08);
+}
+
+/* The list is the only vertical scroller. */
+.ui-dialog.media-library-widget-modal .js-media-library-view .view-content {
+  display: block;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .pager {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .pager ul,
+.ui-dialog.media-library-widget-modal .js-media-library-view .pager .pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view .pager a,
+.ui-dialog.media-library-widget-modal .js-media-library-view .pager .page-link,
+.ui-dialog.media-library-widget-modal .js-media-library-view .pager span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: var(--ml-fg);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .js-media-library-views-form,
+.ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .views-view-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+  padding: 2px 0 6px;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-views-form > :not(.js-media-library-item):not(.media-library-item):not(.views-row) {
+  grid-column: 1 / -1;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-item,
+.ui-dialog.media-library-widget-modal .media-library-item {
+  position: relative;
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--ml-border);
+  border-radius: 8px;
+  background: var(--ml-bg);
+  color: var(--ml-fg);
+}
+
+.ui-dialog.media-library-widget-modal .media-library-item--grid::before {
+  display: none;
+}
+
+.ui-dialog.media-library-widget-modal .media-library-item__preview,
+.ui-dialog.media-library-widget-modal .js-media-library-item-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  background: var(--ml-soft);
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-item .field--name-thumbnail,
+.ui-dialog.media-library-widget-modal .js-media-library-item-preview .field--name-thumbnail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-item img,
+.ui-dialog.media-library-widget-modal .media-library-item img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0 auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+.ui-dialog.media-library-widget-modal .media-library-item__name,
+.ui-dialog.media-library-widget-modal .js-media-library-item .views-field:not(.js-click-to-select-checkbox):not(.views-field-media-library-select-form) {
+  margin: 0;
+  padding: 4px 6px 6px;
+  color: var(--ml-fg);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-item .js-click-to-select-checkbox,
+.ui-dialog.media-library-widget-modal .js-media-library-item .views-field-media-library-select-form {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  width: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ml-fg);
+}
+
+.ui-dialog.media-library-widget-modal .js-media-library-item.checked,
+.ui-dialog.media-library-widget-modal .js-click-to-select.checked {
+  border-color: var(--ml-fg);
+  box-shadow: inset 0 0 0 1px var(--ml-fg);
+}
+
+.ui-dialog.media-library-widget-modal table {
+  width: 100%;
+  margin: 0;
+  color: var(--ml-fg);
+  font-size: 12px;
+  background: var(--ml-bg);
+}
+
+.ui-dialog.media-library-widget-modal table th,
+.ui-dialog.media-library-widget-modal table td {
+  padding: 4px 6px;
+  border-color: var(--ml-border);
+  background: var(--ml-bg);
+  color: var(--ml-fg);
+}
+
+.ui-dialog.media-library-widget-modal .ui-dialog-buttonpane,
+html.xedc-admin-active .ui-dialog.media-library-widget-modal .ui-dialog-buttonpane {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 44px;
+  margin: 0;
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--ml-border);
+  background: var(--ml-bg);
+  color: var(--ml-fg);
+}
+
+.ui-dialog.media-library-widget-modal .ui-dialog-buttonpane .ui-dialog-buttonset,
+html.xedc-admin-active .ui-dialog.media-library-widget-modal .ui-dialog-buttonset {
+  display: inline-flex;
+  float: none;
+  order: 2;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  margin: 0 0 0 12px;
+}
+
+.ui-dialog.media-library-widget-modal .ui-dialog-buttonpane .button,
+.ui-dialog.media-library-widget-modal .ui-dialog-buttonpane button,
+.ui-dialog.media-library-widget-modal .ui-dialog-buttonpane input.form-submit,
+html.xedc-admin-active .ui-dialog.media-library-widget-modal .ui-dialog-buttonpane .button,
+html.xedc-admin-active .ui-dialog.media-library-widget-modal .ui-dialog-buttonpane button {
+  box-sizing: border-box;
+  height: 30px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 28px;
+}
+
+.ui-dialog.media-library-widget-modal .media-library-selected-count,
+.ui-dialog.media-library-widget-modal .js-media-library-selected-count {
+  float: none;
+  order: 1;
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--ml-muted);
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ui-dialog.media-library-widget-modal.xedc-ml-short #media-library-add-form-wrapper {
+  display: none;
+}
+
+@media (max-width: 767.98px) {
+  .ui-dialog.media-library-widget-modal:not(.ui-dialog-off-canvas),
+  html.xedc-admin-active .ui-dialog.media-library-widget-modal:not(.ui-dialog-off-canvas) {
+    width: calc(100vw - 12px) !important;
+    max-width: calc(100vw - 12px);
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 6px 0;
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view .view-header,
+  .ui-dialog.media-library-widget-modal .js-media-library-view .view-filters,
+  .ui-dialog.media-library-widget-modal .js-media-library-view .view-content,
+  .ui-dialog.media-library-widget-modal .js-media-library-view .pager {
+    grid-column: 1;
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view .view-header {
+    grid-row: 1;
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view .view-filters {
+    grid-row: 2;
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view .view-content {
+    grid-row: 3;
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view .pager {
+    grid-row: 4;
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name name"
+      "sort apply";
+    gap: 6px 8px;
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-item-name {
+    grid-area: name;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-item-name input[type="text"],
+  html.xedc-admin-active .ui-dialog.media-library-widget-modal .views-exposed-form .form-item-name input.form-control {
+    flex: 1 1 auto;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-item-sort-by {
+    grid-area: sort;
+    min-width: 0;
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-item-sort-by select,
+  html.xedc-admin-active .ui-dialog.media-library-widget-modal .views-exposed-form .form-item-sort-by select {
+    flex: 1 1 auto;
+    width: auto !important;
+    min-width: 8em !important;
+    max-width: none !important;
+  }
+
+  .ui-dialog.media-library-widget-modal .js-media-library-view .views-exposed-form .form-actions {
+    grid-area: apply;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 767.98px) {
+  .ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .js-media-library-views-form,
+  .ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .views-view-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) and (max-width: 899.98px) {
+  .ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .js-media-library-views-form,
+  .ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .views-view-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1199.98px) {
+  .ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .js-media-library-views-form,
+  .ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .views-view-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1399.98px) {
+  .ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .js-media-library-views-form,
+  .ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .views-view-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1400px) {
+  .ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .js-media-library-views-form,
+  .ui-dialog.media-library-widget-modal .js-media-library-view:not(:has(table)) .views-view-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}

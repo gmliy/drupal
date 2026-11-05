@@ -1,0 +1,23 @@
+uuid: 127e9f25-4363-4f47-810d-c8421fff3df8
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_slideshow
+    - node.type.video
+id: node.video.field_slideshow
+field_name: field_slideshow
+entity_type: node
+bundle: video
+label: 设为首页推荐
+description: 勾选后，该视频在正式发布并通过审核后，可以显示在网站首页推荐视频区域。
+required: false
+translatable: false
+default_value:
+  -
+    value: 0
+default_value_callback: ''
+settings:
+  on_label: 开启
+  off_label: 关闭
+field_type: boolean

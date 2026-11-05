@@ -593,3 +593,30 @@
 - [x] 常驻服务 `xedc-import-worker.service` 连续消费 `xedc_image_import`。Drupal cron 不再认领这个队列。心跳中断超过 45 秒时，15 分钟 cron 只兜底 20 秒。
 - [x] 隔离脚本 16/16。同一 ZIP 重解 97 ms。小 ZIP 后台完成 8002 ms。SIGKILL 后约 2 分钟恢复为 2/2。超限包在写出前拒绝。
 - [!] 没有在浏览器里看未完成任务的逐阶段刷新，没有把 137 张整包再导入一次，没有做 200 MB 实包。200 MB 只有在 1 GiB、2000 个文件、单张 50 MB、4000 万像素、压缩比 40 和磁盘余量之内才解压。
+
+## 视频列表首页首卡异常修复
+
+2026-11-05。报告是 `docs/XEDC_VIDEO_FIRST_CARD_FIX_REPORT.md`。截图在 `docs/video-first-card-fix/`。没有提交 Git，没有推送，没有改视频内容或数据库。
+
+- [x] 根因：首页把最新一条抽成 `.xv-hero` 推荐大卡，并用预处理 `array_shift` 从网格去掉同一行。目标视频「视频电话的吉村久夫记得记得」因此和后续 `article.vcard` 不是同一套 DOM/尺寸。
+- [x] 去掉推荐大卡与首行剔除。首条回到网格，与第 2、第 3 张同结构。卡片元数据改为两行（会员·分类 / 播放量·日期），1440 上 8 张高度均为 283。
+- [x] Chromium 验收 375–1440、浅色/暗色、分类页、标签页：无 hero、无横向溢出，暗色标题 `rgb(228, 228, 231)`。会员链接仍是 `/r/aa`。
+
+## 视频专区整体 UI 重新设计
+
+2026-11-05。报告是 `docs/XEDC_VIDEO_UI_FULL_REDESIGN_REPORT.md`。截图在 `docs/video-ui-redesign/`。没有提交 Git，没有推送，没有改 config/sync 或视频内容。
+
+- [x] 首页/标签/分类/详情统一视觉：紧凑推荐 `.xv-lead`（封面上限约 400px）、统一 `.vcard`、详情信息层级整理。浏览器 41 项 PASS。
+- [x] 会员显示改为 Drupal Username（`User::getAccountName()`）。uid 1 由昵称「管理员」改为 `admin`。头像与用户名指向 `/r/aa`。
+- [x] 推荐业务保留：最新无搜索第一页抽第一条进推荐区，预处理去掉网格同行，不用 `:first-child` 隐藏。目标视频不在网格重复。
+- [x] 七档宽度 375–1440、浅色/暗色、分类、标签、详情相关推荐实测无横向溢出。图片标签 `/tags/haibian` 仍为 `xt-term`。
+
+## 视频双推荐机制（首页 + 分类栏目）
+
+2026-11-05。报告是 `docs/XEDC_VIDEO_DUAL_RECOMMEND_REPORT.md`。截图在 `docs/tasks/screenshots/xedc-video-dual-recommend/`。没有提交 Git，没有推送，没有改 `config/sync`。
+
+- [x] 复用图片 `field_slideshow`（首页推荐）与 `field_featured`（分类栏目推荐）storage，经 `xedc_core_update_10020` 挂到 video；两旗独立保存，默认 0。
+- [x] 后台创建/编辑表单「推荐设置」可见「设为首页推荐」「设为当前分类栏目推荐」。浏览器可分别勾选、回显、互不影响。
+- [x] 站点首页与 `/video` 读首页旗；分类页读分类旗 + 当前分类。草稿不公开。列表 SQL 去重，分页条数正常。
+- [x] 热门按播放量、最新按时间，与推荐逻辑独立。缓存 tag：`xedc_video_home_recommend` / `xedc_video_category_recommend:{tid}` / hot 15 分钟 TTL。
+- [x] 会员看不到推荐项；field access forbidden + presave 锁定防构造写入。图片轮播回归仍见 slides。浏览器 27 PASS / 0 FAIL。

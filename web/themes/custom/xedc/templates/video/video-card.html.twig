@@ -15,13 +15,14 @@
     <h2 class="vcard__title">{{ card.title }}</h2>
   {% endif %}
 </a>
-<p class="vcard__meta">
+<div class="vcard__foot">
   {% include '@xedc/templates/video/video-member.html.twig' with {
     name: card.author,
     url: card.author_url,
     avatar: card.author_avatar
   } only %}
-  {% if card.category %}<span>{{ card.category }}</span>{% endif %}
-  <span>{{ '@count 次播放'|t({'@count': card.views|default(0)}) }}</span>
-  {% if card.date %}<span>{{ card.date }}</span>{% endif %}
-</p>
+  <p class="vcard__stats">
+    <span>{{ '@count 次播放'|t({'@count': card.views|default(0)}) }}</span>
+    {% if card.date %}<span>{{ card.date }}</span>{% endif %}
+  </p>
+</div>

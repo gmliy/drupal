@@ -22,10 +22,14 @@ final class ChatResponse {
     public readonly bool $retryable,
     public readonly bool $fallbackEligible,
     public readonly string $finishReason = '',
+    public readonly bool $usageReported = FALSE,
+    public readonly int $cacheReadTokens = 0,
+    public readonly int $httpStatus = 0,
+    public readonly bool $usedReasoning = FALSE,
   ) {}
 
-  public static function failure(string $providerId, string $modelName, string $code, string $message, int $durationMs, bool $retryable, bool $fallbackEligible, int $promptTokens = 0, int $completionTokens = 0, string $finishReason = ''): self {
-    return new self(FALSE, '', $promptTokens, $completionTokens, $durationMs, $providerId, $modelName, $code, Redactor::text($message), $retryable, $fallbackEligible, $finishReason);
+  public static function failure(string $providerId, string $modelName, string $code, string $message, int $durationMs, bool $retryable, bool $fallbackEligible, int $promptTokens = 0, int $completionTokens = 0, string $finishReason = '', bool $usageReported = FALSE, int $cacheReadTokens = 0, int $httpStatus = 0): self {
+    return new self(FALSE, '', $promptTokens, $completionTokens, $durationMs, $providerId, $modelName, $code, Redactor::text($message), $retryable, $fallbackEligible, $finishReason, $usageReported, $cacheReadTokens, $httpStatus, FALSE);
   }
 
 }

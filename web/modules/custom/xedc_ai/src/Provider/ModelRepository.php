@@ -60,6 +60,7 @@ final class ModelRepository {
       'enabled' => (int) (!empty($values['enabled'])),
       'input_price' => trim((string) ($values['input_price'] ?? '')),
       'output_price' => trim((string) ($values['output_price'] ?? '')),
+      'cache_price' => trim((string) ($values['cache_price'] ?? '')),
       'currency' => 'CNY',
       'changed' => $now,
     ];
@@ -69,6 +70,9 @@ final class ModelRepository {
         $capabilities = implode(',', array_keys(array_filter($capabilities)));
       }
       $fields['capabilities'] = substr((string) $capabilities, 0, 255);
+    }
+    if (!$this->database->schema()->fieldExists('xedc_ai_model', 'cache_price')) {
+      unset($fields['cache_price']);
     }
     $id = (int) ($values['id'] ?? 0);
     if ($id > 0 && $this->load($id) !== NULL) {
@@ -140,6 +144,7 @@ final class ModelRepository {
       trim((string) $row['input_price']),
       trim((string) $row['output_price']),
       (int) $provider['enabled'] === 1 && (int) $row['enabled'] === 1,
+      trim((string) ($row['cache_price'] ?? '')),
     );
   }
 

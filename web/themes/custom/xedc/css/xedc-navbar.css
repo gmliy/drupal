@@ -47,6 +47,7 @@
 .xn-search input,.xn-msearch input{width:100%;height:38px;padding:0 12px 0 34px;border:1px solid var(--xn-border);border-radius:8px;background:transparent;color:var(--xn-fg);font-size:14px;outline:0;-webkit-appearance:none;appearance:none;transition:box-shadow .15s,border-color .15s}
 .xn-search input::placeholder,.xn-msearch input::placeholder{color:var(--xn-muted)}
 .xn-search input:focus,.xn-msearch input:focus{border-color:var(--xn-fg);background:var(--xn-bg);background-color:var(--xn-bg)!important;box-shadow:none;outline:none}
+@media (max-width:767px){.xn-search input,.xn-msearch input{font-size:16px}}
 .xn-msearch{display:none;padding:0 20px 12px}
 .xn-msearch svg{left:30px;top:11px}
 .xn-msearch input{font-size:16px}

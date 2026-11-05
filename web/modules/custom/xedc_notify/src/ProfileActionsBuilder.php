@@ -34,7 +34,7 @@ final class ProfileActionsBuilder implements TrustedCallbackInterface {
       return ['#markup' => ''];
     }
 
-    // Anonymous visitors get a login destination, not a 404.
+    // Anonymous visitors get a login destination, not a 404 / broken PM link.
     if (!$this->currentUser->isAuthenticated()) {
       $destination = \Drupal::request()->getRequestUri();
       $loginUrl = Url::fromRoute('user.login', [], [
@@ -45,6 +45,7 @@ final class ProfileActionsBuilder implements TrustedCallbackInterface {
         '#follow_url' => '',
         '#following' => FALSE,
         '#message_url' => $loginUrl,
+        '#message_guest' => TRUE,
         '#cache' => [
           'contexts' => ['user.roles:authenticated'],
           'max-age' => 0,
@@ -58,6 +59,7 @@ final class ProfileActionsBuilder implements TrustedCallbackInterface {
     ])->toString();
     $messageUrl = '';
     if ($this->currentUser->hasPermission('access send xedc messages')) {
+      // Recipient is always the profile owner ($target), never the viewer.
       $messageUrl = Url::fromRoute('xedc_notify.message_start', ['user' => $target])->toString();
     }
     return [
@@ -65,7 +67,9 @@ final class ProfileActionsBuilder implements TrustedCallbackInterface {
       '#follow_url' => $followUrl,
       '#following' => $following,
       '#message_url' => $messageUrl,
+      '#message_guest' => FALSE,
       '#cache' => [
+        'contexts' => ['user'],
         'max-age' => 0,
       ],
     ];

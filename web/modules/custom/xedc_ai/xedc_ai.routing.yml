@@ -39,6 +39,38 @@ xedc_ai.seo:
   options:
     _admin_route: TRUE
 
+xedc_ai.seo_lookup:
+  path: '/admin/xedc/ai/seo/lookup'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\SeoController::lookup'
+    _title: '识别内容'
+  requirements:
+    _permission: 'view xedc ai reviews'
+  options:
+    _admin_route: TRUE
+
+xedc_ai.seo_status:
+  path: '/admin/xedc/ai/seo/status/{review}'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\SeoController::status'
+    _title: 'SEO 任务状态'
+  requirements:
+    _permission: 'view xedc ai reviews'
+    review: \d+
+  options:
+    _admin_route: TRUE
+
+xedc_ai.seo_detail:
+  path: '/admin/xedc/ai/seo/{review}'
+  defaults:
+    _controller: '\Drupal\xedc_ai\Controller\SeoController::detail'
+    _title: 'SEO 分析详情'
+  requirements:
+    _permission: 'view xedc ai reviews'
+    review: \d+
+  options:
+    _admin_route: TRUE
+
 xedc_ai.models:
   path: '/admin/xedc/ai/models'
   defaults:

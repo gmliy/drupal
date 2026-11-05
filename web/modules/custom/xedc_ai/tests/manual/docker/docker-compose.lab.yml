@@ -1,0 +1,12 @@
+# Isolated MariaDB for SEO schema and write tests. It does not use the production database.
+services:
+  lab-db:
+    image: mariadb:lts
+    environment:
+      MARIADB_ROOT_PASSWORD: xedc_lab
+      MARIADB_DATABASE: drupal
+      MARIADB_USER: drupal
+      MARIADB_PASSWORD: xedc_lab
+    ports:
+      - "127.0.0.1:3307:3306"
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]

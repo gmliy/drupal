@@ -155,9 +155,12 @@ function xedc_member_theme($existing, $type, $theme, $path) {
     'xedc_public_profile' => [
       'variables' => [
         'name' => '',
+        'username' => '',
+        'slug' => '',
         'bio' => '',
         'joined' => '',
         'avatar' => '',
+        'works_total' => 0,
         'stats' => [],
         'filters' => [],
         'sorts' => [],
@@ -289,6 +292,11 @@ function xedc_member_form_node_form_alter(array &$form, FormStateInterface $form
   }
   $form['#after_build'][] = 'xedc_member_submission_moderation_default';
   $form['#attached']['library'][] = 'xedc_member/member';
+
+  $request = \Drupal::requestStack()->getCurrentRequest();
+  if ($request && $request->query->get('xedc_import_save') === '1' && $node->bundle() === 'photo') {
+    \Drupal::messenger()->addStatus(t('图片已导入完成。请确认标题、描述、栏目和标签，然后保存草稿或提交审核。不会直接公开发布。'));
+  }
 }
 
 /**
@@ -311,6 +319,22 @@ function xedc_member_preprocess_xedc_member_node_form(array &$variables): void {
     'article' => t('投稿文章'),
   ];
   $variables['xm_title'] = $titles[$bundle] ?? t('内容投稿');
+  $variables['xm_upload_mode'] = '';
+  $variables['xm_upload_hint'] = '';
+  if ($bundle === 'photo') {
+    $mode = function_exists('xedc_core_member_photo_upload_mode')
+      ? xedc_core_member_photo_upload_mode()
+      : 'image';
+    $variables['xm_upload_mode'] = $mode;
+    if ($mode === 'archive') {
+      $variables['xm_title'] = t('压缩包投稿');
+      $variables['xm_upload_hint'] = t('填写标题后上传 ZIP / 7z。处理完成后可预览图片集并保存或提交审核。');
+    }
+    else {
+      $variables['xm_title'] = t('图片投稿');
+      $variables['xm_upload_hint'] = t('可用媒体库或批量上传添加图片。一张按普通图片处理；多张组成同一个图片集。压缩包请走「压缩包投稿」。');
+    }
+  }
   $variables['xm_back_url'] = Url::fromRoute('xedc_member.submissions')->toString();
   $main = match ($bundle) {
     'article' => ['title', 'field_cover', 'field_summary', 'field_body', 'field_categories', 'field_tags', 'field_author', 'field_source', 'field_source_url', 'moderation_state', 'actions'],
@@ -990,6 +1014,34 @@ function xedc_member_preprocess_node(array &$variables) {
   ];
   $variables['#attached']['library'][] = 'xedc_member/member';
   $variables['#cache']['tags'][] = 'node:' . $node->id();
+}
+
+/**
+ * Implements hook_views_pre_view().
+ *
+ * Media Library widget must return enough tiles per page (≥16, prefer 20).
+ * Raises items_per_page when a display is configured below the floor; leaves
+ * larger values (e.g. default 24) unchanged.
+ */
+function xedc_member_views_pre_view(ViewExecutable $view, string $display_id, array &$args): void {
+  if ($view->id() !== 'media_library') {
+    return;
+  }
+  if (!in_array($display_id, ['widget', 'widget_table', 'default'], TRUE)) {
+    return;
+  }
+  if (!isset($view->display_handler)) {
+    return;
+  }
+  $pager = $view->display_handler->getOption('pager');
+  if (!is_array($pager)) {
+    return;
+  }
+  $items = (int) ($pager['options']['items_per_page'] ?? 0);
+  if ($items > 0 && $items < 20) {
+    $pager['options']['items_per_page'] = 20;
+    $view->display_handler->setOption('pager', $pager);
+  }
 }
 
 /**

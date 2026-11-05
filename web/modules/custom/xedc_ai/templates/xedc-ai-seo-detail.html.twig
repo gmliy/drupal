@@ -1,0 +1,244 @@
+<div class="xedc-ai">
+  <header class="xedc-ai-head">
+    <div>
+      <p class="xedc-ai-kicker">SEO 运营</p>
+      <h2 class="xedc-ai-title">{{ review.title }}</h2>
+    </div>
+    <a class="xedc-ai-button" href="{{ path('xedc_ai.seo') }}">返回列表</a>
+  </header>
+  <section class="xedc-ai-panel xedc-ai-basic">
+    <h3>内容基本信息</h3>
+    <dl class="xedc-ai-facts">
+      <div><dt>内容类型</dt><dd>{{ review.bundle }}</dd></div>
+      <div><dt>内容 ID</dt><dd>{{ review.entity_id }}</dd></div>
+      <div><dt>分析修订</dt><dd>{{ review.revision_id }}</dd></div>
+      <div><dt>当前修订</dt><dd>{{ review.current_revision }}</dd></div>
+      <div><dt>发布</dt><dd>{{ review.publish_time ?: '暂无' }}</dd></div>
+      <div><dt>状态</dt><dd><span class="xedc-ai-status is-{{ review.publish_key }}">{{ review.publish_label ?: '未能读取' }}</span></dd></div>
+      <div><dt>工作流</dt><dd>{{ review.workflow_label ?: '未能读取' }}</dd></div>
+      <div><dt>工作流状态</dt><dd><span class="xedc-ai-status is-{{ review.moderation_key }}">{{ review.moderation_label ?: '未能读取' }}</span></dd></div>
+      {% if review.analyzed_moderation %}
+        <div><dt>分析修订审核状态</dt><dd>{{ review.analyzed_moderation }}</dd></div>
+      {% endif %}
+    </dl>
+    {% if review.version_message %}<p class="xedc-ai-note xedc-ai-version-warn">{{ review.version_message }}</p>{% endif %}
+    {% if review.node_url %}<p class="xedc-ai-links"><a href="{{ review.node_url }}">查看内容</a></p>{% endif %}
+  </section>
+  <section class="xedc-ai-panel xedc-ai-evidence">
+    <h3>本次分析依据</h3>
+    <div class="xedc-ai-meta">
+      <span>语言 {{ review.langcode }}</span>
+      <span>时间 {{ review.time }}</span>
+      <span>模型 {{ review.model ?: '未记录' }}</span>
+    </div>
+    {% if review.evidence and review.evidence.rows %}
+      <div class="xedc-ai-table-wrap">
+        <table class="xedc-ai-table">
+          <thead><tr><th>项目</th><th>读取结果</th><th>内容</th></tr></thead>
+          <tbody>
+          {% for row in review.evidence.rows %}
+            <tr>
+              <td>{{ row.label }}</td>
+              <td>{{ row.status }}</td>
+              <td>{{ row.value }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="xedc-ai-detail">传给模型的文字：{{ review.evidence.model_reads|join('、') }}。本地评分使用：{{ review.evidence.score_reads|join('、') }}。没有发送：{{ review.evidence.not_sent|join('、') }}。</p>
+    {% else %}
+      <p>这次分析没有保存读取快照，不能把当前内容当成当时的依据。</p>
+    {% endif %}
+  </section>
+  <div class="xedc-ai-cards">
+    <article class="xedc-ai-card"><h3>SEO 参考评分</h3><p class="xedc-ai-value">{{ review.score }}</p><p class="xedc-ai-detail">由字段规则计算，不采用模型自报分数。</p></article>
+    <article class="xedc-ai-card"><h3>Token</h3><p class="xedc-ai-value xedc-ai-value-small">{{ review.token_label }}</p></article>
+    <article class="xedc-ai-card"><h3>费用</h3><p class="xedc-ai-value xedc-ai-value-small">{{ review.cost_label }}</p></article>
+  </div>
+  <section class="xedc-ai-panel">
+    <h3>SEO 分析摘要</h3>
+    {% if review.phase == 'pending' %}
+      <p>等待分析，模型尚未调用。</p>
+    {% elseif review.phase == 'failed' %}
+      <p>{{ review.summary ?: '分析失败，没有可用摘要。' }}</p>
+      {% if review.error %}<p class="xedc-ai-error">{{ review.error_label }}{% if review.error != review.error_label %}：{{ review.error }}{% endif %}</p>{% endif %}
+    {% else %}
+      <p>{{ review.summary }}</p>
+    {% endif %}
+    {% if review.quality %}<p class="xedc-ai-detail">内容质量：{{ review.quality }}</p>{% endif %}
+  </section>
+  <section class="xedc-ai-panel">
+    <h3>发现的问题</h3>
+    {% if review.issues %}
+      <ul>
+        {% for item in review.issues %}
+          <li>{{ item.severity_label }}{% if item.field_label %} · {{ item.field_label }}{% endif %} · {{ item.message }}</li>
+        {% endfor %}
+      </ul>
+    {% elseif review.phase == 'pending' %}
+      <p class="xedc-ai-empty">等待分析。</p>
+    {% elseif review.phase == 'failed' %}
+      <p class="xedc-ai-empty">分析失败，没有生成问题列表。</p>
+    {% else %}
+      <p class="xedc-ai-empty">没有列出问题。</p>
+    {% endif %}
+  </section>
+  <section class="xedc-ai-panel" data-xedc-alt>
+    <h3>图片 ALT</h3>
+    <p class="xedc-ai-detail">本地检查 · 0 Token。这里只根据已保存的文字、文件名和序号生成候选，不会识别画面，也不会把图片发给模型。</p>
+    {% if review.alt.stored %}
+      <p class="xedc-ai-detail">这是分析当时保存的检查结果。</p>
+    {% else %}
+      <p class="xedc-ai-detail">这次分析没有保存 ALT 检查。下面是按当前内容当场计算的，不能当成当时模型看到的内容。</p>
+    {% endif %}
+    <div class="xedc-ai-meta">
+      <span>图片 {{ review.alt.total|default(0) }}</span>
+      <span>有效 {{ review.alt.valid|default(0) }}</span>
+      <span>缺失 {{ review.alt.missing|default(0) }}</span>
+      <span>异常 {{ review.alt.abnormal|default(0) }}</span>
+      <span>重复 {{ review.alt.duplicate|default(0) }}</span>
+      <span>候选 {{ review.alt.candidates|default(0) }}</span>
+    </div>
+    <div class="xedc-ai-filters">
+      <button type="button" data-xedc-alt-filter="all">全部</button>
+      <button type="button" data-xedc-alt-filter="missing">只看缺失</button>
+      <button type="button" data-xedc-alt-filter="placeholder">只看异常</button>
+    </div>
+    {% if review.alt.rows %}
+      <div class="xedc-ai-table-wrap">
+        <table class="xedc-ai-table">
+          <thead><tr><th>图片</th><th>文件名</th><th>当前 ALT</th><th>结果</th><th>建议 ALT</th><th>位置</th></tr></thead>
+          <tbody>
+          {% for image in review.alt.rows %}
+            <tr data-xedc-alt-row data-xedc-alt-status="{{ image.status }}">
+              <td><span class="xedc-ai-thumb" aria-hidden="true">{{ image.label|slice(0, 1) }}</span>{{ image.label }}</td>
+              <td>{{ image.filename }}</td>
+              <td>{{ image.alt }}</td>
+              <td><span class="xedc-ai-status is-{{ image.status }}">{{ image.status_label }}</span></td>
+              <td>{{ image.candidate }}</td>
+              <td>{{ image.field_label }}{% if image.shared %} · 另有 {{ image.shared }} 处引用{% endif %}<br><span class="xedc-ai-detail">{{ image.reason }}</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="xedc-ai-empty">这个内容没有读到图片。</p>
+    {% endif %}
+  </section>
+  <section class="xedc-ai-panel">
+    <h3>建议对比</h3>
+    <p class="xedc-ai-detail" data-xedc-suggest-stats>
+      <span class="xedc-ai-status is-{{ review.ops_key }}">{{ review.ops }}</span>
+      待确认 {{ review.counts.pending }}
+      · 已采纳 {{ review.counts.adopted }}
+      · 已忽略 {{ review.counts.rejected }}
+      · 采纳失败 {{ review.counts.failed }}
+      · 版本冲突 {{ review.counts.conflict }}
+    </p>
+    <p class="xedc-ai-detail">当前 SEO 标题：{{ review.meta_title }}。{{ review.meta_title_source }}</p>
+    <p class="xedc-ai-detail">当前页面描述：{{ review.meta_description }}。{{ review.meta_description_source }}</p>
+    {% if review.suggested_title %}<p>建议标题：{{ review.suggested_title }}</p>{% endif %}
+    {% if review.suggested_description %}<p>建议页面描述：{{ review.suggested_description }}</p>{% endif %}
+    {% if review.items %}
+      <div class="xedc-ai-table-wrap">
+        <table class="xedc-ai-table">
+          <thead><tr><th>项目</th><th>当前值</th><th>AI 建议值</th><th>原因</th><th>优先级</th><th>适用</th><th>采纳</th></tr></thead>
+          <tbody>
+          {% for item in review.items %}
+            <tr>
+              <td>{{ item.label }}</td>
+              <td>{{ item.current }}</td>
+              <td>
+                {% if item.tag_names %}
+                  {% for name in item.tag_names %}<span class="xedc-ai-tag">{{ name }}</span>{% endfor %}
+                {% else %}{{ item.suggested }}{% endif %}
+              </td>
+              <td>{{ item.reason }}</td>
+              <td>{{ item.priority_label }}</td>
+              <td>{% if item.applicable %}适用{% else %}不适用{% if item.applicable_note %}：{{ item.applicable_note }}{% endif %}{% endif %}</td>
+              <td>{{ item.state_label ?: '待确认' }}{% if item.acted_time %} · {{ item.acted_time }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="xedc-ai-empty">{% if review.phase == 'pending' %}等待分析。{% elseif review.phase == 'failed' %}分析失败，没有生成建议。{% else %}没有结构化建议。{% endif %}</p>
+    {% endif %}
+  </section>
+  {% if review.keywords or review.links %}
+    <section class="xedc-ai-panel">
+      <h3>仅供参考</h3>
+      {% if review.keywords %}<p>关键词建议：{{ review.keywords|join('、') }}。站点没有关键词字段，这里不会写入。</p>{% endif %}
+      {% if review.links %}
+        <ul>
+          {% for link in review.links %}
+            <li>{{ link.anchor }} {% if link.target %}→ {{ link.target }}{% endif %} {{ link.reason }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+  {% endif %}
+  <section class="xedc-ai-panel">
+    <h3>模型调用</h3>
+    <p>模型 {{ review.model ?: '未记录' }} · {{ review.time }}{% if review.finish_reason %} · 结束原因 {{ review.finish_reason }}{% endif %}</p>
+    {% if review.calls %}
+      <div class="xedc-ai-table-wrap">
+        <table class="xedc-ai-table">
+          <thead><tr><th>调用</th><th>模型</th><th>状态</th><th>响应码</th><th>结束原因</th><th>重试</th><th>输入</th><th>输出</th><th>缓存</th><th>费用</th></tr></thead>
+          <tbody>
+          {% for call in review.calls %}
+            <tr>
+              <td>#{{ call.id }}</td>
+              <td>{{ call.model }}</td>
+              <td>{{ call.status_label }}</td>
+              <td>{{ call.http_status ?: '—' }}</td>
+              <td>{{ call.finish_label ?: '—' }}</td>
+              <td>{{ call.retry_index }}</td>
+              <td>{{ call.prompt is null ? '未返回' : call.prompt }}</td>
+              <td>{{ call.completion is null ? '未返回' : call.completion }}</td>
+              <td>{{ call.cache is null ? '未返回' : call.cache }}</td>
+              <td>{{ call.cost_label }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="xedc-ai-empty">{{ review.token_label }}</p>
+    {% endif %}
+  </section>
+  <section class="xedc-ai-panel">
+    <h3>历史分析</h3>
+    {% if review.history %}
+      <ul class="xedc-ai-list">
+        {% for item in review.history %}
+          <li><a href="{{ item.url }}">查看这次分析</a><span>评分 {{ item.score }} · {{ item.time }}</span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="xedc-ai-empty">没有更早的 SEO 分析。</p>
+    {% endif %}
+  </section>
+  <section class="xedc-ai-panel">
+    <h3>操作记录</h3>
+    {% if review.logs %}
+      <ul class="xedc-ai-list">
+        {% for log in review.logs %}
+          <li><span>{{ log.time }} · {{ log.action }}</span><p>{{ log.message }}</p>{% if log.before %}<p class="xedc-ai-detail">前：{{ log.before }}</p><p class="xedc-ai-detail">后：{{ log.after }}</p>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="xedc-ai-empty">还没有写入或拒绝记录。</p>
+    {% endif %}
+  </section>
+  {% if apply %}
+    <section class="xedc-ai-panel">
+      <h3>人工确认</h3>
+      <p class="xedc-ai-detail">可以只采纳一部分。保存后保留修订，并维持原来的发布状态和审核状态。</p>
+      {{ apply }}
+    </section>
+  {% endif %}
+</div>

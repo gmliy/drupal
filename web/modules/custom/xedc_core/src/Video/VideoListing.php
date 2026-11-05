@@ -37,6 +37,16 @@ final class VideoListing {
         ':xedc_video_keys' => $like,
       ]);
     }
+    // Keep recommendation regions and the ordinary list from repeating the
+    // same card. Exclusion is done in SQL so pager page size stays stable.
+    if ($keys === '') {
+      if ($view->id() === 'video_list') {
+        $this->excludeFlagged($query, 'node__field_slideshow', 'field_slideshow_value');
+      }
+      elseif ($view->id() === 'taxonomy_term') {
+        $this->excludeFlagged($query, 'node__field_featured', 'field_featured_value');
+      }
+    }
     if ($request->query->get('sort') !== 'hot' || !$this->database->schema()->tableExists('node_counter')) {
       return;
     }
@@ -52,8 +62,44 @@ final class VideoListing {
       $query->addRelationship('xedc_video_counter', $join, 'node_field_data');
     }
     $query->orderby = [];
-    $query->addOrderBy('xedc_video_counter', 'totalcount', 'DESC');
+    $query->addOrderBy(NULL, 'COALESCE(xedc_video_counter.totalcount, 0)', 'DESC', 'xedc_video_hot');
     $query->addOrderBy('node_field_data', 'created', 'DESC');
+  }
+
+  /**
+   * Drops rows whose recommendation flag is enabled (value = 1).
+   */
+  private function excludeFlagged(Sql $query, string $table, string $column): void {
+    if (!$this->database->schema()->tableExists($table)) {
+      return;
+    }
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $table) || !preg_match('/^[A-Za-z0-9_]+$/', $column)) {
+      return;
+    }
+    $alias = 'xedc_excl_' . substr(hash('sha256', $table), 0, 8);
+    if (!isset($query->relationships[$alias])) {
+      $join = \Drupal::service('plugin.manager.views.join')->createInstance('standard', [
+        'type' => 'LEFT',
+        'table' => $table,
+        'field' => 'entity_id',
+        'left_table' => 'node_field_data',
+        'left_field' => 'nid',
+        'operator' => '=',
+        'extra' => [
+          [
+            'field' => 'deleted',
+            'value' => 0,
+            'numeric' => TRUE,
+          ],
+          [
+            'field' => 'langcode',
+            'left_field' => 'langcode',
+          ],
+        ],
+      ]);
+      $query->addRelationship($alias, $join, 'node_field_data');
+    }
+    $query->addWhereExpression(0, 'COALESCE(' . $alias . '.' . $column . ', 0) = 0');
   }
 
   /**

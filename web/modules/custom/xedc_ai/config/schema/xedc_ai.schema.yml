@@ -77,6 +77,39 @@ xedc_ai.settings:
     retention_days:
       type: integer
       label: 'Days to keep reviews and usage'
+    seo_schedule_enabled:
+      type: boolean
+      label: 'Enable scheduled SEO checks'
+    seo_schedule_daily_new:
+      type: boolean
+      label: 'Daily check of newly published content'
+    seo_schedule_weekly:
+      type: boolean
+      label: 'Weekly check'
+    seo_schedule_changed:
+      type: boolean
+      label: 'Check changed content'
+    seo_schedule_stale:
+      type: boolean
+      label: 'Recheck stale analyses'
+    seo_schedule_stale_days:
+      type: integer
+      label: 'Days before an analysis is stale'
+    seo_schedule_limit:
+      type: integer
+      label: 'Maximum queued items per run'
+    seo_schedule_photo:
+      type: boolean
+      label: 'Schedule photos'
+    seo_schedule_video:
+      type: boolean
+      label: 'Schedule videos'
+    seo_schedule_article:
+      type: boolean
+      label: 'Schedule articles'
+    seo_schedule_page:
+      type: boolean
+      label: 'Schedule pages'
 
 xedc_ai.rules:
   type: config_object

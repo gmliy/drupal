@@ -1,11 +1,12 @@
 global:
+  version: 1.1
   css:
     theme:
       css/base.css: {}
       css/layout.css: {}
       css/components.css: {}
       css/content.css: {}
-      css/forms.css: {}
+      css/forms.css: { weight: 20 }
       css/node-form.css: {}
       css/responsive.css: {}
       css/admin-ui.css: {}
@@ -20,9 +21,19 @@ global:
     - core/once
 
 dialog:
+  version: 1.9
   css:
     theme:
-      css/dialog.css: {}
+      css/dialog.css: { weight: 50 }
+  js:
+    js/dialog-media.js: {}
+  dependencies:
+    # Do NOT depend on core/drupal.dialog here: libraries-extend already
+    # attaches this library to that one, and a reverse dep loops until OOM.
+    - core/drupal
+    - core/once
+    - core/jquery
+    - core/drupalSettings
 
 editor:
   css:

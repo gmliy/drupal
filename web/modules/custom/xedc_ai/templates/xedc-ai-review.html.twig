@@ -20,15 +20,21 @@
     <span class="xedc-ai-risk is-{{ review.risk_key }}">{{ review.risk }}</span>
   </div>
   <div class="xedc-ai-cards">
-    <article class="xedc-ai-card"><h3>评分</h3><p class="xedc-ai-value">{{ review.score }}</p><p class="xedc-ai-detail">Token {{ review.tokens }} · {{ review.cost }} 元</p></article>
+    <article class="xedc-ai-card"><h3>评分</h3><p class="xedc-ai-value">{{ review.score }}</p><p class="xedc-ai-detail">{{ review.tokens }} · {{ review.cost }}</p></article>
     <article class="xedc-ai-card"><h3>SEO 参考分</h3><p class="xedc-ai-value">{{ review.seo_score }}</p></article>
-    <article class="xedc-ai-card"><h3>工作流</h3><p class="xedc-ai-value xedc-ai-value-small">{{ review.moderation }}</p><p class="xedc-ai-detail">{{ review.workflow ?: '内容类型没有启用审核流' }}</p></article>
+    <article class="xedc-ai-card"><h3>审核状态</h3><p class="xedc-ai-value xedc-ai-value-small">{{ review.moderation }}</p></article>
     <article class="xedc-ai-card"><h3>人工处理</h3><p class="xedc-ai-value xedc-ai-value-small">{{ review.handled }}</p><p class="xedc-ai-detail">{{ review.handler }}</p></article>
   </div>
   <section class="xedc-ai-panel">
     <h3>摘要</h3>
-    <p>{{ review.summary ?: '没有摘要。' }}</p>
-    {% if review.error %}<p class="xedc-ai-error">{{ review.error_code }}：{{ review.error }}</p>{% endif %}
+    {% if review.phase == 'pending' %}
+      <p>等待分析，模型尚未调用。空摘要不代表分析成功。</p>
+    {% elseif review.phase == 'failed' %}
+      <p>{{ review.summary ?: '分析失败，没有可用摘要。' }}</p>
+    {% else %}
+      <p>{{ review.summary ?: '没有摘要。' }}</p>
+    {% endif %}
+    {% if review.error %}<p class="xedc-ai-error">{{ review.error_label }}{% if review.error != review.error_label %}：{{ review.error }}{% endif %}</p>{% endif %}
   </section>
   <section class="xedc-ai-split">
     <div class="xedc-ai-panel">
@@ -39,11 +45,11 @@
             <li>{% if item.field %}{{ item.field }} · {% endif %}{{ item.message }}{% if item.suggestion %}（{{ item.suggestion }}）{% endif %}</li>
           {% endfor %}
         </ul>
-      {% else %}<p class="xedc-ai-empty">没有列出问题。</p>{% endif %}
+      {% elseif review.phase == 'pending' %}<p class="xedc-ai-empty">等待分析，尚未列出问题。</p>{% else %}<p class="xedc-ai-empty">没有列出问题。</p>{% endif %}
     </div>
     <div class="xedc-ai-panel">
       <h3>建议</h3>
-      {% if review.suggestions %}<ul>{% for item in review.suggestions %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="xedc-ai-empty">没有修改建议。</p>{% endif %}
+      {% if review.suggestions %}<ul>{% for item in review.suggestions %}<li>{{ item }}</li>{% endfor %}</ul>{% elseif review.phase == 'pending' %}<p class="xedc-ai-empty">等待分析，尚未生成修改建议。</p>{% else %}<p class="xedc-ai-empty">没有修改建议。</p>{% endif %}
     </div>
   </section>
   {% if review.seo_title or review.meta_description %}

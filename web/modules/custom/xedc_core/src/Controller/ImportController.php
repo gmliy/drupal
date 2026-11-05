@@ -43,13 +43,38 @@ class ImportController extends ControllerBase {
       throw new NotFoundHttpException();
     }
     $node = $this->entityTypeManager()->getStorage('node')->load($row->nid);
+    $account = $this->currentUser();
+    $isStaff = $account->hasPermission('administer xedc image imports')
+      || $account->hasPermission('publish xedc image imports');
     $build = [
       '#type' => 'container',
-      '#attributes' => ['class' => ['xedc-import']],
+      '#attributes' => [
+        'class' => [
+          'xedc-import',
+          $isStaff ? 'xedc-import--staff' : 'xedc-import--member',
+        ],
+      ],
       '#attached' => ['library' => ['xedc_core/admin']],
-      '#cache' => ['max-age' => 0],
+      '#cache' => [
+        'max-age' => 0,
+        'contexts' => ['user.permissions', 'user'],
+      ],
     ];
-    $build['back'] = Link::fromTextAndUrl($this->t('返回列表'), Url::fromRoute('xedc_core.import_list'))->toRenderable();
+    $build['back'] = Link::fromTextAndUrl(
+      $isStaff ? $this->t('返回列表') : $this->t('返回我的投稿'),
+      $isStaff
+        ? Url::fromRoute('xedc_core.import_list')
+        : Url::fromRoute('xedc_member.submissions')
+    )->toRenderable();
+    if (!$isStaff && (string) $row->status === ImportStatus::REVIEW && $node instanceof NodeInterface) {
+      $build['member_help'] = [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['xedc-import__member-help', 'messages', 'messages--status']],
+        'text' => [
+          '#markup' => '<p>' . $this->t('图片已处理完成。请点击「保存」，确认标题、描述、栏目和标签后保存草稿或提交审核。这不会直接公开发布。') . '</p>',
+        ],
+      ];
+    }
     $build['summary'] = [
       '#theme' => 'item_list',
       '#items' => $this->summary($row, $node instanceof NodeInterface ? $node : NULL),
@@ -61,12 +86,15 @@ class ImportController extends ControllerBase {
       '#type' => 'container',
       '#attributes' => ['class' => ['xedc-import__actions']],
     ];
-    foreach ($this->actionLinks($row, $node instanceof NodeInterface ? $node : NULL) as $link) {
+    foreach ($this->actionLinks($row, $node instanceof NodeInterface ? $node : NULL, $isStaff) as $link) {
       $build['actions'][] = $link;
     }
     $build['preview'] = [
       '#type' => 'container',
-      '#attributes' => ['class' => ['xedc-import-grid']],
+      '#attributes' => [
+        'class' => ['xedc-import-grid', 'xedc-import-grid--preview'],
+        'aria-label' => (string) $this->t('图片预览'),
+      ],
     ];
     $shown = 0;
     foreach ($this->tasks->items((int) $row->id) as $item) {
@@ -76,19 +104,27 @@ class ImportController extends ControllerBase {
       $build['preview'][] = $this->preview($item);
       $shown++;
     }
-    $logs = [];
-    foreach ($this->tasks->logs((int) $row->id) as $log) {
-      $logs[] = date('Y-m-d H:i:s', (int) $log->created) . ' [' . $log->level . '] ' . $log->message;
+    if ($shown === 0) {
+      $build['preview']['empty'] = [
+        '#markup' => '<p class="xedc-import-grid__empty">' . $this->t('还没有可预览的图片。') . '</p>',
+      ];
     }
-    $build['logs'] = [
-      '#type' => 'details',
-      '#title' => $this->t('处理日志'),
-      '#open' => TRUE,
-      'list' => [
-        '#theme' => 'item_list',
-        '#items' => $logs ?: [$this->t('暂无日志')],
-      ],
-    ];
+    // Worker / internal logs stay staff-only.
+    if ($isStaff) {
+      $logs = [];
+      foreach ($this->tasks->logs((int) $row->id) as $log) {
+        $logs[] = date('Y-m-d H:i:s', (int) $log->created) . ' [' . $log->level . '] ' . $log->message;
+      }
+      $build['logs'] = [
+        '#type' => 'details',
+        '#title' => $this->t('处理日志'),
+        '#open' => TRUE,
+        'list' => [
+          '#theme' => 'item_list',
+          '#items' => $logs ?: [$this->t('暂无日志')],
+        ],
+      ];
+    }
     if ($row->error) {
       $build['error'] = [
         '#type' => 'container',
@@ -170,8 +206,10 @@ class ImportController extends ControllerBase {
     $total = (int) $row->total;
     $processed = (int) $row->processed;
     $percent = $done ? 100 : ($total > 0 ? (int) floor($processed / $total * 100) : (int) $row->progress);
+    $memberSaved = $this->tasks->isMemberSaved($row);
     return new JsonResponse([
       'id' => (int) $row->id,
+      'nid' => (int) $row->nid,
       'status' => (string) $row->status,
       'stage' => (string) $row->stage,
       'phase' => $phase['id'],
@@ -193,6 +231,7 @@ class ImportController extends ControllerBase {
       'message' => (string) $row->message,
       'error' => (string) $row->error,
       'done' => $done,
+      'member_saved' => $memberSaved,
       'detail' => $this->progressDetail($row, $phase['label'], $percent, $metrics),
       'items' => $items,
     ]);
@@ -395,32 +434,54 @@ class ImportController extends ControllerBase {
   /**
    * Action links that still go through route access checks.
    *
+   * Members never get the staff publish route. They save the related node via
+   * the member submission form and the editorial workflow.
+   *
    * @return array<int, array<string, mixed>>
    *   Render arrays.
    */
-  private function actionLinks(object $row, ?NodeInterface $node): array {
+  private function actionLinks(object $row, ?NodeInterface $node, bool $isStaff): array {
     $id = (int) $row->id;
     $links = [];
     $add = function (string $route, string $title) use (&$links, $id): void {
       $links[] = Link::fromTextAndUrl($title, Url::fromRoute($route, ['task' => $id]))->toRenderable();
     };
-    if ((string) $row->status === ImportStatus::REVIEW) {
-      $add('xedc_core.import_publish', (string) $this->t('发布'));
+    $status = (string) $row->status;
+    if ($status === ImportStatus::REVIEW) {
+      if ($isStaff) {
+        $add('xedc_core.import_publish', (string) $this->t('发布'));
+      }
+      elseif ($node instanceof NodeInterface && $node->access('update')) {
+        $destination = Url::fromRoute('xedc_member.submissions')->toString();
+        $links[] = Link::fromTextAndUrl($this->t('保存'), $node->toUrl('edit-form', [
+          'query' => [
+            'destination' => $destination,
+            'xedc_import_save' => '1',
+            'xedc_task' => (string) $id,
+          ],
+        ]))->toRenderable();
+      }
     }
-    if (in_array((string) $row->status, [ImportStatus::FAILED, ImportStatus::PARTIAL, ImportStatus::CANCELLED], TRUE)) {
+    if (in_array($status, [ImportStatus::FAILED, ImportStatus::PARTIAL, ImportStatus::CANCELLED], TRUE)) {
       $add('xedc_core.import_retry', (string) $this->t('重试'));
     }
-    if (!in_array((string) $row->status, [ImportStatus::PUBLISHED, ImportStatus::CANCELLED], TRUE)) {
+    if (!in_array($status, [ImportStatus::PUBLISHED, ImportStatus::CANCELLED], TRUE)) {
       $add('xedc_core.import_cancel', (string) $this->t('取消'));
     }
-    $add('xedc_core.import_cleanup', (string) $this->t('清理临时文件'));
-    $add('xedc_core.import_reroll', (string) $this->t('重新随机封面'));
-    if ((string) $row->mode === 'replace' && (int) $row->replaced) {
-      $add('xedc_core.import_rollback', (string) $this->t('回滚替换'));
+    if ($isStaff) {
+      $add('xedc_core.import_cleanup', (string) $this->t('清理临时文件'));
+      $add('xedc_core.import_reroll', (string) $this->t('重新随机封面'));
+      if ((string) $row->mode === 'replace' && (int) $row->replaced) {
+        $add('xedc_core.import_rollback', (string) $this->t('回滚替换'));
+      }
     }
-    if ($node) {
-      $links[] = Link::fromTextAndUrl($this->t('编辑内容'), $node->toUrl('edit-form'))->toRenderable();
-      if ($node->isPublished()) {
+    if ($node instanceof NodeInterface) {
+      if ($isStaff || $status !== ImportStatus::REVIEW) {
+        if ($node->access('update')) {
+          $links[] = Link::fromTextAndUrl($this->t('编辑内容'), $node->toUrl('edit-form'))->toRenderable();
+        }
+      }
+      if ($node->isPublished() && $node->access('view')) {
         $links[] = Link::fromTextAndUrl($this->t('查看已发布内容'), $node->toUrl())->toRenderable();
       }
     }

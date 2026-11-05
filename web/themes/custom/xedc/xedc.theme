@@ -298,6 +298,7 @@ function xedc_preprocess_page(&$variables) {
     $variables['#attached']['library'][] = 'xedc/home-page';
     $variables['home_slides'] = [];
     $variables['home_categories'] = [];
+    $variables['home_videos_recommended'] = [];
     if (\Drupal::moduleHandler()->moduleExists('xedc_home')) {
       $cards = \Drupal::service('xedc_home.cards');
       $variables['home_slides'] = $cards->slideshow();
@@ -314,6 +315,25 @@ function xedc_preprocess_page(&$variables) {
       $variables['home_photos'] = _xedc_home_items('photo', 'field_cover_image', 5);
       $variables['home_videos'] = _xedc_home_items('video', 'field_video_cover', 8);
       $variables['home_articles'] = _xedc_home_items('article', 'field_cover', 6);
+    }
+    if (\Drupal::hasService('xedc_core.video_recommend') && \Drupal::hasService('xedc_core.video_cards')) {
+      $home_nids = \Drupal::service('xedc_core.video_recommend')->homeNids(8);
+      $built = \Drupal::service('xedc_core.video_cards')->build($home_nids);
+      $variables['home_videos_recommended'] = [];
+      foreach ($built['items'] as $item) {
+        $variables['home_videos_recommended'][] = [
+          'title' => $item['title'],
+          'url' => $item['url'],
+          'img' => $item['cover'],
+          'width' => $item['width'],
+          'height' => $item['height'],
+          'duration' => $item['duration'],
+        ];
+      }
+      $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags(
+        $variables['#cache']['tags'] ?? [],
+        array_merge($built['cache_tags'], [\Drupal\xedc_core\Video\VideoRecommend::HOME_TAG])
+      );
     }
     $lcp = '';
     if (!empty($variables['home_slides'][0]['img'])) {
@@ -2507,55 +2527,41 @@ function _xedc_vd_cards(array $nids, array &$variables = []): array {
 require_once __DIR__ . '/xedc.search.inc';
 
 /**
- * 视频列表页加载网格样式。
- */
-/**
- * Drops the featured video from the grid so it is not rendered twice.
+ * Video list page: recommend / hot / latest sections + uniform grid cards.
  *
- * The view query and sort stay as they are. Only the already-built first row
- * is omitted when the page shows that same video as the lead.
+ * Recommended nids are excluded from the view query (see VideoListing).
  */
-function xedc_preprocess_views_view_unformatted__video_list(array &$variables): void {
-  $view = $variables['view'] ?? NULL;
-  if (!$view || empty($variables['rows']) || !is_array($variables['rows'])) {
-    return;
-  }
-  $request = \Drupal::request();
-  $keys = trim((string) $request->query->get('keys'));
-  $sort = $request->query->get('sort') === 'hot' ? 'hot' : 'new';
-  $page = (isset($view->pager) && method_exists($view->pager, 'getCurrentPage')) ? (int) $view->pager->getCurrentPage() : 0;
-  if ($sort === 'new' && $keys === '' && $page === 0) {
-    $rows = $variables['rows'];
-    array_shift($rows);
-    $variables['rows'] = $rows;
-  }
-}
-
 function xedc_preprocess_views_view__video_list(array &$variables): void {
   $variables['title'] = '';
   _xedc_video_page_attach($variables);
   _xedc_video_toolbar($variables, TRUE);
   $view = $variables['view'] ?? NULL;
   $variables['video_total'] = $view ? (int) ($view->total_rows ?? 0) : 0;
-  $variables['video_lead'] = ($variables['video_sort'] ?? '') === 'new' && ($variables['video_keys'] ?? '') === '';
   $variables['video_hero'] = NULL;
+  $variables['video_recommended'] = [];
+  $variables['video_hot'] = [];
   $page = ($view && isset($view->pager) && method_exists($view->pager, 'getCurrentPage')) ? (int) $view->pager->getCurrentPage() : 0;
-  $row = ($view && !empty($view->result[0])) ? $view->result[0] : NULL;
-  $lead = (is_object($row) && isset($row->_entity)) ? $row->_entity : NULL;
-  if ($variables['video_lead'] && $page === 0 && $lead instanceof \Drupal\node\NodeInterface && $lead->bundle() === 'video') {
-    $cards = _xedc_vd_cards([(int) $lead->id()], $variables);
-    if (!empty($cards[0])) {
-      $text = '';
-      if ($lead->hasField('field_body') && !$lead->get('field_body')->isEmpty()) {
-        $text = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $lead->get('field_body')->value)));
-      }
-      $cards[0]['excerpt'] = $text !== '' ? mb_substr($text, 0, 96) : '';
-      $variables['video_hero'] = $cards[0];
-    }
+  $show_sections = ($variables['video_sort'] ?? '') === 'new' && ($variables['video_keys'] ?? '') === '' && $page === 0;
+  if ($show_sections && \Drupal::hasService('xedc_core.video_recommend')) {
+    $recommend = \Drupal::service('xedc_core.video_recommend');
+    $home_nids = $recommend->homeNids(12);
+    $variables['video_recommended'] = _xedc_vd_cards($home_nids, $variables);
+    $variables['video_hot'] = _xedc_vd_cards($recommend->hotNids(8), $variables);
+    $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags(
+      $variables['#cache']['tags'] ?? [],
+      [
+        \Drupal\xedc_core\Video\VideoRecommend::HOME_TAG,
+        \Drupal\xedc_core\Video\VideoRecommend::HOT_TAG,
+        'node_list:video',
+      ]
+    );
   }
   $variables['header'] = [];
-  if (!empty($variables['empty'])) {
+  if (!empty($variables['empty']) && !$variables['video_recommended'] && !$variables['video_hot']) {
     $variables['empty'] = ['#markup' => '<div class="xv-empty">' . t('暂无视频') . '</div>'];
+  }
+  elseif (!empty($variables['empty'])) {
+    $variables['empty'] = [];
   }
 }
 
@@ -2582,8 +2588,22 @@ function xedc_preprocess_taxonomy_term(array &$variables): void {
 function xedc_preprocess_views_view__taxonomy_term(array &$variables): void {
   _xedc_video_page_attach($variables);
   _xedc_video_toolbar($variables, FALSE);
-  if (!empty($variables['empty'])) {
+  $variables['video_category_recommended'] = [];
+  $term = \Drupal::routeMatch()->getParameter('taxonomy_term');
+  if ($term instanceof \Drupal\taxonomy\TermInterface && $term->bundle() === 'video_category' && \Drupal::hasService('xedc_core.video_recommend')) {
+    $recommend = \Drupal::service('xedc_core.video_recommend');
+    $nids = $recommend->categoryNids((int) $term->id(), 12);
+    $variables['video_category_recommended'] = _xedc_vd_cards($nids, $variables);
+    $variables['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags(
+      $variables['#cache']['tags'] ?? [],
+      [$recommend->categoryTag((int) $term->id()), 'node_list:video']
+    );
+  }
+  if (!empty($variables['empty']) && empty($variables['video_category_recommended'])) {
     $variables['empty'] = ['#markup' => '<div class="xv-empty">' . t('该分类下暂无视频') . '</div>'];
+  }
+  elseif (!empty($variables['empty'])) {
+    $variables['empty'] = [];
   }
 }
 

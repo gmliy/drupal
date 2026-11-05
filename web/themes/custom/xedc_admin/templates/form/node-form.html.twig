@@ -40,6 +40,9 @@
         {{ form.field_categories }}
         {{ form.field_tags }}
       </section>
+      <section class="xedc-card xedc-card--recommend">
+        {{ form.xedc_video_recommend }}
+      </section>
     {% elseif xedc_bundle == 'photo' %}
       <div class="xedc-node__title">{{ form.title }}</div>
       {{ form.field_cover_image }}

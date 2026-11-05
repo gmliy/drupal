@@ -1,0 +1,1219 @@
+{
+  "started": "2026-11-05T10:00:29.838Z",
+  "runs": {
+    "iphone": {
+      "errors": [],
+      "docBefore": 0,
+      "opened": {
+        "layers": {
+          "dialog": {
+            "rect": {
+              "t": 4,
+              "l": 6,
+              "w": 378,
+              "h": 656,
+              "b": 660,
+              "r": 384
+            },
+            "clientHeight": 654,
+            "scrollHeight": 654,
+            "scrollTop": 0,
+            "clientWidth": 376,
+            "scrollWidth": 376,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "656px",
+            "maxHeight": "656px",
+            "position": "fixed",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "content": {
+            "rect": {
+              "t": 45,
+              "l": 7,
+              "w": 376,
+              "h": 566,
+              "b": 611,
+              "r": 383
+            },
+            "clientHeight": 566,
+            "scrollHeight": 566,
+            "scrollTop": 0,
+            "clientWidth": 376,
+            "scrollWidth": 376,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "566px",
+            "maxHeight": "none",
+            "position": "relative",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "wrapper": {
+            "rect": {
+              "t": 51,
+              "l": 15,
+              "w": 360,
+              "h": 554,
+              "b": 605,
+              "r": 375
+            },
+            "clientHeight": 554,
+            "scrollHeight": 554,
+            "scrollTop": 0,
+            "clientWidth": 360,
+            "scrollWidth": 360,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "554px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "library": {
+            "rect": {
+              "t": 51,
+              "l": 15,
+              "w": 360,
+              "h": 554,
+              "b": 605,
+              "r": 375
+            },
+            "clientHeight": 554,
+            "scrollHeight": 554,
+            "scrollTop": 0,
+            "clientWidth": 360,
+            "scrollWidth": 360,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "554px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "view": {
+            "rect": {
+              "t": 134,
+              "l": 15,
+              "w": 360,
+              "h": 471,
+              "b": 605,
+              "r": 375
+            },
+            "clientHeight": 471,
+            "scrollHeight": 471,
+            "scrollTop": 0,
+            "clientWidth": 360,
+            "scrollWidth": 360,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "471.406px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "grid"
+          },
+          "list": {
+            "rect": {
+              "t": 248,
+              "l": 15,
+              "w": 360,
+              "h": 303,
+              "b": 551,
+              "r": 375
+            },
+            "clientHeight": 303,
+            "scrollHeight": 2380,
+            "scrollTop": 0,
+            "clientWidth": 360,
+            "scrollWidth": 360,
+            "overflowY": "auto",
+            "overflowX": "hidden",
+            "height": "303.406px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "pan-y",
+            "display": "block"
+          },
+          "filters": {
+            "rect": {
+              "t": 172,
+              "l": 15,
+              "w": 360,
+              "h": 70,
+              "b": 242,
+              "r": 375
+            },
+            "clientHeight": 70,
+            "scrollHeight": 70,
+            "scrollTop": 0,
+            "clientWidth": 360,
+            "scrollWidth": 360,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "70px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "block"
+          },
+          "header": {
+            "rect": {
+              "t": 134,
+              "l": 15,
+              "w": 360,
+              "h": 32,
+              "b": 166,
+              "r": 375
+            },
+            "clientHeight": 32,
+            "scrollHeight": 32,
+            "scrollTop": 0,
+            "clientWidth": 360,
+            "scrollWidth": 360,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "32px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "add": {
+            "rect": {
+              "t": 51,
+              "l": 15,
+              "w": 360,
+              "h": 77,
+              "b": 128,
+              "r": 375
+            },
+            "clientHeight": 75,
+            "scrollHeight": 75,
+            "scrollTop": 0,
+            "clientWidth": 358,
+            "scrollWidth": 358,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "76.5938px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "block"
+          },
+          "pager": {
+            "rect": {
+              "t": 561,
+              "l": 15,
+              "w": 360,
+              "h": 44,
+              "b": 605,
+              "r": 375
+            },
+            "clientHeight": 44,
+            "scrollHeight": 44,
+            "scrollTop": 0,
+            "clientWidth": 360,
+            "scrollWidth": 360,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "44px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "buttons": {
+            "rect": {
+              "t": 611,
+              "l": 7,
+              "w": 376,
+              "h": 48,
+              "b": 659,
+              "r": 383
+            },
+            "clientHeight": 47,
+            "scrollHeight": 47,
+            "scrollTop": 0,
+            "clientWidth": 376,
+            "scrollWidth": 376,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "48px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          }
+        },
+        "controls": [
+          {
+            "tag": "a",
+            "name": "",
+            "text": "格子",
+            "w": 46,
+            "h": 32,
+            "t": 134,
+            "l": 15,
+            "r": 61,
+            "b": 166,
+            "font": "12px"
+          },
+          {
+            "tag": "a",
+            "name": "",
+            "text": "表格",
+            "w": 46,
+            "h": 32,
+            "t": 134,
+            "l": 65,
+            "r": 110,
+            "b": 166,
+            "font": "12px"
+          },
+          {
+            "tag": "label",
+            "name": "",
+            "text": "名称",
+            "w": 24,
+            "h": 32,
+            "t": 172,
+            "l": 15,
+            "r": 39,
+            "b": 204,
+            "font": "12px"
+          },
+          {
+            "tag": "input",
+            "name": "name",
+            "text": "",
+            "w": 328,
+            "h": 32,
+            "t": 172,
+            "l": 47,
+            "r": 375,
+            "b": 204,
+            "font": "16px"
+          },
+          {
+            "tag": "label",
+            "name": "",
+            "text": "排序依据",
+            "w": 47,
+            "h": 32,
+            "t": 210,
+            "l": 15,
+            "r": 62,
+            "b": 242,
+            "font": "12px"
+          },
+          {
+            "tag": "select",
+            "name": "sort_by",
+            "text": "由新到旧\n名称 (A-Z)\n名称 (Z-A)",
+            "w": 214,
+            "h": 32,
+            "t": 210,
+            "l": 70,
+            "r": 284,
+            "b": 242,
+            "font": "16px"
+          },
+          {
+            "tag": "input",
+            "name": "",
+            "text": "应用过滤器",
+            "w": 83,
+            "h": 32,
+            "t": 210,
+            "l": 292,
+            "r": 375,
+            "b": 242,
+            "font": "13px"
+          },
+          {
+            "tag": "button",
+            "name": "",
+            "text": "插入选中的",
+            "w": 91,
+            "h": 32,
+            "t": 620,
+            "l": 284,
+            "r": 375,
+            "b": 652,
+            "font": "13px"
+          }
+        ],
+        "itemCount": 24,
+        "cols": 2,
+        "overflows": [],
+        "overlaps": [],
+        "pageOverflowX": false,
+        "dialogOverflowX": false,
+        "listHandler": true,
+        "contentHandler": true,
+        "contentPatched": true,
+        "htmlOverflow": "clip visible",
+        "bodyPosition": "static",
+        "vv": {
+          "h": 664,
+          "w": 390,
+          "top": 0
+        },
+        "innerH": 664,
+        "dialogBottom": 660,
+        "docScroll": 619,
+        "js": false
+      },
+      "gesture": {
+        "before": {
+          "list": 0,
+          "doc": 619
+        },
+        "after": {
+          "list": 391,
+          "doc": 619,
+          "listMax": 2077
+        },
+        "moved": true,
+        "pageStuck": true
+      },
+      "end": {
+        "scrollTop": 2077,
+        "max": 2077,
+        "lastInView": true,
+        "lastBottom": 535,
+        "listBottom": 551
+      },
+      "afterSearch": {
+        "items": 24,
+        "handler": true
+      },
+      "searchScroll": {
+        "before": {
+          "list": 0,
+          "doc": 619
+        },
+        "after": {
+          "list": 417,
+          "doc": 619,
+          "listMax": 2077
+        },
+        "moved": true,
+        "pageStuck": true
+      },
+      "pager": {
+        "clicked": true,
+        "items": 24,
+        "scroll": {
+          "before": {
+            "list": 0,
+            "doc": 619
+          },
+          "after": {
+            "list": 822,
+            "doc": 619,
+            "listMax": 2077
+          },
+          "moved": true,
+          "pageStuck": true
+        }
+      },
+      "selected": "2 项目已选择",
+      "beforeInsert": 0,
+      "afterInsert": {
+        "dialog": false,
+        "selectedOnForm": 2,
+        "htmlOverflow": "clip visible",
+        "bodyPosition": "static",
+        "doc": 1934
+      },
+      "scrolled": 200,
+      "keyboard": {
+        "vh": 420,
+        "dialogH": 412,
+        "dialogTop": 4,
+        "dialogBottom": 416,
+        "inputTop": 57,
+        "inputBottom": 89,
+        "inputVisible": true,
+        "listH": 174,
+        "listVisible": true
+      }
+    },
+    "android": {
+      "errors": [],
+      "opened": {
+        "layers": {
+          "dialog": {
+            "rect": {
+              "t": 4,
+              "l": 6,
+              "w": 381,
+              "h": 719,
+              "b": 723,
+              "r": 387
+            },
+            "clientHeight": 717,
+            "scrollHeight": 717,
+            "scrollTop": 0,
+            "clientWidth": 379,
+            "scrollWidth": 379,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "719px",
+            "maxHeight": "719px",
+            "position": "fixed",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "content": {
+            "rect": {
+              "t": 45,
+              "l": 7,
+              "w": 379,
+              "h": 629,
+              "b": 674,
+              "r": 386
+            },
+            "clientHeight": 629,
+            "scrollHeight": 629,
+            "scrollTop": 0,
+            "clientWidth": 379,
+            "scrollWidth": 379,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "629px",
+            "maxHeight": "none",
+            "position": "relative",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "wrapper": {
+            "rect": {
+              "t": 51,
+              "l": 15,
+              "w": 363,
+              "h": 617,
+              "b": 668,
+              "r": 378
+            },
+            "clientHeight": 617,
+            "scrollHeight": 617,
+            "scrollTop": 0,
+            "clientWidth": 363,
+            "scrollWidth": 363,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "617px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "library": {
+            "rect": {
+              "t": 51,
+              "l": 15,
+              "w": 363,
+              "h": 617,
+              "b": 668,
+              "r": 378
+            },
+            "clientHeight": 617,
+            "scrollHeight": 617,
+            "scrollTop": 0,
+            "clientWidth": 363,
+            "scrollWidth": 363,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "617px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "view": {
+            "rect": {
+              "t": 134,
+              "l": 15,
+              "w": 363,
+              "h": 534,
+              "b": 668,
+              "r": 378
+            },
+            "clientHeight": 534,
+            "scrollHeight": 534,
+            "scrollTop": 0,
+            "clientWidth": 363,
+            "scrollWidth": 363,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "534.406px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "grid"
+          },
+          "list": {
+            "rect": {
+              "t": 248,
+              "l": 15,
+              "w": 363,
+              "h": 366,
+              "b": 614,
+              "r": 378
+            },
+            "clientHeight": 366,
+            "scrollHeight": 2398,
+            "scrollTop": 0,
+            "clientWidth": 363,
+            "scrollWidth": 363,
+            "overflowY": "auto",
+            "overflowX": "hidden",
+            "height": "366.406px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "pan-y",
+            "display": "block"
+          },
+          "filters": {
+            "rect": {
+              "t": 172,
+              "l": 15,
+              "w": 363,
+              "h": 70,
+              "b": 242,
+              "r": 378
+            },
+            "clientHeight": 70,
+            "scrollHeight": 70,
+            "scrollTop": 0,
+            "clientWidth": 363,
+            "scrollWidth": 363,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "70px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "block"
+          },
+          "header": {
+            "rect": {
+              "t": 134,
+              "l": 15,
+              "w": 363,
+              "h": 32,
+              "b": 166,
+              "r": 378
+            },
+            "clientHeight": 32,
+            "scrollHeight": 32,
+            "scrollTop": 0,
+            "clientWidth": 363,
+            "scrollWidth": 363,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "32px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "add": {
+            "rect": {
+              "t": 51,
+              "l": 15,
+              "w": 363,
+              "h": 77,
+              "b": 128,
+              "r": 378
+            },
+            "clientHeight": 75,
+            "scrollHeight": 75,
+            "scrollTop": 0,
+            "clientWidth": 361,
+            "scrollWidth": 361,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "76.5938px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "block"
+          },
+          "pager": {
+            "rect": {
+              "t": 624,
+              "l": 15,
+              "w": 363,
+              "h": 44,
+              "b": 668,
+              "r": 378
+            },
+            "clientHeight": 44,
+            "scrollHeight": 44,
+            "scrollTop": 0,
+            "clientWidth": 363,
+            "scrollWidth": 363,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "44px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "buttons": {
+            "rect": {
+              "t": 674,
+              "l": 7,
+              "w": 379,
+              "h": 48,
+              "b": 722,
+              "r": 386
+            },
+            "clientHeight": 47,
+            "scrollHeight": 47,
+            "scrollTop": 0,
+            "clientWidth": 379,
+            "scrollWidth": 379,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "48px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          }
+        },
+        "controls": [
+          {
+            "tag": "a",
+            "name": "",
+            "text": "格子",
+            "w": 46,
+            "h": 32,
+            "t": 134,
+            "l": 15,
+            "r": 61,
+            "b": 166,
+            "font": "12px"
+          },
+          {
+            "tag": "a",
+            "name": "",
+            "text": "表格",
+            "w": 46,
+            "h": 32,
+            "t": 134,
+            "l": 65,
+            "r": 110,
+            "b": 166,
+            "font": "12px"
+          },
+          {
+            "tag": "label",
+            "name": "",
+            "text": "名称",
+            "w": 24,
+            "h": 32,
+            "t": 172,
+            "l": 15,
+            "r": 39,
+            "b": 204,
+            "font": "12px"
+          },
+          {
+            "tag": "input",
+            "name": "name",
+            "text": "",
+            "w": 331,
+            "h": 32,
+            "t": 172,
+            "l": 47,
+            "r": 378,
+            "b": 204,
+            "font": "16px"
+          },
+          {
+            "tag": "label",
+            "name": "",
+            "text": "排序依据",
+            "w": 47,
+            "h": 32,
+            "t": 210,
+            "l": 15,
+            "r": 62,
+            "b": 242,
+            "font": "12px"
+          },
+          {
+            "tag": "select",
+            "name": "sort_by",
+            "text": "由新到旧\n名称 (A-Z)\n名称 (Z-A)",
+            "w": 217,
+            "h": 32,
+            "t": 210,
+            "l": 70,
+            "r": 287,
+            "b": 242,
+            "font": "16px"
+          },
+          {
+            "tag": "input",
+            "name": "",
+            "text": "应用过滤器",
+            "w": 83,
+            "h": 32,
+            "t": 210,
+            "l": 295,
+            "r": 378,
+            "b": 242,
+            "font": "13px"
+          },
+          {
+            "tag": "button",
+            "name": "",
+            "text": "插入选中的",
+            "w": 91,
+            "h": 32,
+            "t": 683,
+            "l": 287,
+            "r": 378,
+            "b": 715,
+            "font": "13px"
+          }
+        ],
+        "itemCount": 24,
+        "cols": 2,
+        "overflows": [],
+        "overlaps": [],
+        "pageOverflowX": false,
+        "dialogOverflowX": false,
+        "listHandler": false,
+        "contentHandler": false,
+        "contentPatched": false,
+        "htmlOverflow": "hidden",
+        "bodyPosition": "fixed",
+        "vv": {
+          "h": 727,
+          "w": 393,
+          "top": 0
+        },
+        "innerH": 727,
+        "dialogBottom": 723,
+        "docScroll": 0,
+        "js": false
+      },
+      "gesture": {
+        "before": {
+          "list": 0,
+          "doc": 0
+        },
+        "after": {
+          "list": 806,
+          "doc": 0,
+          "listMax": 2032
+        },
+        "moved": true,
+        "pageStuck": true
+      }
+    },
+    "desktop": {
+      "errors": [],
+      "opened": {
+        "layers": {
+          "dialog": {
+            "rect": {
+              "t": 8,
+              "l": 160,
+              "w": 1120,
+              "h": 884,
+              "b": 892,
+              "r": 1280
+            },
+            "clientHeight": 882,
+            "scrollHeight": 882,
+            "scrollTop": 0,
+            "clientWidth": 1118,
+            "scrollWidth": 1118,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "884px",
+            "maxHeight": "884px",
+            "position": "fixed",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "content": {
+            "rect": {
+              "t": 49,
+              "l": 161,
+              "w": 1118,
+              "h": 794,
+              "b": 843,
+              "r": 1279
+            },
+            "clientHeight": 794,
+            "scrollHeight": 794,
+            "scrollTop": 0,
+            "clientWidth": 1118,
+            "scrollWidth": 1118,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "794px",
+            "maxHeight": "none",
+            "position": "relative",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "wrapper": {
+            "rect": {
+              "t": 55,
+              "l": 169,
+              "w": 1102,
+              "h": 782,
+              "b": 837,
+              "r": 1271
+            },
+            "clientHeight": 782,
+            "scrollHeight": 782,
+            "scrollTop": 0,
+            "clientWidth": 1102,
+            "scrollWidth": 1102,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "782px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "library": {
+            "rect": {
+              "t": 55,
+              "l": 169,
+              "w": 1102,
+              "h": 782,
+              "b": 837,
+              "r": 1271
+            },
+            "clientHeight": 782,
+            "scrollHeight": 782,
+            "scrollTop": 0,
+            "clientWidth": 1102,
+            "scrollWidth": 1102,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "782px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "view": {
+            "rect": {
+              "t": 138,
+              "l": 169,
+              "w": 1102,
+              "h": 699,
+              "b": 837,
+              "r": 1271
+            },
+            "clientHeight": 699,
+            "scrollHeight": 699,
+            "scrollTop": 0,
+            "clientWidth": 1102,
+            "scrollWidth": 1102,
+            "overflowY": "hidden",
+            "overflowX": "hidden",
+            "height": "699.406px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "grid"
+          },
+          "list": {
+            "rect": {
+              "t": 172,
+              "l": 169,
+              "w": 1102,
+              "h": 616,
+              "b": 788,
+              "r": 1271
+            },
+            "clientHeight": 616,
+            "scrollHeight": 813,
+            "scrollTop": 0,
+            "clientWidth": 1102,
+            "scrollWidth": 1102,
+            "overflowY": "auto",
+            "overflowX": "hidden",
+            "height": "616.406px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "pan-y",
+            "display": "block"
+          },
+          "filters": {
+            "rect": {
+              "t": 139,
+              "l": 274,
+              "w": 997,
+              "h": 32,
+              "b": 171,
+              "r": 1271
+            },
+            "clientHeight": 32,
+            "scrollHeight": 32,
+            "scrollTop": 0,
+            "clientWidth": 997,
+            "scrollWidth": 997,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "32px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "block"
+          },
+          "header": {
+            "rect": {
+              "t": 138,
+              "l": 169,
+              "w": 95,
+              "h": 34,
+              "b": 172,
+              "r": 264
+            },
+            "clientHeight": 34,
+            "scrollHeight": 34,
+            "scrollTop": 0,
+            "clientWidth": 95,
+            "scrollWidth": 95,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "34px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "add": {
+            "rect": {
+              "t": 55,
+              "l": 169,
+              "w": 1102,
+              "h": 77,
+              "b": 132,
+              "r": 1271
+            },
+            "clientHeight": 75,
+            "scrollHeight": 75,
+            "scrollTop": 0,
+            "clientWidth": 1100,
+            "scrollWidth": 1100,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "76.5938px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "block"
+          },
+          "pager": {
+            "rect": {
+              "t": 792,
+              "l": 169,
+              "w": 1102,
+              "h": 45,
+              "b": 837,
+              "r": 1271
+            },
+            "clientHeight": 45,
+            "scrollHeight": 45,
+            "scrollTop": 0,
+            "clientWidth": 1102,
+            "scrollWidth": 1102,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "45px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          },
+          "buttons": {
+            "rect": {
+              "t": 843,
+              "l": 161,
+              "w": 1118,
+              "h": 48,
+              "b": 891,
+              "r": 1279
+            },
+            "clientHeight": 47,
+            "scrollHeight": 47,
+            "scrollTop": 0,
+            "clientWidth": 1118,
+            "scrollWidth": 1118,
+            "overflowY": "visible",
+            "overflowX": "visible",
+            "height": "48px",
+            "maxHeight": "none",
+            "position": "static",
+            "touchAction": "auto",
+            "display": "flex"
+          }
+        },
+        "controls": [
+          {
+            "tag": "a",
+            "name": "",
+            "text": "格子",
+            "w": 46,
+            "h": 32,
+            "t": 139,
+            "l": 169,
+            "r": 215,
+            "b": 171,
+            "font": "12px"
+          },
+          {
+            "tag": "a",
+            "name": "",
+            "text": "表格",
+            "w": 46,
+            "h": 32,
+            "t": 139,
+            "l": 219,
+            "r": 264,
+            "b": 171,
+            "font": "12px"
+          },
+          {
+            "tag": "label",
+            "name": "",
+            "text": "名称",
+            "w": 24,
+            "h": 32,
+            "t": 139,
+            "l": 274,
+            "r": 298,
+            "b": 171,
+            "font": "12px"
+          },
+          {
+            "tag": "input",
+            "name": "name",
+            "text": "",
+            "w": 180,
+            "h": 32,
+            "t": 139,
+            "l": 304,
+            "r": 484,
+            "b": 171,
+            "font": "13px"
+          },
+          {
+            "tag": "label",
+            "name": "",
+            "text": "排序依据",
+            "w": 47,
+            "h": 32,
+            "t": 139,
+            "l": 494,
+            "r": 541,
+            "b": 171,
+            "font": "12px"
+          },
+          {
+            "tag": "select",
+            "name": "sort_by",
+            "text": "由新到旧\n名称 (A-Z)\n名称 (Z-A)",
+            "w": 148,
+            "h": 32,
+            "t": 139,
+            "l": 547,
+            "r": 695,
+            "b": 171,
+            "font": "13px"
+          },
+          {
+            "tag": "input",
+            "name": "",
+            "text": "应用过滤器",
+            "w": 83,
+            "h": 32,
+            "t": 139,
+            "l": 705,
+            "r": 788,
+            "b": 171,
+            "font": "13px"
+          },
+          {
+            "tag": "button",
+            "name": "",
+            "text": "插入选中的",
+            "w": 91,
+            "h": 32,
+            "t": 852,
+            "l": 1180,
+            "r": 1271,
+            "b": 884,
+            "font": "13px"
+          }
+        ],
+        "itemCount": 24,
+        "cols": 6,
+        "overflows": [],
+        "overlaps": [],
+        "pageOverflowX": false,
+        "dialogOverflowX": false,
+        "listHandler": false,
+        "contentHandler": false,
+        "contentPatched": false,
+        "htmlOverflow": "hidden",
+        "bodyPosition": "static",
+        "vv": {
+          "h": 900,
+          "w": 1440,
+          "top": 0
+        },
+        "innerH": 900,
+        "dialogBottom": 892,
+        "docScroll": 31,
+        "js": false
+      },
+      "wheel": {
+        "before": 0,
+        "after": 196,
+        "moved": true
+      },
+      "searchItems": 24,
+      "selected": "2 项目已选择"
+    },
+    "tablet": {
+      "cols": 4,
+      "filtersH": 32,
+      "listH": 652,
+      "overlaps": [],
+      "overflows": []
+    },
+    "gin": {
+      "status": 200,
+      "errors": [],
+      "info": {
+        "dialog": false,
+        "html": "xedc-admin-active xedc-admin-js no-touchevents js",
+        "title": "媒体 | DcLili",
+        "rows": 50
+      }
+    }
+  }
+}

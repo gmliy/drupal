@@ -44,7 +44,15 @@ services:
 
   xedc_ai.extractor:
     class: Drupal\xedc_ai\Review\TextExtractor
-    arguments: ['@entity_type.manager']
+    arguments: ['@entity_type.manager', '@config.factory']
+
+  xedc_ai.lookup:
+    class: Drupal\xedc_ai\Seo\ContentLookup
+    arguments: ['@entity_type.manager', '@xedc_ai.extractor', '@content_moderation.moderation_information', '@date.formatter', '@xedc_ai.reviews']
+
+  xedc_ai.schedule:
+    class: Drupal\xedc_ai\Seo\SeoSchedule
+    arguments: ['@config.factory', '@entity_type.manager', '@xedc_ai.enqueuer', '@xedc_ai.reviews', '@datetime.time']
 
   xedc_ai.vision:
     class: Drupal\xedc_ai\Review\DisabledVisionAudit
@@ -97,6 +105,12 @@ services:
   xedc_ai.seo:
     class: Drupal\xedc_ai\Seo\SeoAdvisor
     arguments: ['@entity_type.manager', '@module_handler', '@config.factory', '@xedc_ai.audit', '@content_moderation.moderation_information']
+
+  xedc_ai.queue_terminator:
+    class: Drupal\xedc_ai\Review\QueueTerminator
+    arguments: ['@state', '@queue', '@plugin.manager.queue_worker']
+    tags:
+      - { name: event_subscriber }
 
   xedc_ai.maintenance:
     class: Drupal\xedc_ai\Usage\Maintenance

@@ -1,0 +1,187 @@
+{
+  "overall": "PASS",
+  "pass": {
+    "itemsPerPage": true,
+    "prefer20": true,
+    "canScroll": true,
+    "wheelMoved": true,
+    "scrollEnd": true,
+    "contentHidden": true,
+    "listTall": true,
+    "titleCompact": true,
+    "controlsCompact": true,
+    "toolbarRow": true,
+    "cols": true,
+    "pagerOk": true,
+    "memberOk": true,
+    "memberInsert": true,
+    "mobileOk": true,
+    "ginOk": true
+  },
+  "desktopHeights": {
+    "dialog": 810,
+    "titlebar": 40,
+    "add": 58,
+    "header": 30,
+    "filters": 30,
+    "viewContent": 588,
+    "pager": 28,
+    "buttonpane": 44
+  },
+  "itemCount": 24,
+  "contentOverflow": "hidden",
+  "contentHeightStyle": "",
+  "controls": {
+    "nameInputH": 30,
+    "applyBtnH": 30,
+    "insertBtnH": 30,
+    "titleFont": "14px",
+    "jsLoaded": false
+  },
+  "memberItems": 24,
+  "memberInsert": {
+    "beforeCount": 0,
+    "afterCount": 1
+  },
+  "mobile": {
+    "h": {
+      "dialog": 598,
+      "titlebar": 40,
+      "add": 73,
+      "header": 30,
+      "filters": 64,
+      "viewContent": 279,
+      "pager": 28,
+      "buttonpane": 44
+    },
+    "cols": 2
+  },
+  "selected": "2 项目已选择",
+  "afterSearch": {
+    "itemCount": 24,
+    "canScroll": true
+  },
+  "report": {
+    "desktop": {
+      "m": {
+        "itemCount": 24,
+        "heights": {
+          "dialog": 810,
+          "titlebar": 40,
+          "add": 58,
+          "header": 30,
+          "filters": 30,
+          "viewContent": 588,
+          "pager": 28,
+          "buttonpane": 44
+        },
+        "contentOverflow": "hidden",
+        "contentHeightStyle": "",
+        "scroll": {
+          "clientHeight": 588,
+          "scrollHeight": 990,
+          "canScroll": true
+        },
+        "toolbarSameRow": true,
+        "cols": 6,
+        "nameInputH": 30,
+        "applyBtnH": 30,
+        "insertBtnH": 30,
+        "titleFont": "14px",
+        "selected": "0 项目已选择",
+        "jsLoaded": false
+      },
+      "wheel": {
+        "before": 0,
+        "after": 402,
+        "moved": true
+      },
+      "atEnd": true,
+      "selected": "2 项目已选择",
+      "afterPager": {
+        "itemCount": 24,
+        "canScroll": true,
+        "wheelMoved": true
+      },
+      "afterSearch": {
+        "itemCount": 24,
+        "canScroll": true
+      }
+    },
+    "member": {
+      "m": {
+        "itemCount": 24,
+        "heights": {
+          "dialog": 810,
+          "titlebar": 44,
+          "add": 95,
+          "header": 34,
+          "filters": 34,
+          "viewContent": 511,
+          "pager": 45,
+          "buttonpane": 53
+        },
+        "contentOverflow": "hidden",
+        "contentHeightStyle": "16px",
+        "scroll": {
+          "clientHeight": 511,
+          "scrollHeight": 807,
+          "canScroll": true
+        },
+        "toolbarSameRow": true,
+        "cols": 6,
+        "nameInputH": 34,
+        "applyBtnH": 34,
+        "insertBtnH": 36,
+        "titleFont": "15px",
+        "selected": "0 项目已选择",
+        "jsLoaded": false
+      },
+      "wheelMoved": true,
+      "insert": {
+        "beforeCount": 0,
+        "afterCount": 1
+      }
+    },
+    "mobile": {
+      "m": {
+        "itemCount": 24,
+        "heights": {
+          "dialog": 598,
+          "titlebar": 40,
+          "add": 73,
+          "header": 30,
+          "filters": 64,
+          "viewContent": 279,
+          "pager": 28,
+          "buttonpane": 44
+        },
+        "contentOverflow": "hidden",
+        "contentHeightStyle": "",
+        "scroll": {
+          "clientHeight": 279,
+          "scrollHeight": 2940,
+          "canScroll": true
+        },
+        "toolbarSameRow": false,
+        "cols": 2,
+        "nameInputH": 30,
+        "applyBtnH": 30,
+        "insertBtnH": 30,
+        "titleFont": "14px",
+        "selected": "0 项目已选择",
+        "jsLoaded": false
+      },
+      "scroll": {
+        "moved": true,
+        "clientHeight": 279,
+        "scrollHeight": 2940
+      }
+    },
+    "gin": {
+      "path": "/admin/content/media",
+      "hasListing": true,
+      "hasDialog": false
+    }
+  }
+}

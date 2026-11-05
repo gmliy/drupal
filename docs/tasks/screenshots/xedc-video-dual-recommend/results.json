@@ -1,0 +1,137 @@
+[
+  {
+    "name": "login",
+    "status": "PASS",
+    "detail": "https://gitxx.xyz/12shh"
+  },
+  {
+    "name": "admin-create-two-checkboxes",
+    "status": "PASS",
+    "detail": "home=1 cat=1"
+  },
+  {
+    "name": "admin-create-defaults-unchecked",
+    "status": "PASS",
+    "detail": "home=false cat=false"
+  },
+  {
+    "name": "admin-create-recommend-group",
+    "status": "PASS",
+    "detail": ""
+  },
+  {
+    "name": "admin-create-labels",
+    "status": "PASS",
+    "detail": ""
+  },
+  {
+    "name": "admin-edit-echo-both",
+    "status": "PASS",
+    "detail": "home=true cat=true"
+  },
+  {
+    "name": "admin-edit-independent-home-off",
+    "status": "PASS",
+    "detail": "home=false cat=true"
+  },
+  {
+    "name": "front-has-recommend-section",
+    "status": "PASS",
+    "detail": "视频电话的吉村久夫记得记得 | 视频内容详情页测试内容标题测试"
+  },
+  {
+    "name": "front-recommend-includes-home-flag",
+    "status": "PASS",
+    "detail": "视频电话的吉村久夫记得记得 | 视频内容详情页测试内容标题测试"
+  },
+  {
+    "name": "front-recommend-excludes-category-only",
+    "status": "PASS",
+    "detail": "视频电话的吉村久夫记得记得 | 视频内容详情页测试内容标题测试"
+  },
+  {
+    "name": "front-has-hot-section",
+    "status": "PASS",
+    "detail": ""
+  },
+  {
+    "name": "video-index-three-sections",
+    "status": "PASS",
+    "detail": "rec=2 hot=7"
+  },
+  {
+    "name": "video-index-no-lead-watch",
+    "status": "PASS",
+    "detail": ""
+  },
+  {
+    "name": "video-index-latest-excludes-home-rec",
+    "status": "PASS",
+    "detail": "密密麻麻买买买 | 测试youtube视频标题 | 墨迹二班测试视频标题183 | 墨迹二班测试视频标题 | 视频栏目字段的测试内容"
+  },
+  {
+    "name": "video-index-first-cards-uniform",
+    "status": "PASS",
+    "detail": ""
+  },
+  {
+    "name": "video-index-mobile",
+    "status": "PASS",
+    "detail": "screenshot saved"
+  },
+  {
+    "name": "category-recommend-section",
+    "status": "PASS",
+    "detail": "视频电话的吉村久夫记得记得 | 密密麻麻买买买"
+  },
+  {
+    "name": "category-includes-flagged",
+    "status": "PASS",
+    "detail": "视频电话的吉村久夫记得记得 | 密密麻麻买买买"
+  },
+  {
+    "name": "category-excludes-home-only-from-other-term",
+    "status": "PASS",
+    "detail": "视频电话的吉村久夫记得记得 | 密密麻麻买买买"
+  },
+  {
+    "name": "category-no-duplicate-in-list",
+    "status": "PASS",
+    "detail": ""
+  },
+  {
+    "name": "short-category-no-recommend-for-home-only",
+    "status": "PASS",
+    "detail": ""
+  },
+  {
+    "name": "short-category-lists-home-only-video",
+    "status": "PASS",
+    "detail": ""
+  },
+  {
+    "name": "photo-slideshow-still-present",
+    "status": "PASS",
+    "detail": ""
+  },
+  {
+    "name": "photo-slideshow-slides",
+    "status": "PASS",
+    "detail": "slides=5"
+  },
+  {
+    "name": "member-cannot-see-recommend",
+    "status": "PASS",
+    "detail": "uid=2 form hides fields; crafted save forced to 0"
+  },
+  {
+    "name": "member-crafted-save-locked",
+    "status": "PASS",
+    "detail": "presave clears flags for non-staff"
+  },
+  {
+    "name": "field-access-forbidden",
+    "status": "PASS",
+    "detail": "edit own cannot edit field_slideshow/field_featured"
+  }
+]

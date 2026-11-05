@@ -1,0 +1,34 @@
+/**
+ * @file
+ * Mobile input zoom guard for Gin / Claro admin themes.
+ *
+ * Active production admin theme is xedc_admin (has its own forms.css rule).
+ * This library attaches only when Gin or Claro is the active theme so those
+ * installs stay safe without touching contrib CSS.
+ */
+
+@media screen and (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]):not([type="color"]),
+  textarea,
+  select,
+  .form-element,
+  .form-text,
+  .form-email,
+  .form-tel,
+  .form-url,
+  .form-number,
+  .form-search,
+  .form-textarea,
+  .form-select,
+  [contenteditable="true"],
+  .ck-editor__editable,
+  .ck-content {
+    font-size: 16px !important;
+  }
+
+  .ui-dialog.media-library-widget-modal .views-exposed-form input[type="text"],
+  .ui-dialog.media-library-widget-modal .views-exposed-form select,
+  .ui-dialog.media-library-widget-modal .views-exposed-form .form-element {
+    font-size: 16px !important;
+  }
+}

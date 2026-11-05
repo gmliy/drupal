@@ -93,6 +93,12 @@ final class ModelForm extends FormBase {
       '#default_value' => $model['input_price'] ?? '',
       '#description' => $this->t('留空表示价格未知。未知价格不会被编造成费用。'),
     ];
+    $form['cache_price'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('缓存读取单价（元 / 百万 Token）'),
+      '#default_value' => $model['cache_price'] ?? '',
+      '#description' => $this->t('留空表示缓存 Token 的单价未配置。不会把这项价格写进 SEO 页面。'),
+    ];
     $form['output_price'] = [
       '#type' => 'textfield',
       '#title' => $this->t('输出单价（元 / 百万 Token）'),
@@ -144,7 +150,7 @@ final class ModelForm extends FormBase {
         $form_state->setErrorByName('model_name', $this->t('这个供应商下已经有同名模型。'));
       }
     }
-    foreach (['input_price', 'output_price'] as $field) {
+    foreach (['input_price', 'output_price', 'cache_price'] as $field) {
       $value = trim((string) $form_state->getValue($field));
       if ($value !== '' && Money::toMicro($value) === NULL) {
         $form_state->setErrorByName($field, $this->t('单价必须是非负数字，最多 6 位小数。'));
@@ -169,6 +175,7 @@ final class ModelForm extends FormBase {
       'capabilities' => (array) $form_state->getValue('capabilities'),
       'input_price' => trim((string) $form_state->getValue('input_price')),
       'output_price' => trim((string) $form_state->getValue('output_price')),
+      'cache_price' => trim((string) $form_state->getValue('cache_price')),
     ]);
     $this->audit->log('model_save', '保存了模型 #' . $id . '。');
     $this->messenger()->addStatus($this->t('模型已保存。'));

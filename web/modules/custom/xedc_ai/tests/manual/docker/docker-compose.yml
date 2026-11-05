@@ -1,0 +1,8 @@
+# Isolated PHP run of the SEO mock checks. It does not mount the Drupal database.
+services:
+  seo-test:
+    image: php:8.3-cli
+    working_dir: /app
+    volumes:
+      - ../../..:/app:ro
+    command: php tests/manual/seo-ops-test.php

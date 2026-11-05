@@ -21,7 +21,7 @@ final class OpenAiChatClient {
    * @param list<array<string, mixed>> $messages
    *   Chat messages. Non-string content is ignored.
    */
-  public function once(ModelProfile $model, array $messages, ?int $maxTokens = NULL, ?string $temperature = NULL): ChatResponse {
+  public function once(ModelProfile $model, array $messages, ?int $maxTokens = NULL, ?string $temperature = NULL, bool $jsonObject = FALSE): ChatResponse {
     $started = (int) floor(microtime(TRUE) * 1000);
     $maxTokens = max(1, min(8192, $maxTokens ?? $model->maxTokens));
     $temperature = $temperature ?? $model->temperature;
@@ -31,6 +31,12 @@ final class OpenAiChatClient {
       'temperature' => (float) $temperature,
       'max_tokens' => $maxTokens,
     ];
+    if ($jsonObject) {
+      $payload['response_format'] = ['type' => 'json_object'];
+      // Thinking is on by default and shares max_tokens with the answer.
+      // A 4096 budget can be spent entirely on reasoning and return no JSON.
+      $payload['thinking'] = ['type' => 'disabled'];
+    }
     $result = $this->send($model, $payload);
     $decoded = json_decode($result->body, TRUE);
     if ($result->status === 400 && is_array($decoded) && $this->mentions($decoded, 'max_tokens')) {
@@ -41,6 +47,16 @@ final class OpenAiChatClient {
     }
     if ($result->status === 400 && is_array($decoded) && $this->mentions($decoded, 'temperature')) {
       unset($payload['temperature']);
+      $result = $this->send($model, $payload);
+      $decoded = json_decode($result->body, TRUE);
+    }
+    if ($jsonObject && $result->status === 400 && is_array($decoded) && $this->mentions($decoded, 'thinking')) {
+      unset($payload['thinking']);
+      $result = $this->send($model, $payload);
+      $decoded = json_decode($result->body, TRUE);
+    }
+    if ($jsonObject && $result->status === 400 && is_array($decoded) && $this->mentions($decoded, 'response_format')) {
+      unset($payload['response_format']);
       $result = $this->send($model, $payload);
     }
     return $this->interpret($model, $result, max(0, (int) floor(microtime(TRUE) * 1000) - $started));
@@ -97,17 +113,19 @@ final class OpenAiChatClient {
       return ChatResponse::failure($model->providerId, $model->modelName, $result->errorCode, $result->errorMessage !== '' ? $result->errorMessage : '网络请求失败。', $duration, TRUE, TRUE);
     }
     $decoded = json_decode($result->body, TRUE);
-    [$prompt, $completion] = $this->tokens(is_array($decoded) ? $decoded : NULL);
+    $usage = $this->usage(is_array($decoded) ? $decoded : NULL);
     $error = $this->errorMessage(is_array($decoded) ? $decoded : NULL, $result->body);
     $code = $this->errorCode($result->status, is_array($decoded) ? $decoded : NULL, $error);
+    $finish = $this->finishReason(is_array($decoded) ? $decoded : NULL);
     if ($code !== '') {
-      return ChatResponse::failure($model->providerId, $model->modelName, $code, $error !== '' ? $error : '模型请求失败。', $duration, $this->retryable($code), $this->fallback($code), $prompt, $completion);
+      return ChatResponse::failure($model->providerId, $model->modelName, $code, $error !== '' ? $error : '模型请求失败。', $duration, $this->retryable($code), $this->fallback($code), $usage['prompt'], $usage['completion'], $finish, $usage['reported'], $usage['cache'], $result->status);
     }
-    $content = $this->content(is_array($decoded) ? $decoded : NULL);
+    [$content, $fromReasoning] = $this->content(is_array($decoded) ? $decoded : NULL);
     if ($content === NULL) {
-      return ChatResponse::failure($model->providerId, $model->modelName, 'bad_response', '模型返回里没有文本内容。', $duration, FALSE, FALSE, $prompt, $completion, $this->finishReason(is_array($decoded) ? $decoded : NULL));
+      $truncated = $finish === 'length';
+      return ChatResponse::failure($model->providerId, $model->modelName, $truncated ? 'truncated' : 'bad_response', $truncated ? '模型输出被截断，没有可解析的正文。' : '模型返回里没有文本内容。', $duration, FALSE, FALSE, $usage['prompt'], $usage['completion'], $finish, $usage['reported'], $usage['cache'], $result->status);
     }
-    return new ChatResponse(TRUE, $content, $prompt, $completion, $duration, $model->providerId, $model->modelName, '', '', FALSE, FALSE, $this->finishReason(is_array($decoded) ? $decoded : NULL));
+    return new ChatResponse(TRUE, $content, $usage['prompt'], $usage['completion'], $duration, $model->providerId, $model->modelName, '', '', FALSE, FALSE, $finish, $usage['reported'], $usage['cache'], $result->status, $fromReasoning);
   }
 
   /**
@@ -119,20 +137,57 @@ final class OpenAiChatClient {
   }
 
   /**
-   * @return array{0: int, 1: int}
-   *   Prompt and completion tokens.
+   * @return array{reported: bool, prompt: int, completion: int, cache: int}
+   *   Usage taken only from the provider payload.
    */
-  private function tokens(?array $decoded): array {
-    $usage = is_array($decoded['usage'] ?? NULL) ? $decoded['usage'] : [];
+  private function usage(?array $decoded): array {
+    $empty = ['reported' => FALSE, 'prompt' => 0, 'completion' => 0, 'cache' => 0];
+    $usage = is_array($decoded['usage'] ?? NULL) ? $decoded['usage'] : NULL;
+    if ($usage === NULL) {
+      return $empty;
+    }
+    $prompt = $usage['prompt_tokens'] ?? $usage['input_tokens'] ?? NULL;
+    $completion = $usage['completion_tokens'] ?? $usage['output_tokens'] ?? NULL;
+    $total = $usage['total_tokens'] ?? NULL;
+    if ($prompt === NULL && $completion === NULL && $total === NULL) {
+      return $empty;
+    }
+    if ($prompt === NULL && $completion === NULL) {
+      $prompt = $total;
+      $completion = 0;
+    }
+    $cache = $usage['prompt_cache_hit_tokens'] ?? NULL;
+    if ($cache === NULL && is_array($usage['prompt_tokens_details'] ?? NULL)) {
+      $cache = $usage['prompt_tokens_details']['cached_tokens'] ?? 0;
+    }
     return [
-      max(0, (int) ($usage['prompt_tokens'] ?? 0)),
-      max(0, (int) ($usage['completion_tokens'] ?? 0)),
+      'reported' => TRUE,
+      'prompt' => max(0, (int) $prompt),
+      'completion' => max(0, (int) $completion),
+      'cache' => max(0, (int) $cache),
     ];
   }
 
-  private function content(?array $decoded): ?string {
-    $message = $decoded['choices'][0]['message']['content'] ?? NULL;
-    if (is_string($message)) {
+  /**
+   * @return array{0: ?string, 1: bool}
+   *   Text and whether it was recovered from reasoning content.
+   */
+  private function content(?array $decoded): array {
+    $message = $decoded['choices'][0]['message'] ?? NULL;
+    $text = $this->messageText(is_array($message) ? ($message['content'] ?? NULL) : $message);
+    if ($text !== NULL) {
+      return [$text, FALSE];
+    }
+    $finish = $this->finishReason($decoded);
+    $reasoning = is_array($message) ? ($message['reasoning_content'] ?? NULL) : NULL;
+    if ($finish !== 'length' && is_string($reasoning) && str_contains($reasoning, '{')) {
+      return [$reasoning, TRUE];
+    }
+    return [NULL, FALSE];
+  }
+
+  private function messageText(mixed $message): ?string {
+    if (is_string($message) && trim($message) !== '') {
       return $message;
     }
     if (!is_array($message)) {
@@ -144,7 +199,7 @@ final class OpenAiChatClient {
         $text .= $part['text'];
       }
     }
-    return $text === '' ? NULL : $text;
+    return trim($text) === '' ? NULL : $text;
   }
 
   private function errorCode(int $status, ?array $decoded, string $message): string {

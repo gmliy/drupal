@@ -1,0 +1,695 @@
+{
+  "started": "2026-11-05T09:06:38.128Z",
+  "results": {
+    "desktop": {
+      "measure": {
+        "ok": true,
+        "heights": {
+          "dialog": 810,
+          "titlebar": 44,
+          "add": 64,
+          "header": 34,
+          "filters": 34,
+          "viewContent": 559,
+          "pager": 28,
+          "buttonpane": 53
+        },
+        "rects": {
+          "titlebar": {
+            "top": 46,
+            "bottom": 90,
+            "h": 44,
+            "w": 1118
+          },
+          "add": {
+            "top": 98,
+            "bottom": 162,
+            "h": 64,
+            "w": 1094
+          },
+          "header": {
+            "top": 168,
+            "bottom": 202,
+            "h": 34,
+            "w": 96
+          },
+          "filters": {
+            "top": 168,
+            "bottom": 202,
+            "h": 34,
+            "w": 988
+          },
+          "viewContent": {
+            "top": 202,
+            "bottom": 761,
+            "h": 559,
+            "w": 1094
+          },
+          "pager": {
+            "top": 765,
+            "bottom": 793,
+            "h": 28,
+            "w": 1094
+          },
+          "buttonpane": {
+            "top": 801,
+            "bottom": 854,
+            "h": 53,
+            "w": 1118
+          }
+        },
+        "scroll": {
+          "clientHeight": 559,
+          "scrollHeight": 994,
+          "overflowY": "auto"
+        },
+        "toolbarRow": {
+          "headerTop": 168,
+          "filtersTop": 168,
+          "sameRow": true
+        },
+        "cols": 6,
+        "itemCount": 24,
+        "selectedText": "0 项目已选择",
+        "displayLinks": [
+          "格子",
+          "表格"
+        ],
+        "hasName": true,
+        "hasSort": true,
+        "hasApply": true,
+        "imgs": [
+          {
+            "naturalWidth": 102,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 220,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 220,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          }
+        ],
+        "inViewOccluded": 0,
+        "inViewOkImages": 12,
+        "ratioList": 0.69
+      },
+      "scroll": {
+        "ok": true,
+        "scrollTop": 435,
+        "clientHeight": 559,
+        "scrollHeight": 994
+      },
+      "selected": "2 项目已选择",
+      "afterSearch": {
+        "heights": {
+          "dialog": 810,
+          "titlebar": 44,
+          "add": 64,
+          "header": 34,
+          "filters": 34,
+          "viewContent": 559,
+          "pager": 28,
+          "buttonpane": 53
+        },
+        "cols": 6,
+        "inViewOccluded": 0,
+        "inViewOkImages": 12
+      },
+      "afterPager": {
+        "heights": {
+          "dialog": 810,
+          "titlebar": 44,
+          "add": 64,
+          "header": 34,
+          "filters": 34,
+          "viewContent": 559,
+          "pager": 28,
+          "buttonpane": 53
+        },
+        "cols": 6
+      },
+      "dark": {
+        "heights": {
+          "dialog": 810,
+          "titlebar": 44,
+          "add": 64,
+          "header": 34,
+          "filters": 34,
+          "viewContent": 559,
+          "pager": 28,
+          "buttonpane": 53
+        },
+        "inViewOccluded": 0
+      },
+      "errors": []
+    },
+    "tablet": {
+      "measure": {
+        "ok": true,
+        "heights": {
+          "dialog": 720,
+          "titlebar": 44,
+          "add": 64,
+          "header": 34,
+          "filters": 34,
+          "viewContent": 469,
+          "pager": 28,
+          "buttonpane": 53
+        },
+        "rects": {
+          "titlebar": {
+            "top": 41,
+            "bottom": 85,
+            "h": 44,
+            "w": 874
+          },
+          "add": {
+            "top": 93,
+            "bottom": 157,
+            "h": 64,
+            "w": 850
+          },
+          "header": {
+            "top": 163,
+            "bottom": 197,
+            "h": 34,
+            "w": 96
+          },
+          "filters": {
+            "top": 163,
+            "bottom": 197,
+            "h": 34,
+            "w": 744
+          },
+          "viewContent": {
+            "top": 197,
+            "bottom": 666,
+            "h": 469,
+            "w": 850
+          },
+          "pager": {
+            "top": 670,
+            "bottom": 698,
+            "h": 28,
+            "w": 850
+          },
+          "buttonpane": {
+            "top": 706,
+            "bottom": 759,
+            "h": 53,
+            "w": 874
+          }
+        },
+        "scroll": {
+          "clientHeight": 469,
+          "scrollHeight": 1664,
+          "overflowY": "auto"
+        },
+        "toolbarRow": {
+          "headerTop": 163,
+          "filtersTop": 163,
+          "sameRow": true
+        },
+        "cols": 4,
+        "itemCount": 24,
+        "selectedText": "0 项目已选择",
+        "displayLinks": [
+          "格子",
+          "表格"
+        ],
+        "hasName": true,
+        "hasSort": true,
+        "hasApply": true,
+        "imgs": [
+          {
+            "naturalWidth": 102,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": true,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": true,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": true,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": true,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 220,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 220,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          }
+        ],
+        "inViewOccluded": 4,
+        "inViewOkImages": 4,
+        "ratioList": 0.651
+      },
+      "scroll": {
+        "ok": true,
+        "scrollTop": 1195,
+        "clientHeight": 469,
+        "scrollHeight": 1664
+      }
+    },
+    "mobileEmulation": {
+      "measure": {
+        "ok": true,
+        "heights": {
+          "dialog": 598,
+          "titlebar": 44,
+          "add": 79,
+          "header": 34,
+          "filters": 74,
+          "viewContent": 232,
+          "pager": 28,
+          "buttonpane": 61
+        },
+        "rects": {
+          "titlebar": {
+            "top": 34,
+            "bottom": 78,
+            "h": 44,
+            "w": 376
+          },
+          "add": {
+            "top": 86,
+            "bottom": 165,
+            "h": 79,
+            "w": 352
+          },
+          "header": {
+            "top": 171,
+            "bottom": 205,
+            "h": 34,
+            "w": 352
+          },
+          "filters": {
+            "top": 211,
+            "bottom": 285,
+            "h": 74,
+            "w": 352
+          },
+          "viewContent": {
+            "top": 291,
+            "bottom": 523,
+            "h": 232,
+            "w": 352
+          },
+          "pager": {
+            "top": 533,
+            "bottom": 561,
+            "h": 28,
+            "w": 352
+          },
+          "buttonpane": {
+            "top": 569,
+            "bottom": 630,
+            "h": 61,
+            "w": 376
+          }
+        },
+        "scroll": {
+          "clientHeight": 232,
+          "scrollHeight": 2916,
+          "overflowY": "auto"
+        },
+        "toolbarRow": {
+          "headerTop": 171,
+          "filtersTop": 211,
+          "sameRow": false
+        },
+        "cols": 2,
+        "itemCount": 24,
+        "selectedText": "0 项目已选择",
+        "displayLinks": [
+          "格子",
+          "表格"
+        ],
+        "hasName": true,
+        "hasSort": true,
+        "hasApply": true,
+        "imgs": [
+          {
+            "naturalWidth": 102,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": true,
+            "clippedOutsideScrollport": false,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": true
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 146,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 220,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          },
+          {
+            "naturalWidth": 220,
+            "objectFit": "contain",
+            "inView": false,
+            "clippedOutsideScrollport": true,
+            "overlapToolbar": false,
+            "overlapAdd": false,
+            "overlapBp": false,
+            "centerIsMedia": false
+          }
+        ],
+        "inViewOccluded": 0,
+        "inViewOkImages": 2,
+        "ratioList": 0.388
+      },
+      "scroll": {
+        "moved": true,
+        "scrollTop": 400,
+        "clientHeight": 232,
+        "scrollHeight": 2916,
+        "canReachEnd": true
+      },
+      "note": "Playwright iPhone 13 emulation — real iOS/Android NOT TESTED"
+    }
+  },
+  "pass": {
+    "titlebarCompact": true,
+    "addCompact": true,
+    "filtersCompact": true,
+    "buttonpaneCompact": true,
+    "listTall": true,
+    "listRatio": true,
+    "noOcclusion": true,
+    "imagesOk": true,
+    "colsDesktop": true,
+    "scrollEnd": true,
+    "selectedWorks": true,
+    "functionsPresent": true
+  },
+  "overall": "PASS"
+}

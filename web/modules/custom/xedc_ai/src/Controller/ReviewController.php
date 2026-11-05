@@ -8,7 +8,6 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Url;
 use Drupal\user\UserInterface;
-use Drupal\xedc_ai\Budget\Money;
 use Drupal\xedc_ai\Form\EnqueueForm;
 use Drupal\xedc_ai\Form\QueueControlForm;
 use Drupal\xedc_ai\Form\ReviewActionForm;
@@ -18,6 +17,7 @@ use Drupal\xedc_ai\Review\Fingerprint;
 use Drupal\xedc_ai\Review\ReviewRepository;
 use Drupal\xedc_ai\Review\TextExtractor;
 use Drupal\xedc_ai\Usage\UsageLogger;
+use Drupal\xedc_ai\Usage\UsageReport;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -144,7 +144,7 @@ final class ReviewController extends ControllerBase {
       }
     }
     $localLines = $otherLines;
-    $usage = $this->usage->totalsForReview((int) $row['id']);
+    $usage = UsageReport::summarize($this->usage->callsForReview((int) $row['id']), (string) $row['status'], (string) $row['error_code']);
     $history = [];
     foreach ($this->reviews->history((string) $row['entity_type'], (int) $row['entity_id'], 8) as $older) {
       if ((int) $older['id'] === (int) $row['id']) {
@@ -177,16 +177,18 @@ final class ReviewController extends ControllerBase {
       'suggestions' => $this->lines((string) $row['suggestions']),
       'comparisons' => $this->comparisons(is_array($result) ? $result : [], $current),
       'history' => $history,
-      'tokens' => $usage['tokens'],
-      'cost' => $usage['known'] ? Money::yuan($usage['cost_micro']) : '未核算',
+      'tokens' => $usage['token_label'],
+      'cost' => $usage['cost_label'],
+      'phase' => in_array((string) $row['status'], ['pending', 'processing'], TRUE) ? 'pending' : ((string) $row['status'] === 'failed' ? 'failed' : 'ready'),
       'summary' => (string) $row['summary'],
       'handler' => $handler !== '' ? $handler : '—',
       'handled' => Labels::handled((string) $row['handled_status']),
       'error' => (string) $row['error_message'],
       'error_code' => (string) $row['error_code'],
+      'error_label' => Labels::errorCode((string) $row['error_code']),
       'cached' => (string) $row['error_code'] === 'cache',
       'stale' => $stale,
-      'moderation' => $stateLabel !== '' ? $stateLabel : '未启用工作流',
+      'moderation' => Labels::moderation((string) $row['moderation_state'], $stateLabel),
       'workflow' => (string) $row['moderation_workflow'],
       'local' => $localLines,
       'duplicates' => $duplicateLines,

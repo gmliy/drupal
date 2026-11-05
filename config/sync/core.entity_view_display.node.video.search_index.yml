@@ -6,7 +6,13 @@ dependencies:
     - core.entity_view_mode.node.search_index
     - field.field.node.video.field_body
     - field.field.node.video.field_categories
+    - field.field.node.video.field_duration
+    - field.field.node.video.field_featured
+    - field.field.node.video.field_slideshow
     - field.field.node.video.field_tags
+    - field.field.node.video.field_video_cover
+    - field.field.node.video.field_video_file
+    - field.field.node.video.field_video_url
     - node.type.video
   module:
     - text
@@ -16,6 +22,11 @@ targetEntityType: node
 bundle: video
 mode: search_index
 content:
+  content_moderation_control:
+    settings: {  }
+    third_party_settings: {  }
+    weight: -20
+    region: content
   field_body:
     type: text_default
     label: hidden
@@ -41,6 +52,8 @@ content:
     region: content
 hidden:
   field_duration: true
+  field_featured: true
+  field_slideshow: true
   field_video_cover: true
   field_video_file: true
   field_video_url: true

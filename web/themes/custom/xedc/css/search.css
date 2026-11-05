@@ -459,7 +459,7 @@ body:has(.sr-page) h1.page-title { margin-top: .125rem; }
   .sr-form { margin-bottom: 14px; }
   .sr-field { height: 46px; border-radius: 12px; }
   .sr-field-icon { left: 13px; width: 18px; height: 18px; margin-top: -9px; }
-  .sr-input { padding-left: 40px; font-size: 14px; }
+  .sr-input { padding-left: 40px; font-size: 16px; }
   .sr-clear { width: 30px; height: 30px; }
   .sr-submit { height: 36px; padding: 0 14px; font-size: 13px; }
   .sr-tabs { gap: 8px; -webkit-mask-image: linear-gradient(90deg, var(--bs-black) 86%, transparent); mask-image: linear-gradient(90deg, var(--bs-black) 86%, transparent); }

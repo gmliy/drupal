@@ -18,6 +18,10 @@ regions:
   footer: Footer
 libraries:
   - xedc/style
+libraries-extend:
+  core/drupal.dialog:
+    - xedc/dialog_fix
+    - xedc_member/media_library_modal
 libraries-override:
   # jQuery is dropped in xedc_library_info_alter(); libraries-override cannot
   # remove a dependency that is stored as a list.

@@ -976,6 +976,20 @@ body.xm-submission-page .block-page-title-block h1 {
 .xm-submit__section-title { margin: 0 0 12px; font-size: 1rem; font-weight: 650; }
 .xm-submit__hint { margin: 0 0 12px; color: var(--xm-mut); font-size: 13px; line-height: 1.6; }
 .xm-submit__section--media .xedc-upload--member { margin-top: 12px; }
+.xm-submit__advanced {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--xm-bd);
+  border-radius: var(--xm-radius-sm, 10px);
+  background: var(--xm-surface);
+}
+.xm-submit__advanced > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--xm-mut);
+}
+.xm-submit__advanced[open] > summary { margin-bottom: 10px; color: var(--xm-fg); }
 .xm-submit__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .xm-submit-hub {
@@ -1043,16 +1057,70 @@ body.xm-submission-page :is(.messages--status, .alert-success) {
   background: var(--xm-success-bg); color: var(--xm-success); border-color: transparent;
 }
 
-body.xm-page .ui-dialog {
-  border: 1px solid var(--xm-bd); border-radius: var(--xm-radius); background: var(--xm-surface); color: var(--xm-fg); box-shadow: 0 18px 40px rgb(28 25 23 / 14%);
+body.xm-page .ui-dialog,
+body.xm-submission-page .ui-dialog {
+  border: 1px solid var(--xm-bd);
+  border-radius: 16px;
+  background: var(--xm-surface);
+  color: var(--xm-fg);
+  box-shadow: var(--xm-shadow-pop, 0 18px 40px rgb(28 25 23 / 14%));
 }
-body.xm-page .ui-dialog .ui-dialog-titlebar {
-  border: 0; border-bottom: 1px solid var(--xm-bd); background: var(--xm-surface); color: var(--xm-fg);
+body.xm-page .ui-dialog .ui-dialog-titlebar,
+body.xm-submission-page .ui-dialog .ui-dialog-titlebar {
+  border: 0;
+  border-bottom: 1px solid var(--xm-bd);
+  background: var(--xm-surface);
+  color: var(--xm-fg);
 }
 body.xm-page .ui-dialog .ui-dialog-content,
-body.xm-page .ui-dialog .ui-dialog-buttonpane { background: var(--xm-surface); color: var(--xm-fg); }
+body.xm-page .ui-dialog .ui-dialog-buttonpane,
+body.xm-submission-page .ui-dialog .ui-dialog-content,
+body.xm-submission-page .ui-dialog .ui-dialog-buttonpane {
+  background: var(--xm-surface);
+  color: var(--xm-fg);
+}
 body.xm-page .ui-widget-overlay,
-body.xm-submission-page .ui-widget-overlay { background: var(--xm-overlay); opacity: 1; }
+body.xm-submission-page .ui-widget-overlay {
+  background: var(--xm-overlay);
+  opacity: 1;
+}
+
+/* Submission media previews: responsive 2–3 tiles, desktop locked to 2. */
+body.xm-submission-page .js-media-library-selection,
+body.xm-submission-page .xm-media-widget .js-media-library-selection {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+body.xm-submission-page .js-media-library-item {
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+body.xm-submission-page .js-media-library-item-preview img {
+  width: 100%;
+  max-width: 100%;
+  max-height: min(42vh, 320px);
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+}
+@media (min-width: 520px) and (max-width: 1199.98px) {
+  body.xm-submission-page .js-media-library-selection,
+  body.xm-submission-page .xm-media-widget .js-media-library-selection {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+@media (min-width: 1200px) {
+  body.xm-submission-page .js-media-library-selection,
+  body.xm-submission-page .xm-media-widget .js-media-library-selection {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
 
 /* ========== Responsive ========== */
 @media (max-width: 1023px) {
@@ -1105,6 +1173,19 @@ body.xm-submission-page .ui-widget-overlay { background: var(--xm-overlay); opac
   }
   .xm-table td[data-label] {
     /* desktop table remains; horizontal scroll on wrap */
+  }
+
+  /* ≥16px prevents iOS Safari focus zoom; height may stay compact. */
+  .xm-profile-form :is(input[type=text], textarea, .form-control):not([type=file]):not(.xm-avatar-file),
+  .xm-security-form :is(input[type=email], input[type=password], input[type=text], .form-control):not([type=file]),
+  .xm-submission-form :is(input[type=text], input[type=email], input[type=url], input[type=number], input[type=search], input[type=password], textarea, select, .form-control, .form-select):not([type=file]),
+  .xm-submit :is(input[type=text], input[type=email], input[type=url], input[type=number], input[type=search], input[type=password], textarea, select, .form-control, .form-select):not([type=file]),
+  .xm-confirm-form :is(input[type=text], input[type=password], textarea, select, .form-control):not([type=file]),
+  .xm :is(input[type=text], input[type=email], input[type=password], input[type=search], input[type=url], input[type=number], textarea, select, .form-control):not([type=file]):not(.xedc-favorite-btn):not(.xedc-history-delete-btn),
+  .xm [contenteditable="true"],
+  .xm .ck-editor__editable,
+  .xm .ck-content {
+    font-size: 16px !important;
   }
 }
 

@@ -19,8 +19,12 @@ final class UsageLogger {
     private readonly TimeInterface $time,
   ) {}
 
-  public function start(int $reviewId, string $source, string $providerId, string $modelName, int $uid): int {
-    return (int) $this->database->insert('xedc_ai_usage')->fields([
+  /**
+   * @param array<string, mixed> $extra
+   *   Optional entity, revision and retry fields.
+   */
+  public function start(int $reviewId, string $source, string $providerId, string $modelName, int $uid, array $extra = []): int {
+    return (int) $this->database->insert('xedc_ai_usage')->fields($this->only('xedc_ai_usage', [
       'created' => $this->time->getRequestTime(),
       'source' => $source,
       'provider_id' => $providerId,
@@ -37,26 +41,47 @@ final class UsageLogger {
       'review_id' => $reviewId,
       'uid' => $uid,
       'call_state' => 'started',
-    ])->execute();
+      'entity_id' => (int) ($extra['entity_id'] ?? 0),
+      'revision_id' => (int) ($extra['revision_id'] ?? 0),
+      'usage_reported' => 0,
+      'cache_read_tokens' => 0,
+      'http_status' => 0,
+      'finish_reason' => '',
+      'retry_index' => (int) ($extra['retry_index'] ?? 0),
+      'cost_status' => '',
+    ]))->execute();
   }
 
-  public function finish(int $usageId, ChatResponse $response, ?int $costMicro, int $uid): void {
-    $known = $costMicro !== NULL;
-    $this->database->update('xedc_ai_usage')->fields([
+  public function finish(int $usageId, ChatResponse $response, ?int $costMicro, int $uid, string $costStatus = ''): void {
+    $known = $costMicro !== NULL && in_array($costStatus, ['known', 'zero', 'cache_unpriced', ''], TRUE) && $costStatus !== 'unpriced' && $costStatus !== 'failed' && $costStatus !== 'no_usage';
+    if ($costStatus === '') {
+      $costStatus = $costMicro === NULL ? 'unpriced' : ($costMicro === 0 ? 'zero' : 'known');
+    }
+    if (!$response->usageReported) {
+      $costStatus = 'no_usage';
+      $costMicro = NULL;
+      $known = FALSE;
+    }
+    $this->database->update('xedc_ai_usage')->fields($this->only('xedc_ai_usage', [
       'provider_id' => $response->providerId,
       'model_name' => $response->modelName,
       'status' => $response->ok ? 'success' : 'error',
-      'prompt_tokens' => $response->promptTokens,
-      'completion_tokens' => $response->completionTokens,
-      'total_tokens' => $response->promptTokens + $response->completionTokens,
+      'prompt_tokens' => $response->usageReported ? $response->promptTokens : 0,
+      'completion_tokens' => $response->usageReported ? $response->completionTokens : 0,
+      'total_tokens' => $response->usageReported ? $response->promptTokens + $response->completionTokens : 0,
       'duration_ms' => $response->durationMs,
-      'cost_micro' => $known ? $costMicro : 0,
+      'cost_micro' => $known ? (int) $costMicro : 0,
       'cost_known' => $known ? 1 : 0,
       'error_code' => $response->errorCode,
       'error_message' => Redactor::text($response->errorMessage),
       'uid' => $uid,
       'call_state' => 'finished',
-    ])->condition('id', $usageId)->execute();
+      'usage_reported' => $response->usageReported ? 1 : 0,
+      'cache_read_tokens' => $response->usageReported ? $response->cacheReadTokens : 0,
+      'http_status' => $response->httpStatus,
+      'finish_reason' => substr($response->finishReason, 0, 32),
+      'cost_status' => substr($costStatus, 0, 16),
+    ]))->condition('id', $usageId)->execute();
   }
 
   public function interrupt(int $usageId, string $message): void {
@@ -134,6 +159,20 @@ final class UsageLogger {
     ];
   }
 
+  /**
+   * @return list<array<string, mixed>>
+   *   Every finished call for one review, oldest first.
+   */
+  public function callsForReview(int $reviewId): array {
+    return $this->database->select('xedc_ai_usage', 'u')
+      ->fields('u')
+      ->condition('review_id', $reviewId)
+      ->condition('call_state', 'finished')
+      ->orderBy('id', 'ASC')
+      ->execute()
+      ->fetchAll(\PDO::FETCH_ASSOC);
+  }
+
   public function recent(int $limit): array {
     return $this->database->select('xedc_ai_usage', 'u')
       ->fields('u')
@@ -150,6 +189,26 @@ final class UsageLogger {
    * @param array<string, mixed> $filters
    *   Filters.
    */
+  /**
+   * Drops columns that the installed schema does not have yet.
+   *
+   * @param array<string, mixed> $fields
+   *   Candidate values.
+   *
+   * @return array<string, mixed>
+   *   Values safe to write.
+   */
+  private function only(string $table, array $fields): array {
+    $schema = $this->database->schema();
+    $safe = [];
+    foreach ($fields as $name => $value) {
+      if ($schema->fieldExists($table, (string) $name)) {
+        $safe[$name] = $value;
+      }
+    }
+    return $safe;
+  }
+
   private function apply($query, array $filters): void {
     foreach (['source' => 'source', 'provider_id' => 'provider_id', 'model_name' => 'model_name', 'status' => 'status'] as $input => $column) {
       $value = trim((string) ($filters[$input] ?? ''));

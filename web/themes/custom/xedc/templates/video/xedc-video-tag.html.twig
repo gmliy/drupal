@@ -1,8 +1,13 @@
 {{ attach_library('xedc/video_list') }}
 {{ attach_library('xedc/video-card') }}
 <div class="xv-page xv-tag">
+  <nav class="xv-crumb" aria-label="{{ '面包屑'|t }}">
+    <a href="{{ path('view.video_list.page_1') }}">{{ '视频'|t }}</a>
+    <span aria-hidden="true">/</span>
+    <span class="cur" aria-current="page">{{ term_name }}</span>
+  </nav>
   <header class="xv-head">
-    <div>
+    <div class="xv-head__main">
       <p class="xv-kicker">{{ '标签'|t }}</p>
       <h1>{{ term_name }}</h1>
       {% if description %}
@@ -12,9 +17,11 @@
     <p class="xv-count">{{ '@count 个视频'|t({'@count': total|default(0)}) }}</p>
   </header>
   <div class="xv-tools">
-    <div class="xv-sort" role="group" aria-label="{{ '排序'|t }}">
-      <a href="{{ sort_urls.new }}" class="{{ sort == 'new' ? 'is-active' }}">{{ '最新'|t }}</a>
-      <a href="{{ sort_urls.hot }}" class="{{ sort == 'hot' ? 'is-active' }}">{{ '热门'|t }}</a>
+    <div class="xv-bar">
+      <div class="xv-sort" role="group" aria-label="{{ '排序'|t }}">
+        <a href="{{ sort_urls.new }}" class="{{ sort == 'new' ? 'is-active' }}">{{ '最新'|t }}</a>
+        <a href="{{ sort_urls.hot }}" class="{{ sort == 'hot' ? 'is-active' }}">{{ '热门'|t }}</a>
+      </div>
     </div>
   </div>
   {% if items %}

@@ -85,6 +85,34 @@
     nav.scrollLeft += delta;
   }
 
+  /**
+   * After the photo form posts successfully, remember the nid so the upload
+   * queue can drop the matching archive/image jobs once the server confirms.
+   * Do not clear IndexedDB here — only after the next page load reconciles.
+   */
+  function rememberPhotoSaveDismiss(form) {
+    if (!form || !form.matches) return;
+    if (!document.body.classList.contains('xm-submission-page')) return;
+    if (!/node-(photo|photo-edit)-form/.test(form.id || form.getAttribute('id') || '')) {
+      var action = form.getAttribute('action') || '';
+      if (!/\/node\/\d+\/edit/.test(action) && !/\/node\/add\/photo/.test(action)) return;
+    }
+    var nid = 0;
+    var match = (form.getAttribute('action') || window.location.pathname || '').match(/\/node\/(\d+)(?:\/edit)?/);
+    if (match) nid = Number(match[1]) || 0;
+    if (!nid && window.drupalSettings && drupalSettings.xedcAsset) {
+      nid = Number(drupalSettings.xedcAsset.nid || 0);
+    }
+    if (nid > 0) {
+      try { window.sessionStorage.setItem('xedcPendingDismissNid', String(nid)); } catch (e) { /* ignore */ }
+    }
+  }
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target && event.target.closest ? event.target.closest('form') : null;
+    rememberPhotoSaveDismiss(form);
+  }, true);
+
   function paintAliasStatus(status, result) {
     status.textContent = result.message || '';
     status.classList.remove('is-ok', 'is-bad', 'is-wait');

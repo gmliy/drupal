@@ -56,6 +56,22 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
+
+/* Member image / archive pages expose a single drop zone. */
+.xedc-upload--member.xedc-upload--images .xedc-upload__grid,
+.xedc-upload--member.xedc-upload--archive .xedc-upload__grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.xedc-upload--member [data-xedc-drop="archive"],
+.xedc-upload--member [data-xedc-drop="image"] {
+  min-height: 140px;
+}
+
+.xedc-upload--member.xedc-upload--images [data-xedc-drop="archive"],
+.xedc-upload--member.xedc-upload--archive [data-xedc-drop="image"] {
+  display: none !important;
+}
 .xedc-upload__drop {
   min-width: 0;
   padding: 0.85rem;

@@ -92,29 +92,63 @@
   overflow-x: auto;
 }
 
-.xedc-import-grid {
+.xedc-import-grid,
+.xedc-import-grid--preview {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  margin-top: 16px;
+  max-height: min(72vh, 820px);
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
 }
 
-.xedc-import-grid figure {
+.xedc-import-grid figure,
+.xedc-import-grid__item {
   margin: 0;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--gin-border-color, var(--xedc-admin-border, #e4e4e7));
+  border-radius: 12px;
+  background: var(--gin-bg-layer2, var(--xedc-admin-surface-secondary, #f4f4f5));
 }
 
 .xedc-import-grid img {
+  display: block;
   width: 100%;
-  height: 160px;
-  object-fit: cover;
-  background: #f4f4f4;
-  border-radius: 6px;
+  max-width: 100%;
+  max-height: min(52vh, 420px);
+  height: auto;
+  margin: 0 auto;
+  object-fit: contain;
+  object-position: center;
+  background: transparent;
+  border-radius: 8px;
 }
 
 .xedc-import-grid figcaption {
+  margin-top: 8px;
+  color: var(--gin-text-muted, var(--xedc-admin-muted, #71717a));
   font-size: 12px;
   line-height: 1.4;
-  margin-top: 4px;
   word-break: break-word;
+}
+
+.xedc-import-grid__empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--gin-text-muted, #71717a);
+}
+
+.xedc-import__member-help {
+  margin: 0 0 12px;
+}
+
+.xedc-import__member-help p {
+  margin: 0;
 }
 
 .xedc-import__actions {
@@ -162,9 +196,29 @@
   margin: 0;
 }
 
-@media (max-width: 720px) {
+@media (min-width: 520px) and (max-width: 1199.98px) {
+  .xedc-import-grid,
+  .xedc-import-grid--preview {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .xedc-import-grid,
+  .xedc-import-grid--preview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 767.98px) {
   .xedc-import {
     padding: 10px;
+  }
+
+  .xedc-import-grid img {
+    max-height: min(42vh, 280px);
   }
 
   .xedc-import__actions a,

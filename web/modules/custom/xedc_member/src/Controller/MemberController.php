@@ -408,8 +408,9 @@ class MemberController extends ControllerBase {
       '#urls' => $this->memberUrls(),
       '#create_links' => $this->submissionCreateLinks(),
       '#guidelines' => [
-        $this->t('请先填写标题，再上传图片或压缩包。'),
-        $this->t('可先保存草稿，确认内容后再提交审核。'),
+        $this->t('图片投稿支持单张或多张图片；多张会组成同一个图片集。'),
+        $this->t('大批量图片请使用压缩包投稿（ZIP / 7z）。'),
+        $this->t('请先填写标题再上传。可先保存草稿，确认后再提交审核。'),
         $this->t('退回修改后请根据处理说明调整，再重新提交。'),
         $this->t('请勿上传无版权或不适合公开的内容。'),
       ],
@@ -1011,18 +1012,9 @@ class MemberController extends ControllerBase {
       [
         'key' => 'photo',
         'label' => $this->t('图片投稿'),
-        'description' => $this->t('上传单张或少量图片，填写标题与描述。'),
+        'description' => $this->t('单张或多张图片。多张会组成同一个图片集。'),
         'icon' => '图',
         'url' => $photo,
-      ],
-      [
-        'key' => 'gallery',
-        'label' => $this->t('图片集投稿'),
-        'description' => $this->t('一次选择多张图片，适合成组作品。'),
-        'icon' => '集',
-        'url' => Url::fromRoute('node.add', ['node_type' => 'photo'], [
-          'query' => ['upload' => 'gallery'],
-        ])->toString(),
       ],
       [
         'key' => 'archive',

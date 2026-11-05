@@ -127,9 +127,13 @@ class PublicProfileBuilder implements TrustedCallbackInterface {
     $build = [
       '#theme' => 'xedc_public_profile',
       '#name' => $name,
+      // Public handle only: account name + vanity slug already exposed by the URL.
+      '#username' => (string) $account->getAccountName(),
+      '#slug' => $slug,
       '#bio' => $this->bio($account),
       '#joined' => $this->dateFormatter->format($account->getCreatedTime(), 'custom', 'Y年n月j日'),
       '#avatar' => $avatar['src'],
+      '#works_total' => $total_public,
       '#stats' => $this->stats($slug, $sort, $counts),
       '#filters' => $this->filters($slug, $type, $sort, $counts, $total_public),
       '#sorts' => $this->sorts($slug, $type, $sort),

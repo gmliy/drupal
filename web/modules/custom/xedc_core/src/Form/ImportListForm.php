@@ -10,6 +10,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\xedc_core\Ops\Storage\StorageSizeFormatter;
 use Drupal\Core\Url;
+use Drupal\node\NodeInterface;
 use Drupal\xedc_core\ArchiveManager;
 use Drupal\xedc_core\ImportStatus;
 use Drupal\xedc_core\Publisher;
@@ -501,13 +502,33 @@ class ImportListForm extends FormBase {
         '#attributes' => ['class' => ['xedc-import-dashboard__op']],
       ],
     ];
-    if ($canPublish && $status === ImportStatus::REVIEW) {
-      $ops['publish'] = [
-        '#type' => 'link',
-        '#title' => $this->t('发布'),
-        '#url' => Url::fromRoute('xedc_core.import_publish', ['task' => $id]),
-        '#attributes' => ['class' => ['xedc-import-dashboard__op']],
-      ];
+    if ($status === ImportStatus::REVIEW) {
+      if ($canPublish) {
+        $ops['publish'] = [
+          '#type' => 'link',
+          '#title' => $this->t('发布'),
+          '#url' => Url::fromRoute('xedc_core.import_publish', ['task' => $id]),
+          '#attributes' => ['class' => ['xedc-import-dashboard__op']],
+        ];
+      }
+      else {
+        $nid = (int) ($row->nid ?? 0);
+        $node = $nid > 0 ? \Drupal::entityTypeManager()->getStorage('node')->load($nid) : NULL;
+        if ($node instanceof NodeInterface && $node->access('update')) {
+          $ops['save'] = [
+            '#type' => 'link',
+            '#title' => $this->t('保存'),
+            '#url' => $node->toUrl('edit-form', [
+              'query' => [
+                'destination' => Url::fromRoute('xedc_member.submissions')->toString(),
+                'xedc_import_save' => '1',
+                'xedc_task' => (string) $id,
+              ],
+            ]),
+            '#attributes' => ['class' => ['xedc-import-dashboard__op']],
+          ];
+        }
+      }
     }
     if (in_array($status, [ImportStatus::FAILED, ImportStatus::PARTIAL, ImportStatus::CANCELLED], TRUE)) {
       $ops['retry'] = [
