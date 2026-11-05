@@ -87,7 +87,14 @@ xedc_drush() {
 xedc_drush_rebuild() {
   local root=$1 uri=$2
   xedc_drush "$root" --uri="$uri" status --fields=bootstrap,drupal-version
-  xedc_drush "$root" --uri="$uri" config:import -y
+  # Active configuration is already in the restored database. config/sync is a
+  # redacted, older export. Importing it deletes keys, storage settings and
+  # roles that exist only in the database.
+  if [[ ${XEDC_CONFIG_IMPORT:-0} == "1" ]]; then
+    xedc_drush "$root" --uri="$uri" config:import -y
+  else
+    xedc_log "跳过 config:import。活动配置以恢复后的数据库为准。"
+  fi
   xedc_drush "$root" --uri="$uri" updatedb -y
   xedc_drush "$root" --uri="$uri" cache:rebuild
 }

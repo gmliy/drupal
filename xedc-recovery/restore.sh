@@ -364,12 +364,37 @@ fi
 if xedc_should_run files; then
   mkdir -p "$WEB_ROOT/sites/default/files"
   zstdcat "$SNAPSHOT/files-public.tar.zst" | tar -C "$WEB_ROOT/sites/default/files" -xf -
+  if [[ -f $SNAPSHOT/files-r2-public.tar.zst ]] && zstdcat "$SNAPSHOT/files-r2-public.tar.zst" | tar -tf - >/dev/null 2>&1; then
+    xedc_log INFO "把 R2 公共对象镜像合并进公共文件目录。不上传、不删除远端对象。"
+    zstdcat "$SNAPSHOT/files-r2-public.tar.zst" | tar -C "$WEB_ROOT/sites/default/files" -xf -
+  elif jq -e '.object_storage.in_use == true' "$SNAPSHOT/manifest.json" >/dev/null 2>&1; then
+    xedc_warn "这份快照没有 R2 公共对象镜像。远端对象只有在原 Bucket 仍可访问时才可用。"
+  fi
   private=$(jq -r '.settings_public.private_path // .private_path // empty' "$SNAPSHOT/manifest.json")
   if [[ -z $private ]]; then
     private=$TARGET/private
   fi
   mkdir -p "$private"
   zstdcat "$SNAPSHOT/files-private.tar.zst" | tar -C "$private" -xf -
+  if [[ -f $SNAPSHOT/files-r2-private.tar.zst ]] && zstdcat "$SNAPSHOT/files-r2-private.tar.zst" | tar -tf - >/dev/null 2>&1; then
+    xedc_log INFO "把 R2 私有对象镜像合并进私有文件目录。不上传、不删除远端对象。"
+    zstdcat "$SNAPSHOT/files-r2-private.tar.zst" | tar -C "$private" -xf -
+  fi
+  if [[ ${XEDC_FORCE_LOCAL_STORAGE:-0} == 1 && -f $private/xedc-storage-runtime/active.json ]]; then
+    php /dev/stdin "$private/xedc-storage-runtime/active.json" <<'PHP'
+<?php
+$path = $argv[1];
+$data = json_decode((string) file_get_contents($path), true);
+if (!is_array($data)) {
+    fwrite(STDERR, "无法读取存储运行状态。\n");
+    exit(1);
+}
+$data['public_mode'] = 'local';
+$data['cdn_enabled'] = false;
+file_put_contents($path, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n");
+PHP
+    xedc_log INFO "本次恢复强制使用本地文件，不会连接对象存储。"
+  fi
   if [[ -d $SECRET_DIR/storage-keys ]]; then
     cp -a "$SECRET_DIR/storage-keys/." "$private/"
   fi
@@ -384,7 +409,16 @@ if xedc_should_run files; then
 fi
 if xedc_should_run settings; then
   xedc_write_settings_local "$SECRET_DIR/db.json" "$XEDC_STATE_ROOT/db.pass" "$DOMAIN" "$WEB_ROOT/sites/default/settings.local.php"
-  chgrp www-data "$WEB_ROOT/sites/default/settings.local.php" || true
+  if [[ ${XEDC_FORCE_LOCAL_STORAGE:-0} == 1 ]]; then
+    cat >>"$WEB_ROOT/sites/default/settings.local.php" <<'PHP'
+$settings['s3fs.use_s3_for_public'] = FALSE;
+$settings['s3fs.use_s3_for_private'] = FALSE;
+$settings['xedc_storage.public_mode'] = 'local';
+$settings['xedc_storage.public_takeover'] = FALSE;
+PHP
+  fi
+  chgrp www-data "$WEB_ROOT/sites/default/settings.php" "$WEB_ROOT/sites/default/settings.local.php" || true
+  chmod 640 "$WEB_ROOT/sites/default/settings.php" "$WEB_ROOT/sites/default/settings.local.php" || true
   xedc_ensure_settings_include "$WEB_ROOT/sites/default/settings.php"
   xedc_mark settings
 fi
@@ -448,6 +482,11 @@ if xedc_should_run domain && [[ -n $OLD_DOMAIN && -n $NEW_DOMAIN ]]; then
 fi
 if xedc_should_run drush; then
   if [[ -x $TARGET/vendor/bin/drush ]]; then
+    # 文件包里的容器缓存可能来自另一次不完整导入。先丢掉，再按恢复后的数据库重建。
+    rm -rf "$WEB_ROOT/sites/default/files/php"
+    if command -v redis-cli >/dev/null 2>&1 && redis-cli ping >/dev/null 2>&1; then
+      redis-cli flushall >/dev/null 2>&1 || true
+    fi
     xedc_drush_rebuild "$TARGET" "https://${DOMAIN}"
   else
     xedc_warn "项目里没有 drush，已跳过 config:import、updatedb 和 cache:rebuild。"

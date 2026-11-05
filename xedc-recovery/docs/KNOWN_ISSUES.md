@@ -1,5 +1,7 @@
 # 已知问题
 
+2026-11-05 的隔离恢复见 `AUDIT-20261105-backup-restore.md`。下面有些条目记录的是当时还没做的测试，后来的结论以那份审计为准。
+
 ## 公开历史里的凭据
 
 `settings.php`、`config/sync/smtp.settings.yml` 和历史中的 `_server/db.sql` 已经在公开 Git 历史里。标签 `backup-before-migration-v2` 指向 `3f56c01`。不能通过改写历史消除。需要轮换数据库密码、hash salt 和 SMTP 密码。新备份不再把这些值放进未加密的项目包或私有文件包。
@@ -14,7 +16,9 @@
 
 ## 恢复只验证了夹具
 
-Ubuntu 24.04 容器用 PHP 8.5.12、MariaDB、Nginx 和 PHP-FPM 恢复了一份小夹具，并重复跑过一次。夹具不是 Drupal。没有 drush，就没有配置导入、数据库更新、管理员重置和一次性登录。容器里没有 systemd 和 Docker 守护进程，所以 SSL 等待 timer 没有启用，Matomo 容器没有拉起。Netdata、cron、失败回滚和真实 CA 都还没有验收。对账目前只比较少数字段，不能当成与生产站一致。
+这一节是早期夹具测试的记录。2026-11-05 已经用真实快照做过 Drupal 和 Matomo 的隔离恢复，见 `AUDIT-20261105-backup-restore.md`。
+
+Ubuntu 24.04 容器用 PHP 8.5.12、MariaDB、Nginx 和 PHP-FPM 恢复了一份小夹具，并重复跑过一次。夹具不是 Drupal。没有 drush，就没有配置导入、数据库更新、管理员重置和一次性登录。容器里没有 systemd 和 Docker 守护进程，所以 SSL 等待 timer 没有启用，Matomo 容器没有拉起。当时 Netdata、cron、失败回滚和真实 CA 都还没有验收。
 
 无 systemd 的机器上，`systemctl` 即使存在也不能用来启动服务。恢复改走 service 或直接启动进程。站点目录回滚已在临时目录核对哈希；Nginx 配置和数据库回滚还没有在运行中的服务上执行。
 
@@ -26,7 +30,7 @@ origin/main 在 `tools/xedc-recover/` 有一套已合并的备份工具，其规
 
 ## 一条命令恢复的范围
 
-`recover.sh` 会在新服务器上安装 PHP 8.5 和 MariaDB 12，并调用原来的 `restore.sh`。本轮没有把生产迁移包恢复到一台新服务器，也没有在隔离环境里拉起 Matomo 或 Netdata 进程。这两项是 NOT TESTED。Ubuntu 24.04 容器里安装到 MariaDB 12.3.3 和 PHP 8.5.12，容器随后删除。其他发行版没有在本轮重装。
+`recover.sh` 会在新服务器上安装 PHP 8.5 和 MariaDB 12，并调用原来的 `restore.sh`。2026-11-05 已用快照 `20261105T214600Z` 在隔离容器里恢复 Drupal，并在独立卷上启动 Matomo。Netdata 只备份了配置，监控历史不在备份里，隔离环境也没有再装一套 Netdata。Ubuntu 24.04 上的 NodeSource 20 软件源不可用时，恢复会改用发行版的 nodejs，并留下警告。
 
 源服务器检测到与备份相同的 machine-id 时，恢复会停止。已经运行且不是 12 系列的 MariaDB 不会被原地升级。
 

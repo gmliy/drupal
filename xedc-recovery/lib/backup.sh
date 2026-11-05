@@ -84,6 +84,21 @@ xedc_backup_self_test() {
   if ! cmp -s "$XEDC_SITE_ROOT/composer.lock" "$dest/composer.lock"; then
     xedc_die "composer.lock 与站点不一致。"
   fi
+  if jq -e '.object_storage.in_use == true' "$dest/manifest.json" >/dev/null; then
+    local mirror_status expected archived
+    mirror_status=$(jq -r '.object_storage.mirror.status // empty' "$dest/manifest.json")
+    [[ $mirror_status == PASS ]] || xedc_die "对象存储正在使用，但没有成功的只读镜像。"
+    expected=$(jq -r '.object_storage.mirror.public_count' "$dest/manifest.json")
+    archived=$(zstdcat "$dest/files-r2-public.tar.zst" | tar -tf - | awk '!/\/$/ && $0 != "./" && $0 != "." {n++} END {print n+0}')
+    [[ $archived == "$expected" ]] || xedc_die "R2 公共对象归档数量 ${archived} 与镜像数量 ${expected} 不一致。"
+    lines=$(grep -cve '^$' "$dest/files-r2-public.sha256" || true)
+    [[ $lines == "$expected" ]] || xedc_die "R2 公共对象校验行数 ${lines} 与镜像数量 ${expected} 不一致。"
+    expected=$(jq -r '.object_storage.mirror.private_count' "$dest/manifest.json")
+    archived=$(zstdcat "$dest/files-r2-private.tar.zst" | tar -tf - | awk '!/\/$/ && $0 != "./" && $0 != "." {n++} END {print n+0}')
+    [[ $archived == "$expected" ]] || xedc_die "R2 私有对象归档数量 ${archived} 与镜像数量 ${expected} 不一致。"
+    lines=$(grep -cve '^$' "$dest/files-r2-private.sha256" || true)
+    [[ $lines == "$expected" ]] || xedc_die "R2 私有对象校验行数 ${lines} 与镜像数量 ${expected} 不一致。"
+  fi
 }
 
 xedc_backup_checksums() {
@@ -227,6 +242,37 @@ EOF
     printf '' | zstd -T2 -q -o "$dest/files-private.tar.zst"
     xedc_warn "没有私有文件目录。"
   fi
+
+  xedc_set_phase object-mirror
+  local mirror_dir
+  mirror_dir=$(mktemp -d "${TMPDIR:-/tmp}/xedc-r2mirror.XXXXXX")
+  chmod 700 "$mirror_dir"
+  if ! php "$XEDC_LIB/object_mirror.php" --site-root "$XEDC_SITE_ROOT" --inventory "$facts/object_storage.json" --output "$mirror_dir"; then
+    rm -rf "$mirror_dir"
+    xedc_die "对象存储镜像失败。没有上传或删除远端对象。"
+  fi
+  if [[ -d $mirror_dir/public ]]; then
+    xedc_archive_dir "$mirror_dir/public" "$dest/files-r2-public.tar.zst"
+  else
+    printf '' | zstd -T2 -q -o "$dest/files-r2-public.tar.zst"
+  fi
+  if [[ -d $mirror_dir/private ]]; then
+    xedc_archive_dir "$mirror_dir/private" "$dest/files-r2-private.tar.zst"
+  else
+    printf '' | zstd -T2 -q -o "$dest/files-r2-private.tar.zst"
+  fi
+  if [[ -f $mirror_dir/public.sha256 ]]; then
+    cp -a "$mirror_dir/public.sha256" "$dest/files-r2-public.sha256"
+  else
+    : >"$dest/files-r2-public.sha256"
+  fi
+  if [[ -f $mirror_dir/private.sha256 ]]; then
+    cp -a "$mirror_dir/private.sha256" "$dest/files-r2-private.sha256"
+  else
+    : >"$dest/files-r2-private.sha256"
+  fi
+  chmod 600 "$dest/files-r2-public.sha256" "$dest/files-r2-private.sha256"
+  rm -rf "$mirror_dir"
 
   xedc_set_phase project
   local overlay=$facts/overlay
@@ -413,6 +459,7 @@ PY
 数据库: ${database}
 公共文件: ${public_count}
 私有文件: ${private_count}
+R2 镜像: 见 manifest.json 的 object_storage.mirror
 警告数: ${XEDC_WARN_COUNT}
 
 密钥已用 age 加密。私钥不在这个目录里。

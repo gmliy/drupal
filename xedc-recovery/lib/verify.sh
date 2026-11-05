@@ -3,8 +3,12 @@
 
 xedc_verify_http() {
   local base=$1 path=$2 expect=$3
-  local code
-  code=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 15 "${base}${path}" || true)
+  local code host port
+  host=$(printf '%s' "$base" | sed -E 's#^[a-z]+://([^/:]+).*#\1#')
+  port=443
+  [[ $base == http://* ]] && port=80
+  # 始终检查本机 Nginx，避免域名仍指向旧服务器时把旧站误判为恢复成功。
+  code=$(curl -sk --resolve "${host}:${port}:127.0.0.1" -o /dev/null -w '%{http_code}' --max-time 20 "${base}${path}" || true)
   case $code in
     200|301|302|303|307|308)
       if [[ $expect == redirect && $code == 200 ]]; then
@@ -12,6 +16,14 @@ xedc_verify_http() {
         return 0
       fi
       printf 'PASS %s %s\n' "$path" "$code"
+      ;;
+    403)
+      if [[ $expect == redirect ]]; then
+        printf 'PASS %s %s 匿名无权访问\n' "$path" "$code"
+        return 0
+      fi
+      printf 'FAIL %s %s\n' "$path" "$code"
+      return 1
       ;;
     "")
       printf 'FAIL %s 无响应\n' "$path"

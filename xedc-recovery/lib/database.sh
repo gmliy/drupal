@@ -148,6 +148,16 @@ xedc_import_database() {
     return 0
   fi
   zstdcat "$dump" | mariadb --defaults-extra-file="$cnf" "$database"
+  if [[ ! $database =~ ^[A-Za-z0-9_]+$ ]]; then
+    xedc_die "数据库名不合法，无法核对导入结果。"
+  fi
+  local expected actual
+  expected=$(zstdcat "$dump" | grep -c 'CREATE TABLE ')
+  actual=$(mariadb --defaults-extra-file="$cnf" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${database}'")
+  [[ $actual =~ ^[0-9]+$ && $expected =~ ^[0-9]+$ ]] || xedc_die "无法核对导入后的表数量。"
+  if [[ $actual -lt $expected ]]; then
+    xedc_die "数据库导入不完整：导出 ${expected} 张表，导入后 ${actual} 张。没有把这次导入标记为成功。"
+  fi
 }
 
 xedc_random_password() {

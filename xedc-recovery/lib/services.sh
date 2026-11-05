@@ -29,6 +29,7 @@ PY
     find /opt/netdata/etc/netdata -type f \( -name '*.conf' -o -name '*.conf.d' \) -print0 2>/dev/null | \
       tar --null -T - -cf - 2>/dev/null | tar -C "$dest/netdata" -xf - 2>/dev/null || \
       cp -a /opt/netdata/etc/netdata/netdata.conf "$dest/netdata/netdata.conf" 2>/dev/null || true
+    xedc_redact_service_secrets "$dest/netdata"
   fi
   if xedc_have docker; then
     docker ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}' >"$dest/docker/containers.tsv" || true
@@ -39,6 +40,29 @@ PY
     --arg netdata "$(systemctl is-active netdata 2>/dev/null || echo inactive)" \
     --arg worker "$(systemctl is-active xedc-import-worker 2>/dev/null || echo inactive)" \
     '{matomo_compose: $matomo, netdata: $netdata, import_worker: $worker}' >"$dest/services.json"
+}
+
+xedc_redact_service_secrets() {
+  local root=$1
+  [[ -d $root ]] || return 0
+  python3 - "$root" <<'PY'
+import os, re, sys
+root = sys.argv[1]
+dsn = re.compile(r"(?i)(dsn:\s*[^:\s]+:)([^@\s]+)(@)")
+password = re.compile(r"(?i)(password\s*[:=]\s*)(\S+)")
+for dirpath, _, files in os.walk(root):
+    for name in files:
+        path = os.path.join(dirpath, name)
+        try:
+            text = open(path, encoding="utf-8").read()
+        except UnicodeDecodeError:
+            continue
+        updated = dsn.sub(r"\1XEDC_REDACTED\3", text)
+        updated = password.sub(r"\1XEDC_REDACTED", updated)
+        if updated != text:
+            open(path, "w", encoding="utf-8").write(updated)
+            os.chmod(path, 0o600)
+PY
 }
 
 xedc_export_docker_volumes() {
@@ -101,6 +125,108 @@ xedc_restore_services() {
     xedc_warn "目标机没有可用的 Docker 守护进程。已保存 compose 和启动参数，容器未实际拉起。"
     return 0
   fi
+  xedc_import_docker_volumes "$snapshot/docker-volumes"
+  xedc_start_matomo_if_safe
+  xedc_install_netdata_config "$extracted"
+}
+
+# 只创建还不存在的数据卷。已有数据卷一律不覆盖，哪怕它当前没有容器使用。
+xedc_import_docker_volumes() {
+  local dir=$1 archive base
+  [[ -d $dir ]] || return 0
+  while IFS= read -r archive; do
+    [[ -n $archive ]] || continue
+    base=$(basename "$archive" .tar.zst)
+    if [[ ! $base =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]; then
+      xedc_warn "跳过名称不合法的数据卷归档。"
+      continue
+    fi
+    if docker volume inspect "$base" >/dev/null 2>&1; then
+      xedc_warn "数据卷 ${base} 已存在，不覆盖。"
+      continue
+    fi
+    xedc_log INFO "导入新数据卷 ${base}。"
+    if ! docker volume create "$base" >/dev/null; then
+      xedc_warn "无法创建数据卷 ${base}。没有改动已有数据卷。"
+      return 1
+    fi
+    if ! zstdcat "$archive" | docker run --rm -i --network none -v "${base}:/volume" mariadb:lts tar -C /volume -xf -; then
+      xedc_warn "数据卷 ${base} 导入失败。没有改动其他数据卷。"
+      docker volume rm "$base" >/dev/null 2>&1 || true
+      return 1
+    fi
+  done < <(find "$dir" -maxdepth 1 -type f -name '*.tar.zst' | sort)
+}
+
+# 生产机上如果 Matomo 已在运行，或 8088 已被占用，这里直接返回。
+xedc_start_matomo_if_safe() {
+  local compose_src env_file ini
+  if docker ps -a --filter name=^matomo-matomo-1$ --format '{{.Names}}' | grep -qx 'matomo-matomo-1'; then
+    xedc_warn "已有 Matomo 容器，不启动，也不修改它。"
+    return 0
+  fi
+  if command -v ss >/dev/null 2>&1 && ss -ltn | awk '{print $4}' | grep -qx '127.0.0.1:8088'; then
+    xedc_warn "127.0.0.1:8088 已被占用，不启动 Matomo。"
+    return 0
+  fi
+  if ! docker volume inspect matomo_db-data >/dev/null 2>&1 || ! docker volume inspect matomo_matomo-app-data >/dev/null 2>&1; then
+    xedc_warn "Matomo 数据卷未导入，不启动容器。"
+    return 0
+  fi
+  if [[ -e /opt/matomo/compose.yaml || -e /opt/matomo/.env ]]; then
+    xedc_warn "已有 /opt/matomo 配置，不覆盖。"
+    return 0
+  fi
+  compose_src=${XEDC_STATE_ROOT}/secrets/matomo-compose.yaml
+  [[ -f $compose_src ]] || {
+    xedc_warn "没有解密后的 Matomo compose，不启动容器。"
+    return 0
+  }
+  install -d -m 700 /opt/matomo
+  install -m 600 "$compose_src" /opt/matomo/compose.yaml
+  ini=$(mktemp)
+  chmod 600 "$ini"
+  docker run --rm --network none -v matomo_matomo-app-data:/volume:ro mariadb:lts cat /volume/config/config.ini.php >"$ini"
+  env_file=/opt/matomo/.env
+  python3 - "$ini" "$env_file" <<'PY'
+import sys
+src, dest = sys.argv[1:]
+section = ""
+password = ""
+for line in open(src, encoding="utf-8", errors="replace"):
+    text = line.strip()
+    if text.startswith("[") and text.endswith("]"):
+        section = text.strip("[]")
+        continue
+    if section == "database" and text.startswith("password"):
+        password = text.split("=", 1)[1].strip().strip('"').strip("'")
+        break
+if password == "":
+    raise SystemExit("Matomo 数据卷里没有数据库密码，已停止启动。")
+quoted = '"' + password.replace("\\", "\\\\").replace('"', '\\"') + '"'
+open(dest, "w", encoding="utf-8").write("MARIADB_PASSWORD=%s\nMARIADB_ROOT_PASSWORD=%s\n" % (quoted, quoted))
+PY
+  rm -f "$ini"
+  chmod 600 "$env_file"
+  # 不启动 cron。它会按公网地址归档，DNS 还指向旧服务器时会访问旧站点。
+  docker compose -p matomo --project-directory /opt/matomo up -d db matomo
+}
+
+xedc_install_netdata_config() {
+  local extracted=$1
+  local src=$extracted/netdata/opt/netdata/etc/netdata
+  [[ -d $src ]] || return 0
+  if [[ -e /opt/netdata/etc/netdata/netdata.conf ]]; then
+    xedc_log INFO "本机已有 Netdata 配置，不覆盖。备份中的配置留在恢复目录。"
+    return 0
+  fi
+  if [[ ! -x /opt/netdata/bin/netdata && ! -x /opt/netdata/usr/sbin/netdata ]]; then
+    xedc_warn "目标机还没有 Netdata。配置已解出，安装 v2.12.2 后再把该目录拷到 /opt/netdata/etc/netdata。本次不安装，避免替换正在运行的监控。"
+    return 0
+  fi
+  mkdir -p /opt/netdata/etc/netdata
+  cp -a "$src/." /opt/netdata/etc/netdata/
+  xedc_log INFO "已写入 Netdata 配置。没有重启正在运行的 Netdata。"
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
