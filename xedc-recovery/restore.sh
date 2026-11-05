@@ -33,6 +33,8 @@ source "$SCRIPT_DIR/lib/compare.sh"
 source "$SCRIPT_DIR/lib/verify.sh"
 # shellcheck source=lib/rollback.sh
 source "$SCRIPT_DIR/lib/rollback.sh"
+# shellcheck source=lib/secure.sh
+source "$SCRIPT_DIR/lib/secure.sh"
 
 xedc_init
 
@@ -307,6 +309,10 @@ if xedc_should_run secrets; then
     || xedc_die "无法解密 secrets.enc。请提供备份时的 age 私钥。"
   tar -C "$SECRET_DIR" -xf "$SECRET_DIR/secrets.tar"
   rm -f "$SECRET_DIR/secrets.tar"
+  if [[ -f $SECRET_DIR/github-deploy.key ]]; then
+    xedc_secure_install_deploy_key "$SECRET_DIR/github-deploy.key"
+    xedc_log INFO "已从加密密钥包安装 GitHub Deploy Key。"
+  fi
   xedc_mark secrets
 fi
 xedc_load_db_identity() {

@@ -44,6 +44,21 @@ xedc_age_prepare() {
   chmod 644 "$XEDC_AGE_PUB"
 }
 
+xedc_backup_collect_deploy_key() {
+  local workdir=$1
+  local src dest
+  src=${XEDC_GITHUB_DEPLOY_KEY:-/root/.config/xedc-recovery/github-deploy.key}
+  dest=$XEDC_HOME/secure/github-deploy.key
+  if [[ ! -f $src || -L $src ]]; then
+    xedc_warn "没有可用的 GitHub Deploy Key。这次加密包不包含它。"
+    return 0
+  fi
+  install -d -m 700 "$(dirname "$dest")" "$workdir"
+  install -m 600 "$src" "$dest"
+  install -m 600 "$src" "$workdir/github-deploy.key"
+  xedc_log INFO "Deploy Key 已写入私有仓库副本和加密密钥包。日志不记录密钥内容。"
+}
+
 xedc_backup_encrypt_secrets() {
   local workdir=$1 outfile=$2
   local pub
@@ -443,6 +458,7 @@ for archive in archives:
     scan(archive)
 PY
   xedc_set_phase secrets
+  xedc_backup_collect_deploy_key "$XEDC_SECRET_WORKDIR"
   xedc_backup_encrypt_secrets "$XEDC_SECRET_WORKDIR" "$dest/secrets.enc"
   rm -rf "$XEDC_SECRET_WORKDIR"
   XEDC_SECRET_WORKDIR=

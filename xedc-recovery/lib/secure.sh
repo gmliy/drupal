@@ -59,6 +59,16 @@ xedc_secure_install_r2() {
   export XEDC_R2_ENV=$dest
 }
 
+# 仓库或解密结果里的 Deploy Key 安装到固定路径。来源不存在时不报错，便于旧备份继续恢复。
+xedc_secure_install_deploy_key() {
+  local src dest
+  src=${1:-"$(xedc_secure_dir)/github-deploy.key"}
+  dest=${XEDC_GITHUB_DEPLOY_KEY:-/root/.config/xedc-recovery/github-deploy.key}
+  [[ -f $src && ! -L $src ]] || return 0
+  xedc_secure_install_file "$src" "$dest" "GitHub Deploy Key"
+  export XEDC_GITHUB_DEPLOY_KEY=$dest
+}
+
 xedc_secure_decrypt_check() {
   local enc=$1
   local out

@@ -40,6 +40,8 @@ def main() -> int:
             continue
         if current.endswith(SKIP_EXT) or current.startswith("xedc-recovery/lib/acme-dns-providers.json"):
             continue
+        if current == "xedc-recovery/secure/github-deploy.key":
+            continue
         added = line[1:]
         for name, pattern in PATTERNS:
             if pattern.search(added):

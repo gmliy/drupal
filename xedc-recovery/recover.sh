@@ -101,6 +101,7 @@ if [[ -f $envfile ]]; then
 fi
 
 xedc_set_phase github
+xedc_secure_install_deploy_key
 if [[ -f $(xedc_github_deploy_key) ]]; then
   if ! xedc_github_ls_remote; then
     xedc_die "GitHub 私有仓库认证失败。恢复已停止。"

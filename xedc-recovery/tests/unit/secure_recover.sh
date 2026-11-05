@@ -74,6 +74,23 @@ else
   echo PASS mismatch-kept-bytes
 fi
 
+printf '%s\n' 'ssh-ed25519-fixture-private' >"$work/secure/github-deploy.key"
+chmod 600 "$work/secure/github-deploy.key"
+export XEDC_GITHUB_DEPLOY_KEY=$work/runtime/github-deploy.key
+xedc_secure_install_deploy_key
+if ! cmp -s "$work/secure/github-deploy.key" "$XEDC_GITHUB_DEPLOY_KEY"; then
+  echo FAIL deploy-installed
+  fail=1
+else
+  echo PASS deploy-installed
+fi
+printf 'other-key\n' >"$XEDC_GITHUB_DEPLOY_KEY"
+if ( xedc_secure_install_deploy_key >"$work/deploy-mis.out" 2>"$work/deploy-mis.err" ); then
+  echo FAIL deploy-mismatch
+  fail=1
+else
+  echo PASS deploy-mismatch
+fi
 export XEDC_GITHUB_DEPLOY_KEY=$work/deploy
 export XEDC_GITHUB_KNOWN_HOSTS=$work/known
 xedc_github_init_deploy_key >"$work/pub.out"
