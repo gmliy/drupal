@@ -33,7 +33,8 @@ xedc_log() {
   local line
   line="$(date -u '+%H:%M:%S') $*"
   printf '%s\n' "$line" >&2
-  if [[ -n "${XEDC_LOG_FILE:-}" ]]; then
+  # tmux 里标准错误已经重定向到日志，再追加一次会让同一行出现两遍。
+  if [[ -n "${XEDC_LOG_FILE:-}" && -z "${XEDC_LOG_MIRROR:-}" ]]; then
     printf '%s\n' "$line" >>"$XEDC_LOG_FILE"
   fi
 }

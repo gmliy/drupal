@@ -122,6 +122,105 @@ if [[ "$LIST_R2" == 1 ]]; then
   exit 0
 fi
 
+ask_line() {
+  local prompt=$1 var
+  if [[ ! -t 0 ]]; then
+    return 1
+  fi
+  read -r -p "$prompt" var || return 1
+  printf '%s\n' "$var"
+}
+
+prepare_foreground() {
+  if [[ "$VERIFY" == 1 || "$LIST_LOCAL" == 1 || "$LIST_R2" == 1 ]]; then
+    return 0
+  fi
+  if [[ -z "$DOMAIN" ]]; then
+    DOMAIN=$(ask_line "新域名: " || true)
+  fi
+  if [[ -z "$DOMAIN" ]]; then
+    xedc_die "没有域名。请在命令里加上 --domain。当前不是交互终端时不能询问"
+  fi
+  if [[ "${XEDC_YES:-0}" != 1 && "${XEDC_RESOLVE_ONLY:-0}" != 1 ]]; then
+    if [[ ! -t 0 ]]; then
+      xedc_die "当前不是交互终端。确认安装请在命令末尾加 --yes"
+    fi
+    echo "将要安装的软件: nginx、PHP、MariaDB、Redis、Composer、Drush、Node、ffmpeg、7z、Docker、Netdata、Certbot"
+    local answer
+    answer=$(ask_line "输入 y 开始安装: " || true)
+    case "$answer" in
+      y|Y|yes|YES) XEDC_YES=1 ;;
+      *) xedc_die "未确认，已停止" ;;
+    esac
+  fi
+  if [[ "$FROM" == r2:* ]]; then
+    xedc_load_r2_env
+    if ! xedc_r2_ready; then
+      if [[ ! -t 0 ]]; then
+        xedc_die "没有 R2 凭据，而且当前不是交互终端。请设置 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY、R2_BUCKET。新服务器不需要解密口令"
+      fi
+      R2_ACCOUNT_ID=$(ask_line "R2 Account ID: " || true)
+      R2_ACCESS_KEY_ID=$(ask_line "Access Key ID: " || true)
+      if ! read -r -s -p "Secret Access Key: " R2_SECRET_ACCESS_KEY; then
+        xedc_die "无法读取 R2 Secret。请改用环境变量 R2_SECRET_ACCESS_KEY"
+      fi
+      echo
+      R2_BUCKET=$(ask_line "Bucket: " || true)
+      R2_PREFIX=$(ask_line "Prefix [xedc/]: " || true)
+      R2_PREFIX=${R2_PREFIX:-xedc/}
+      local keep
+      keep=$(ask_line "保留凭据供以后备份？[y/N] " || true)
+      if [[ "$keep" == "y" || "$keep" == "Y" ]]; then
+        mkdir -p "$(dirname "$XEDC_R2_ENV")"
+        umask 077
+        cat >"$XEDC_R2_ENV" <<EOF
+R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+R2_BUCKET=${R2_BUCKET}
+R2_PREFIX=${R2_PREFIX}
+EOF
+        chmod 600 "$XEDC_R2_ENV"
+      fi
+      xedc_load_r2_env
+    fi
+    if ! xedc_r2_ready; then
+      xedc_die "R2 凭据不完整。需要 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY、R2_BUCKET"
+    fi
+    export R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET R2_PREFIX R2_ENDPOINT
+  fi
+  export XEDC_YES DOMAIN
+}
+
+write_r2_handoff() {
+  local f
+  f=$(mktemp /tmp/xedc-r2.XXXXXX)
+  chmod 600 "$f"
+  cat >"$f" <<EOF
+R2_ACCOUNT_ID=${R2_ACCOUNT_ID-}
+R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID-}
+R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY-}
+R2_BUCKET=${R2_BUCKET-}
+R2_PREFIX=${R2_PREFIX-}
+R2_ENDPOINT=${R2_ENDPOINT-}
+EOF
+  chmod 600 "$f"
+  printf '%s\n' "$f"
+}
+
+load_r2_handoff() {
+  if [[ -z "${XEDC_R2_FILE:-}" || ! -f "$XEDC_R2_FILE" ]]; then
+    return 0
+  fi
+  # shellcheck disable=SC1090
+  set -a
+  # shellcheck disable=SC1090
+  source "$XEDC_R2_FILE"
+  set +a
+  rm -f "$XEDC_R2_FILE"
+  unset XEDC_R2_FILE
+}
+
 enter_tmux() {
   if [[ -n "${XEDC_INSIDE_TMUX:-}" || "${XEDC_NO_TMUX:-0}" == "1" ]]; then
     return 0
@@ -131,20 +230,34 @@ enter_tmux() {
     xedc_apt_install tmux
   fi
   mkdir -p "$(dirname "$XEDC_RESTORE_LOG")"
-  : >"$XEDC_RESTORE_LOG"
-  local cmd
+  if [[ "$RESUME" == 1 && -f "$XEDC_RESTORE_LOG" ]]; then
+    chmod 600 "$XEDC_RESTORE_LOG"
+  else
+    : >"$XEDC_RESTORE_LOG"
+    chmod 600 "$XEDC_RESTORE_LOG"
+  fi
+  local r2file="" cmd
+  if [[ "$FROM" == r2:* ]]; then
+    r2file=$(write_r2_handoff)
+  fi
   cmd=$(mktemp)
-  {
-    printf '#!/bin/bash\nset +e\nexport XEDC_INSIDE_TMUX=1\n'
-    printf 'bash %q ' "$0"
-    printf '%q ' "$@"
-    printf ' >>%q 2>&1\nrc=$?\nprintf "%%s\\n" "$rc" > /tmp/xedc-restore.exit\n' "$XEDC_RESTORE_LOG"
-  } >"$cmd"
   chmod 700 "$cmd"
+  {
+    printf '#!/bin/bash\nset +e\nexport XEDC_INSIDE_TMUX=1\nexport XEDC_LOG_MIRROR=1\n'
+    if [[ -n "$r2file" ]]; then
+      printf 'export XEDC_R2_FILE=%q\n' "$r2file"
+    fi
+    printf 'env -u R2_ACCOUNT_ID -u R2_ACCESS_KEY_ID -u R2_SECRET_ACCESS_KEY -u R2_BUCKET -u R2_PREFIX -u R2_ENDPOINT bash %q ' "$0"
+    printf '%q ' "$@"
+    printf ' >>%q 2>&1\nrc=$?\nprintf "%%s\\n" "$rc" > /tmp/xedc-restore.exit\nexit "$rc"\n' "$XEDC_RESTORE_LOG"
+  } >"$cmd"
   rm -f /tmp/xedc-restore.exit
   tmux kill-session -t xedc-restore >/dev/null 2>&1 || true
   tmux new-session -d -s xedc-restore "bash $cmd"
-  xedc_log "恢复在 tmux 会话 xedc-restore 中运行。断线后执行: tmux attach -t xedc-restore"
+  unset R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET R2_PREFIX R2_ENDPOINT
+  printf '%s\n' "恢复在 tmux 会话 xedc-restore 中运行。断线后执行: tmux attach -t xedc-restore" >&2
+  printf '%s\n' "日志: ${XEDC_RESTORE_LOG}" >&2
+  printf '%s\n' "查看: tail -f ${XEDC_RESTORE_LOG}" >&2
   if [[ -t 0 && -t 1 ]]; then
     tmux attach -t xedc-restore || true
   else
@@ -154,26 +267,65 @@ enter_tmux() {
       tail -n +1 -F "$XEDC_RESTORE_LOG" &
     fi
     local tail_pid=$!
+    local waited=0
     while [[ ! -f /tmp/xedc-restore.exit ]]; do
       if ! tmux has-session -t xedc-restore 2>/dev/null; then
         sleep 1
         break
       fi
       sleep 1
+      waited=$((waited + 1))
+      if (( waited > 86400 )); then
+        break
+      fi
     done
     kill "$tail_pid" >/dev/null 2>&1 || true
     wait "$tail_pid" 2>/dev/null || true
   fi
-  if [[ ! -f /tmp/xedc-restore.exit ]]; then
-    xedc_die "恢复会话结束但没有退出码。日志: ${XEDC_RESTORE_LOG}"
+  local i rc
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    [[ -s /tmp/xedc-restore.exit ]] && break
+    sleep 0.2
+  done
+  rm -f "$r2file" "$cmd"
+  if [[ ! -s /tmp/xedc-restore.exit ]]; then
+    printf '%s\n' "恢复失败，没有退出码" >&2
+    printf '%s\n' "日志: ${XEDC_RESTORE_LOG}" >&2
+    printf '%s\n' "查看: tail -f ${XEDC_RESTORE_LOG}" >&2
+    printf '%s\n' "继续: 在原命令末尾加上 --resume" >&2
+    exit 1
   fi
-  exit "$(cat /tmp/xedc-restore.exit)"
+  rc=$(cat /tmp/xedc-restore.exit)
+  if [[ "$rc" == "0" ]]; then
+    printf '%s\n' "恢复完成，退出码 0" >&2
+  else
+    printf '%s\n' "恢复失败，退出码 ${rc}" >&2
+    printf '%s\n' "日志: ${XEDC_RESTORE_LOG}" >&2
+    printf '%s\n' "查看: tail -f ${XEDC_RESTORE_LOG}" >&2
+    printf '%s\n' "继续: 在原命令末尾加上 --resume" >&2
+  fi
+  exit "$rc"
 }
 
-enter_tmux "${ORIGINAL_ARGS[@]}"
+if [[ -z "${XEDC_INSIDE_TMUX:-}" ]]; then
+  prepare_foreground
+fi
+if [[ -z "${XEDC_INSIDE_TMUX:-}" && "${XEDC_NO_TMUX:-0}" != "1" ]]; then
+  tmux_args=("${ORIGINAL_ARGS[@]}")
+  if [[ "${XEDC_YES:-0}" == 1 ]]; then
+    tmux_args+=(--yes)
+  fi
+  if [[ -n "$DOMAIN" ]]; then
+    tmux_args+=(--domain "$DOMAIN")
+  fi
+  enter_tmux "${tmux_args[@]}"
+fi
+load_r2_handoff
 
 export XEDC_LOG_FILE=$XEDC_RESTORE_LOG
 mkdir -p "$(dirname "$XEDC_RESTORE_LOG")" "$XEDC_STATE_DIR" /var/lock
+touch "$XEDC_RESTORE_LOG"
+chmod 600 "$XEDC_RESTORE_LOG"
 lock=/var/lock/xedc-restore.pid
 if [[ -f "$lock" ]]; then
   oldpid=$(cat "$lock" 2>/dev/null || true)
@@ -233,33 +385,7 @@ prompt_r2() {
   if xedc_r2_ready; then
     return 0
   fi
-  if [[ ! -t 0 ]]; then
-    xedc_die "需要 R2 环境变量。新服务器不需要解密口令"
-  fi
-  read -r -p "R2 Account ID: " R2_ACCOUNT_ID
-  read -r -p "Access Key ID: " R2_ACCESS_KEY_ID
-  read -r -s -p "Secret Access Key: " R2_SECRET_ACCESS_KEY
-  echo
-  read -r -p "Bucket: " R2_BUCKET
-  read -r -p "Prefix [xedc/]: " R2_PREFIX
-  R2_PREFIX=${R2_PREFIX:-xedc/}
-  export R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET R2_PREFIX
-  xedc_load_r2_env
-  KEEP_R2=no
-  read -r -p "保留凭据供以后备份？[y/N] " KEEP_R2
-  if [[ "$KEEP_R2" == "y" || "$KEEP_R2" == "Y" ]]; then
-    mkdir -p "$(dirname "$XEDC_R2_ENV")"
-    umask 077
-    cat >"$XEDC_R2_ENV" <<EOF
-R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
-R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
-R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
-R2_BUCKET=${R2_BUCKET}
-R2_PREFIX=${R2_PREFIX}
-R2_ENDPOINT=${R2_ENDPOINT}
-EOF
-    chmod 600 "$XEDC_R2_ENV"
-  fi
+  xedc_die "没有 R2 凭据。请设置 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY、R2_BUCKET。日志: ${XEDC_RESTORE_LOG}。继续请加上 --resume"
 }
 
 download_one() {
