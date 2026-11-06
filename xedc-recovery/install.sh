@@ -15,7 +15,34 @@ if [[ ! -d /run/systemd/system ]]; then
   chmod 755 /usr/sbin/policy-rc.d
 fi
 apt-get update -y
-apt-get install -y --no-install-recommends git curl ca-certificates tmux rclone tar gzip zstd unzip php-cli
+apt-get install -y --no-install-recommends git curl ca-certificates tmux tar gzip zstd unzip
+
+install_rclone() {
+  local arch tmp zip bin
+  case "$(uname -m)" in
+    x86_64|amd64) arch=linux-amd64 ;;
+    aarch64|arm64) arch=linux-arm64 ;;
+    *) arch="" ;;
+  esac
+  tmp=$(mktemp -d)
+  if [[ -n "$arch" ]] && curl -fsSL --max-time 90 -o "$tmp/rclone.zip" "https://downloads.rclone.org/rclone-current-${arch}.zip"; then
+    unzip -qo "$tmp/rclone.zip" -d "$tmp"
+    bin=$(find "$tmp" -type f -name rclone | head -n 1 || true)
+    if [[ -n "$bin" ]]; then
+      install -m 755 "$bin" /usr/local/bin/rclone
+      if [[ -e /usr/bin/rclone ]]; then
+        install -m 755 "$bin" /usr/bin/rclone
+      fi
+      hash -r || true
+      rm -rf "$tmp"
+      return 0
+    fi
+  fi
+  rm -rf "$tmp"
+  echo "警告: 官方 rclone 没有装上，改用系统自带版本" >&2
+  apt-get install -y --no-install-recommends rclone
+}
+install_rclone
 
 DEST=${XEDC_INSTALL_DEST:-/opt/xedc-recovery}
 API=${XEDC_GITHUB_API:-https://api.github.com}
@@ -55,11 +82,12 @@ fetch_r2() {
     R2_PREFIX="${R2_PREFIX}/"
   fi
   R2_PREFIX=${R2_PREFIX:-xedc/}
-  local provider=Minio
+  local provider=Minio extra=""
   if [[ "$R2_ENDPOINT" == *r2.cloudflarestorage.com* ]]; then
     provider=Cloudflare
+    extra=$'region = auto\nno_head = true\ndisable_checksum = true'
   fi
-  local conf tmp
+  local conf pack
   conf=$(mktemp)
   chmod 600 "$conf"
   cat >"$conf" <<EOF
@@ -69,16 +97,19 @@ provider = ${provider}
 access_key_id = ${R2_ACCESS_KEY_ID}
 secret_access_key = ${R2_SECRET_ACCESS_KEY}
 endpoint = ${R2_ENDPOINT}
-acl = private
 force_path_style = true
 no_check_bucket = true
+${extra}
 EOF
-  tmp=$(mktemp)
-  rclone --config "$conf" copyto "r2:${R2_BUCKET}/${R2_PREFIX}bootstrap/xedc-recovery.tar.zst" "$tmp"
+  pack="$DEST.pack"
+  mkdir -p "$(dirname "$pack")"
+  rm -rf "$pack"
+  mkdir -p "$pack"
+  rclone --config "$conf" --retries 1 --low-level-retries 1 copyto "r2:${R2_BUCKET}/${R2_PREFIX}bootstrap/xedc-recovery.tar.gz" "$pack/xedc-recovery.tar.gz"
   rm -rf "$DEST"
   mkdir -p "$DEST"
-  zstd -dc "$tmp" | tar -C "$DEST" -xf -
-  rm -f "$tmp" "$conf"
+  tar -xzf "$pack/xedc-recovery.tar.gz" -C "$DEST"
+  rm -rf "$pack" "$conf"
 }
 
 if [[ -n "${GH_TOKEN:-}" ]]; then

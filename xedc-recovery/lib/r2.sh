@@ -57,13 +57,17 @@ provider = ${provider}
 access_key_id = ${R2_ACCESS_KEY_ID}
 secret_access_key = ${R2_SECRET_ACCESS_KEY}
 endpoint = ${R2_ENDPOINT}
-acl = private
 force_path_style = true
 no_check_bucket = true
 EOF
   if [[ "$provider" == "Cloudflare" ]]; then
-    # rclone 1.60 上传成功后会按返回的 versionId 再 HEAD。R2 对这个请求返回 501。
-    printf '%s\n' 'no_head = true' >>"$conf"
+    # region=auto 是 R2 要求的。no_head 避免按 versionId 再 HEAD 得到 501。
+    # 不发送 ACL。完整性由上传后的 sha256 校验，不依赖对象的 MD5/CRC。
+    cat >>"$conf" <<'EOF'
+region = auto
+no_head = true
+disable_checksum = true
+EOF
   fi
   printf '%s\n' "$conf"
 }
@@ -76,9 +80,9 @@ xedc_r2_remote() {
 xedc_r2() {
   local conf=$1
   shift
-  local -a args=(--config "$conf" --s3-chunk-size 64M --s3-upload-cutoff 64M --retries 3)
+  local -a args=(--config "$conf" --s3-chunk-size 64M --s3-upload-cutoff 64M --retries 1 --low-level-retries 1)
   if [[ "${R2_ENDPOINT:-}" == *r2.cloudflarestorage.com* ]]; then
-    args+=(--s3-no-head)
+    args+=(--s3-no-head --s3-disable-checksum --s3-region auto)
   fi
   rclone "${args[@]}" "$@"
 }

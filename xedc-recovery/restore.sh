@@ -6,6 +6,8 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$ROOT/lib/common.sh"
 # shellcheck source=lib/r2.sh
 source "$ROOT/lib/r2.sh"
+# shellcheck source=lib/rclone.sh
+source "$ROOT/lib/rclone.sh"
 # shellcheck source=lib/system.sh
 source "$ROOT/lib/system.sh"
 # shellcheck source=lib/php.sh
@@ -115,9 +117,7 @@ if [[ "$LIST_LOCAL" == 1 ]]; then
 fi
 if [[ "$LIST_R2" == 1 ]]; then
   xedc_require_root
-  if ! xedc_have rclone; then
-    xedc_apt_install rclone
-  fi
+  xedc_install_rclone
   list_r2
   exit 0
 fi
@@ -294,9 +294,7 @@ step_fetch() {
   elif [[ "$FROM" == r2:* ]]; then
     local spec=${FROM#r2:}
     prompt_r2
-    if ! xedc_have rclone; then
-      xedc_apt_install rclone
-    fi
+    xedc_install_rclone
     RCLONE_CONF=$(xedc_rclone_conf)
     local -a stamps=()
     mapfile -t stamps < <(xedc_r2_stamps "$RCLONE_CONF")

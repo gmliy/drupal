@@ -8,6 +8,8 @@ source "$ROOT/lib/common.sh"
 source "$ROOT/lib/r2.sh"
 # shellcheck source=lib/system.sh
 source "$ROOT/lib/system.sh"
+# shellcheck source=lib/rclone.sh
+source "$ROOT/lib/rclone.sh"
 
 TARGET=both
 KEEP_LOCAL=7
@@ -190,9 +192,7 @@ maint_off() {
 trap 'rc=$?; trap - EXIT; if [[ -n "${stage:-}" ]]; then rm -rf "$stage"; fi; maint_off; if (( rc != 0 )) && [[ "$DO_LIST" != 1 && "$DO_SETUP" != 1 ]]; then xedc_telegram "备份失败，日志 ${XEDC_BACKUP_LOG}"; fi' EXIT
 
 if [[ "$DO_SETUP" == 1 ]]; then
-  if ! xedc_have rclone; then
-    xedc_apt_install rclone
-  fi
+  xedc_install_rclone
   xedc_setup_r2
   if [[ "$DO_LIST" != 1 && "${XEDC_SETUP_ONLY:-1}" == 1 ]]; then
     exit 0
@@ -205,10 +205,13 @@ if [[ "$DO_LIST" == 1 ]]; then
 fi
 
 if ! xedc_have zstd || ! xedc_have rsync || ! xedc_have php; then
-  xedc_apt_install zstd rsync tar php-cli gzip
+  xedc_apt_install zstd rsync tar gzip
+  if ! xedc_have php; then
+    xedc_die "备份需要已经安装的 php 命令"
+  fi
 fi
-if [[ "$TARGET" != local ]] && ! xedc_have rclone; then
-  xedc_apt_install rclone
+if [[ "$TARGET" != local ]]; then
+  xedc_install_rclone
 fi
 
 SITE=$(xedc_site_root) || xedc_die "找不到 Drupal 站点"
@@ -349,15 +352,19 @@ if [[ "$TARGET" != local ]]; then
   xedc_r2_put_verified "$conf" "$XEDC_BACKUP_DIR/${base}.tar.zst.sha256" "${base}.tar.zst.sha256"
   xedc_r2_put_verified "$conf" "$XEDC_BACKUP_DIR/${base}.manifest.json" "${base}.manifest.json"
   xedc_r2_put_verified "$conf" "$XEDC_BACKUP_DIR/${base}.complete" "${base}.complete"
-  tool_tar=$(mktemp)
+  mkdir -p "$XEDC_BACKUP_DIR/bootstrap"
+  chmod 700 "$XEDC_BACKUP_DIR/bootstrap"
+  tool_tar="$XEDC_BACKUP_DIR/bootstrap/xedc-recovery.tar.gz"
   rm -f "$tool_tar"
   tar -C "$ROOT" \
     --exclude './tests/logs' \
     --exclude './tests/work' \
     --exclude '*.tar.zst' \
-    -cf - . | zstd -3 -o "$tool_tar"
+    --exclude './bootstrap/xedc-recovery.tar.gz' \
+    -czf "$tool_tar" .
+  chmod 600 "$tool_tar"
   xedc_r2_put_verified "$conf" "$ROOT/install.sh" "bootstrap/install.sh"
-  xedc_r2_put_verified "$conf" "$tool_tar" "bootstrap/xedc-recovery.tar.zst"
+  xedc_r2_put_verified "$conf" "$tool_tar" "bootstrap/xedc-recovery.tar.gz"
   rm -f "$tool_tar"
   mapfile -t complete < <(xedc_r2_stamps "$conf")
   count=${#complete[@]}
