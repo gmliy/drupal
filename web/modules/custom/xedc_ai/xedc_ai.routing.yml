@@ -33,7 +33,7 @@ xedc_ai.seo:
   path: '/admin/xedc/ai/seo'
   defaults:
     _controller: '\Drupal\xedc_ai\Controller\SeoController::page'
-    _title: 'AI SEO 优化'
+    _title: 'SEO 分析'
   requirements:
     _permission: 'view xedc ai reviews'
   options:

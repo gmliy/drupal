@@ -104,7 +104,7 @@ services:
 
   xedc_ai.seo:
     class: Drupal\xedc_ai\Seo\SeoAdvisor
-    arguments: ['@entity_type.manager', '@module_handler', '@config.factory', '@xedc_ai.audit', '@content_moderation.moderation_information']
+    arguments: ['@entity_type.manager', '@module_handler', '@config.factory', '@xedc_ai.audit', '@content_moderation.moderation_information', '@content_moderation.state_transition_validation']
 
   xedc_ai.queue_terminator:
     class: Drupal\xedc_ai\Review\QueueTerminator

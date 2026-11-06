@@ -101,6 +101,7 @@ permissions:
   - 'use xedc_editorial transition keep_needs_review'
   - 'use xedc_editorial transition publish'
   - 'use xedc_editorial transition reject'
+  - 'use xedc_editorial transition republish'
   - 'use xedc_editorial transition request_changes'
   - 'view all revisions'
   - 'view any unpublished content'

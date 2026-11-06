@@ -278,6 +278,47 @@ function xedc_ai_update_10003(): string {
 }
 
 /**
+ * Adds the archived → published transition on the editorial workflow.
+ *
+ * Active configuration only. config/sync is left unchanged, so a later
+ * config import from config/sync will drop this transition until it is exported.
+ */
+function xedc_ai_update_10004(): string {
+  $storage = \Drupal::entityTypeManager()->getStorage('workflow');
+  $workflow = $storage->load('xedc_editorial');
+  if ($workflow === NULL) {
+    return '没有找到 xedc_editorial，未添加重新发布转换。';
+  }
+  $plugin = $workflow->getTypePlugin();
+  if (!$plugin->hasState('archived') || !$plugin->hasState('published')) {
+    return 'xedc_editorial 缺少已撤下或已发布状态，未添加转换。';
+  }
+  $exists = FALSE;
+  foreach ($plugin->getTransitions() as $transition) {
+    $from = array_map(static fn ($state): string => $state->id(), $transition->from());
+    if (in_array('archived', $from, TRUE) && $transition->to()->id() === 'published') {
+      $exists = TRUE;
+      break;
+    }
+  }
+  if (!$exists) {
+    $plugin->addTransition('republish', '重新发布', ['archived'], 'published');
+    $workflow->save();
+  }
+  $permission = 'use xedc_editorial transition republish';
+  foreach (\Drupal::entityTypeManager()->getStorage('user_role')->loadMultiple() as $role) {
+    if ($role->isAdmin() || in_array($role->id(), ['anonymous', 'authenticated'], TRUE)) {
+      continue;
+    }
+    if ($role->hasPermission('use xedc_editorial transition publish') && !$role->hasPermission($permission)) {
+      $role->grantPermission($permission);
+      $role->save();
+    }
+  }
+  return 'xedc_editorial 已增加「已撤下 → 已发布」转换「重新发布」。拥有直接发布权限的角色可以使用它，普通会员不可以。';
+}
+
+/**
  * Implements hook_uninstall().
  */
 function xedc_ai_uninstall(): void {

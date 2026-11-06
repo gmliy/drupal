@@ -1,0 +1,125 @@
+{
+  "steps": [
+    {
+      "name": "list table",
+      "pass": true,
+      "detail": "{\"title\":\"SEO 分析 | DcLili\",\"table\":true,\"heads\":[\"内容\",\"SEO 分析\",\"AI 用量\",\"分析信息\",\"操作\"],\"name\":true,\"cards\":false,\"rule\":true,\"whiteSpace\":\"normal\",\"overflow\":false,\"nag\":false,\"lead\":true,\"empty\":false,\"rows\":16,\"href\":\"/admin/xedc/ai/seo\",\"pageTitle\":\"开放 配置选项\\nSEO 分析\\n开放 主标签 配置选项\\n主标签\\n运营概览\\n内容审核\\n重复检测\\n会员投稿\\nSEO 优化\\n翻译管理\\n自动翻译\\n模型管理\\nAPI 统计\\n审核规则\\n操作日志\"}"
+    },
+    {
+      "name": "list css loaded",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "list cells wrap",
+      "pass": true,
+      "detail": "normal"
+    },
+    {
+      "name": "list no stat cards",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "list no security nag",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "list lead",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "filter photo",
+      "pass": true,
+      "detail": "{\"rows\":12,\"photo\":true,\"nag\":false}"
+    },
+    {
+      "name": "detail link",
+      "pass": true,
+      "detail": "/admin/xedc/ai/seo/207"
+    },
+    {
+      "name": "detail score",
+      "pass": true,
+      "detail": "{\"score\":\"100\",\"issues\":5,\"suggest\":true,\"apply\":true,\"rules\":false,\"nag\":false,\"title\":true,\"back\":true,\"overflow\":false,\"select\":true,\"machine\":false}"
+    },
+    {
+      "name": "detail no rules",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "detail no nag",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "detail suggestions",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "select all changes count",
+      "pass": true,
+      "detail": "已选择 0 条建议 -> 已选择 5 条建议"
+    },
+    {
+      "name": "admin notice",
+      "pass": true,
+      "detail": "{\"path\":\"/admin\",\"status\":\"管理 | DcLili\",\"nag\":false,\"scheduler\":false,\"denied\":false}"
+    },
+    {
+      "name": "content notice",
+      "pass": true,
+      "detail": "{\"path\":\"/admin/content\",\"status\":\"内容 | DcLili\",\"nag\":false,\"scheduler\":false,\"denied\":false}"
+    },
+    {
+      "name": "members notice",
+      "pass": true,
+      "detail": "{\"path\":\"/admin/xedc/engagement/members\",\"status\":\"会员互动 | DcLili\",\"nag\":false,\"scheduler\":false,\"denied\":false}"
+    },
+    {
+      "name": "tags notice",
+      "pass": true,
+      "detail": "{\"path\":\"/admin/content/tags\",\"status\":\"标签统计 | DcLili\",\"nag\":false,\"scheduler\":false,\"denied\":false}"
+    },
+    {
+      "name": "notify notice",
+      "pass": true,
+      "detail": "{\"path\":\"/admin/people/xedc-notifications\",\"status\":\"通知管理 | DcLili\",\"nag\":false,\"scheduler\":false,\"denied\":false}"
+    },
+    {
+      "name": "status notice",
+      "pass": true,
+      "detail": "{\"path\":\"/admin/reports/status\",\"status\":\"状态报告 | DcLili\",\"nag\":true,\"scheduler\":true,\"denied\":false}"
+    },
+    {
+      "name": "updates notice",
+      "pass": true,
+      "detail": "{\"path\":\"/admin/reports/updates\",\"status\":\"可用更新 | DcLili\",\"nag\":true,\"scheduler\":true,\"denied\":false}"
+    },
+    {
+      "name": "form error still shows",
+      "pass": true,
+      "detail": "{\"error\":true,\"nag\":false,\"busy\":true}"
+    },
+    {
+      "name": "dark mode",
+      "pass": true,
+      "detail": "{\"theme\":\"dark\",\"bg\":\"rgba(0, 0, 0, 0)\",\"color\":\"rgb(228, 228, 231)\",\"nag\":false}"
+    },
+    {
+      "name": "mobile no overflow",
+      "pass": true,
+      "detail": "{\"overflow\":false,\"head\":\"none\",\"width\":390}"
+    },
+    {
+      "name": "detail mobile",
+      "pass": true,
+      "detail": "{\"overflow\":false,\"width\":390,\"rules\":false}"
+    }
+  ],
+  "errors": []
+}

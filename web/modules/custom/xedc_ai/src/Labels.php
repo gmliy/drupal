@@ -23,9 +23,12 @@ final class Labels {
    * SEO issue / suggestion field machine values.
    */
   public static function field(string $field): string {
+    $original = trim($field);
+    $field = str_replace([' ', '-'], '_', strtolower($original));
     return match ($field) {
-      'title', 'seo_title' => 'SEO 标题',
+      'title', 'seo_title', 'meta_title' => 'SEO 标题',
       'summary', 'description', 'field_summary', 'meta_description', 'suggested_description' => '页面描述',
+      '图片alt', '图片_alt' => '图片 ALT',
       'keywords', 'suggested_keywords' => '关键词',
       'tags', 'field_tags' => '标签',
       'body', 'field_body', 'content' => '内容',
@@ -35,7 +38,7 @@ final class Labels {
       'field_video_cover' => '视频封面',
       'internal_links', 'internal_link' => '内部链接',
       '' => '',
-      default => $field,
+      default => $original,
     };
   }
 

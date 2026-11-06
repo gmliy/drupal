@@ -511,6 +511,12 @@ function xedc_core_photo_import_validate(array &$form, FormStateInterface $form_
  * Staff saves otherwise publish new photo nodes immediately.
  */
 function xedc_core_module_implements_alter(array &$implementations, string $hook): void {
+  // Core Update Status adds the security nag to the messenger on every admin
+  // route. The available-updates report and the status report still render
+  // the same data themselves. Leave the check, cron mail, and those pages.
+  if ($hook === 'page_top') {
+    unset($implementations['update']);
+  }
   if (($hook === 'node_presave' || $hook === 'entity_delete') && isset($implementations['xedc_core'])) {
     $implementation = $implementations['xedc_core'];
     unset($implementations['xedc_core']);

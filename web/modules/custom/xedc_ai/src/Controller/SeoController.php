@@ -125,7 +125,7 @@ final class SeoController extends ControllerBase {
         'tokens' => $tokenValue,
         'tokens_known' => $tokenKnown,
         'cost' => (string) $report['cost_label'],
-        'time' => $this->dates->format((int) ($row['completed'] ?: $row['created']), 'short'),
+        'time' => $this->clock((int) ($row['completed'] ?: $row['created'])),
         'ops' => Labels::seoOps($ops),
         'ops_key' => $ops,
         'url' => Url::fromRoute('xedc_ai.seo_detail', ['review' => $row['id']])->toString(),
@@ -157,7 +157,7 @@ final class SeoController extends ControllerBase {
       ],
       '#suggest' => $this->currentUser()->hasPermission('execute xedc ai reviews') ? $this->formBuilder()->getForm(SeoSuggestForm::class) : NULL,
       '#pager' => ['#type' => 'pager'],
-      '#attached' => ['library' => ['xedc_ai/admin']],
+      '#attached' => ['library' => ['xedc_ai/seo']],
       '#cache' => ['max-age' => 0],
     ];
   }
@@ -194,14 +194,14 @@ final class SeoController extends ControllerBase {
       $history[] = [
         'id' => (int) $older['id'],
         'score' => $older['seo_score'] === NULL ? '—' : (string) $older['seo_score'],
-        'time' => $this->dates->format((int) $older['created'], 'short'),
+        'time' => $this->clock((int) $older['created']),
         'url' => Url::fromRoute('xedc_ai.seo_detail', ['review' => $older['id']])->toString(),
       ];
     }
     $logs = [];
     foreach ($this->audit->forTarget('node', (string) $row['entity_id'], 12) as $log) {
       $logs[] = [
-        'time' => $this->dates->format((int) $log['created'], 'short'),
+        'time' => $this->clock((int) $log['created']),
         'action' => Labels::auditAction((string) $log['action']),
         'message' => (string) $log['message'],
         'before' => (string) ($log['before_text'] ?? ''),
@@ -238,7 +238,7 @@ final class SeoController extends ControllerBase {
           return $item;
         }, is_array($result['issue_items'] ?? NULL) ? $result['issue_items'] : []),
         'items' => array_map(function (array $item): array {
-          $item['acted_time'] = !empty($item['acted_at']) ? $this->dates->format((int) $item['acted_at'], 'short') : '';
+          $item['acted_time'] = !empty($item['acted_at']) ? $this->clock((int) $item['acted_at']) : '';
           $item['priority_label'] = Labels::level((string) ($item['priority'] ?? ''));
           return $item;
         }, SeoResult::itemRows($result)),
@@ -248,8 +248,8 @@ final class SeoController extends ControllerBase {
         'quality' => (string) ($result['content_quality'] ?? ''),
         'meta_title' => (string) ($current['meta_title'] ?? ''),
         'meta_description' => (string) ($current['meta_description'] ?? ''),
-        'meta_title_source' => (string) ($current['meta_title_source'] ?? ''),
-        'meta_description_source' => (string) ($current['meta_description_source'] ?? ''),
+        'meta_title_source' => $this->sourceLabel((string) ($current['meta_title_source'] ?? '')),
+        'meta_description_source' => $this->sourceLabel((string) ($current['meta_description_source'] ?? '')),
         'suggested_title' => (string) ($result['suggested_title'] ?? $result['seo_title'] ?? ''),
         'suggested_description' => (string) ($result['suggested_description'] ?? $result['meta_description'] ?? ''),
         'model' => trim((string) $row['provider_id'] . ' / ' . (string) $row['model_name'], ' /'),
@@ -267,13 +267,13 @@ final class SeoController extends ControllerBase {
         'history' => $history,
         'logs' => $logs,
         'node_url' => $node ? Url::fromRoute('entity.node.canonical', ['node' => $node->id()])->toString() : '',
-        'time' => $this->dates->format((int) ($row['completed'] ?: $row['created']), 'short'),
+        'time' => $this->clock((int) ($row['completed'] ?: $row['created'])),
         'langcode' => Labels::language((string) ($row['langcode'] ?? '')),
         'evidence' => is_array($result['source_snapshot'] ?? NULL) ? $result['source_snapshot'] : NULL,
         'alt' => $this->altReport($result, $current),
       ],
       '#apply' => $phase === 'ready' ? $this->formBuilder()->getForm(SeoApplyForm::class, $row) : NULL,
-      '#attached' => ['library' => ['xedc_ai/admin']],
+      '#attached' => ['library' => ['xedc_ai/seo']],
       '#cache' => ['max-age' => 0],
     ];
   }
@@ -448,6 +448,21 @@ final class SeoController extends ControllerBase {
       }
     }
     return $counts;
+  }
+
+  private function sourceLabel(string $source): string {
+    $cut = strpos($source, '规则：');
+    if ($cut === FALSE) {
+      return $source;
+    }
+    return rtrim(substr($source, 0, $cut), "，。 \t");
+  }
+
+  private function clock(int $stamp): string {
+    if ($stamp < 1) {
+      return '暂无';
+    }
+    return $this->dates->format($stamp, 'custom', 'Y年n月j日 H:i');
   }
 
   private function publishTime(?\Drupal\node\NodeInterface $node): string {

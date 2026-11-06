@@ -1,5 +1,13 @@
+seo:
+  version: 1.2
+  css:
+    theme:
+      css/seo.css: {}
+  dependencies:
+    - xedc_ai/admin
+
 admin:
-  version: 2.0
+  version: 4.1
   css:
     theme:
       css/ai.css: {}

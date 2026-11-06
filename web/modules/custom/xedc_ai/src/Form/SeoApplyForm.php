@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\xedc_ai\Form;
 
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\node\NodeInterface;
@@ -76,15 +77,16 @@ final class SeoApplyForm extends FormBase {
       $safe = 'k' . substr(hash('sha256', (string) $item['key']), 0, 16);
       $form['items'][$safe] = [
         '#type' => 'checkbox',
-        '#title' => (string) ($item['label'] ?? $item['key']) . '（' . SeoResult::stateLabel($state) . '）',
+        '#title' => (string) ($item['label'] ?? $item['key']),
         '#return_value' => (string) $item['key'],
         '#default_value' => 0,
         '#attributes' => ['data-xedc-apply-state' => $state],
-        '#wrapper_attributes' => ['data-xedc-apply-state' => $state],
-        '#description' => $this->t('当前：@current。建议：@suggested', [
-          '@current' => (string) ($item['current'] ?? ''),
-          '@suggested' => (string) ($item['suggested'] ?? ''),
-        ]),
+        '#wrapper_attributes' => [
+          'data-xedc-apply-state' => $state,
+          'class' => ['xedc-seo-item'],
+        ],
+        '#prefix' => '<div class="xedc-seo-item-status"><span class="xedc-ai-status is-' . Html::escape($state) . '">' . Html::escape(SeoResult::stateLabel($state)) . '</span></div>',
+        '#suffix' => $this->suggestionBody($item),
       ];
     }
     if ($applicable) {
@@ -114,39 +116,33 @@ final class SeoApplyForm extends FormBase {
     $node = $this->extractor->loadRevision('node', (int) ($review['entity_id'] ?? 0), 0);
     $route = $node instanceof NodeInterface ? $this->seo->publishRoute($node) : ['ok' => FALSE, 'archived' => FALSE, 'message' => '', 'permission' => '', 'targets' => []];
     if (!empty($route['archived'])) {
+      $allowed = !empty($route['ok']) && ($route['permission'] === '' || $this->currentUser()->hasPermission((string) $route['permission']));
       $form['republish'] = [
-        '#type' => 'details',
-        '#title' => '采纳并重新发布',
-        '#open' => FALSE,
+        '#type' => 'container',
         '#tree' => FALSE,
         '#weight' => 20,
-        '#attributes' => ['class' => ['xedc-ai-republish']],
+        '#attributes' => ['class' => ['xedc-seo-republish']],
       ];
       $form['republish']['notice'] = [
         '#type' => 'html_tag',
         '#tag' => 'p',
-        '#value' => '当前标题：' . $node->label() . '。当前状态：已撤下。这个操作和「确认采纳所选」分开。重新发布后内容会对公众可见。' . (string) $route['message'],
+        '#value' => $allowed
+          ? '当前状态：已撤下。本次将应用选中的 SEO 建议。采纳成功后将执行正式的「重新发布」转换，内容将恢复公开。如果工作流权限不足或转换失败，内容不会自动公开。'
+          : (string) ($route['message'] !== '' ? $route['message'] : '当前状态是已撤下。没有重新发布权限或合法转换，内容不会自动公开。'),
       ];
-      $form['republish']['republish_confirm'] = [
-        '#type' => 'checkbox',
-        '#title' => '我确认重新发布后，这篇内容会对公众可见',
-        '#return_value' => 'yes',
-      ];
-      $form['republish']['go'] = [
-        '#type' => 'submit',
-        '#value' => '确认重新发布',
-        '#submit' => ['::republish'],
-        '#attributes' => ['class' => ['xedc-ai-republish-submit']],
-      ];
-      $form['republish']['cancel'] = [
-        '#type' => 'html_tag',
-        '#tag' => 'button',
-        '#value' => '取消',
-        '#attributes' => [
-          'type' => 'button',
-          'class' => ['button', 'xedc-ai-republish-cancel'],
-        ],
-      ];
+      if ($allowed) {
+        $form['republish']['republish_confirm'] = [
+          '#type' => 'checkbox',
+          '#title' => '我确认采纳成功后重新发布，内容会对公众可见',
+          '#return_value' => 'yes',
+        ];
+        $form['republish']['go'] = [
+          '#type' => 'submit',
+          '#value' => '采纳建议并重新发布',
+          '#submit' => ['::republish'],
+          '#attributes' => ['class' => ['xedc-ai-republish-submit']],
+        ];
+      }
     }
     if (!$applicable) {
       $form['empty'] = ['#markup' => '<p class="xedc-ai-empty">' . $this->t('没有等待确认的可写入建议。') . '</p>'];
@@ -213,44 +209,45 @@ final class SeoApplyForm extends FormBase {
       $this->messenger()->addError($this->t('请至少选择一条要处理的建议。没有重新发布。'));
       return;
     }
-    $before = (string) $node->get('moderation_state')->value;
-    $this->act($form_state, FALSE);
-    $saved = $this->reviews->load((int) $review['id']);
-    $savedResult = json_decode((string) ($saved['result'] ?? ''), TRUE);
-    $adopted = 0;
-    if (is_array($savedResult)) {
-      foreach (SeoResult::itemRows($savedResult) as $item) {
-        if (in_array((string) ($item['key'] ?? ''), $selected, TRUE) && (string) ($item['state'] ?? '') === 'adopted') {
-          $adopted++;
-        }
-      }
+    $outcome = $this->act($form_state, FALSE, FALSE);
+    if ($outcome === NULL) {
+      return;
     }
-    if ($adopted === 0) {
-      $this->messenger()->addError($this->t('建议没有写入，没有重新发布。'));
+    $tally = $outcome['tally'] ?? [];
+    $decision = SeoResult::republishDecision(
+      'archived',
+      (int) ($tally['adopted'] ?? 0),
+      (int) ($tally['failed'] ?? 0),
+      (int) ($tally['conflict'] ?? 0),
+      TRUE,
+      TRUE,
+    );
+    if ($decision !== 'republish' || $outcome['error'] !== NULL) {
+      $this->report($outcome, FALSE);
+      $this->messenger()->addError($this->t('建议没有全部写入，没有重新发布。内容保持已撤下。'));
       return;
     }
     \Drupal::entityTypeManager()->getStorage('node')->resetCache([(int) $node->id()]);
     $fresh = $this->extractor->loadRevision('node', (int) $review['entity_id'], 0);
-    if (!$fresh instanceof NodeInterface || (string) $fresh->get('moderation_state')->value !== 'archived') {
-      $this->messenger()->addError($this->t('内容已经不是已撤下，没有继续改为已发布。'));
+    if (!$fresh instanceof NodeInterface) {
+      $this->messenger()->addError($this->t('内容已经不存在，没有重新发布。'));
       return;
     }
-    $fresh->set('moderation_state', 'published');
-    $fresh->setNewRevision(TRUE);
-    $fresh->setRevisionUserId((int) $this->currentUser()->id());
-    $fresh->setRevisionLogMessage('SEO 建议确认后，按工作流重新发布。原状态：' . $before);
-    try {
-      $fresh->save();
-    }
-    catch (\Throwable $exception) {
-      $this->messenger()->addError($this->t('重新发布被工作流拒绝，内容没有公开。@message', ['@message' => $exception->getMessage()]));
+    $result = $this->seo->republish(
+      $fresh,
+      $this->currentUser(),
+      (int) $review['id'],
+      (int) $outcome['revision_id'],
+      implode("\n", $selected),
+    );
+    if ($result['ok']) {
+      $this->messenger()->addStatus($this->t('成功采纳 @count 条。@message', [
+        '@count' => (int) ($tally['adopted'] ?? 0),
+        '@message' => $result['message'],
+      ]));
       return;
     }
-    if ((string) $fresh->get('moderation_state')->value !== 'published') {
-      $this->messenger()->addError($this->t('工作流没有接受发布转换，内容没有公开。'));
-      return;
-    }
-    $this->messenger()->addStatus($this->t('已按工作流重新发布。'));
+    $this->messenger()->addError($result['message']);
   }
 
   public function reject(array &$form, FormStateInterface $form_state): void {
@@ -295,28 +292,28 @@ final class SeoApplyForm extends FormBase {
     $this->report($outcome, TRUE);
   }
 
-  private function act(FormStateInterface $form_state, bool $reject): void {
+  private function act(FormStateInterface $form_state, bool $reject, bool $announce = TRUE): ?array {
     if (!$this->currentUser()->hasPermission('apply xedc ai changes') && !$reject) {
-      return;
+      return NULL;
     }
     if ($reject && !$this->currentUser()->hasPermission('administer xedc ai reviews') && !$this->currentUser()->hasPermission('apply xedc ai changes')) {
-      return;
+      return NULL;
     }
     $review = $this->reviews->load((int) $form_state->get('review_id'));
     if ($review === NULL) {
       $this->messenger()->addError($this->t('分析记录不存在。'));
-      return;
+      return NULL;
     }
     $node = $this->extractor->loadRevision('node', (int) $review['entity_id'], 0);
     $result = json_decode((string) $review['result'], TRUE);
     if (!$node instanceof NodeInterface || !is_array($result)) {
       $this->messenger()->addError($this->t('没有可处理的建议。'));
-      return;
+      return NULL;
     }
     $selected = $this->chosen($form_state);
     if ($selected === []) {
       $this->messenger()->addError($this->t('请至少选择一条要处理的建议。'));
-      return;
+      return NULL;
     }
     $outcome = $this->seo->applySelected(
       $node,
@@ -344,7 +341,22 @@ final class SeoApplyForm extends FormBase {
       'handled_uid' => (int) $this->currentUser()->id(),
       'handled_at' => \Drupal::time()->getRequestTime(),
     ]);
-    $this->report($outcome, FALSE);
+    if ($announce) {
+      $this->report($outcome, FALSE);
+    }
+    return $outcome;
+  }
+
+  /**
+   * @param array<string, mixed> $item
+   *   One suggestion row.
+   */
+  private function suggestionBody(array $item): string {
+    $suggested = (string) ($item['suggested'] ?? '');
+    if (is_array($item['tag_names'] ?? NULL) && $item['tag_names'] !== []) {
+      $suggested = implode('、', $item['tag_names']);
+    }
+    return '<div class="xedc-seo-pair"><div><span>当前内容</span><p>' . Html::escape((string) ($item['current'] ?? '')) . '</p></div><div><span>建议内容</span><p>' . Html::escape($suggested) . '</p></div></div><p class="xedc-seo-reason">' . Html::escape((string) ($item['reason'] ?? '')) . '</p>';
   }
 
   /**

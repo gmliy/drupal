@@ -332,5 +332,22 @@ $check(!in_array('alt:4', $mergedKeys, TRUE), '有效 ALT 不会变成覆盖建�
 $again = SeoResult::mergeLocalAlt($merged, $alt);
 $check(count(array_filter(array_column($again['items'], 'key'), static fn (string $key): bool => $key === 'alt:1')) === 1, '同一条本地 ALT 建议不会重复加入');
 
+$matrix = [
+  ['published', 1, 0, 0, TRUE, TRUE, 'keep'],
+  ['draft', 1, 0, 0, TRUE, TRUE, 'keep'],
+  ['needs_review', 1, 0, 0, TRUE, TRUE, 'keep'],
+  ['changes_requested', 1, 0, 0, TRUE, TRUE, 'keep'],
+  ['rejected', 1, 0, 0, TRUE, TRUE, 'keep'],
+  ['archived', 1, 0, 0, TRUE, TRUE, 'republish'],
+  ['archived', 1, 0, 0, FALSE, TRUE, 'denied'],
+  ['archived', 0, 1, 0, TRUE, TRUE, 'apply_failed'],
+  ['archived', 1, 0, 1, TRUE, TRUE, 'conflict'],
+  ['archived', 1, 0, 0, TRUE, FALSE, 'no_transition'],
+];
+foreach ($matrix as [$state, $adopted, $failedCount, $conflict, $allowed, $transitionOk, $expect]) {
+  $actual = SeoResult::republishDecision($state, $adopted, $failedCount, $conflict, $allowed, $transitionOk);
+  $check($actual === $expect, '重新发布决策 ' . $state . ' => ' . $expect);
+}
+
 echo $failed === 0 ? "OK {$failed} failed\n" : "FAILED {$failed}\n";
 exit($failed === 0 ? 0 : 1);

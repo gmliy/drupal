@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Drupal\xedc_ai\Seo;
 
 use Drupal\content_moderation\ModerationInformationInterface;
+use Drupal\content_moderation\StateTransitionValidationInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Session\AccountInterface;
 use Drupal\media\MediaInterface;
 use Drupal\node\NodeInterface;
 use Drupal\xedc_ai\Usage\AuditLog;
@@ -23,6 +25,7 @@ final class SeoAdvisor {
     private readonly ConfigFactoryInterface $configFactory,
     private readonly AuditLog $audit,
     private readonly ModerationInformationInterface $moderation,
+    private readonly StateTransitionValidationInterface $transitions,
   ) {}
 
   /**
@@ -113,7 +116,7 @@ final class SeoAdvisor {
         continue;
       }
       $targets[] = (string) $transition->to()->label();
-      if ($transition->to()->id() === 'published') {
+      if ($transition->to()->id() === 'published' && ($transitionId === '' || $id === 'republish')) {
         $transitionId = (string) $id;
       }
     }
@@ -133,7 +136,7 @@ final class SeoAdvisor {
     return [
       'ok' => TRUE,
       'archived' => TRUE,
-      'message' => '确认后会先写入勾选的建议，再使用工作流转换「' . $transitionId . '」改为已发布。内容将对公众可见。',
+      'message' => '本次将应用选中的 SEO 建议。采纳成功后将执行正式的「重新发布」转换，内容将恢复公开。如果工作流权限不足或转换失败，内容不会自动公开。',
       'permission' => 'use ' . $workflow->id() . ' transition ' . $transitionId,
       'targets' => $targets,
     ];
@@ -784,6 +787,80 @@ final class SeoAdvisor {
    * @return array{error: ?string, result: array<string, mixed>, revision_id: int}
    *   Failed outcome.
    */
+  /**
+   * Applies the archived → published workflow transition after suggestions were saved.
+   *
+   * The moderation state is set to the transition target only after
+   * StateTransitionValidation accepts it. Publication is not forced with
+   * setPublished() or a direct status write.
+   *
+   * @return array{ok: bool, message: string}
+   *   ok is true only when the default revision is published.
+   */
+  public function republish(NodeInterface $node, AccountInterface $account, int $reviewId, int $expectedRevision, string $suggestions = ''): array {
+    $from = $node->hasField('moderation_state') ? (string) $node->get('moderation_state')->value : '';
+    $workflow = $this->moderation->isModeratedEntity($node) ? $this->moderation->getWorkflowForEntity($node) : NULL;
+    $plugin = $workflow?->getTypePlugin();
+    $transitionOk = $plugin !== NULL && $plugin->hasTransition('republish');
+    $transition = $transitionOk ? $plugin->getTransition('republish') : NULL;
+    if ($transition !== NULL) {
+      $fromIds = array_map(static fn ($state): string => $state->id(), $transition->from());
+      $transitionOk = in_array('archived', $fromIds, TRUE) && $transition->to()->id() === 'published';
+    }
+    $permission = $workflow !== NULL ? 'use ' . $workflow->id() . ' transition republish' : '';
+    $allowed = $transitionOk && $permission !== '' && $account->hasPermission($permission) && $workflow !== NULL && $this->transitions->isTransitionValid($workflow, $plugin->getState('archived'), $transition->to(), $account, $node);
+    $decision = SeoResult::republishDecision($from, 1, 0, 0, $allowed, $transitionOk);
+    $log = function (string $result, string $message) use ($account, $node, $reviewId, $suggestions, $from): void {
+      $this->audit->log('seo_republish', $message, (int) $account->id(), [
+        'target_type' => 'node',
+        'target_id' => (string) $node->id(),
+        'suggestion' => $suggestions,
+        'before' => $from,
+        'after' => $result === 'republished' ? 'published' : $from,
+        'confirmed' => 1,
+        'result' => $result,
+      ]);
+    };
+    if ($expectedRevision > 0 && (int) $node->getRevisionId() !== $expectedRevision) {
+      $message = '内容修订已变化，没有重新发布。内容保持已撤下。';
+      $log('conflict', '内容 ' . $node->id() . ' 分析 ' . $reviewId . '：' . $message);
+      return ['ok' => FALSE, 'message' => $message];
+    }
+    if ($decision !== 'republish') {
+      $message = match ($decision) {
+        'denied' => '没有重新发布权限，内容保持已撤下。已经写入的建议仍然保留。',
+        'no_transition' => '工作流没有从已撤下到已发布的转换，内容保持已撤下。',
+        default => '内容已经不是已撤下，没有重新发布。',
+      };
+      $log($decision === 'denied' ? 'denied' : 'skipped', '内容 ' . $node->id() . ' 分析 ' . $reviewId . '：' . $message);
+      return ['ok' => FALSE, 'message' => $message];
+    }
+    $node->set('moderation_state', $transition->to()->id());
+    $node->setNewRevision(TRUE);
+    $node->setRevisionUserId((int) $account->id());
+    $node->setRevisionLogMessage('SEO 建议确认后，使用工作流转换「重新发布」。分析 ' . $reviewId . '。');
+    try {
+      $node->save();
+    }
+    catch (\Throwable $exception) {
+      $message = '工作流转换失败，内容保持已撤下。' . $exception->getMessage();
+      $log('failed', '内容 ' . $node->id() . ' 分析 ' . $reviewId . '：' . $message);
+      return ['ok' => FALSE, 'message' => $message];
+    }
+    $this->entities->getStorage('node')->resetCache([(int) $node->id()]);
+    $fresh = $this->entities->getStorage('node')->load((int) $node->id());
+    $state = $fresh instanceof NodeInterface && $fresh->hasField('moderation_state') ? (string) $fresh->get('moderation_state')->value : '';
+    $published = $fresh instanceof NodeInterface && $fresh->isPublished();
+    $revision = $fresh instanceof NodeInterface ? (int) $fresh->getRevisionId() : 0;
+    if (!$published || $state !== 'published' || $revision < (int) $node->getRevisionId()) {
+      $message = '工作流没有把内容改为已发布，内容没有公开。';
+      $log('failed', '内容 ' . $node->id() . ' 分析 ' . $reviewId . '：' . $message);
+      return ['ok' => FALSE, 'message' => $message];
+    }
+    $log('republished', '内容 ' . $node->id() . ' 分析 ' . $reviewId . ' 已从已撤下重新发布。修订 ' . $revision . '。');
+    return ['ok' => TRUE, 'message' => '已通过工作流「重新发布」公开。'];
+  }
+
   private function outcome(?string $error, array $result, int $revisionId, array $tally = []): array {
     $tally += ['adopted' => 0, 'rejected' => 0, 'conflict' => 0, 'failed' => 0, 'skipped' => 0, 'restored' => 0];
     return ['error' => $error, 'result' => $result, 'revision_id' => $revisionId, 'tally' => $tally];

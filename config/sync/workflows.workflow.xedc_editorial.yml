@@ -84,6 +84,12 @@ type_settings:
         - needs_review
       to: rejected
       weight: 4
+    republish:
+      label: 重新发布
+      from:
+        - archived
+      to: published
+      weight: 9
     request_changes:
       label: 退回修改
       from:

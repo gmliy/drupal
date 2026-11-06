@@ -293,6 +293,32 @@ final class SeoResult {
     return $rows;
   }
 
+  /**
+   * Decides whether an archived node may move to published after a suggestion write.
+   *
+   * Other workflow states always stay as they are. Archived content is
+   * republished only when every selected suggestion was adopted, a real
+   * transition exists, and the user may use it.
+   */
+  public static function republishDecision(string $state, int $adopted, int $failed, int $conflict, bool $allowed, bool $transitionOk): string {
+    if ($state !== 'archived') {
+      return 'keep';
+    }
+    if ($conflict > 0) {
+      return 'conflict';
+    }
+    if ($failed > 0 || $adopted < 1) {
+      return 'apply_failed';
+    }
+    if (!$transitionOk) {
+      return 'no_transition';
+    }
+    if (!$allowed) {
+      return 'denied';
+    }
+    return 'republish';
+  }
+
   public static function stateLabel(string $state): string {
     return match ($state) {
       'pending' => '待确认',
