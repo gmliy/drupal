@@ -97,6 +97,8 @@ stage_rank() {
     resume) echo 7 ;;
     verify) echo 8 ;;
     r2) echo 9 ;;
+    php) echo 10 ;;
+    prompts) echo 11 ;;
     *) echo 1 ;;
   esac
 }
@@ -210,6 +212,8 @@ declare -A mode_cmd=(
   [resume]="/opt/xedc-recovery/tests/guest.sh resume"
   [verify]="/opt/xedc-recovery/tests/guest.sh verify"
   [r2]="/opt/xedc-recovery/tests/guest.sh r2"
+  [php]="/opt/xedc-recovery/tests/guest.sh php"
+  [prompts]="/opt/xedc-recovery/tests/guest.sh prompts"
 )
 
 wait_slot() {
@@ -314,7 +318,7 @@ for pid in "${pids[@]}"; do
   fi
 done
 
-branches=(domain video idem resume verify r2)
+branches=(domain video idem resume verify r2 php prompts)
 pids=()
 for os in "${systems[@]}"; do
   if [[ "${READY[$os]}" != 1 ]]; then

@@ -70,7 +70,19 @@ archive_path() {
 case "$mode" in
   source)
     prepare_fixture
-    bash /opt/xedc-recovery/backup.sh --target both --keep-local 7 --keep-r2 30
+    XEDC_PHP_VERSION=8.5 bash /opt/xedc-recovery/backup.sh --target both --keep-local 7 --keep-r2 30
+    if grep -E 'ERROR|重试' /var/log/xedc-backup.log; then
+      echo "备份日志出现 ERROR 或重试"
+      exit 1
+    fi
+    mapfile -t boot < <(rclone lsf ":s3:${R2_BUCKET}/${R2_PREFIX}bootstrap/" \
+      --s3-provider Minio \
+      --s3-endpoint "$R2_ENDPOINT" \
+      --s3-access-key-id "$R2_ACCESS_KEY_ID" \
+      --s3-secret-access-key "$R2_SECRET_ACCESS_KEY" \
+      --s3-force-path-style | sed '/^$/d' | sort)
+    printf 'bootstrap: %s\n' "${boot[*]}"
+    [[ "${boot[*]}" == "install.sh xedc-recovery.tar.gz" ]]
     echo "XEDC_STAGE backup PASS"
     ;;
   target)
@@ -211,6 +223,182 @@ EOF
     bash /opt/xedc-recovery/restore.sh --from "local:${file}" --domain test1.local --email admin@test1.local --https self --www no --yes --force
     rm -f "$conf"
     echo "XEDC_STAGE r2 PASS"
+    ;;
+  php)
+    service php8.5-fpm start
+    service nginx start || nginx
+    ver=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;')
+    [[ "$ver" == "8.5" ]]
+    php -v | awk 'NR==1{print}'
+    [[ -S /run/php/php8.5-fpm.sock ]]
+    masters=$(pgrep -af 'php-fpm: master' || true)
+    printf '%s\n' "$masters"
+    [[ "$masters" == *php-fpm8.5* ]]
+    bad=$(printf '%s\n' "$masters" | grep -E 'php-fpm8\.[0-4]' || true)
+    [[ -z "$bad" ]]
+    grep -R -F 'unix:/run/php/php8.5-fpm.sock' /etc/nginx/conf.d
+    hdr=$(curl -k -sI --resolve test1.local:443:127.0.0.1 https://test1.local/ | tr -d '\r' | awk 'tolower($1)=="x-php-version:" {print $2; exit}' || true)
+    [[ "$hdr" == 8.5.* ]]
+    echo "XEDC_STAGE php PASS"
+    ;;
+  prompts)
+    if ! command -v python3 >/dev/null 2>&1; then
+      apt-get update -y
+      apt-get install -y --no-install-recommends python3
+    fi
+    export XEDC_R2_ENV=/tmp/xedc-no-r2-env
+    rm -f "$XEDC_R2_ENV"
+    set +e
+    env -u R2_ACCOUNT_ID -u R2_ACCESS_KEY_ID -u R2_SECRET_ACCESS_KEY -u R2_BUCKET -u R2_PREFIX -u R2_ENDPOINT \
+      bash /opt/xedc-recovery/restore.sh --from r2:latest --domain test1.local --yes </dev/null >/tmp/notty.out 2>/tmp/notty.err
+    rc=$?
+    set -e
+    cat /tmp/notty.err
+    [[ "$rc" == 1 ]]
+    grep -F '没有 R2 凭据' /tmp/notty.err
+    if tmux has-session -t xedc-restore 2>/dev/null; then
+      echo "没有凭据时不应进入 tmux"
+      exit 1
+    fi
+    python3 - <<'PY'
+import os, pty, select, sys, time
+def run(argv, env, replies, timeout):
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execvpe(argv[0], argv, env)
+    buf = b""
+    pending = list(replies)
+    deadline = time.time() + timeout
+    while True:
+        remain = deadline - time.time()
+        if remain <= 0:
+            os.kill(pid, 15)
+            raise SystemExit("等待提示超时:\n" + buf.decode("utf-8", "replace")[-2000:])
+        ready, _, _ = select.select([fd], [], [], min(remain, 1))
+        if not ready:
+            finished, status = os.waitpid(pid, os.WNOHANG)
+            if finished:
+                return os.waitstatus_to_exitcode(status), buf
+            continue
+        try:
+            chunk = os.read(fd, 4096)
+        except OSError:
+            chunk = b""
+        if chunk:
+            buf += chunk
+            sys.stdout.buffer.write(chunk)
+            sys.stdout.buffer.flush()
+            while pending and pending[0][0].encode() in buf:
+                os.write(fd, pending.pop(0)[1].encode())
+        else:
+            _, status = os.waitpid(pid, 0)
+            return os.waitstatus_to_exitcode(status), buf
+env = os.environ.copy()
+env["TERM"] = "xterm"
+rc, buf = run(
+    ["bash", "/opt/xedc-recovery/restore.sh", "--from", "local:/tmp/xedc-missing.tar.zst"],
+    env,
+    [("新域名", "test1.local\n"), ("输入 y 开始安装", "y\n")],
+    90,
+)
+text = buf.decode("utf-8", "replace")
+if rc != 1 or "恢复失败，退出码 1" not in text or "没有退出码" in text:
+    raise SystemExit(f"交互确认的退出码是 {rc}")
+open("/tmp/pty-yes.code", "w").write(str(rc))
+PY
+    grep -F '恢复失败，退出码 1' /tmp/pty-yes.code >/dev/null || true
+    [[ "$(cat /tmp/pty-yes.code)" == 1 ]]
+    grep -F '找不到本地备份' /var/log/xedc-restore.log
+    if grep -F '没有退出码' /var/log/xedc-restore.log; then
+      echo "不应出现没有退出码"
+      exit 1
+    fi
+    set +e
+    XEDC_RESOLVE_ONLY=1 bash /opt/xedc-recovery/restore.sh --from r2:latest --domain test1.local --yes >/tmp/env.out 2>/tmp/env.err
+    rc=$?
+    set -e
+    cat /tmp/env.err
+    [[ "$rc" == 0 ]]
+    grep -F '恢复完成，退出码 0' /tmp/env.err
+    [[ "$(grep -c '开始 fetch' /var/log/xedc-restore.log || true)" == 1 ]]
+    [[ "$(stat -c '%a' /var/log/xedc-restore.log)" == 600 ]]
+    if grep -F 'xedctest-secret' /var/log/xedc-restore.log /tmp/env.err /tmp/env.out; then
+      echo "日志里出现了凭据"
+      exit 1
+    fi
+    if compgen -G '/tmp/xedc-r2.*' >/dev/null; then
+      echo "凭据临时文件还在"
+      exit 1
+    fi
+    python3 - <<'PY'
+import os, pty, select, sys, time
+def run(argv, env, replies, timeout):
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execvpe(argv[0], argv, env)
+    buf = b""
+    pending = list(replies)
+    deadline = time.time() + timeout
+    while True:
+        remain = deadline - time.time()
+        if remain <= 0:
+            os.kill(pid, 15)
+            raise SystemExit("等待提示超时:\n" + buf.decode("utf-8", "replace")[-2000:])
+        ready, _, _ = select.select([fd], [], [], min(remain, 1))
+        if not ready:
+            finished, status = os.waitpid(pid, os.WNOHANG)
+            if finished:
+                return os.waitstatus_to_exitcode(status), buf
+            continue
+        try:
+            chunk = os.read(fd, 4096)
+        except OSError:
+            chunk = b""
+        if chunk:
+            buf += chunk
+            sys.stdout.buffer.write(chunk)
+            sys.stdout.buffer.flush()
+            while pending and pending[0][0].encode() in buf:
+                os.write(fd, pending.pop(0)[1].encode())
+        else:
+            _, status = os.waitpid(pid, 0)
+            return os.waitstatus_to_exitcode(status), buf
+env = os.environ.copy()
+env["TERM"] = "xterm"
+secret = env.pop("R2_SECRET_ACCESS_KEY")
+account = env.pop("R2_ACCOUNT_ID")
+key = env.pop("R2_ACCESS_KEY_ID")
+bucket = env.pop("R2_BUCKET")
+prefix = env.get("R2_PREFIX", "xedc/")
+env["XEDC_RESOLVE_ONLY"] = "1"
+env["XEDC_R2_ENV"] = "/tmp/xedc-no-r2-env"
+rc, buf = run(
+    ["bash", "/opt/xedc-recovery/restore.sh", "--from", "r2:latest", "--domain", "test1.local"],
+    env,
+    [
+        ("R2 Account ID", account + "\n"),
+        ("Access Key ID", key + "\n"),
+        ("Secret Access Key", secret + "\n"),
+        ("Bucket", bucket + "\n"),
+        ("Prefix", prefix + "\n"),
+        ("保留凭据", "n\n"),
+    ],
+    180,
+)
+text = buf.decode("utf-8", "replace")
+open("/tmp/pty-r2.code", "w").write(str(rc))
+if "Secret Access Key: " + secret in text:
+    raise SystemExit("Secret 被回显了")
+if rc != 0 or "恢复完成，退出码 0" not in text:
+    raise SystemExit(f"交互凭据的退出码是 {rc}")
+PY
+    [[ "$(cat /tmp/pty-r2.code)" == 0 ]]
+    [[ "$(grep -c '开始 fetch' /var/log/xedc-restore.log || true)" == 1 ]]
+    if compgen -G '/tmp/xedc-r2.*' >/dev/null; then
+      echo "凭据临时文件还在"
+      exit 1
+    fi
+    echo "XEDC_STAGE prompts PASS"
     ;;
   *)
     echo "未知模式 $mode" >&2

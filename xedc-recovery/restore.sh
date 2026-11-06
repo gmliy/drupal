@@ -821,6 +821,9 @@ selfcheck() {
     fail=1
   fi
   local ver got sock hdr masters
+  if ! command -v pgrep >/dev/null 2>&1; then
+    xedc_apt_install procps
+  fi
   ver=$(php_target_version)
   got=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;' 2>/dev/null || true)
   if [[ "$got" == "$ver" ]]; then

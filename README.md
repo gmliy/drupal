@@ -2,7 +2,7 @@
 
 备份是一个不加密的 `tar.zst`。新服务器不需要解密口令。恢复会安装 nginx、PHP、MariaDB、Redis、Node、ffmpeg、Docker、Netdata 和 Certbot，建库导数据，还原代码和文件，按新域名改配置，并处理 HTTPS。
 
-过程中你只做两件事：输入 R2 凭据，看到软件清单后输入 `y`。
+过程中你只做两件事：输入 R2 凭据，看到软件清单后输入 `y`。这两件事都在进入后台会话之前完成。默认安装 PHP 8.5，要用别的版本时在恢复命令末尾加 `--php 8.4`。软件源里没有这个版本会直接停止，不会改用更低版本。
 
 ## 一、备份（旧服务器）
 
@@ -75,15 +75,19 @@ GH_TOKEN=xxxx bash <(curl -fsSL -H "Authorization: token xxxx" https://raw.githu
 GH_TOKEN=xxxx bash <(curl -fsSL -H "Authorization: token xxxx" https://raw.githubusercontent.com/gmliy/drupal/main/xedc-recovery/install.sh) --from r2:latest-1 --domain 新域名 --email 邮箱
 ```
 
-恢复开始后会自动进入 tmux 会话。看进度：
+询问结束之后会自动进入 tmux 会话，进度直接显示在当前终端。退出查看但不停止恢复：按 `Ctrl-b` 然后按 `d`。SSH 断了之后重新登录：
 
 ```bash
 tmux attach -t xedc-restore
 ```
 
-退出查看但不停止恢复：按 `Ctrl-b` 然后按 `d`。SSH 断了之后，重新登录再执行上面的 `tmux attach`。
+日志在 `/var/log/xedc-restore.log`，权限 600。查看用：
 
-失败时日志在 `/var/log/xedc-restore.log`。把原来的整条命令照抄一遍，在末尾加上 `--resume`。
+```bash
+tail -f /var/log/xedc-restore.log
+```
+
+失败时终端会打印退出码。把原来的整条命令照抄一遍，在末尾加上 `--resume`。没有交互终端时，域名、`--yes` 和 R2 环境变量要一次写全，脚本不会停下来等输入。
 
 ```bash
 GH_TOKEN=xxxx bash <(curl -fsSL -H "Authorization: token xxxx" https://raw.githubusercontent.com/gmliy/drupal/main/xedc-recovery/install.sh) --from r2:latest --domain 新域名 --email 邮箱 --resume
@@ -100,7 +104,7 @@ GH_TOKEN=xxxx bash <(curl -fsSL -H "Authorization: token xxxx" https://raw.githu
 
 ## 四、恢复时每一步做什么
 
-1. 安装 git、curl、tmux、rclone，取回工具。
+1. 安装 git、curl、tmux 和官方 rclone，取回工具。
 2. 下载备份并校验 sha256。校验失败会改用上一份带 `.complete` 的备份。
 3. 列出要安装的软件，等你输入 `y`。测试可以加 `--yes` 跳过。
 4. 安装并配置 nginx、PHP、MariaDB、Redis、Composer、Node、ffmpeg、7z、Docker、Netdata、Certbot。
