@@ -241,28 +241,47 @@ enter_tmux() {
     : >"$XEDC_RESTORE_LOG"
     chmod 600 "$XEDC_RESTORE_LOG"
   fi
-  local r2file="" cmd
+  local r2file="" cmd rcfile tail_pid=""
+  rcfile=/tmp/xedc-restore.exit
   if [[ "$FROM" == r2:* ]]; then
     r2file=$(write_r2_handoff)
   fi
   cmd=$(mktemp)
   chmod 700 "$cmd"
   {
-    printf '#!/bin/bash\nset +e\nset -o pipefail\nexport XEDC_INSIDE_TMUX=1\nexport XEDC_LOG_MIRROR=1\n'
+    printf '%s\n' '#!/bin/bash' 'set +e' 'set -o pipefail' 'export XEDC_INSIDE_TMUX=1' 'export XEDC_LOG_MIRROR=1'
+    [[ -n "${XEDC_YES:-}" ]] && printf 'export XEDC_YES=%q\n' "$XEDC_YES"
+    [[ -n "${XEDC_PHP_VERSION:-}" ]] && printf 'export XEDC_PHP_VERSION=%q\n' "$XEDC_PHP_VERSION"
+    [[ -n "${XEDC_FAIL_STEP:-}" ]] && printf 'export XEDC_FAIL_STEP=%q\n' "$XEDC_FAIL_STEP"
+    [[ -n "${XEDC_RESOLVE_ONLY:-}" ]] && printf 'export XEDC_RESOLVE_ONLY=%q\n' "$XEDC_RESOLVE_ONLY"
+    [[ -n "${XEDC_TEST:-}" ]] && printf 'export XEDC_TEST=%q\n' "$XEDC_TEST"
     if [[ -n "$r2file" ]]; then
-      printf 'export XEDC_R2_FILE=%q\n' "$r2file"
+      printf 'r2file=%q\n' "$r2file"
+      printf '%s\n' 'if [[ -f "$r2file" ]]; then' '  set -a' '  # shellcheck disable=SC1090' '  source "$r2file"' '  set +a' '  rm -f "$r2file"' 'fi' 'unset r2file'
     fi
-    printf 'env -u R2_ACCOUNT_ID -u R2_ACCESS_KEY_ID -u R2_SECRET_ACCESS_KEY -u R2_BUCKET -u R2_PREFIX -u R2_ENDPOINT bash %q ' "$0"
+    printf 'rcfile=%q\n' "$rcfile"
+    printf 'logfile=%q\n' "$XEDC_RESTORE_LOG"
+    printf '%s\n' 'printf "1\n" > "$rcfile"' 'chmod 600 "$rcfile"' 'chmod 600 "$logfile" 2>/dev/null || true'
+    printf '%s\n' 'trap '\''ec=$?; printf "%s\n" "$ec" > "$rcfile"; chmod 600 "$rcfile"'\'' EXIT'
+    printf 'bash %q ' "$0"
     printf '%q ' "$@"
-    printf ' 2>&1 | tee -a %q\nrc=$?\nprintf "%%s\\n" "$rc" > /tmp/xedc-restore.exit\nexit "$rc"\n' "$XEDC_RESTORE_LOG"
+    printf ' 2>&1 | tee -a %q\n' "$XEDC_RESTORE_LOG"
+    printf '%s\n' 'rc=$?'
+    printf '%s\n' 'if [[ "$rc" == 0 ]]; then'
+    printf '%s\n' '  printf "%s 退出码 0\n" "$(date -u +%H:%M:%S)" >> "$logfile"'
+    printf '%s\n' 'else'
+    printf '%s\n' '  printf "%s 退出码 %s\n" "$(date -u +%H:%M:%S)" "$rc" >> "$logfile"'
+    printf '%s\n' '  printf "%s 失败。日志: %s。查看: cat %s 或 tail -f %s。继续请在原命令末尾加上 --resume\n" "$(date -u +%H:%M:%S)" "$logfile" "$logfile" "$logfile" >> "$logfile"'
+    printf '%s\n' 'fi'
+    printf '%s\n' 'exit "$rc"'
   } >"$cmd"
-  rm -f /tmp/xedc-restore.exit
+  rm -f "$rcfile"
   tmux kill-session -t xedc-restore >/dev/null 2>&1 || true
   tmux new-session -d -s xedc-restore "bash $cmd"
   unset R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET R2_PREFIX R2_ENDPOINT
   printf '%s\n' "恢复在 tmux 会话 xedc-restore 中运行。断线后执行: tmux attach -t xedc-restore" >&2
   printf '%s\n' "日志: ${XEDC_RESTORE_LOG}" >&2
-  printf '%s\n' "查看: tail -f ${XEDC_RESTORE_LOG}" >&2
+  printf '%s\n' "查看: cat ${XEDC_RESTORE_LOG} 或 tail -f ${XEDC_RESTORE_LOG}" >&2
   if [[ -t 0 && -t 1 ]]; then
     tmux attach -t xedc-restore || true
   else
@@ -271,42 +290,38 @@ enter_tmux() {
     else
       tail -n +1 -F "$XEDC_RESTORE_LOG" &
     fi
-    local tail_pid=$!
-    local waited=0
-    while [[ ! -f /tmp/xedc-restore.exit ]]; do
-      if ! tmux has-session -t xedc-restore 2>/dev/null; then
-        sleep 1
-        break
-      fi
-      sleep 1
-      waited=$((waited + 1))
-      if (( waited > 86400 )); then
-        break
-      fi
-    done
+    tail_pid=$!
+  fi
+  local waited=0
+  while tmux has-session -t xedc-restore 2>/dev/null; do
+    sleep 1
+    waited=$((waited + 1))
+    if (( waited > 86400 )); then
+      break
+    fi
+  done
+  if [[ -n "$tail_pid" ]]; then
     kill "$tail_pid" >/dev/null 2>&1 || true
     wait "$tail_pid" 2>/dev/null || true
   fi
   local i rc
   for i in 1 2 3 4 5 6 7 8 9 10; do
-    [[ -s /tmp/xedc-restore.exit ]] && break
+    [[ -s "$rcfile" ]] && break
     sleep 0.2
   done
   rm -f "$r2file" "$cmd"
-  if [[ ! -s /tmp/xedc-restore.exit ]]; then
-    printf '%s\n' "恢复失败，没有退出码" >&2
-    printf '%s\n' "日志: ${XEDC_RESTORE_LOG}" >&2
-    printf '%s\n' "查看: tail -f ${XEDC_RESTORE_LOG}" >&2
-    printf '%s\n' "继续: 在原命令末尾加上 --resume" >&2
-    exit 1
+  if [[ ! -s "$rcfile" ]] || ! [[ "$(cat "$rcfile")" =~ ^[0-9]+$ ]]; then
+    printf '1\n' >"$rcfile"
+    chmod 600 "$rcfile"
+    printf '%s\n' "$(date -u '+%H:%M:%S') 退出码 1" >>"$XEDC_RESTORE_LOG"
   fi
-  rc=$(cat /tmp/xedc-restore.exit)
+  rc=$(cat "$rcfile")
   if [[ "$rc" == "0" ]]; then
     printf '%s\n' "恢复完成，退出码 0" >&2
   else
     printf '%s\n' "恢复失败，退出码 ${rc}" >&2
     printf '%s\n' "日志: ${XEDC_RESTORE_LOG}" >&2
-    printf '%s\n' "查看: tail -f ${XEDC_RESTORE_LOG}" >&2
+    printf '%s\n' "查看: cat ${XEDC_RESTORE_LOG} 或 tail -f ${XEDC_RESTORE_LOG}" >&2
     printf '%s\n' "继续: 在原命令末尾加上 --resume" >&2
   fi
   exit "$rc"

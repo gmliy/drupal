@@ -339,11 +339,11 @@ xedc_confirm() {
     xedc_log "已使用 --yes，跳过确认"
     return 0
   fi
-  if [[ ! -t 0 ]]; then
-    xedc_die "当前不是交互终端。确认安装请在命令末尾加 --yes"
+  if [[ -n "${XEDC_INSIDE_TMUX:-}" || ! -t 0 ]]; then
+    xedc_die "当前不是交互终端。确认安装请在命令末尾加 --yes。日志: ${XEDC_RESTORE_LOG}。查看: cat ${XEDC_RESTORE_LOG}。继续请加上 --resume"
   fi
   local answer
-  read -r -p "$prompt" answer
+  read -r -p "$prompt" answer || xedc_die "无法读取确认。请在命令末尾加 --yes。日志: ${XEDC_RESTORE_LOG}"
   case "$answer" in
     y|Y|yes|YES) return 0 ;;
     *) xedc_die "未确认，已停止" ;;
