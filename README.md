@@ -35,9 +35,34 @@ sudo grep result= /var/log/xedc-recovery/upload-xedc-migration-20261105T214600Z.
 
 ### 私有仓库
 
-新服务器一开始没有 `/root/.config/xedc-recovery/github-deploy.key`，所以直接 `git clone git@github.com:gmliy/drupal.git` 会失败。私有仓库不认没有钥匙的机器，而这把钥匙又在仓库里面。
+新服务器一开始没有 `/root/.config/xedc-recovery/github-deploy.key`。直接执行 `git clone git@github.com:gmliy/drupal.git` 会失败，因为私有仓库不认没有钥匙的机器，而这把钥匙又在仓库里面。
 
-用能读取 `gmliy/drupal` 的 GitHub 令牌做第一次克隆。把 `令牌` 换成实际令牌，不要写进仓库：
+下面两种做法都能恢复。不要在新服务器执行 `recover.sh --init-deploy-key`，那会另造一把 GitHub 不认识的钥匙。
+
+#### 把旧服务器的钥匙上传到新服务器
+
+钥匙已经在旧服务器上，路径是 `/root/.config/xedc-recovery/github-deploy.key`。在旧服务器执行，把它传到新服务器：
+
+```bash
+sudo scp /root/.config/xedc-recovery/github-deploy.key root@新服务器:/root/github-deploy.key
+```
+
+然后在新服务器执行。先把钥匙放到固定位置，再用这把钥匙克隆仓库并恢复：
+
+```bash
+sudo install -d -m 700 /root/.config/xedc-recovery
+sudo install -m 600 /root/github-deploy.key /root/.config/xedc-recovery/github-deploy.key
+sudo GIT_SSH_COMMAND="ssh -i /root/.config/xedc-recovery/github-deploy.key -o IdentitiesOnly=yes" \
+  git clone --depth 1 --filter=blob:none --sparse git@github.com:gmliy/drupal.git /opt/xedc/drupal
+sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
+sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --domain 新域名
+```
+
+最后一条会安装 age 私钥和 R2 凭据，核对 Deploy Key，从 R2 下载最新备份并恢复网站。
+
+#### 用 GitHub 令牌克隆后再恢复
+
+新服务器没有这把钥匙时，用能读取 `gmliy/drupal` 的令牌做第一次克隆。把 `令牌` 换成实际令牌，不要写进仓库：
 
 ```bash
 sudo git clone --depth 1 --filter=blob:none --sparse https://x-access-token:令牌@github.com/gmliy/drupal.git /opt/xedc/drupal
@@ -46,11 +71,9 @@ sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --domain 新域名
 sudo git -C /opt/xedc/drupal remote set-url origin git@github.com:gmliy/drupal.git
 ```
 
-第三条会从刚克隆的仓库装上 Deploy Key、age 私钥和 R2 凭据，再从 R2 下载最新备份并恢复网站。第四条把远程地址改回 SSH，避免令牌留在 `.git/config`。
+第三条会从刚克隆的仓库装上原来的 Deploy Key、age 私钥和 R2 凭据，再从 R2 下载最新备份并恢复网站。第四条把远程地址改回 SSH，避免令牌留在 `.git/config`。
 
-不要在新服务器执行 `recover.sh --init-deploy-key`。那条命令会另造一把钥匙，GitHub 上登记的是原来那一把。
-
-指定某一份备份：
+指定某一份备份时，两种做法都把最后的恢复命令换成：
 
 ```bash
 sudo /opt/xedc/drupal/xedc-recovery/recover.sh --backup 20261105T214600Z --domain 新域名
@@ -126,7 +149,7 @@ sudo /opt/xedc/drupal/xedc-recovery/restore.sh --login-link --domain 新域名
 xedc-recovery/secure/github-deploy.key
 ```
 
-备份时会把旧服务器上的这一把写进仓库副本，并放进 R2 加密包。新服务器用令牌克隆之后，恢复命令会把仓库里的这一把装到本机，不会另造一把。
+备份时会把旧服务器上的这一把写进仓库副本，并放进 R2 加密包。新服务器可以先从旧服务器拷来这一把再克隆，也可以用令牌先克隆，再由恢复命令把它装到本机。两种做法都不会另造一把钥匙。
 
 `recover.sh --init-deploy-key` 只在这台机器上还没有私钥文件时才会生成新钥匙。现在不要执行它。
 
@@ -190,7 +213,18 @@ scp /var/backups/xedc/xedc-migration-20261105T214600Z.tar.zst.sha256 root@新服
 scp /var/backups/xedc/xedc-migration-20261105T214600Z.manifest.public.json root@新服务器:/root/
 ```
 
-新服务器用令牌拉取工具。把 `令牌` 换成实际令牌：
+新服务器先拿到恢复工具。用旧服务器的钥匙时，先在旧服务器执行 `sudo scp /root/.config/xedc-recovery/github-deploy.key root@新服务器:/root/github-deploy.key`，再在新服务器执行：
+
+```bash
+sudo install -d -m 700 /root/.config/xedc-recovery
+sudo install -m 600 /root/github-deploy.key /root/.config/xedc-recovery/github-deploy.key
+sudo GIT_SSH_COMMAND="ssh -i /root/.config/xedc-recovery/github-deploy.key -o IdentitiesOnly=yes" \
+  git clone --depth 1 --filter=blob:none --sparse git@github.com:gmliy/drupal.git /opt/xedc/drupal
+sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
+sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --dry-run
+```
+
+或者用令牌。把 `令牌` 换成实际令牌：
 
 ```bash
 sudo git clone --depth 1 --filter=blob:none --sparse https://x-access-token:令牌@github.com/gmliy/drupal.git /opt/xedc/drupal
