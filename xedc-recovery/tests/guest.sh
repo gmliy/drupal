@@ -428,6 +428,162 @@ PY
     fi
     echo "XEDC_STAGE prompts PASS"
     ;;
+  perms)
+    start_stack
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/redis.sh
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/mariadb.sh
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/php.sh
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/nginx.sh
+    umask 077
+    printf '%s\n' 'bind 127.0.0.1' >/etc/redis/xedc.conf
+    chown root:root /etc/redis/xedc.conf
+    chmod 600 /etc/redis/xedc.conf
+    set +e
+    deny_out=$(xedc_assert_readable redis /etc/redis/xedc.conf 2>&1)
+    deny_rc=$?
+    set -e
+    if [[ "$deny_rc" == 0 ]] || ! printf '%s\n' "$deny_out" | grep -q '无法读取'; then
+      echo "root 只读配置应被拒绝"
+      printf '%s\n' "$deny_out"
+      exit 1
+    fi
+    if ! printf '%s\n' "$deny_out" | grep -q '^f:'; then
+      echo "失败时没有 namei -l"
+      printf '%s\n' "$deny_out"
+      exit 1
+    fi
+    export XEDC_DOMAIN=test1.local XEDC_WWW=no XEDC_HTTPS_MODE=self XEDC_WEB_ROOT=/var/www/drupal/web
+    if [[ -f /var/lib/xedc-recovery/manifest.json ]]; then
+      export XEDC_MANIFEST=/var/lib/xedc-recovery/manifest.json
+    fi
+    redis_configure
+    mariadb_configure
+    php_configure
+    nginx_configure
+    [[ "$(stat -c '%a %U %G' /etc/redis/xedc.conf)" == "640 redis redis" ]]
+    [[ "$(stat -c '%a %U %G' /etc/mysql/mariadb.conf.d/99-xedc.cnf)" == "640 mysql mysql" ]]
+    [[ "$(stat -c '%a %U %G' /etc/nginx/conf.d/xedc.conf)" == "640 root www-data" ]]
+    ver=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;')
+    [[ "$(stat -c '%a %U %G' "/etc/php/${ver}/fpm/pool.d/www.conf")" == "640 root www-data" ]]
+    runuser -u redis -- test -r /etc/redis/xedc.conf
+    runuser -u mysql -- test -r /etc/mysql/mariadb.conf.d/99-xedc.cnf
+    runuser -u www-data -- test -r /etc/nginx/conf.d/xedc.conf
+    runuser -u www-data -- test -r "/etc/php/${ver}/fpm/pool.d/www.conf"
+    grep -q '^vm.overcommit_memory=1$' /etc/sysctl.d/99-xedc.conf
+    [[ "$(stat -c '%a' /etc/sysctl.d/99-xedc.conf)" == "644" ]]
+    echo "XEDC_STAGE perms PASS"
+    ;;
+  lowmem)
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/redis.sh
+    umask 077
+    xedc_write_tune
+    # shellcheck disable=SC1091
+    source /var/lib/xedc-recovery/tune.env
+    mb=$(xedc_mem_mb)
+    echo "内存 ${mb}MB Redis ${REDIS_MAXMEMORY} MariaDB ${INNODB_BUFFER}"
+    if (( mb < 1500 || mb > 2200 )); then
+      echo "容器内存上限不是 2GB 档: ${mb}"
+      exit 1
+    fi
+    [[ "$REDIS_MAXMEMORY" == "96mb" ]]
+    [[ "$INNODB_BUFFER" == "256M" ]]
+    [[ "$PM_MAX_CHILDREN" == "3" ]]
+    redis_configure
+    grep -q '^vm.overcommit_memory=1$' /etc/sysctl.d/99-xedc.conf
+    [[ "$(stat -c '%a %U %G' /etc/redis/xedc.conf)" == "640 redis redis" ]]
+    runuser -u redis -- test -r /etc/redis/xedc.conf
+    echo "XEDC_STAGE lowmem PASS"
+    ;;
+  compose)
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/docker.sh
+    shopt -s nullglob
+    moved=()
+    for plugin in /usr/libexec/docker/cli-plugins/docker-compose /usr/lib/docker/cli-plugins/docker-compose; do
+      if [[ -e "$plugin" ]]; then
+        mv "$plugin" "${plugin}.baktest"
+        moved+=("$plugin")
+      fi
+    done
+    hash -r
+    mkdir -p /opt/matomo
+    printf '%s\n' 'services: {}' >/opt/matomo/compose.yaml
+    set +e
+    miss_out=$(docker_compose_up /opt/matomo 2>&1)
+    miss_rc=$?
+    set -e
+    for plugin in "${moved[@]}"; do
+      mv "${plugin}.baktest" "$plugin"
+    done
+    if [[ "$miss_rc" == 0 ]] || printf '%s\n' "$miss_out" | grep -q '编排文件已还原'; then
+      echo "缺少 compose 时不应继续"
+      printf '%s\n' "$miss_out"
+      exit 1
+    fi
+    printf '%s\n' "$miss_out" | grep -q 'docker-compose-v2'
+    docker_install_compose
+    docker compose version
+    set +e
+    daemon_out=$(docker_compose_up /opt/matomo 2>&1)
+    daemon_rc=$?
+    set -e
+    if [[ "$daemon_rc" == 0 ]]; then
+      echo "守护进程没起来时容器不应算启动成功"
+      exit 1
+    fi
+    printf '%s\n' "$daemon_out" | grep -E '守护进程未运行|容器启动失败|日志如下'
+    echo "XEDC_STAGE compose PASS"
+    ;;
+  redisresume)
+    start_stack
+    file=$(archive_path)
+    [[ -n "$file" ]] || { echo "没有本地备份"; exit 1; }
+    if ! grep -q '/etc/redis/xedc.conf' /etc/redis/redis.conf; then
+      printf '\ninclude /etc/redis/xedc.conf\n' >>/etc/redis/redis.conf
+    fi
+    redis-cli shutdown nosave >/dev/null 2>&1 || true
+    sleep 0.3
+    umask 077
+    printf '%s\n' 'bind 127.0.0.1' 'protected-mode yes' 'maxmemory 16mb' >/etc/redis/xedc.conf
+    chown root:root /etc/redis/xedc.conf
+    chmod 600 /etc/redis/xedc.conf
+    : >/var/log/redis/redis-server.log
+    set +e
+    service redis-server start >/tmp/redis-fail.out 2>&1
+    set -e
+    if ! grep -q 'failed' /tmp/redis-fail.out || redis-cli ping 2>/dev/null | grep -q PONG; then
+      echo "root 只读配置时 Redis 不该启动"
+      cat /tmp/redis-fail.out || true
+      exit 1
+    fi
+    if ! grep -q "can't open config file '/etc/redis/xedc.conf': Permission denied" /var/log/redis/redis-server.log; then
+      echo "Redis 日志里没有配置权限错误"
+      tail -n 20 /var/log/redis/redis-server.log || true
+      exit 1
+    fi
+    rm -f /var/lib/xedc-recovery/steps/services.done \
+      /var/lib/xedc-recovery/steps/drush.done \
+      /var/lib/xedc-recovery/steps/domain.done \
+      /var/lib/xedc-recovery/steps/https.done \
+      /var/lib/xedc-recovery/steps/selfcheck.done \
+      /var/lib/xedc-recovery/steps/workers.done
+    before=0
+    if [[ -f /var/log/xedc-restore.log ]]; then
+      before=$(wc -l </var/log/xedc-restore.log)
+    fi
+    XEDC_NO_TMUX=1 bash /opt/xedc-recovery/restore.sh --resume --from "local:${file}" --domain test1.local --email admin@test1.local --https self --www no --yes
+    tail -n +"$((before + 1))" /var/log/xedc-restore.log | grep -q '跳过已完成步骤 database'
+    tail -n +"$((before + 1))" /var/log/xedc-restore.log | grep -q '开始 services'
+    [[ "$(stat -c '%a %U %G' /etc/redis/xedc.conf)" == "640 redis redis" ]]
+    runuser -u redis -- test -r /etc/redis/xedc.conf
+    redis-cli ping | grep -q PONG
+    echo "XEDC_STAGE redisresume PASS"
+    ;;
   *)
     echo "未知模式 $mode" >&2
     exit 2

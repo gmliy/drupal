@@ -47,7 +47,15 @@ R2 使用官方最新稳定版 rclone，装不上才回退系统包并警告。C
 
 域名、安装确认和 R2 凭据都在进入 tmux 之前于前台终端读完。没有 TTY 又缺参数时直接报错，并提示用命令参数或环境变量。凭据经权限 600 的临时文件交给会话，会话启动后立即删除，不进入日志、命令行和进程列表。随后自动 `tmux attach -t xedc-restore`。日志 `/var/log/xedc-restore.log`，权限 600，用 `cat` 或 `tail -f` 查看。会话结束写入真实退出码。失败时提示日志路径和 `--resume`。新服务器不需要解密口令。
 
-然后安装软件、建库、导入、还原代码、`composer install --no-dev`、构建主题、改 `settings.php`、还原服务、`drush updb`、`cim`、`cr`、处理域名和 HTTPS、自检。
+然后安装软件、建库、导入、还原代码、`composer install --no-dev`、构建主题、改 `settings.php`、还原服务、`drush updb`、`cim`、`cr`、处理域名和 HTTPS、自检。自检通过后再启动名字里带 worker 的单元，例如 `xedc-import-worker`。
+
+还原到 `/etc` 的配置使用备份时记下的权限和属主。清单里没有记录时，默认 `root:root` `0644`。Redis 配置是 `redis:redis` `0640`，MariaDB 是 `mysql:mysql` `0640`，PHP-FPM 和 nginx 给服务用户可读。`settings.php` 和 `.env` 单独设为 `0640` 或 `0600`。写这些文件时不要把全局 `umask 077` 留在后续步骤里。每个服务启动前确认服务用户能读自己的配置，失败时输出 `namei -l`。
+
+Redis 把 `vm.overcommit_memory=1` 写入 `/etc/sysctl.d/99-xedc.conf` 并执行 `sysctl --system`。
+
+安装 Docker 时同时安装 Compose。Ubuntu 用 `docker-compose-v2`，Docker 官方源用 `docker-compose-plugin`。装完必须 `docker compose version` 成功。Matomo 等容器起不来就停止，并给出日志。
+
+systemd 单元还原后，只对含 `[Install]` 的单元执行 enable。没有这一段的不 enable。`xedc-push-gmliy` 以及其它向 Git 推送的任务不还原，并写进清单的 `restore_skip`。
 
 ## 6. 软件模块
 
@@ -78,6 +86,8 @@ Drupal 的 trusted host、base_url、cookie domain 要改。配置和数据库�
 主流程通过后做快照，再并行跑域名替换、视频、连续恢复两次、`--resume`、`--verify`、R2 的 latest 和 latest-1。缺 `.complete` 的备份必须被跳过。
 
 Docker 里做不到的项目单独列出，不能写成通过。提供 `tests/real-server-checklist.md` 和 `tests/cleanup.sh`。
+
+另外要覆盖：服务用户能读取配置、大约 2GB 内存的参数、没有 Compose 插件时直接失败。容器里的 systemd 不完整，这三项里涉及真实 `systemctl`、`sysctl` 和 Matomo 日志的部分记在报告的真实服务器核对，不能写成 Docker 已通过。`--resume` 要实测从失败的 Redis 步骤继续。
 
 ## 11. 文档
 
