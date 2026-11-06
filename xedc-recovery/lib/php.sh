@@ -16,34 +16,99 @@ php_os_id() {
   printf '%s\n' "$ID"
 }
 
-php_add_repo() {
-  local id codename list
-  id=$(php_os_id)
-  codename=$(php_codename)
-  xedc_apt_install ca-certificates curl gnupg apt-transport-https
-  if [[ "$id" == "ubuntu" ]]; then
-    xedc_apt_install software-properties-common || true
-    if ! add-apt-repository -y ppa:ondrej/php || ! apt-get update -y; then
-      add-apt-repository -y -r ppa:ondrej/php >/dev/null 2>&1 || true
-      php_drop_extra_repo
-      xedc_warn "Ondřej PHP 源不可用"
-      return 1
-    fi
-    rm -f /var/lib/xedc-recovery/apt-updated
+php_version_id_major() {
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  printf '%s\n' "${VERSION_ID%%.*}"
+}
+
+php_minor_of() {
+  local full=$1
+  if [[ "$full" =~ ^([0-9]+)\.([0-9]+) ]]; then
+    printf '%s.%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
     return 0
   fi
+  return 1
+}
+
+php_target_version() {
+  local got="" manifest=${XEDC_MANIFEST:-}
+  if [[ -n "${XEDC_PHP_VERSION:-}" ]]; then
+    printf '%s\n' "$XEDC_PHP_VERSION"
+    return 0
+  fi
+  if [[ -n "$manifest" && -f "$manifest" ]] && xedc_have php; then
+    got=$(xedc_manifest_get "$manifest" php.minor || true)
+    if [[ ! "$got" =~ ^[0-9]+\.[0-9]+$ ]]; then
+      got=$(xedc_manifest_get "$manifest" php.version || true)
+      got=$(php_minor_of "$got" || true)
+    fi
+  fi
+  if [[ "$got" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    printf '%s\n' "$got"
+    return 0
+  fi
+  printf '%s\n' "8.5"
+}
+
+php_candidate() {
+  local ver=$1 line
+  line=$(apt-cache policy "php${ver}-fpm" 2>/dev/null | awk '/Candidate:/ {print $2; exit}' || true)
+  [[ "$line" == "${ver}."* ]]
+}
+
+php_add_ubuntu_ppa() {
+  xedc_apt_install ca-certificates curl gnupg apt-transport-https software-properties-common
+  if ! add-apt-repository -y ppa:ondrej/php || ! apt-get update -y; then
+    add-apt-repository -y -r ppa:ondrej/php >/dev/null 2>&1 || true
+    php_drop_extra_repo
+    return 1
+  fi
+  rm -f /var/lib/xedc-recovery/apt-updated
+  return 0
+}
+
+php_add_sury() {
+  local codename list
+  codename=$(php_codename)
+  xedc_apt_install ca-certificates curl gnupg apt-transport-https
   list=/etc/apt/sources.list.d/sury-php.list
   curl -fsSL --max-time 30 -o /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
   echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ ${codename} main" >"$list"
   rm -f /var/lib/xedc-recovery/apt-updated
   if ! apt-get update -y; then
     php_drop_extra_repo
-    xedc_apt_update || true
-    xedc_warn "Sury PHP 源不可用"
     return 1
   fi
   touch /var/lib/xedc-recovery/apt-updated
   return 0
+}
+
+php_require_source() {
+  local ver=$1 id major
+  id=$(php_os_id)
+  major=$(php_version_id_major)
+  if [[ "$id" == "ubuntu" && "$major" -ge 26 ]]; then
+    rm -f /var/lib/xedc-recovery/apt-updated
+    xedc_apt_update || true
+    if php_candidate "$ver"; then
+      xedc_log "系统源已有 PHP ${ver}"
+      return 0
+    fi
+    xedc_log "系统源没有 PHP ${ver}，尝试 Ondřej 源"
+  fi
+  if [[ "$id" == "ubuntu" ]]; then
+    php_add_ubuntu_ppa || true
+  elif [[ "$id" == "debian" ]]; then
+    php_add_sury || true
+  else
+    xedc_die "这个系统不能安装 PHP ${ver}"
+  fi
+  rm -f /var/lib/xedc-recovery/apt-updated
+  xedc_apt_update || true
+  if ! php_candidate "$ver"; then
+    xedc_die "软件源里没有 PHP ${ver}。apt-cache policy php${ver}-fpm 没有 ${ver}.x。已停止，不会改用更低版本"
+  fi
 }
 
 php_drop_extra_repo() {
@@ -62,65 +127,75 @@ php_pkg_exists() {
   [[ "$out" == *"Package: ${name}"* ]]
 }
 
-php_pick_version() {
-  local v
-  for v in 8.5 8.4 8.3 8.2; do
-    if php_pkg_exists "php${v}-fpm"; then
-      printf '%s\n' "$v"
-      return 0
-    fi
-  done
-  return 1
-}
-
 php_install() {
-  local current=""
+  local ver current="" pkg
+  ver=$(php_target_version)
+  if [[ ! "$ver" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    xedc_die "PHP 版本 ${ver} 无法识别。使用 --php 8.5 这种形式"
+  fi
+  php_require_source "$ver"
   if xedc_have php; then
     current=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
   fi
-  if ! php_add_repo; then
-    xedc_warn "将使用系统源里的最高 PHP 版本"
-    rm -f /var/lib/xedc-recovery/apt-updated
-    xedc_apt_update
-  fi
-  local ver=""
-  ver=$(php_pick_version || true)
-  if [[ -z "$ver" ]]; then
-    xedc_die "软件源里没有 PHP 8.2 及以上，无法恢复"
-  fi
-  if [[ "$ver" != "8.5" ]]; then
-    xedc_warn "未能安装 PHP 8.5，已改用 PHP ${ver}"
-  fi
   if [[ -n "$current" && "$current" != "$ver" ]]; then
-    xedc_warn "PHP ${current} 与目标 ${ver} 不符，开始安装 ${ver}"
-  elif [[ "$current" == "$ver" ]]; then
-    xedc_log "PHP ${ver} 已安装，补齐扩展"
+    xedc_log "当前 php 命令是 ${current}，将改为 ${ver}"
   fi
-  if ! xedc_apt_install \
-    "php${ver}-cli" "php${ver}-fpm" "php${ver}-mysql" "php${ver}-gd" \
-    "php${ver}-intl" "php${ver}-mbstring" "php${ver}-xml" "php${ver}-curl" \
-    "php${ver}-zip" "php${ver}-bcmath" "php${ver}-readline" \
-    "php${ver}-redis"; then
-    xedc_die "安装 PHP ${ver} 失败。Opcache 从 8.5 起随 php${ver}-common 提供，不再单独装 php${ver}-opcache"
-  fi
-  if php_pkg_exists "php${ver}-opcache"; then
-    xedc_apt_install "php${ver}-opcache" || xedc_warn "php${ver}-opcache 未装上，继续使用内置 Opcache"
-  fi
-  local opt
-  for opt in apcu igbinary imagick; do
-    if ! xedc_apt_install "php${ver}-${opt}"; then
-      xedc_warn "可选扩展 php${ver}-${opt} 未安装"
+  local -a required=(cli fpm mysql gd intl mbstring xml curl zip bcmath readline redis)
+  for pkg in "${required[@]}"; do
+    if ! php_pkg_exists "php${ver}-${pkg}"; then
+      xedc_die "没有软件包 php${ver}-${pkg}。请换一个提供 PHP ${ver} 的软件源后再恢复"
     fi
   done
-  if [[ -x "/usr/bin/php${ver}" ]]; then
-    update-alternatives --set php "/usr/bin/php${ver}" >/dev/null 2>&1 || ln -sfn "/usr/bin/php${ver}" /usr/bin/php
+  xedc_apt_install "${required[@]/#/php${ver}-}"
+  if php_pkg_exists "php${ver}-opcache"; then
+    xedc_apt_install "php${ver}-opcache" || xedc_warn "php${ver}-opcache 未装上。Opcache 通常已经在 php${ver}-common 里"
   fi
-  if ! xedc_have php; then
-    xedc_die "PHP ${ver} 包装上了，但是没有 php 命令"
+  if php_pkg_exists "php${ver}-apcu"; then
+    xedc_apt_install "php${ver}-apcu" || xedc_warn "php${ver}-apcu 未装上。没有 APCu 时缓存只用 Redis"
+  else
+    xedc_warn "没有 php${ver}-apcu。没有 APCu 时缓存只用 Redis"
+  fi
+  if php_pkg_exists "php${ver}-igbinary"; then
+    xedc_apt_install "php${ver}-igbinary" || xedc_warn "php${ver}-igbinary 未装上。Redis 序列化会用 PHP 默认方式"
+  else
+    xedc_warn "没有 php${ver}-igbinary。Redis 序列化会用 PHP 默认方式"
+  fi
+  if php_pkg_exists "php${ver}-imagick"; then
+    xedc_apt_install "php${ver}-imagick" || xedc_warn "php${ver}-imagick 未装上。图片处理改用 GD"
+  else
+    xedc_warn "没有 php${ver}-imagick。图片处理改用 GD，需要时再安装这个包"
+  fi
+  if [[ ! -x "/usr/bin/php${ver}" ]]; then
+    xedc_die "安装后没有 /usr/bin/php${ver}"
+  fi
+  update-alternatives --install /usr/bin/php php "/usr/bin/php${ver}" 85 >/dev/null 2>&1 || true
+  update-alternatives --set php "/usr/bin/php${ver}" >/dev/null 2>&1 || ln -sfn "/usr/bin/php${ver}" /usr/bin/php
+  local init name
+  shopt -s nullglob
+  for init in /etc/init.d/php*-fpm; do
+    name=$(basename "$init")
+    if [[ "$name" != "php${ver}-fpm" ]]; then
+      service "$name" stop >/dev/null 2>&1 || true
+      if xedc_systemd; then
+        systemctl disable "$name" >/dev/null 2>&1 || true
+      fi
+      xedc_log "已停用旧的 ${name}"
+    fi
+  done
+  shopt -u nullglob
+  local got_ver mods
+  got_ver=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;')
+  if [[ "$got_ver" != "$ver" ]]; then
+    xedc_die "php 命令不是 ${ver}：$(php -v | awk 'NR==1{print}')"
+  fi
+  mods=$(php -m || true)
+  if ! grep -F 'Zend OPcache' <<<"$mods" >/dev/null; then
+    xedc_die "PHP ${ver} 没有启用 OPcache。它应随 php${ver}-common 提供；若没有，安装 php${ver}-opcache"
   fi
   mkdir -p "$XEDC_STATE_DIR"
   printf '%s\n' "$ver" >"$XEDC_STATE_DIR/php-version"
-  xedc_log "PHP $(php -v | head -n 1)"
+  printf '%s\n' "/run/php/php${ver}-fpm.sock" >"$XEDC_STATE_DIR/php-sock"
+  xedc_log "PHP $(php -v | awk 'NR==1{print}')"
 }
 
 php_version_file() {
@@ -205,17 +280,44 @@ php_enable() {
   xedc_svc "php${ver}-fpm"
 }
 
-php_verify() {
-  local ver
+php_align_paths() {
+  local ver file tmp
   ver=$(php_version_file)
-  php -v >/dev/null
-  local ext
-  for ext in gd intl mbstring xml curl zip pdo_mysql redis; do
-    php -m | grep -qi "^${ext}$" || xedc_die "PHP 扩展 ${ext} 未启用"
+  [[ "$ver" =~ ^[0-9]+\.[0-9]+$ ]] || return 0
+  shopt -s nullglob
+  for file in /etc/nginx/conf.d/*.conf /etc/nginx/sites-enabled/* /etc/cron.d/* /etc/systemd/system/xedc-*; do
+    [[ -f "$file" ]] || continue
+    sed -i -E "s/php8\\.[0-9]+/php${ver}/g" "$file"
   done
-  local sock
+  shopt -u nullglob
+  tmp=$(mktemp)
+  if crontab -l -u root >"$tmp" 2>/dev/null; then
+    sed -i -E "s/php8\\.[0-9]+/php${ver}/g" "$tmp"
+    crontab -u root "$tmp" || true
+  fi
+  : >"$tmp"
+  if crontab -l -u www-data >"$tmp" 2>/dev/null; then
+    sed -i -E "s/php8\\.[0-9]+/php${ver}/g" "$tmp"
+    crontab -u www-data "$tmp" || true
+  fi
+  rm -f "$tmp"
+}
+
+php_verify() {
+  local ver got ext mods sock
+  ver=$(php_version_file)
+  got=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;')
+  [[ "$got" == "$ver" ]] || xedc_die "php 命令是 ${got}，需要 ${ver}"
+  mods=$(php -m | tr '[:upper:]' '[:lower:]')
+  for ext in gd intl mbstring xml curl zip pdo_mysql redis; do
+    case $'\n'"$mods"$'\n' in
+      *$'\n'"${ext}"$'\n'*) ;;
+      *) xedc_die "PHP 扩展 ${ext} 未启用" ;;
+    esac
+  done
   sock=$(cat "$XEDC_STATE_DIR/php-sock")
   [[ -S "$sock" ]] || xedc_die "PHP-FPM 套接字不存在: ${sock}"
+  [[ "$sock" == "/run/php/php${ver}-fpm.sock" ]] || xedc_die "PHP-FPM 套接字不是 ${ver}: ${sock}"
   xedc_log "PHP-FPM 正常"
 }
 

@@ -50,7 +50,7 @@ usage() {
   cat <<'EOF'
 用法: restore.sh --from local:/路径/包.tar.zst|--from r2:latest|r2:latest-1|r2:时间
   --domain 域名 [--old-domain 旧域名] [--www yes|no] [--https auto|self|off]
-  [--email 邮箱] [--yes] [--force] [--verify] [--resume] [--list-local] [--list-r2]
+  [--email 邮箱] [--php 8.5] [--yes] [--force] [--verify] [--resume] [--list-local] [--list-r2]
 EOF
 }
 
@@ -62,6 +62,7 @@ while [[ $# -gt 0 ]]; do
     --www) WWW=${2:-}; shift 2 ;;
     --https) HTTPS=${2:-}; shift 2 ;;
     --email) EMAIL=${2:-}; shift 2 ;;
+    --php) XEDC_PHP_VERSION=${2:-}; shift 2 ;;
     --yes) XEDC_YES=1; shift ;;
     --force) FORCE=1; shift ;;
     --verify) VERIFY=1; shift ;;
@@ -73,6 +74,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 export XEDC_YES=${XEDC_YES:-0}
+if [[ -n "${XEDC_PHP_VERSION:-}" && ! "${XEDC_PHP_VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+  xedc_die "--php 需要 8.5 这种写法"
+fi
+export XEDC_PHP_VERSION="${XEDC_PHP_VERSION:-}"
 
 list_local() {
   xedc_backup_perms
@@ -588,7 +593,17 @@ step_code() {
   fi
   if [[ -f "$SITE/composer.json" ]]; then
     export COMPOSER_ALLOW_SUPERUSER=1
+    xedc_log "检查 Composer 平台要求"
+    if [[ -f "$SITE/composer.lock" ]] && ! composer check-platform-reqs --no-interaction --working-dir="$SITE"; then
+      xedc_die "Composer 平台要求不满足。上面列出了不兼容的包。没有忽略平台检查。日志: ${XEDC_RESTORE_LOG}。可在原命令末尾加 --resume"
+    fi
+    if [[ ! -f "$SITE/composer.lock" ]]; then
+      xedc_log "没有 composer.lock，安装依赖后再检查平台要求"
+    fi
     composer install --no-dev --no-interaction --prefer-dist --working-dir="$SITE"
+    if ! composer check-platform-reqs --no-interaction --working-dir="$SITE"; then
+      xedc_die "Composer 平台要求不满足。上面列出了不兼容的包。没有忽略平台检查。日志: ${XEDC_RESTORE_LOG}。可在原命令末尾加 --resume"
+    fi
   fi
   local pkg dir
   if [[ -d "$SITE/web/themes/custom" ]]; then
@@ -672,6 +687,7 @@ step_services() {
   netdata_enable
   certbot_enable
   xedc_svc cron || xedc_warn "cron 未能启动"
+  php_align_paths
 }
 
 step_drush() {
@@ -804,13 +820,42 @@ selfcheck() {
     echo "✘ Redis"
     fail=1
   fi
-  local sock=""
-  sock=$(cat "$XEDC_STATE_DIR/php-sock" 2>/dev/null || true)
-  if [[ -n "$sock" && -S "$sock" ]]; then
-    echo "✔ PHP-FPM"
+  local ver got sock hdr masters
+  ver=$(php_target_version)
+  got=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;' 2>/dev/null || true)
+  if [[ "$got" == "$ver" ]]; then
+    echo "✔ PHP ${got}"
   else
-    echo "✘ PHP-FPM"
+    echo "✘ PHP ${got:-缺失}，需要 ${ver}"
     fail=1
+  fi
+  sock="/run/php/php${ver}-fpm.sock"
+  masters=$(pgrep -af 'php-fpm: master' || true)
+  if [[ -S "$sock" && "$masters" == *"php-fpm${ver}"* ]]; then
+    echo "✔ PHP-FPM ${ver}"
+  else
+    echo "✘ PHP-FPM ${ver}"
+    fail=1
+  fi
+  if [[ "$masters" == *"php-fpm"* ]] && printf '%s\n' "$masters" | grep -E "php-fpm${ver%.*}\\.[0-9]" | grep -v "php-fpm${ver}" >/tmp/xedc-old-fpm.txt; then
+    if grep -E 'php-fpm[0-9]' /tmp/xedc-old-fpm.txt >/dev/null; then
+      echo "✘ 仍有其他 PHP-FPM"
+      fail=1
+    fi
+  fi
+  rm -f /tmp/xedc-old-fpm.txt
+  if grep -R --include='*.conf' -F "unix:${sock}" /etc/nginx/conf.d >/dev/null 2>&1; then
+    echo "✔ nginx ${sock}"
+  else
+    echo "✘ nginx 未使用 ${sock}"
+    fail=1
+  fi
+  hdr=$(curl -k -sI --resolve "${DOMAIN}:443:127.0.0.1" --resolve "${DOMAIN}:80:127.0.0.1" "${scheme}://${DOMAIN}/" | tr -d '\r' | awk 'tolower($1)=="x-php-version:" {print $2; exit}' || true)
+  if [[ -n "$hdr" && "$hdr" != "${ver}."* ]]; then
+    echo "✘ 页面由 PHP ${hdr} 处理，需要 ${ver}"
+    fail=1
+  elif [[ -n "$hdr" ]]; then
+    echo "✔ 页面 PHP ${hdr}"
   fi
   if crontab -l 2>/dev/null | grep -q . || grep -Rqs . /etc/cron.d/xedc-* /etc/cron.d/xedc-drupal 2>/dev/null || ls /etc/cron.d/*xedc* >/dev/null 2>&1; then
     echo "✔ cron"
@@ -885,6 +930,21 @@ if [[ "$RESUME" == 1 ]]; then
     DB_PASS=$(cat "$XEDC_STATE_DIR/db.pass")
   fi
 fi
+ensure_php() {
+  if [[ "${XEDC_RESOLVE_ONLY:-0}" == 1 || "$VERIFY" == 1 ]]; then
+    return 0
+  fi
+  local ver got=""
+  ver=$(php_target_version)
+  if xedc_have php; then
+    got=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;')
+  fi
+  if [[ "$got" != "$ver" ]]; then
+    php_install
+  fi
+}
+
+ensure_php
 run_step fetch step_fetch
 if [[ -z "$WWW" ]]; then
   www_flag=$(xedc_manifest_get "$MANIFEST" www || true)
@@ -909,6 +969,6 @@ run_step drush step_drush
 run_step domain step_domain
 run_step https step_https
 if ! run_step selfcheck selfcheck; then
-  xedc_die "自检未通过。日志: ${XEDC_RESTORE_LOG}"
+  xedc_die "自检未通过。日志: ${XEDC_RESTORE_LOG}。查看: tail -f ${XEDC_RESTORE_LOG}。可在原命令末尾加 --resume"
 fi
 xedc_log "恢复完成"

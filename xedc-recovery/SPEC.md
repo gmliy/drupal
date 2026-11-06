@@ -6,7 +6,7 @@
 
 - 站点是 Drupal 11，目录自动探测，当前机器是 `/var/www/drupal`。
 - 恢复目标是 Ubuntu 22.04、24.04、26.04、26.10 和 Debian 12 的空服务器，用 root 运行。
-- 目标 PHP 是 8.5。官方源没有时用 Ondřej/Sury。仍然没有则安装最高可用版本并警告。
+- 目标 PHP 以 manifest.json 的 `php.minor` 为准，缺省 8.5。可用 `--php 8.4` 覆盖。Ubuntu 22.04/24.04 使用 ppa:ondrej/php，Debian 12 使用 packages.sury.org/php。Ubuntu 26.04 及以上先看系统源，没有目标版本才加 Ondřej 源。源里没有该版本就停止，不降级。php 命令、PHP-FPM 套接字、nginx、cron 和 systemd 都用这个版本。
 - 可以重复执行。路径和版本来自探测，不写死某台机器的口令或绝对版本号。
 - 命令一行可以复制，输出短。
 
@@ -33,7 +33,7 @@ Netdata claim token、数据库密码、R2 密钥、SMTP 口令不得进入 Git�
 
 输出 `tar.zst`，不加密，不用 age 或 gpg。备份前开维护模式，结束或失败都关掉。本地目录 `/var/backups/xedc` 权限 700，文件 600。
 
-R2 使用 rclone。凭据只放在 `/root/.config/xedc-recovery/r2.env`，权限 600。上传后校验 sha256，失败重试 3 次。桶可被匿名列出时警告。每次额外把 `install.sh` 和完整工具包上传到 `bootstrap/`。
+R2 使用官方最新稳定版 rclone，装不上才回退系统包并警告。Cloudflare 使用 provider=Cloudflare、region=auto、no_check_bucket、no_head、disable_checksum，不发送 ACL。凭据只放在 `/root/.config/xedc-recovery/r2.env`，权限 600。上传后校验 sha256，失败重试 3 次。桶可被匿名列出时警告。上传顺序是备份包、sha256、manifest，最后 `.complete`。然后再上传 `bootstrap/install.sh` 和 `bootstrap/xedc-recovery.tar.gz`。
 
 ## 4. 最新备份
 
@@ -45,7 +45,7 @@ R2 使用 rclone。凭据只放在 `/root/.config/xedc-recovery/r2.env`，权限
 
 没有 `--force` 时，发现已有站点就停止。有 `--force` 时先备份旧数据库。`--verify` 只读，不改系统。`--resume` 从失败步骤继续。
 
-自动进入 tmux 会话 `xedc-restore`，日志 `/var/log/xedc-restore.log`。R2 Secret 输入时不回显，只放在临时 rclone 配置里，结束删除。新服务器不需要解密口令。
+域名、安装确认和 R2 凭据都在进入 tmux 之前于前台终端读完。没有 TTY 又缺参数时直接报错，并提示用命令参数或环境变量。凭据经权限 600 的临时文件交给会话，会话启动后立即删除，不进入日志、命令行和进程列表。随后自动 `tmux attach -t xedc-restore`。日志 `/var/log/xedc-restore.log`，权限 600，用 `cat` 或 `tail -f` 查看。会话结束写入真实退出码。失败时提示日志路径和 `--resume`。新服务器不需要解密口令。
 
 然后安装软件、建库、导入、还原代码、`composer install --no-dev`、构建主题、改 `settings.php`、还原服务、`drush updb`、`cim`、`cr`、处理域名和 HTTPS、自检。
 

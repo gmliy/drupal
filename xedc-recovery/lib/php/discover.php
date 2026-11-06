@@ -131,6 +131,11 @@ $phpMinor = '';
 if (preg_match('/^(\d+\.\d+)/', $phpVersion, $m) === 1) {
   $phpMinor = $m[1];
 }
+$forcedPhp = getenv('XEDC_PHP_VERSION');
+if (is_string($forcedPhp) && preg_match('/^\d+\.\d+$/', $forcedPhp) === 1) {
+  $phpMinor = $forcedPhp;
+  $phpVersion = $forcedPhp . '.0';
+}
 $fpmDir = $phpMinor !== '' ? "/etc/php/{$phpMinor}/fpm/conf.d" : '';
 $ini = [
   'memory_limit' => xedc_ini_value($fpmDir, 'memory_limit'),
