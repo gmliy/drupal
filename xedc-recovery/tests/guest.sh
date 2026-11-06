@@ -231,10 +231,13 @@ EOF
     [[ "$ver" == "8.5" ]]
     php -v | awk 'NR==1{print}'
     [[ -S /run/php/php8.5-fpm.sock ]]
-    masters=$(pgrep -a php-fpm || true)
+    masters=""
+    for pid in $(pgrep php-fpm || true); do
+      masters+=$(readlink "/proc/${pid}/exe" 2>/dev/null || true)$'\n'
+    done
     printf '%s\n' "$masters"
-    [[ "$masters" == *php-fpm8.5* ]]
-    bad=$(printf '%s\n' "$masters" | grep -E 'php-fpm8\.[0-4]' || true)
+    [[ "$masters" == *"/php-fpm8.5"* ]]
+    bad=$(printf '%s\n' "$masters" | grep -F '/php-fpm' | grep -v '/php-fpm8.5' || true)
     [[ -z "$bad" ]]
     grep -R -F 'unix:/run/php/php8.5-fpm.sock' /etc/nginx/conf.d
     hdr=$(curl -k -sI --resolve test1.local:443:127.0.0.1 https://test1.local/ | tr -d '\r' | awk 'tolower($1)=="x-php-version:" {print $2; exit}' || true)

@@ -833,16 +833,23 @@ selfcheck() {
     fail=1
   fi
   sock="/run/php/php${ver}-fpm.sock"
-  masters=$(pgrep -a php-fpm || true)
-  if [[ -S "$sock" && "$masters" == *"php-fpm${ver}"* ]]; then
+  masters=""
+  local pid exe
+  for pid in $(pgrep php-fpm || true); do
+    exe=$(readlink "/proc/${pid}/exe" 2>/dev/null || true)
+    masters+="${exe}"$'\n'
+  done
+  if [[ -S "$sock" && "$masters" == *"/php-fpm${ver}"* ]]; then
     echo "✔ PHP-FPM ${ver}"
   else
     echo "✘ PHP-FPM ${ver}"
+    printf '%s\n' "$masters"
     fail=1
   fi
-  old_fpm=$(printf '%s\n' "$masters" | grep -E 'php-fpm[0-9.]+' | grep -v "php-fpm${ver}" || true)
+  old_fpm=$(printf '%s\n' "$masters" | grep -F '/php-fpm' | grep -v "/php-fpm${ver}" || true)
   if [[ -n "$old_fpm" ]]; then
     echo "✘ 仍有其他 PHP-FPM"
+    printf '%s\n' "$old_fpm"
     fail=1
   fi
   if grep -R --include='*.conf' -F "unix:${sock}" /etc/nginx/conf.d >/dev/null 2>&1; then
