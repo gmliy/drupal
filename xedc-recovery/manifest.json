@@ -351,8 +351,7 @@
     ],
     "timers": [
         "certbot.timer",
-        "phpsessionclean.timer",
-        "xedc-push-gmliy.timer"
+        "phpsessionclean.timer"
     ],
     "cron": [
         {
@@ -477,5 +476,19 @@
         "recaptcha": false,
         "turnstile": false,
         "oauth": false
-    }
+    },
+    "restore_skip": [
+        {
+            "name": "xedc-push-gmliy.service",
+            "reason": "只属于旧服务器，向 Git 推送代码，脚本里有访问令牌"
+        },
+        {
+            "name": "xedc-push-gmliy.timer",
+            "reason": "上面这个推送任务的定时器，新服务器不还原"
+        },
+        {
+            "name": "xedc-push-gmliy.sh",
+            "reason": "推送脚本只在旧服务器使用，不还原到新机器"
+        }
+    ]
 }

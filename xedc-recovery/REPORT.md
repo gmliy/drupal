@@ -45,6 +45,20 @@ Ubuntu 26.04 和 26.10 的系统源里已经有 8.5，没有再加 Ondřej 源�
 - 域名、确认和 R2 凭据在进入 tmux 之前读完。凭据放在权限 600 的临时文件里，会话启动后立即删除。结束时写入真实退出码。
 - 按清单安装 PHP 8.5。源里没有该版本就停止，不改用 8.3 或 8.4。`--php` 可以指定别的版本。
 
+## 低内存、配置权限和 Compose
+
+分支 `fix/redis-perms-compose`。下面是 Ubuntu 24.04 快照上的 Docker 结果。容器里的 systemd 不完整，右列没有在真实服务器上核对，不能记成通过。
+
+| 用例 | Docker | 真实服务器还要看 |
+| --- | --- | --- |
+| 服务用户读取配置 | 通过，3s。`umask 077` 之后 Redis、MariaDB、PHP-FPM、nginx 的配置仍能被对应服务用户读取。故意写成 root 只读时，输出里有 `namei -l` | 真实 Redis 以 `redis` 用户启动，`/etc/redis/xedc.conf` 为 `redis:redis` `0640` |
+| 低内存 2GB | 通过，1s。容器内存上限 2048MB 时 MariaDB 缓冲池 256M、PHP-FPM 子进程 3、Redis 96mb，并写入 `/etc/sysctl.d/99-xedc.conf` 的 `vm.overcommit_memory=1` | `sysctl vm.overcommit_memory` 实际是 1。容器里 `sysctl --system` 常常改不了内核 |
+| 无 compose 插件 | 通过，10s。没有插件时直接失败，并说明安装 `docker-compose-v2` 或 `docker-compose-plugin`，没有只提示编排文件已还原。装上之后 `docker compose version` 成功。守护进程没起来时同样停止 | 真实机器上 Matomo 启动失败要打印 `docker compose logs` 并停止恢复 |
+
+`--resume` 通过，40s。先把 `/etc/redis/xedc.conf` 收成 root 只读。Redis 日志是 `can't open config file '/etc/redis/xedc.conf': Permission denied`，进程没有起来。修复后从失败的 `services` 继续：日志里跳过了已完成的 database，然后 `开始 services`，结束是 `恢复完成`。配置变成 `redis:redis` `0640`，`PING` 得到 `PONG`。
+
+带 `[Install]` 才 `enable`、没有 `[Install]` 不 `enable`、`xedc-import-worker` 等 worker 在自检通过后才启动，这些要在真实服务器上确认。Docker 里没有可用的 systemd，不能记成通过。这一轮还没有合并。
+
 ## 无法在 Docker 里验证
 
 这些没有记成通过。步骤在 `xedc-recovery/tests/real-server-checklist.md`。
@@ -62,9 +76,11 @@ Ubuntu 26.04 和 26.10 的系统源里已经有 8.5，没有再加 Ondřej 源�
 - 生产环境当前没有启用 imagick。恢复时会尝试安装，装不上只警告。
 - 实验室数据库容器、sing-box、snap、SSM、CUPS、浏览器调试端口不恢复。
 - DNS、Cloudflare 记录、邮件 SPF/DKIM、Google 和 Telegram 回调、搜索引擎验证需要人工核对。
-- `xedc-push-gmliy` 定时任务里的令牌可能过期，要在新服务器上单独确认。
+- `xedc-push-gmliy` 和其它向 Git 推送的任务不还原。令牌留在旧服务器。
 - Netdata claim token 不进备份，恢复后要重新 claim。
 
 ## 合并
 
-快进到 `main` 并已推送，没有单独的合并提交。这次推送的提交是 `fe5d883`。远端没有 `feature/recovery-v3`。
+上一轮快进到 `main` 并已推送，没有单独的合并提交。当时记下的提交是 `fe5d883`，其后报告修订是 `1da59c8`。远端没有 `feature/recovery-v3`。
+
+配置权限、Compose 和 Redis 续跑这一轮在分支 `fix/redis-perms-compose`，还没有合并，也没有推送。

@@ -329,6 +329,186 @@ xedc_fail_inject() {
   fi
 }
 
+xedc_restore_skip() {
+  local name=$1
+  case "$name" in
+    xedc-push-gmliy.service|xedc-push-gmliy.timer|xedc-push-gmliy.sh) return 0 ;;
+  esac
+  if [[ -n "${XEDC_MANIFEST:-}" && -f ${XEDC_MANIFEST} ]]; then
+    if php -r '
+      $j = json_decode((string) file_get_contents($argv[1]), true);
+      if (!is_array($j)) {
+        exit(1);
+      }
+      foreach ($j["restore_skip"] ?? [] as $item) {
+        $n = is_array($item) ? (string) ($item["name"] ?? "") : (string) $item;
+        if ($n === $argv[2]) {
+          exit(0);
+        }
+      }
+      exit(1);
+    ' "$XEDC_MANIFEST" "$name"; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+xedc_is_git_push_file() {
+  local file=$1
+  [[ -f "$file" ]] || return 1
+  grep -Eq 'git[[:space:]]+push|xedc-push-gmliy' "$file"
+}
+
+xedc_unit_has_install() {
+  local file=$1
+  [[ -f "$file" ]] || return 1
+  grep -Eq '^\[Install\][[:space:]]*$' "$file"
+}
+
+xedc_is_worker_unit() {
+  [[ "$1" == *worker* ]]
+}
+
+xedc_recorded_perm() {
+  local path=$1 line
+  [[ -n "${XEDC_PERMS_FILE:-}" && -f "$XEDC_PERMS_FILE" ]] || return 1
+  line=$(awk -F '\t' -v p="$path" '$1 == p { print $2, $3, $4; exit }' "$XEDC_PERMS_FILE")
+  [[ -n "$line" ]] || return 1
+  printf '%s\n' "$line"
+}
+
+xedc_default_perm() {
+  local path=$1
+  local user=root group=root mode=0644
+  if [[ -d "$path" ]]; then
+    mode=0755
+  fi
+  case "$path" in
+    /etc/redis|/etc/redis/*)
+      if [[ -d "$path" ]]; then
+        user=root
+        group=redis
+        mode=0750
+      else
+        user=redis
+        group=redis
+        mode=0640
+      fi
+      ;;
+    /etc/mysql/debian.cnf|/etc/mysql/debian-start)
+      mode=0600
+      ;;
+    /etc/mysql|/etc/mysql/*)
+      if [[ -d "$path" ]]; then
+        mode=0755
+      else
+        user=mysql
+        group=mysql
+        mode=0640
+      fi
+      ;;
+    /etc/php/*)
+      if [[ -d "$path" ]]; then
+        mode=0755
+      else
+        user=root
+        group=www-data
+        mode=0640
+      fi
+      ;;
+    /etc/nginx/*)
+      if [[ -d "$path" ]]; then
+        mode=0755
+      else
+        user=root
+        group=www-data
+        mode=0640
+      fi
+      ;;
+    /etc/ssl/xedc/*.key)
+      mode=0600
+      ;;
+    *.env|*/.env)
+      mode=0600
+      ;;
+    */settings.php)
+      user=root
+      group=www-data
+      mode=0640
+      ;;
+  esac
+  printf '%s %s %s\n' "$mode" "$user" "$group"
+}
+
+xedc_apply_perms() {
+  local path=$1 spec mode user group
+  [[ -e "$path" ]] || return 0
+  if spec=$(xedc_recorded_perm "$path"); then
+    read -r mode user group <<<"$spec"
+  else
+    spec=$(xedc_default_perm "$path")
+    read -r mode user group <<<"$spec"
+  fi
+  local fallback=0
+  if ! id "$user" >/dev/null 2>&1; then
+    user=root
+    fallback=1
+  fi
+  if ! getent group "$group" >/dev/null 2>&1; then
+    group=root
+    fallback=1
+  fi
+  if [[ "$fallback" == 1 ]]; then
+    if [[ -d "$path" ]]; then
+      mode=0755
+    else
+      mode=0644
+    fi
+  fi
+  chown "$user:$group" "$path"
+  chmod "$mode" "$path"
+}
+
+xedc_apply_tree() {
+  local dir=$1 path
+  [[ -d "$dir" ]] || return 0
+  while IFS= read -r -d '' path; do
+    xedc_apply_perms "$path"
+  done < <(find "$dir" -print0)
+}
+
+xedc_prepare_dir() {
+  mkdir -p "$1"
+  xedc_apply_perms "$1"
+}
+
+xedc_dump_perms() {
+  local root=$1 path mode user group
+  [[ -d "$root" ]] || return 0
+  while IFS= read -r -d '' path; do
+    mode=$(stat -c '%a' "$path")
+    user=$(stat -c '%U' "$path")
+    group=$(stat -c '%G' "$path")
+    printf '%s\t%s\t%s\t%s\n' "$path" "$mode" "$user" "$group"
+  done < <(find "$root" -print0)
+}
+
+xedc_assert_readable() {
+  local user=$1 file=$2
+  [[ -e "$file" ]] || xedc_die "配置不存在: ${file}"
+  if id "$user" >/dev/null 2>&1 && runuser -u "$user" -- test -r "$file"; then
+    return 0
+  fi
+  xedc_log "用户 ${user} 无法读取 ${file}"
+  if xedc_have namei; then
+    namei -l "$file" >&2 || true
+  else
+    ls -ld "$file" >&2 || true
+  fi
+  xedc_die "用户 ${user} 无法读取 ${file}"
+}
+
 xedc_ipv6() {
   [[ -f /proc/net/if_inet6 ]]
 }

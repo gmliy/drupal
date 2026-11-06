@@ -258,6 +258,9 @@ JSON
     printf 'pdo_mysql.default_socket = %s\nmysqli.default_socket = %s\n' "$mysql_sock" "$mysql_sock" >>"/etc/php/${ver}/fpm/conf.d/zz-xedc.ini"
     printf 'pdo_mysql.default_socket = %s\nmysqli.default_socket = %s\n' "$mysql_sock" "$mysql_sock" >>"/etc/php/${ver}/cli/conf.d/zz-xedc.ini"
   fi
+  xedc_apply_perms "/etc/php/${ver}/fpm/conf.d/zz-xedc.ini"
+  xedc_apply_perms "/etc/php/${ver}/cli/conf.d/zz-xedc.ini"
+  xedc_apply_perms "/etc/php/${ver}/fpm/pool.d/www.conf"
 }
 
 php_mysql_socket() {
@@ -285,6 +288,12 @@ php_enable() {
   local ver
   ver=$(php_version_file)
   mkdir -p /run/php
+  if [[ -f "/etc/php/${ver}/fpm/pool.d/www.conf" ]]; then
+    xedc_assert_readable www-data "/etc/php/${ver}/fpm/pool.d/www.conf"
+  fi
+  if [[ -f "/etc/php/${ver}/fpm/conf.d/zz-xedc.ini" ]]; then
+    xedc_assert_readable www-data "/etc/php/${ver}/fpm/conf.d/zz-xedc.ini"
+  fi
   xedc_svc "php${ver}-fpm"
 }
 

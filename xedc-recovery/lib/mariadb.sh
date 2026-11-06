@@ -23,10 +23,11 @@ mariadb_install() {
 
 mariadb_configure() {
   xedc_load_tune
-  mkdir -p /etc/mysql/mariadb.conf.d
+  xedc_prepare_dir /etc/mysql/mariadb.conf.d
   php "$XEDC_ROOT/lib/php/render.php" "$XEDC_ROOT/templates/99-xedc.cnf.tpl" /etc/mysql/mariadb.conf.d/99-xedc.cnf <<JSON
 {"innodb_buffer_pool":"${INNODB_BUFFER}","max_connections":"${MAX_CONNECTIONS}","performance_schema":"${PERFORMANCE_SCHEMA}"}
 JSON
+  xedc_apply_perms /etc/mysql/mariadb.conf.d/99-xedc.cnf
 }
 
 mariadb_prepare_run() {
@@ -37,6 +38,9 @@ mariadb_prepare_run() {
 }
 
 mariadb_enable() {
+  if [[ -f /etc/mysql/mariadb.conf.d/99-xedc.cnf ]]; then
+    xedc_assert_readable mysql /etc/mysql/mariadb.conf.d/99-xedc.cnf
+  fi
   mariadb_prepare_run
   if xedc_systemd; then
     xedc_svc mariadb || xedc_svc mysql || xedc_die "MariaDB 服务没有启动"
