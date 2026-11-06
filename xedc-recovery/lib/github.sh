@@ -3,7 +3,7 @@
 # 用只读 Deploy Key 拉取私有仓库。私钥路径可以配置，内容不写入日志。
 
 xedc_github_repo() {
-  printf '%s\n' "${XEDC_GITHUB_REPO:-git@github.com:xxedc/drupal.git}"
+  printf '%s\n' "${XEDC_GITHUB_REPO:-git@github.com:gmliy/drupal.git}"
 }
 
 xedc_github_deploy_key() {
@@ -38,7 +38,7 @@ xedc_github_init_deploy_key() {
   pub="${key}.pub"
   [[ -f $pub ]] || xedc_die "Deploy Key 公钥不存在。"
   chmod 644 "$pub"
-  printf '%s\n' "把下面这一行加到 GitHub 仓库 xxedc/drupal 的 Deploy keys，只勾选读取权限。"
+  printf '%s\n' "把下面这一行加到 GitHub 仓库 gmliy/drupal 的 Deploy keys，只勾选读取权限。"
   printf '%s\n' "加好之后，新服务器只需要保留私钥文件，不要把私钥提交到其他仓库。"
   cat "$pub"
 }

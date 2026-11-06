@@ -38,7 +38,7 @@ if ! command -v git >/dev/null 2>&1; then
   apt-get install -y git openssh-client ca-certificates
 fi
 if [[ ! -d $DEST/.git ]]; then
-  git clone --depth 1 --filter=blob:none --sparse git@github.com:xxedc/drupal.git "$DEST"
+  git clone --depth 1 --filter=blob:none --sparse git@github.com:gmliy/drupal.git "$DEST"
   git -C "$DEST" sparse-checkout set xedc-recovery
 else
   git -C "$DEST" pull --ff-only

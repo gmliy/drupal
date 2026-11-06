@@ -4,7 +4,7 @@
 
 克隆仓库只下载恢复工具和密钥。网站、数据库、图片来自备份包。
 
-当前仓库是私有的：<https://github.com/xxedc/drupal>。私有地址是 `git@github.com:xxedc/drupal.git`。
+当前仓库是私有的：<https://github.com/gmliy/drupal>。私有地址是 `git@github.com:gmliy/drupal.git`。
 
 ## 快速备份
 
@@ -38,14 +38,14 @@ sudo grep result= /var/log/xedc-recovery/upload-xedc-migration-20261105T214600Z.
 新服务器执行：
 
 ```bash
-sudo git clone --depth 1 --filter=blob:none --sparse git@github.com:xxedc/drupal.git /opt/xedc/drupal
+sudo git clone --depth 1 --filter=blob:none --sparse git@github.com:gmliy/drupal.git /opt/xedc/drupal
 sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
 sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --domain 新域名
 ```
 
 第三条会自动做完这些事：安装 GitHub 只读钥匙、age 私钥和 R2 凭据，更新工具，从 R2 下载最新备份，核对后恢复网站。
 
-第一次克隆要用这台机器上已经能读取 `xxedc/drupal` 的 GitHub 权限。克隆下来之后，钥匙会自动装好，不用再单独拷贝私钥。钥匙怎么配，看下面「私有仓库怎么配置 GitHub 密钥」。
+第一次克隆要用这台机器上已经能读取 `gmliy/drupal` 的 GitHub 权限。克隆下来之后，钥匙会自动装好，不用再单独拷贝私钥。钥匙怎么配，看下面「私有仓库怎么配置 GitHub 密钥」。
 
 指定某一份备份：
 
@@ -58,7 +58,7 @@ sudo /opt/xedc/drupal/xedc-recovery/recover.sh --backup 20261105T214600Z --domai
 仓库是 Public 时，新服务器用 HTTPS 拉取，不需要先放 Deploy Key：
 
 ```bash
-sudo git clone --depth 1 --filter=blob:none --sparse https://github.com/xxedc/drupal.git /opt/xedc/drupal
+sudo git clone --depth 1 --filter=blob:none --sparse https://github.com/gmliy/drupal.git /opt/xedc/drupal
 sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
 sudo git -C /opt/xedc/drupal pull --ff-only
 sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --domain 新域名
@@ -70,7 +70,7 @@ sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --domain 新域名
 sudo git -C /opt/xedc/drupal pull --ff-only
 ```
 
-仓库现在是 Private。没登录 GitHub 时，上面的 `https://github.com/xxedc/drupal.git` 会失败。改成 Public 之后再执行这组命令。
+仓库现在是 Private。没登录 GitHub 时，上面的 `https://github.com/gmliy/drupal.git` 会失败。改成 Public 之后再执行这组命令。
 
 ## 恢复后怎么查看密码
 
@@ -130,7 +130,7 @@ sudo /opt/xedc/drupal/xedc-recovery/restore.sh --login-link --domain 新域名
 sudo /var/www/drupal/xedc-recovery/recover.sh --init-deploy-key
 ```
 
-2. 打开 <https://github.com/xxedc/drupal/settings/keys>。
+2. 打开 <https://github.com/gmliy/drupal/settings/keys>。
 3. 点 **Add deploy key**。
 4. Title 填 `xedc-recovery-readonly`。
 5. Key 里粘贴刚才打印的那一整行。
@@ -158,7 +158,7 @@ sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --dry-run
 和上面的公有拉取是同一组命令。仓库成为 Public 之后，新服务器从这里开始：
 
 ```bash
-sudo git clone --depth 1 --filter=blob:none --sparse https://github.com/xxedc/drupal.git /opt/xedc/drupal
+sudo git clone --depth 1 --filter=blob:none --sparse https://github.com/gmliy/drupal.git /opt/xedc/drupal
 sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
 sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --domain 新域名
 ```
@@ -208,7 +208,7 @@ scp /var/backups/xedc/xedc-migration-20261105T214600Z.manifest.public.json root@
 新服务器先拉取工具，装上解密用的 age 私钥。私有仓库：
 
 ```bash
-sudo git clone --depth 1 --filter=blob:none --sparse git@github.com:xxedc/drupal.git /opt/xedc/drupal
+sudo git clone --depth 1 --filter=blob:none --sparse git@github.com:gmliy/drupal.git /opt/xedc/drupal
 sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
 sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --dry-run
 ```
@@ -216,7 +216,7 @@ sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --dry-run
 公有仓库改用：
 
 ```bash
-sudo git clone --depth 1 --filter=blob:none --sparse https://github.com/xxedc/drupal.git /opt/xedc/drupal
+sudo git clone --depth 1 --filter=blob:none --sparse https://github.com/gmliy/drupal.git /opt/xedc/drupal
 sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
 sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --dry-run
 ```
