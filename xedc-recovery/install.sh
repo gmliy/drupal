@@ -29,12 +29,12 @@ install_rclone() {
     bin=$(find "$tmp" -type f -name rclone | head -n 1 || true)
     if [[ -n "$bin" ]]; then
       install -m 755 "$bin" /usr/local/bin/rclone
-      if [[ -e /usr/bin/rclone ]]; then
-        install -m 755 "$bin" /usr/bin/rclone
-      fi
+      install -m 755 "$bin" /usr/bin/rclone
       hash -r || true
       rm -rf "$tmp"
-      return 0
+      if rclone version >/dev/null 2>&1; then
+        return 0
+      fi
     fi
   fi
   rm -rf "$tmp"
@@ -81,10 +81,23 @@ fetch_r2() {
     R2_PREFIX="${R2_PREFIX}/"
   fi
   R2_PREFIX=${R2_PREFIX:-xedc/}
-  local provider=Minio extra=""
+  local provider=Minio extra="" ver=""
+  ver=$(rclone version 2>/dev/null | awk 'NR==1 {print $2}' || true)
+  ver=${ver#v}
   if [[ "$R2_ENDPOINT" == *r2.cloudflarestorage.com* ]]; then
     provider=Cloudflare
-    extra=$'region = auto\nno_head = true\ndisable_checksum = true'
+    extra=$'region = auto'
+    export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+    export AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+    export RCLONE_S3_DISABLE_CHECKSUM=true
+    export RCLONE_S3_NO_HEAD=true
+    export RCLONE_S3_USE_DATA_INTEGRITY_PROTECTIONS=false
+    case "$ver" in
+      ""|1.[0-4]*|1.5[0-2]*) ;;
+      1.5[3-9]*|1.6[0-2]*) extra+=$'\ndisable_checksum = true' ;;
+      1.6[3-9]*|1.7[01]*) extra+=$'\ndisable_checksum = true\nno_head = true' ;;
+      *) extra+=$'\ndisable_checksum = true\nno_head = true\nuse_data_integrity_protections = false' ;;
+    esac
   fi
   local conf pack
   conf=$(mktemp)
@@ -104,7 +117,17 @@ EOF
   mkdir -p "$(dirname "$pack")"
   rm -rf "$pack"
   mkdir -p "$pack"
-  rclone --config "$conf" --retries 1 --low-level-retries 1 copyto "r2:${R2_BUCKET}/${R2_PREFIX}bootstrap/xedc-recovery.tar.gz" "$pack/xedc-recovery.tar.gz"
+  local -a r2args=(--config "$conf" --retries 1 --low-level-retries 1)
+  if [[ "$provider" == "Cloudflare" ]]; then
+    r2args+=(--s3-region auto)
+    case "$ver" in
+      ""|1.[0-4]*|1.5[0-2]*) ;;
+      1.5[3-9]*|1.6[0-2]*) r2args+=(--s3-disable-checksum) ;;
+      1.6[3-9]*|1.7[01]*) r2args+=(--s3-disable-checksum --s3-no-head) ;;
+      *) r2args+=(--s3-disable-checksum --s3-no-head --s3-use-data-integrity-protections=false) ;;
+    esac
+  fi
+  rclone "${r2args[@]}" copyto "r2:${R2_BUCKET}/${R2_PREFIX}bootstrap/xedc-recovery.tar.gz" "$pack/xedc-recovery.tar.gz"
   rm -rf "$DEST"
   mkdir -p "$DEST"
   tar -xzf "$pack/xedc-recovery.tar.gz" -C "$DEST"

@@ -25,13 +25,13 @@ xedc_install_rclone() {
       bin=$(find "$tmp" -type f -name rclone | head -n 1 || true)
       if [[ -n "$bin" ]]; then
         install -m 755 "$bin" /usr/local/bin/rclone
-        if [[ -e /usr/bin/rclone ]]; then
-          install -m 755 "$bin" /usr/bin/rclone
-        fi
+        install -m 755 "$bin" /usr/bin/rclone
         hash -r || true
         rm -rf "$tmp"
-        xedc_log "rclone $(rclone version | awk 'NR==1{print $2}')"
-        return 0
+        if rclone version >/dev/null 2>&1; then
+          xedc_log "rclone $(rclone version | awk 'NR==1{print $2}')"
+          return 0
+        fi
       fi
     fi
   fi

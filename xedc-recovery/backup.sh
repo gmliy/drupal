@@ -246,7 +246,7 @@ else
   xedc_warn "没有 drush，跳过维护模式和配置导出"
 fi
 
-stage=$(mktemp -d)
+stage=$(mktemp -d "$XEDC_BACKUP_DIR/stage.XXXXXX")
 mkdir -p "$stage/code" "$stage/files/public" "$stage/files/private" "$stage/db" "$stage/system"
 cp "$local_manifest" "$stage/manifest.json"
 public="$SITE/web/sites/default/files"

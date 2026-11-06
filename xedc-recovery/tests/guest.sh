@@ -71,8 +71,20 @@ case "$mode" in
   source)
     prepare_fixture
     XEDC_PHP_VERSION=8.5 bash /opt/xedc-recovery/backup.sh --target both --keep-local 7 --keep-r2 30
-    if grep -E 'ERROR|重试' /var/log/xedc-backup.log; then
-      echo "备份日志出现 ERROR 或重试"
+    if grep -E 'ERROR|NotImplemented|重试|Attempt [0-9]+/' /var/log/xedc-backup.log; then
+      echo "备份日志出现 ERROR、501 或重试"
+      exit 1
+    fi
+    mapfile -t ups < <(grep -oE 'R2 上传 [^[:space:]]+' /var/log/xedc-backup.log | awk '{print $NF}')
+    [[ "${#ups[@]}" -eq 6 ]]
+    [[ "${ups[0]}" == *.tar.zst && "${ups[0]}" != *.sha256 ]]
+    [[ "${ups[1]}" == *.tar.zst.sha256 ]]
+    [[ "${ups[2]}" == *.manifest.json ]]
+    [[ "${ups[3]}" == *.complete ]]
+    [[ "${ups[4]}" == bootstrap/install.sh ]]
+    [[ "${ups[5]}" == bootstrap/xedc-recovery.tar.gz ]]
+    if printf '%s\n' "${ups[@]}" | grep -E 'tmp\.|/tmp/'; then
+      echo "R2 对象名使用了临时文件"
       exit 1
     fi
     mapfile -t boot < <(rclone lsf ":s3:${R2_BUCKET}/${R2_PREFIX}bootstrap/" \

@@ -37,6 +37,51 @@ xedc_choose_stamp() {
   esac
 }
 
+xedc_version_ge() {
+  local have=$1 need=$2
+  local IFS=. i av bv
+  local -a a b
+  have=${have#v}
+  need=${need#v}
+  have=${have%%-*}
+  need=${need%%-*}
+  read -r -a a <<<"$have"
+  read -r -a b <<<"$need"
+  for i in 0 1 2; do
+    av=${a[$i]:-0}
+    bv=${b[$i]:-0}
+    av=${av%%[^0-9]*}
+    bv=${bv%%[^0-9]*}
+    av=${av:-0}
+    bv=${bv:-0}
+    if (( av > bv )); then
+      return 0
+    fi
+    if (( av < bv )); then
+      return 1
+    fi
+  done
+  return 0
+}
+
+xedc_rclone_version() {
+  local line=""
+  line=$(rclone version 2>/dev/null | awk 'NR==1 {print $2}' || true)
+  line=${line#v}
+  printf '%s\n' "$line"
+}
+
+xedc_rclone_ge() {
+  local have
+  have=$(xedc_rclone_version)
+  [[ -n "$have" ]] || return 1
+  xedc_version_ge "$have" "$1"
+}
+
+xedc_r2_cloudflare() {
+  [[ "${R2_ENDPOINT:-}" == *r2.cloudflarestorage.com* ]]
+}
+
 xedc_rclone_conf() {
   xedc_load_r2_env
   if ! xedc_r2_ready; then
@@ -45,7 +90,7 @@ xedc_rclone_conf() {
   local conf provider
   conf=$(mktemp)
   chmod 600 "$conf"
-  if [[ "${R2_ENDPOINT}" == *r2.cloudflarestorage.com* ]]; then
+  if xedc_r2_cloudflare; then
     provider=Cloudflare
   else
     provider=Minio
@@ -61,13 +106,21 @@ force_path_style = true
 no_check_bucket = true
 EOF
   if [[ "$provider" == "Cloudflare" ]]; then
-    # region=auto 是 R2 要求的。no_head 避免按 versionId 再 HEAD 得到 501。
-    # 不发送 ACL。完整性由上传后的 sha256 校验，不依赖对象的 MD5/CRC。
-    cat >>"$conf" <<'EOF'
-region = auto
-no_head = true
-disable_checksum = true
-EOF
+    # 1.60 上传成功后会按 versionId 再 HEAD，R2 返回 501，重试才成功。
+    # 新版 rclone 的 AWS SDK 还会默认带上 CRC32，R2 同样回 501。
+    # 不发送 ACL。完整性只靠上传后的 sha256。
+    {
+      printf '%s\n' 'region = auto'
+      if xedc_rclone_ge 1.53; then
+        printf '%s\n' 'disable_checksum = true'
+      fi
+      if xedc_rclone_ge 1.63; then
+        printf '%s\n' 'no_head = true'
+      fi
+      if xedc_rclone_ge 1.72; then
+        printf '%s\n' 'use_data_integrity_protections = false'
+      fi
+    } >>"$conf"
   fi
   printf '%s\n' "$conf"
 }
@@ -77,14 +130,56 @@ xedc_r2_remote() {
   printf 'r2:%s/%s%s\n' "$R2_BUCKET" "$R2_PREFIX" "$key"
 }
 
+xedc_r2_redact() {
+  local line=$1
+  if [[ -n "${R2_SECRET_ACCESS_KEY:-}" && "$line" == *"$R2_SECRET_ACCESS_KEY"* ]]; then
+    printf '%s\n' '[已隐藏含凭据的 rclone 输出]'
+    return 0
+  fi
+  if [[ -n "${R2_ACCESS_KEY_ID:-}" && "$line" == *"$R2_ACCESS_KEY_ID"* ]]; then
+    printf '%s\n' '[已隐藏含凭据的 rclone 输出]'
+    return 0
+  fi
+  printf '%s\n' "$line"
+}
+
 xedc_r2() {
   local conf=$1
   shift
   local -a args=(--config "$conf" --s3-chunk-size 64M --s3-upload-cutoff 64M --retries 1 --low-level-retries 1)
-  if [[ "${R2_ENDPOINT:-}" == *r2.cloudflarestorage.com* ]]; then
-    args+=(--s3-no-head --s3-disable-checksum --s3-region auto)
+  if xedc_r2_cloudflare; then
+    export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+    export AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+    export RCLONE_S3_DISABLE_CHECKSUM=true
+    export RCLONE_S3_NO_HEAD=true
+    export RCLONE_S3_USE_DATA_INTEGRITY_PROTECTIONS=false
+    args+=(--s3-region auto)
+    if xedc_rclone_ge 1.53; then
+      args+=(--s3-disable-checksum)
+    fi
+    if xedc_rclone_ge 1.63; then
+      args+=(--s3-no-head)
+    fi
+    if xedc_rclone_ge 1.72; then
+      args+=(--s3-use-data-integrity-protections=false)
+    fi
   fi
-  rclone "${args[@]}" "$@"
+  local err rc=0 line safe
+  err=$(mktemp)
+  chmod 600 "$err"
+  rclone "${args[@]}" "$@" 2>"$err" || rc=$?
+  if [[ -s "$err" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      safe=$(xedc_r2_redact "$line")
+      xedc_log "rclone: ${safe}"
+    done <"$err"
+  fi
+  if grep -E 'ERROR|NotImplemented|Attempt [0-9]+/[0-9]+ failed' "$err" >/dev/null 2>&1; then
+    rm -f "$err"
+    return 1
+  fi
+  rm -f "$err"
+  return "$rc"
 }
 
 xedc_r2_put_verified() {
@@ -92,6 +187,7 @@ xedc_r2_put_verified() {
   local dest local_sum remote_sum i
   dest=$(xedc_r2_remote "$key")
   local_sum=$(sha256sum "$src" | awk '{print $1}')
+  xedc_log "R2 上传 ${key}"
   for i in 1 2 3; do
     if xedc_r2 "$conf" copyto "$src" "$dest"; then
       remote_sum=$(xedc_r2 "$conf" cat "$dest" | sha256sum | awk '{print $1}')
