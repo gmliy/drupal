@@ -1,8 +1,7 @@
 # AGENTS.md
 
 ## 当前任务
-备份与跨服务器迁移系统 v2，以 /root/TASK.md 为准。
-新会话先读 /root/TASK.md，再读 xedc-recovery/docs/ 下的 PROGRESS.md 和 REQUIREMENTS.md，从上次停下的地方继续。
+备份与恢复脚本已按要求从本仓库删除。不要重新加入 `xedc-recovery/`、`tools/xedc-recover/`、`legacy/site-migrate.sh` 或任何密钥文件。
 
 ## 规则
 - 仓库是公开的，密钥、备份、日志、凭据、数据库文件一律不得提交。
