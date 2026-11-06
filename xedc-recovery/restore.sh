@@ -177,15 +177,17 @@ prepare_foreground() {
       keep=$(ask_line "保留凭据供以后备份？[y/N] " || true)
       if [[ "$keep" == "y" || "$keep" == "Y" ]]; then
         mkdir -p "$(dirname "$XEDC_R2_ENV")"
-        umask 077
-        cat >"$XEDC_R2_ENV" <<EOF
+        (
+          umask 077
+          cat >"$XEDC_R2_ENV" <<EOF
 R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
 R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
 R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
 R2_BUCKET=${R2_BUCKET}
 R2_PREFIX=${R2_PREFIX}
 EOF
-        chmod 600 "$XEDC_R2_ENV"
+          chmod 600 "$XEDC_R2_ENV"
+        )
       fi
       xedc_load_r2_env
     fi
@@ -662,8 +664,7 @@ step_settings() {
     --domain "$DOMAIN" \
     --https "$https_flag" \
     --hash-salt "$salt"
-  chown root:www-data "$settings"
-  chmod 440 "$settings"
+  xedc_apply_perms "$settings"
 }
 
 step_services() {
@@ -998,6 +999,7 @@ run_step drush step_drush
 run_step domain step_domain
 run_step https step_https
 if ! run_step selfcheck selfcheck; then
-  xedc_die "自检未通过。日志: ${XEDC_RESTORE_LOG}。查看: tail -f ${XEDC_RESTORE_LOG}。可在原命令末尾加 --resume"
+  xedc_die "自检未通过。日志: ${XEDC_RESTORE_LOG}。查看: cat ${XEDC_RESTORE_LOG} 或 tail -f ${XEDC_RESTORE_LOG}。可在原命令末尾加 --resume"
 fi
+run_step workers system_start_deferred
 xedc_log "恢复完成"

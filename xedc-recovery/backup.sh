@@ -78,8 +78,9 @@ xedc_setup_r2() {
     xedc_die "R2 凭据不完整"
   fi
   mkdir -p "$(dirname "$XEDC_R2_ENV")"
-  umask 077
-  cat >"$XEDC_R2_ENV" <<EOF
+  (
+    umask 077
+    cat >"$XEDC_R2_ENV" <<EOF
 R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
 R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
 R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
@@ -89,7 +90,8 @@ R2_ENDPOINT=${R2_ENDPOINT}
 ${TELEGRAM_BOT_TOKEN:+TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}}
 ${TELEGRAM_CHAT_ID:+TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}}
 EOF
-  chmod 600 "$XEDC_R2_ENV"
+    chmod 600 "$XEDC_R2_ENV"
+  )
   local conf
   conf=$(xedc_rclone_conf)
   if ! xedc_r2 "$conf" lsf "$(xedc_r2_remote "")" --max-depth 1 >/dev/null; then
@@ -300,11 +302,13 @@ system_capture "$stage/system"
 stamp=$(date -u '+%Y%m%dT%H%M%S')
 base="drupal-backup-${stamp}"
 archive="$XEDC_BACKUP_DIR/${base}.tar.zst"
-umask 077
-tar -C "$stage" -cf - . | zstd -T0 -3 -o "$archive"
 (
-  cd "$XEDC_BACKUP_DIR"
-  sha256sum "${base}.tar.zst" >"${base}.tar.zst.sha256"
+  umask 077
+  tar -C "$stage" -cf - . | zstd -T0 -3 -o "$archive"
+  (
+    cd "$XEDC_BACKUP_DIR"
+    sha256sum "${base}.tar.zst" >"${base}.tar.zst.sha256"
+  )
 )
 cp "$stage/manifest.json" "$XEDC_BACKUP_DIR/${base}.manifest.json"
 printf '%s\n' "$(awk '{print $1}' "$XEDC_BACKUP_DIR/${base}.tar.zst.sha256")" >"$XEDC_BACKUP_DIR/${base}.complete"

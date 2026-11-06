@@ -68,5 +68,33 @@ count=$(php -r 'echo substr_count(file_get_contents($argv[1]), "databases");' "$
 grep -q 'keep-this-salt' "$settings"
 grep -q 'test2.local' "$settings"
 rm -f "$settings"
+umask 077
+perm_file=$(mktemp)
+printf 'secret\n' >"$perm_file"
+xedc_apply_perms "$perm_file"
+[[ "$(stat -c '%a' "$perm_file")" == "644" ]]
+[[ "$(stat -c '%U:%G' "$perm_file")" == "root:root" ]]
+unit=$(mktemp)
+printf '%s\n' '[Service]' 'ExecStart=/bin/true' >"$unit"
+if xedc_unit_has_install "$unit"; then
+  echo "没有 [Install] 却被当成可 enable" >&2
+  exit 1
+fi
+printf '%s\n' '[Install]' 'WantedBy=multi-user.target' >>"$unit"
+xedc_unit_has_install "$unit"
+printf '%s\n' 'ExecStart=/usr/local/sbin/xedc-push-gmliy.sh' >"$unit"
+xedc_is_git_push_file "$unit"
+xedc_restore_skip xedc-push-gmliy.service
+xedc_restore_skip xedc-push-gmliy.timer
+if xedc_restore_skip nginx.service; then
+  echo "nginx 不应在不还原名单里" >&2
+  exit 1
+fi
+xedc_is_worker_unit xedc-import-worker.service
+if xedc_is_worker_unit nginx.service; then
+  echo "nginx 不是 worker" >&2
+  exit 1
+fi
+rm -f "$perm_file" "$unit"
 echo "unit ok"
 exit "$fail"

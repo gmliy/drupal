@@ -34,3 +34,4 @@ if (file_put_contents($argv[2], $out) === false) {
   fwrite(STDERR, "无法写入输出\n");
   exit(1);
 }
+chmod($argv[2], 0644);

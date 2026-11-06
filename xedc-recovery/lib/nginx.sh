@@ -43,15 +43,22 @@ nginx_render_site() {
     if [[ ! -f "$cert" || ! -f "$key" ]]; then
       openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
         -keyout "$key" -out "$cert" -subj "/CN=${canonical}" >/dev/null 2>&1
-      chmod 600 "$key"
+    fi
+    if [[ -f "$key" ]]; then
+      xedc_apply_perms "$key"
     fi
   fi
   rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
-  mkdir -p /etc/nginx/conf.d
+  xedc_prepare_dir /etc/nginx/conf.d
   cp "$XEDC_ROOT/templates/gzip.conf" /etc/nginx/conf.d/gzip.conf
+  xedc_apply_perms /etc/nginx/conf.d/gzip.conf
   php "$XEDC_ROOT/lib/php/render.php" "$tpl" /etc/nginx/conf.d/xedc.conf <<JSON
 {"canonical":"${canonical}","alias":"${alias}","web_root":"${web_root}","client_max_body_size":"${body}","php_sock":"${sock}","ssl_cert":"${cert}","ssl_key":"${key}","mp4_directive":"${mp4}","ipv6_80":"${ipv6_80}","ipv6_443":"${ipv6_443}"}
 JSON
+  xedc_apply_perms /etc/nginx/conf.d/xedc.conf
+  if [[ -f "$cert" ]]; then
+    xedc_apply_perms "$cert"
+  fi
 }
 
 nginx_configure() {
@@ -69,6 +76,9 @@ nginx_configure() {
 }
 
 nginx_enable() {
+  if [[ -f /etc/nginx/conf.d/xedc.conf ]]; then
+    xedc_assert_readable www-data /etc/nginx/conf.d/xedc.conf
+  fi
   nginx -t || xedc_die "nginx 配置检测失败"
   xedc_svc nginx || xedc_die "nginx 没有启动"
 }

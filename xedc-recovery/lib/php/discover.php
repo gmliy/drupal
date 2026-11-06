@@ -226,6 +226,34 @@ foreach (preg_split("/\n/", $svcRaw) ?: [] as $line) {
 }
 $services = array_values(array_unique($services));
 
+$restoreSkip = [
+  ['name' => 'xedc-push-gmliy.service', 'reason' => '只属于旧服务器，向 Git 推送代码，脚本里有访问令牌'],
+  ['name' => 'xedc-push-gmliy.timer', 'reason' => '上面这个推送任务的定时器，新服务器不还原'],
+  ['name' => 'xedc-push-gmliy.sh', 'reason' => '推送脚本只在旧服务器使用，不还原到新机器'],
+];
+$seenSkip = array_column($restoreSkip, 'name');
+$pushScan = array_merge(
+  glob('/etc/systemd/system/xedc-*') ?: [],
+  glob('/usr/local/sbin/xedc-*') ?: [],
+  glob('/usr/local/bin/xedc-*') ?: [],
+  glob('/etc/cron.d/xedc-*') ?: []
+);
+foreach ($pushScan as $pushFile) {
+  $base = basename($pushFile);
+  if (in_array($base, $seenSkip, true)) {
+    continue;
+  }
+  $text = (string) file_get_contents($pushFile);
+  if (preg_match('/git\s+push|xedc-push-gmliy/', $text) === 1) {
+    $restoreSkip[] = ['name' => $base, 'reason' => '内容是向 Git 推送，只属于旧服务器'];
+    $seenSkip[] = $base;
+  }
+}
+$services = array_values(array_filter(
+  $services,
+  static fn (string $name): bool => !in_array($name, $seenSkip, true)
+));
+
 $timers = [];
 $timerRaw = xedc_sh("systemctl list-unit-files --type=timer --state=enabled --no-legend 2>/dev/null || true");
 foreach (preg_split("/\n/", $timerRaw) ?: [] as $line) {
@@ -233,6 +261,10 @@ foreach (preg_split("/\n/", $timerRaw) ?: [] as $line) {
     $timers[] = $m[1] . '.timer';
   }
 }
+$timers = array_values(array_filter(
+  array_values(array_unique($timers)),
+  static fn (string $name): bool => !in_array($name, $seenSkip, true)
+));
 
 $cron = [];
 foreach (['root', 'www-data'] as $user) {
@@ -444,6 +476,7 @@ $manifest = [
   'external_commands' => $externalCommands,
   'services' => $services,
   'timers' => $timers,
+  'restore_skip' => $restoreSkip,
   'cron' => $cron,
   'listeners' => $listeners,
   'queues' => $queues,

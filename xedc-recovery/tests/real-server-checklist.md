@@ -7,6 +7,10 @@
 - 向真实 Cloudflare R2 第一次上传不出现 501。MinIO 上没有 ERROR 不能代替这一项
 - 亲手在 SSH 里输入凭据后 `tmux attach -t xedc-restore`，断线再接上。脚本喂给伪终端的输入不能代替
 - 会话结束时终端打印真实退出码。日志 `/var/log/xedc-restore.log` 权限 600，用 `cat` 或 `tail -f` 查看
+- Redis 配置属主是 `redis:redis`、权限 `0640`，`redis` 用户读得到。`sysctl vm.overcommit_memory` 为 1
+- `docker compose version` 有输出。Matomo 起不来时恢复停止，并留下 `docker compose logs`
+- 只有带 `[Install]` 的单元被 enable。`xedc-import-worker` 在站点自检通过之后才启动
+- `xedc-push-gmliy.service`、`xedc-push-gmliy.timer` 没有出现在新服务器上
 
 在一台全新 VPS 上亲手做一遍：
 

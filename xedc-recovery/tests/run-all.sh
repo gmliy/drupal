@@ -99,6 +99,10 @@ stage_rank() {
     r2) echo 9 ;;
     php) echo 10 ;;
     prompts) echo 11 ;;
+    perms) echo 12 ;;
+    lowmem) echo 13 ;;
+    compose) echo 14 ;;
+    redisresume) echo 15 ;;
     *) echo 1 ;;
   esac
 }
@@ -181,14 +185,25 @@ run_container() {
   elif [[ "$mode" == "target" ]]; then
     volumes+=(-v "$ROOT/install.sh:/opt/install.sh:ro")
   else
-    volumes+=(-v "$ROOT/tests/guest.sh:/opt/xedc-recovery/tests/guest.sh:ro")
+    case "$mode" in
+      perms|lowmem|compose|redisresume)
+        volumes+=(-v "$ROOT:/opt/xedc-recovery:ro")
+        ;;
+      *)
+        volumes+=(-v "$ROOT/tests/guest.sh:/opt/xedc-recovery/tests/guest.sh:ro")
+        ;;
+    esac
+  fi
+  local mem="${per}m"
+  if [[ "$mode" == "lowmem" ]]; then
+    mem=2048m
   fi
   # shellcheck disable=SC2206
   local -a cmd=(bash ${mode_cmd[$mode]})
   timeout 3600 docker run --name "$name" \
     --network xedc-test \
-    --memory "${per}m" \
-    --memory-swap "${per}m" \
+    --memory "$mem" \
+    --memory-swap "$mem" \
     --cpus "$cpu_each" \
     --shm-size 128m \
     "${volumes[@]}" \
@@ -214,6 +229,10 @@ declare -A mode_cmd=(
   [r2]="/opt/xedc-recovery/tests/guest.sh r2"
   [php]="/opt/xedc-recovery/tests/guest.sh php"
   [prompts]="/opt/xedc-recovery/tests/guest.sh prompts"
+  [perms]="/opt/xedc-recovery/tests/guest.sh perms"
+  [lowmem]="/opt/xedc-recovery/tests/guest.sh lowmem"
+  [compose]="/opt/xedc-recovery/tests/guest.sh compose"
+  [redisresume]="/opt/xedc-recovery/tests/guest.sh redisresume"
 )
 
 wait_slot() {
@@ -320,7 +339,7 @@ for pid in "${pids[@]}"; do
   fi
 done
 
-branches=(domain video idem resume verify r2 php prompts)
+branches=(domain video idem resume verify r2 php prompts perms lowmem compose redisresume)
 pids=()
 for os in "${systems[@]}"; do
   if [[ "${READY[$os]}" != 1 ]]; then
