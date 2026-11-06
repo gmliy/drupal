@@ -194,6 +194,16 @@ EOF
     old=drupal-backup-20200101T000000
     newer=drupal-backup-20990101T000000
     prefix="r2:${R2_BUCKET}/${R2_PREFIX}"
+    current=$(basename "$file" .tar.zst)
+    while IFS= read -r name; do
+      [[ -z "$name" ]] && continue
+      case "$name" in
+        "${current}".*) continue ;;
+        drupal-backup-*)
+          rclone --config "$conf" deletefile "${prefix}${name}" || true
+          ;;
+      esac
+    done < <(rclone --config "$conf" lsf "${prefix}" --max-depth 1)
     rclone --config "$conf" copyto "$file" "${prefix}${old}.tar.zst"
     sha=$(sha256sum "$file" | awk '{print $1}')
     printf '%s  %s.tar.zst\n' "$sha" "$old" >/tmp/old.sha256
@@ -231,7 +241,10 @@ EOF
     fi
     prev=$(printf '%s\n' "$out" | awk '/已选择/{print $2}')
     echo "latest-1=$prev"
-    [[ "$prev" == "$old" ]]
+    if [[ "$prev" != "$old" ]]; then
+      echo "latest-1 选错了: ${prev:-空}"
+      exit 1
+    fi
     bash /opt/xedc-recovery/restore.sh --from "local:${file}" --domain test1.local --email admin@test1.local --https self --www no --yes --force
     rm -f "$conf"
     echo "XEDC_STAGE r2 PASS"

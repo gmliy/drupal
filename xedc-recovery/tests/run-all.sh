@@ -233,7 +233,9 @@ wait_slot() {
 run_main() {
   local os=$1
   local log="$LOG_DIR/${os}.log"
-  : >"$log"
+  if (( START_RANK <= 1 )); then
+    : >"$log"
+  fi
   local began
   began=$(date +%s)
   if [[ "${READY[$os]}" != 1 ]]; then
