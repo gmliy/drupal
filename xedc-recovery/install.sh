@@ -25,8 +25,7 @@ install_rclone() {
     *) arch="" ;;
   esac
   tmp=$(mktemp -d)
-  if [[ -n "$arch" ]] && curl -fsSL --max-time 90 -o "$tmp/rclone.zip" "https://downloads.rclone.org/rclone-current-${arch}.zip"; then
-    unzip -qo "$tmp/rclone.zip" -d "$tmp"
+  if [[ -n "$arch" ]] && curl -fsSL --max-time 90 -o "$tmp/rclone.zip" "https://downloads.rclone.org/rclone-current-${arch}.zip" && unzip -qo "$tmp/rclone.zip" -d "$tmp"; then
     bin=$(find "$tmp" -type f -name rclone | head -n 1 || true)
     if [[ -n "$bin" ]]; then
       install -m 755 "$bin" /usr/local/bin/rclone

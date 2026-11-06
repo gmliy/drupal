@@ -19,9 +19,9 @@ xedc_install_rclone() {
   arch=$(xedc_rclone_zip_arch || true)
   tmp=$(mktemp -d)
   if [[ -n "$arch" ]]; then
+    xedc_apt_install unzip ca-certificates curl || true
     zip="$tmp/rclone.zip"
-    if curl -fsSL --max-time 90 -o "$zip" "https://downloads.rclone.org/rclone-current-${arch}.zip"; then
-      unzip -qo "$zip" -d "$tmp"
+    if curl -fsSL --max-time 90 -o "$zip" "https://downloads.rclone.org/rclone-current-${arch}.zip" && unzip -qo "$zip" -d "$tmp"; then
       bin=$(find "$tmp" -type f -name rclone | head -n 1 || true)
       if [[ -n "$bin" ]]; then
         install -m 755 "$bin" /usr/local/bin/rclone
