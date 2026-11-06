@@ -61,6 +61,10 @@ acl = private
 force_path_style = true
 no_check_bucket = true
 EOF
+  if [[ "$provider" == "Cloudflare" ]]; then
+    # rclone 1.60 上传成功后会按返回的 versionId 再 HEAD。R2 对这个请求返回 501。
+    printf '%s\n' 'no_head = true' >>"$conf"
+  fi
   printf '%s\n' "$conf"
 }
 
@@ -72,7 +76,11 @@ xedc_r2_remote() {
 xedc_r2() {
   local conf=$1
   shift
-  rclone --config "$conf" --s3-chunk-size 64M --s3-upload-cutoff 64M --retries 3 "$@"
+  local -a args=(--config "$conf" --s3-chunk-size 64M --s3-upload-cutoff 64M --retries 3)
+  if [[ "${R2_ENDPOINT:-}" == *r2.cloudflarestorage.com* ]]; then
+    args+=(--s3-no-head)
+  fi
+  rclone "${args[@]}" "$@"
 }
 
 xedc_r2_put_verified() {
