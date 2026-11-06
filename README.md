@@ -156,7 +156,11 @@ bash xedc-recovery/lib/mariadb.sh install
 certbot --nginx -d 新域名 -d www.新域名 --email 邮箱
 ```
 
-**PHP 不是 8.5。** 软件源没有 8.5 时会安装最高版本，并在日志里写警告。站点仍然会继续恢复。
+**PHP 不是 8.5。** 恢复只安装清单里的版本，默认 8.5。软件源里没有这个版本会停止，不会改用 8.3 或 8.4。要临时指定别的版本：
+
+```bash
+bash xedc-recovery/restore.sh --from r2:latest --domain 新域名 --email 邮箱 --php 8.4 --yes
+```
 
 **恢复到一半断了。** `tmux attach -t xedc-restore` 看画面。确认进程没了之后，用原来的命令加 `--resume`。
 
@@ -178,8 +182,14 @@ Ubuntu 22.04、24.04、26.04、26.10 和 Debian 12。测试矩阵、耗时和 Do
 tmux attach -t xedc-restore
 ```
 
-看日志：
+看日志。文件权限是 600：
 
 ```bash
 tail -n 50 /var/log/xedc-restore.log
+```
+
+或：
+
+```bash
+cat /var/log/xedc-restore.log
 ```

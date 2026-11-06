@@ -835,16 +835,17 @@ selfcheck() {
     echo "✘ Redis"
     fail=1
   fi
-  local ver got sock hdr masters
+  local ver got sock hdr masters php_line probe_file probe_body
   if ! command -v pgrep >/dev/null 2>&1; then
     xedc_apt_install procps
   fi
   ver=$(php_target_version)
+  php_line=$(php -v 2>/dev/null | awk 'NR==1 {print}' || true)
   got=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;' 2>/dev/null || true)
-  if [[ "$got" == "$ver" ]]; then
-    echo "✔ PHP ${got}"
+  if [[ "$got" == "$ver" && "$php_line" == "PHP ${ver}."* ]]; then
+    echo "✔ php -v ${php_line}"
   else
-    echo "✘ PHP ${got:-缺失}，需要 ${ver}"
+    echo "✘ php -v ${php_line:-缺失}，需要 ${ver}.x"
     fail=1
   fi
   sock="/run/php/php${ver}-fpm.sock"
@@ -873,12 +874,17 @@ selfcheck() {
     echo "✘ nginx 未使用 ${sock}"
     fail=1
   fi
-  hdr=$(curl -k -sI --resolve "${DOMAIN}:443:127.0.0.1" --resolve "${DOMAIN}:80:127.0.0.1" "${scheme}://${DOMAIN}/" | tr -d '\r' | awk 'tolower($1)=="x-php-version:" {print $2; exit}' || true)
-  if [[ -n "$hdr" && "$hdr" != "${ver}."* ]]; then
-    echo "✘ 页面由 PHP ${hdr} 处理，需要 ${ver}"
-    fail=1
-  elif [[ -n "$hdr" ]]; then
+  probe_file="${SITE}/web/xedc-php-probe.php"
+  printf '%s\n' '<?php header("X-PHP-Version: " . PHP_VERSION); echo PHP_VERSION;' >"$probe_file"
+  chmod 644 "$probe_file"
+  probe_body=$(curl -k -s --resolve "${DOMAIN}:443:127.0.0.1" --resolve "${DOMAIN}:80:127.0.0.1" "${scheme}://${DOMAIN}/xedc-php-probe.php" || true)
+  hdr=$(curl -k -sI --resolve "${DOMAIN}:443:127.0.0.1" --resolve "${DOMAIN}:80:127.0.0.1" "${scheme}://${DOMAIN}/xedc-php-probe.php" | tr -d '\r' | awk 'tolower($1)=="x-php-version:" {print $2; exit}' || true)
+  rm -f "$probe_file"
+  if [[ "$probe_body" == "${ver}."* && "$hdr" == "${ver}."* ]]; then
     echo "✔ 页面 PHP ${hdr}"
+  else
+    echo "✘ 页面由 PHP ${hdr:-${probe_body:-无响应}} 处理，需要 ${ver}"
+    fail=1
   fi
   if crontab -l 2>/dev/null | grep -q . || grep -Rqs . /etc/cron.d/xedc-* /etc/cron.d/xedc-drupal 2>/dev/null || ls /etc/cron.d/*xedc* >/dev/null 2>&1; then
     echo "✔ cron"

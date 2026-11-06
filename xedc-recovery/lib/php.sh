@@ -107,6 +107,7 @@ php_require_source() {
   rm -f /var/lib/xedc-recovery/apt-updated
   xedc_apt_update || true
   if ! php_candidate "$ver"; then
+    apt-cache policy "php${ver}-fpm" >&2 || true
     xedc_die "软件源里没有 PHP ${ver}。apt-cache policy php${ver}-fpm 没有 ${ver}.x。已停止，不会改用更低版本"
   fi
 }
@@ -170,19 +171,26 @@ php_install() {
   fi
   update-alternatives --install /usr/bin/php php "/usr/bin/php${ver}" 85 >/dev/null 2>&1 || true
   update-alternatives --set php "/usr/bin/php${ver}" >/dev/null 2>&1 || ln -sfn "/usr/bin/php${ver}" /usr/bin/php
-  local init name
-  shopt -s nullglob
-  for init in /etc/init.d/php*-fpm; do
-    name=$(basename "$init")
-    if [[ "$name" != "php${ver}-fpm" ]]; then
-      service "$name" stop >/dev/null 2>&1 || true
-      if xedc_systemd; then
-        systemctl disable "$name" >/dev/null 2>&1 || true
-      fi
+  local init name unit
+  if xedc_systemd; then
+    while IFS= read -r unit; do
+      [[ -z "$unit" ]] && continue
+      name=${unit%.service}
+      [[ "$name" == "php${ver}-fpm" ]] && continue
+      systemctl disable --now "$name" >/dev/null 2>&1 || true
       xedc_log "已停用旧的 ${name}"
-    fi
-  done
-  shopt -u nullglob
+    done < <(systemctl list-unit-files 'php*-fpm.service' --no-legend 2>/dev/null | awk '{print $1}')
+  else
+    shopt -s nullglob
+    for init in /etc/init.d/php*-fpm; do
+      name=$(basename "$init")
+      if [[ "$name" != "php${ver}-fpm" ]]; then
+        service "$name" stop >/dev/null 2>&1 || true
+        xedc_log "已停用旧的 ${name}"
+      fi
+    done
+    shopt -u nullglob
+  fi
   local got_ver mods
   got_ver=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;')
   if [[ "$got_ver" != "$ver" ]]; then
