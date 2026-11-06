@@ -6,6 +6,14 @@ export XEDC_TEST=1
 export DEBIAN_FRONTEND=noninteractive
 export XEDC_SITE_ROOT=/var/www/drupal
 
+sql() {
+  if command -v mysql >/dev/null 2>&1; then
+    mysql "$@"
+  else
+    mariadb "$@"
+  fi
+}
+
 start_db() {
   mkdir -p /run/mysqld
   if id mysql >/dev/null 2>&1; then
@@ -31,20 +39,20 @@ prepare_fixture() {
   printf '%s\n' '#!/bin/sh' 'exit 101' >/usr/sbin/policy-rc.d
   chmod 755 /usr/sbin/policy-rc.d
   apt-get update -y
-  apt-get install -y --no-install-recommends mariadb-server php-cli zstd rsync tar gzip curl ca-certificates rclone cron openssl
+  apt-get install -y --no-install-recommends mariadb-server mariadb-client php-cli zstd rsync tar gzip curl ca-certificates rclone cron openssl
   start_db
   rm -rf /var/www/drupal
   mkdir -p /var/www/drupal
   cp -a /opt/xedc-recovery/tests/fixture/site/. /var/www/drupal/
   chmod 755 /var/www/drupal/bin/drush
-  mysql --protocol=socket -u root <<'SQL'
+  sql --protocol=socket -u root <<'SQL'
 CREATE DATABASE IF NOT EXISTS xedc CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS 'xedc'@'localhost' IDENTIFIED BY 'fixture-pass';
 ALTER USER 'xedc'@'localhost' IDENTIFIED BY 'fixture-pass';
 GRANT ALL PRIVILEGES ON xedc.* TO 'xedc'@'localhost';
 FLUSH PRIVILEGES;
 SQL
-  mysql --protocol=socket -u root xedc < /opt/xedc-recovery/tests/fixture/schema.sql
+  sql --protocol=socket -u root xedc < /opt/xedc-recovery/tests/fixture/schema.sql
   printf '%s\n' '*/15 * * * * cd /var/www/drupal && /var/www/drupal/bin/drush cron --quiet' | crontab -
   printf '%s\n' '*/15 * * * * root /var/www/drupal/bin/drush cron --quiet' >/etc/cron.d/xedc-drupal
   chmod 644 /etc/cron.d/xedc-drupal
@@ -74,8 +82,8 @@ case "$mode" in
     file=$(archive_path)
     [[ -n "$file" ]] || { echo "没有本地备份"; exit 1; }
     bash /opt/xedc-recovery/restore.sh --from "local:${file}" --domain test2.local --old-domain test1.local --email admin@test2.local --https self --www no --yes --force
-    mysql --protocol=socket -u root -N -e "SELECT body FROM page_content" xedc | grep -q test2.local
-    if mysql --protocol=socket -u root -N -e "SELECT body, packed FROM page_content" xedc | grep -q 'test1.local'; then
+    sql --protocol=socket -u root -N -e "SELECT body FROM page_content" xedc | grep -q test2.local
+    if sql --protocol=socket -u root -N -e "SELECT body, packed FROM page_content" xedc | grep -q 'test1.local'; then
       echo "数据库仍有旧域名"
       exit 1
     fi
@@ -128,12 +136,12 @@ case "$mode" in
   verify)
     start_stack
     before=$(
-      mysql --protocol=socket -u root -N -e "SELECT COUNT(*), body FROM page_content" xedc
+      sql --protocol=socket -u root -N -e "SELECT COUNT(*), body FROM page_content" xedc
       sha256sum /var/www/drupal/web/index.php /etc/nginx/conf.d/xedc.conf
     )
     bash /opt/xedc-recovery/restore.sh --verify --domain test1.local
     after=$(
-      mysql --protocol=socket -u root -N -e "SELECT COUNT(*), body FROM page_content" xedc
+      sql --protocol=socket -u root -N -e "SELECT COUNT(*), body FROM page_content" xedc
       sha256sum /var/www/drupal/web/index.php /etc/nginx/conf.d/xedc.conf
     )
     if [[ "$before" != "$after" ]]; then

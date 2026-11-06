@@ -283,7 +283,14 @@ cnf=$(mktemp)
 chmod 600 "$cnf"
 php "$ROOT/lib/php/settings_db.php" --write-cnf "$cnf" "$SITE/web/sites/default/settings.php" >/dev/null
 db_name=$(xedc_manifest_get "$local_manifest" database.name)
-mysqldump --defaults-extra-file="$cnf" --single-transaction --routines --triggers "$db_name" | zstd -T0 -3 -o "$stage/db/site.sql.zst"
+if command -v mysqldump >/dev/null 2>&1; then
+  dump_bin=mysqldump
+elif command -v mariadb-dump >/dev/null 2>&1; then
+  dump_bin=mariadb-dump
+else
+  xedc_die "没有 mysqldump 或 mariadb-dump"
+fi
+"$dump_bin" --defaults-extra-file="$cnf" --single-transaction --routines --triggers "$db_name" | zstd -T0 -3 -o "$stage/db/site.sql.zst"
 rm -f "$cnf"
 system_capture "$stage/system"
 

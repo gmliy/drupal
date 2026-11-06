@@ -47,6 +47,37 @@ function xedc_transform(string $raw, string $from, string $to): array
   return [str_replace($from, $to, $raw), true];
 }
 
+function xedc_mysql_socket(): string
+{
+  $paths = [
+    '/run/mysqld/mysqld.sock',
+    '/var/run/mysqld/mysqld.sock',
+    '/run/mysqld/mariadb.sock',
+    '/tmp/mysql.sock',
+    '/var/lib/mysql/mysql.sock',
+  ];
+  foreach ($paths as $path) {
+    if (file_exists($path)) {
+      return $path;
+    }
+  }
+  $configs = array_merge(
+    glob('/etc/mysql/mariadb.conf.d/*.cnf') ?: [],
+    glob('/etc/mysql/*.cnf') ?: [],
+    glob('/etc/my.cnf') ?: []
+  );
+  foreach ($configs as $file) {
+    $text = file_get_contents($file);
+    if (!is_string($text)) {
+      continue;
+    }
+    if (preg_match('/^\s*socket\s*=\s*(\S+)/m', $text, $match) === 1 && file_exists($match[1])) {
+      return $match[1];
+    }
+  }
+  return '';
+}
+
 function xedc_pdo_from_cnf(string $cnf, string $database): PDO
 {
   $user = '';
@@ -68,6 +99,16 @@ function xedc_pdo_from_cnf(string $cnf, string $database): PDO
     } elseif ($key === 'port') {
       $port = $value;
     }
+  }
+  if ($host === 'localhost' || $host === '') {
+    $socket = xedc_mysql_socket();
+    if ($socket !== '') {
+      $dsn = sprintf('mysql:unix_socket=%s;dbname=%s;charset=utf8mb4', $socket, $database);
+      return new PDO($dsn, $user, $pass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+      ]);
+    }
+    $host = 'localhost';
   }
   $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4', $host, $port, $database);
   return new PDO($dsn, $user, $pass, [

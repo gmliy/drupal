@@ -26,7 +26,12 @@ JSON
 }
 
 redis_enable() {
-  xedc_svc redis-server || xedc_svc redis
+  if xedc_svc redis-server || xedc_svc redis; then
+    return 0
+  fi
+  xedc_warn "Redis 错误日志："
+  tail -n 40 /var/log/redis/redis-server.log >&2 || true
+  xedc_die "Redis 没有启动"
 }
 
 redis_verify() {

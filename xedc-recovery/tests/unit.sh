@@ -43,7 +43,11 @@ tmp=$(mktemp)
 php "$ROOT/lib/php/render.php" "$ROOT/templates/gzip.conf" "$tmp" <<'JSON'
 {}
 JSON
-grep -q 'gzip on' "$tmp"
+grep -q 'gzip_comp_level' "$tmp"
+if grep -q 'gzip on' "$tmp"; then
+  echo "gzip.conf 不能再写 gzip on，会和系统 nginx.conf 冲突" >&2
+  exit 1
+fi
 rm -f "$tmp"
 settings=$(mktemp)
 cat >"$settings" <<'PHP'

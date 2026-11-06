@@ -26,7 +26,10 @@ netdata_install() {
       xedc_warn "Netdata kickstart 失败，改用软件包"
     fi
   fi
-  xedc_apt_install netdata
+  if ! xedc_apt_install netdata; then
+    xedc_warn "这个系统没有 Netdata 软件包。站点继续恢复，监控需要稍后手动安装并重新 claim"
+    return 0
+  fi
   xedc_warn "Netdata 已用软件包安装。云端 claim 需要在恢复后重新做"
 }
 

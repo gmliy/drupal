@@ -57,6 +57,16 @@ xedc_have() {
   command -v "$1" >/dev/null 2>&1
 }
 
+xedc_mysqldump() {
+  if xedc_have mysqldump; then
+    mysqldump "$@"
+  elif xedc_have mariadb-dump; then
+    mariadb-dump "$@"
+  else
+    xedc_die "没有 mysqldump 或 mariadb-dump"
+  fi
+}
+
 xedc_apt_env() {
   export DEBIAN_FRONTEND=noninteractive
   export NEEDRESTART_MODE=a

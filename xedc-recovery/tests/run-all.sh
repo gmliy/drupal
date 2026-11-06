@@ -51,6 +51,9 @@ fi
 if (( jobs < 1 )); then
   jobs=1
 fi
+while (( jobs > 1 && budget / jobs < 2200 )); do
+  jobs=$((jobs - 1))
+done
 if [[ -n "$JOBS_ARG" ]]; then
   jobs=$JOBS_ARG
 fi

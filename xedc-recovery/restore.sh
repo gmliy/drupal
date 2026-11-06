@@ -212,16 +212,16 @@ note_manual() {
 }
 
 run_step() {
-  local name=$1
+  local name=$1 rc=0
   shift
-  local rc=0
   if xedc_step_done "$name"; then
     xedc_log "跳过已完成步骤 ${name}"
     return 0
   fi
   xedc_fail_inject "$name"
   xedc_log "开始 ${name}"
-  "$@" || rc=$?
+  "$@"
+  rc=$?
   if [[ "$rc" != 0 ]]; then
     return "$rc"
   fi
@@ -329,7 +329,15 @@ step_fetch() {
   if [[ -z "$MANIFEST" || ! -f "$MANIFEST" ]]; then
     local unpack
     unpack=$(mktemp -d)
-    zstd -dc "$ARCHIVE" | tar -C "$unpack" -xf - manifest.json
+    set +o pipefail
+    zstd -dc "$ARCHIVE" | tar -C "$unpack" -xf - ./manifest.json 2>/dev/null || true
+    if [[ ! -f "$unpack/manifest.json" ]]; then
+      zstd -dc "$ARCHIVE" | tar -C "$unpack" -xf - manifest.json 2>/dev/null || true
+    fi
+    set -o pipefail
+    if [[ ! -f "$unpack/manifest.json" ]]; then
+      xedc_die "备份里没有 manifest.json"
+    fi
     MANIFEST="$unpack/manifest.json"
   fi
   cp "$MANIFEST" "$XEDC_STATE_DIR/manifest.json"
@@ -389,7 +397,7 @@ backup_existing() {
     chmod 700 "$XEDC_BACKUP_DIR"
     if "$bin" --protocol=socket -u root -e "USE \`${DB_NAME}\`" >/dev/null 2>&1; then
       "$bin" --protocol=socket -u root -N -e "SHOW TABLES FROM \`${DB_NAME}\`" | grep -q . && \
-        mysqldump --protocol=socket -u root --single-transaction "$DB_NAME" | zstd -3 -o "$XEDC_BACKUP_DIR/pre-overwrite-${stamp}.sql.zst" || true
+        xedc_mysqldump --protocol=socket -u root --single-transaction "$DB_NAME" | zstd -3 -o "$XEDC_BACKUP_DIR/pre-overwrite-${stamp}.sql.zst" || true
       chmod 600 "$XEDC_BACKUP_DIR/pre-overwrite-${stamp}.sql.zst" 2>/dev/null || true
       xedc_log "已备份旧数据库"
     fi
@@ -580,7 +588,7 @@ EOF
   stamp=$(date -u '+%Y%m%dT%H%M%S')
   bin=$(mariadb_root)
   "$bin" --protocol=socket -u root "$DB_NAME" -e 'SELECT 1' >/dev/null
-  mysqldump --defaults-extra-file="$cnf" --single-transaction "$DB_NAME" | zstd -3 -o "$XEDC_BACKUP_DIR/pre-domain-${stamp}.sql.zst"
+  xedc_mysqldump --defaults-extra-file="$cnf" --single-transaction "$DB_NAME" | zstd -3 -o "$XEDC_BACKUP_DIR/pre-domain-${stamp}.sql.zst"
   chmod 600 "$XEDC_BACKUP_DIR/pre-domain-${stamp}.sql.zst"
   xedc_log "域名替换预览"
   php "$ROOT/lib/php/domain_replace.php" --from "$old" --to "$DOMAIN" --cnf "$cnf" --database "$DB_NAME" \
