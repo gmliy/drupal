@@ -243,13 +243,13 @@ enter_tmux() {
   cmd=$(mktemp)
   chmod 700 "$cmd"
   {
-    printf '#!/bin/bash\nset +e\nexport XEDC_INSIDE_TMUX=1\nexport XEDC_LOG_MIRROR=1\n'
+    printf '#!/bin/bash\nset +e\nset -o pipefail\nexport XEDC_INSIDE_TMUX=1\nexport XEDC_LOG_MIRROR=1\n'
     if [[ -n "$r2file" ]]; then
       printf 'export XEDC_R2_FILE=%q\n' "$r2file"
     fi
     printf 'env -u R2_ACCOUNT_ID -u R2_ACCESS_KEY_ID -u R2_SECRET_ACCESS_KEY -u R2_BUCKET -u R2_PREFIX -u R2_ENDPOINT bash %q ' "$0"
     printf '%q ' "$@"
-    printf ' >>%q 2>&1\nrc=$?\nprintf "%%s\\n" "$rc" > /tmp/xedc-restore.exit\nexit "$rc"\n' "$XEDC_RESTORE_LOG"
+    printf ' 2>&1 | tee -a %q\nrc=$?\nprintf "%%s\\n" "$rc" > /tmp/xedc-restore.exit\nexit "$rc"\n' "$XEDC_RESTORE_LOG"
   } >"$cmd"
   rm -f /tmp/xedc-restore.exit
   tmux kill-session -t xedc-restore >/dev/null 2>&1 || true
