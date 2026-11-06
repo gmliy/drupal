@@ -231,7 +231,7 @@ EOF
     [[ "$ver" == "8.5" ]]
     php -v | awk 'NR==1{print}'
     [[ -S /run/php/php8.5-fpm.sock ]]
-    masters=$(pgrep -af 'php-fpm: master' || true)
+    masters=$(pgrep -a php-fpm || true)
     printf '%s\n' "$masters"
     [[ "$masters" == *php-fpm8.5* ]]
     bad=$(printf '%s\n' "$masters" | grep -E 'php-fpm8\.[0-4]' || true)
