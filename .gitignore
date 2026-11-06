@@ -14,5 +14,10 @@ web/sites/*/files/
 secrets*
 .drupal-credentials
 settings.local.php
+web/sites/default/settings.php
+**/.env
+**/r2.env
+xedc-recovery/tests/logs/
+xedc-recovery/tests/work/
 __pycache__/
 *.pyc

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="/var/www/drupal"
+cmd=""
+maint_val="1"
+args=("$@")
+i=0
+while [[ $i -lt ${#args[@]} ]]; do
+  a=${args[$i]}
+  case "$a" in
+    -r|--root)
+      i=$((i + 1))
+      root=${args[$i]:-$root}
+      ;;
+    --root=*)
+      root=${a#--root=}
+      ;;
+    status|updb|updatedb|cr|cache:rebuild|cron|queue:list|cex|config:export|cim|config:import)
+      cmd=$a
+      ;;
+    maint:set)
+      cmd=maint
+      i=$((i + 1))
+      maint_val=${args[$i]:-1}
+      ;;
+    -y|--yes|--quiet|-q|-v|--uri)
+      ;;
+    --uri=*)
+      ;;
+    *)
+      ;;
+  esac
+  i=$((i + 1))
+done
+mkdir -p "$root/web/sites/default" "$root/config/sync"
+case "$cmd" in
+  status)
+    echo "Drupal version : 11-fixture"
+    echo "Database : Connected"
+    echo "Bootstrap : Successful"
+    ;;
+  cex|config:export)
+    printf 'host: test1.local\n' >"$root/config/sync/fixture.site.yml"
+    echo "exported"
+    ;;
+  maint)
+    printf '%s\n' "$maint_val" >"$root/web/sites/default/maintenance.flag"
+    echo "maintenance $maint_val"
+    ;;
+  queue:list)
+    echo "xedc_video_transcode"
+    ;;
+  *)
+    echo "ok ${cmd:-drush}"
+    ;;
+esac
+exit 0

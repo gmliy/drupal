@@ -1,0 +1,7 @@
+{
+  "name": "xedc-fixture-theme",
+  "private": true,
+  "scripts": {
+    "build": "node build.js"
+  }
+}

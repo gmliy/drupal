@@ -1,0 +1,1 @@
+private fixture https://test1.local/private

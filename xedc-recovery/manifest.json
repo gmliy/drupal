@@ -1,0 +1,481 @@
+{
+    "schema": 1,
+    "generated_at": "2026-11-06T12:18:07+00:00",
+    "os": {
+        "id": "ubuntu",
+        "version": "24.04",
+        "name": "Ubuntu 24.04.4 LTS"
+    },
+    "hostname": "ip-172-31-32-196",
+    "domain": "gitxx.xyz",
+    "www": false,
+    "site_root": "/var/www/drupal",
+    "web_root": "/var/www/drupal/web",
+    "private_path": "/var/www/drupal/private",
+    "drupal_version": "11.4.11",
+    "web_server": "nginx",
+    "database": {
+        "name": "drupal",
+        "host": "localhost",
+        "port": "3306",
+        "driver": "mysql"
+    },
+    "php": {
+        "version": "8.5.12",
+        "minor": "8.5",
+        "extensions": [
+            "apcu",
+            "bcmath",
+            "calendar",
+            "Core",
+            "ctype",
+            "curl",
+            "date",
+            "dom",
+            "exif",
+            "FFI",
+            "fileinfo",
+            "filter",
+            "ftp",
+            "gd",
+            "gettext",
+            "hash",
+            "iconv",
+            "igbinary",
+            "intl",
+            "json",
+            "lexbor",
+            "libxml",
+            "mbstring",
+            "mysqli",
+            "mysqlnd",
+            "openssl",
+            "pcntl",
+            "pcre",
+            "PDO",
+            "pdo_mysql",
+            "Phar",
+            "posix",
+            "random",
+            "readline",
+            "redis",
+            "Reflection",
+            "session",
+            "shmop",
+            "SimpleXML",
+            "sockets",
+            "sodium",
+            "SPL",
+            "standard",
+            "sysvmsg",
+            "sysvsem",
+            "sysvshm",
+            "tokenizer",
+            "uri",
+            "xml",
+            "xmlreader",
+            "xmlwriter",
+            "xsl",
+            "Zend OPcache",
+            "zip",
+            "zlib"
+        ],
+        "extensions_required": [
+            "ctype",
+            "date",
+            "dom",
+            "filter",
+            "gd",
+            "hash",
+            "iconv",
+            "json",
+            "mbstring",
+            "pcre",
+            "pdo",
+            "reflection",
+            "session",
+            "simplexml",
+            "spl",
+            "tokenizer",
+            "xml",
+            "xmlwriter",
+            "zlib"
+        ],
+        "ini": {
+            "memory_limit": "512M",
+            "upload_max_filesize": "200M",
+            "post_max_size": "220M",
+            "max_execution_time": "300",
+            "max_input_time": "300",
+            "max_input_vars": "10000",
+            "max_file_uploads": "100",
+            "date.timezone": "Asia/Shanghai"
+        }
+    },
+    "nginx": {
+        "client_max_body_size": "220m",
+        "server_names": [
+            "gitxx.xyz",
+            "www.gitxx.xyz",
+            "x.gitxx.xyz"
+        ],
+        "mp4": true,
+        "slice": true
+    },
+    "packages": [
+        {
+            "name": "7zip",
+            "version": "23.01+dfsg-11"
+        },
+        {
+            "name": "certbot",
+            "version": "2.9.0-1"
+        },
+        {
+            "name": "docker-buildx-plugin",
+            "version": "0.38.0-1~ubuntu.24.04~noble"
+        },
+        {
+            "name": "docker-ce",
+            "version": "5:29.9.1-1~ubuntu.24.04~noble"
+        },
+        {
+            "name": "docker-ce-cli",
+            "version": "5:29.9.1-1~ubuntu.24.04~noble"
+        },
+        {
+            "name": "docker-ce-rootless-extras",
+            "version": "5:29.9.1-1~ubuntu.24.04~noble"
+        },
+        {
+            "name": "docker-compose-plugin",
+            "version": "5.6.0-1~ubuntu.24.04~noble"
+        },
+        {
+            "name": "ffmpeg",
+            "version": "7:6.1.1-3ubuntu5"
+        },
+        {
+            "name": "logrotate",
+            "version": "3.21.0-2build1"
+        },
+        {
+            "name": "mariadb-client",
+            "version": "1:13.0.2+maria~ubu2404"
+        },
+        {
+            "name": "mariadb-client-compat",
+            "version": "1:13.0.2+maria~ubu2404"
+        },
+        {
+            "name": "mariadb-client-core",
+            "version": "1:13.0.2+maria~ubu2404"
+        },
+        {
+            "name": "mariadb-common",
+            "version": "1:13.0.2+maria~ubu2404"
+        },
+        {
+            "name": "mariadb-server",
+            "version": "1:13.0.2+maria~ubu2404"
+        },
+        {
+            "name": "mariadb-server-compat",
+            "version": "1:13.0.2+maria~ubu2404"
+        },
+        {
+            "name": "mariadb-server-core",
+            "version": "1:13.0.2+maria~ubu2404"
+        },
+        {
+            "name": "nginx",
+            "version": "1.31.6-1~noble"
+        },
+        {
+            "name": "nodejs",
+            "version": "20.20.2-1nodesource1"
+        },
+        {
+            "name": "php-common",
+            "version": "2:101~+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-apcu",
+            "version": "5.1.28-2+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-bcmath",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-cli",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-common",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-curl",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-fpm",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-gd",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-igbinary",
+            "version": "3.2.16-6+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-intl",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-mbstring",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-mysql",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-readline",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-redis",
+            "version": "6.3.0-2+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-xml",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "php8.5-zip",
+            "version": "8.5.12-1+ubuntu24.04.1+deb.sury.org+1"
+        },
+        {
+            "name": "rclone",
+            "version": "1.60.1+dfsg-3ubuntu0.24.04.6"
+        },
+        {
+            "name": "redis",
+            "version": "6:8.10.3-1rl1~noble1"
+        },
+        {
+            "name": "redis-server",
+            "version": "6:8.10.3-1rl1~noble1"
+        },
+        {
+            "name": "redis-tools",
+            "version": "6:8.10.3-1rl1~noble1"
+        },
+        {
+            "name": "zstd",
+            "version": "1.5.5+dfsg2-2build1.1"
+        }
+    ],
+    "commands": [
+        {
+            "name": "ffmpeg",
+            "path": "/usr/bin/ffmpeg"
+        },
+        {
+            "name": "ffprobe",
+            "path": "/usr/bin/ffprobe"
+        },
+        {
+            "name": "7z",
+            "path": "/usr/bin/7z"
+        },
+        {
+            "name": "7za",
+            "path": "/usr/bin/7za"
+        },
+        {
+            "name": "node",
+            "path": "/usr/bin/node"
+        },
+        {
+            "name": "npm",
+            "path": "/usr/bin/npm"
+        },
+        {
+            "name": "composer",
+            "path": "/usr/local/bin/composer"
+        },
+        {
+            "name": "drush",
+            "path": "/usr/local/bin/drush"
+        },
+        {
+            "name": "rclone",
+            "path": "/usr/bin/rclone"
+        },
+        {
+            "name": "docker",
+            "path": "/usr/bin/docker"
+        },
+        {
+            "name": "certbot",
+            "path": "/usr/bin/certbot"
+        },
+        {
+            "name": "redis-cli",
+            "path": "/usr/bin/redis-cli"
+        },
+        {
+            "name": "nginx",
+            "path": "/usr/sbin/nginx"
+        }
+    ],
+    "external_commands": [
+        "ffmpeg",
+        "ffprobe",
+        "7z"
+    ],
+    "services": [
+        "cron.service",
+        "docker.service",
+        "mariadb.service",
+        "netdata.service",
+        "nginx.service",
+        "php8.5-fpm.service",
+        "ufw.service",
+        "xedc-import-worker.service"
+    ],
+    "timers": [
+        "certbot.timer",
+        "phpsessionclean.timer",
+        "xedc-push-gmliy.timer"
+    ],
+    "cron": [
+        {
+            "user": "root",
+            "schedule": "0 7,19 * * *",
+            "summary": "backup"
+        },
+        {
+            "user": "root",
+            "schedule": "*/15 * * * *",
+            "summary": "drush cron"
+        },
+        {
+            "user": "cron.d/certbot",
+            "schedule": "0 */12 * * *",
+            "summary": "certbot"
+        },
+        {
+            "user": "cron.d/php",
+            "schedule": "09,39 *     * * *",
+            "summary": "sessionclean"
+        },
+        {
+            "user": "cron.d/xedc-traffic",
+            "schedule": "* * * * *",
+            "summary": "drush xedc:traffic-sample"
+        }
+    ],
+    "listeners": [
+        {
+            "port": 80,
+            "process": "nginx"
+        },
+        {
+            "port": 443,
+            "process": "nginx"
+        },
+        {
+            "port": 6379,
+            "process": "redis-server"
+        },
+        {
+            "port": 3306,
+            "process": "mariadbd"
+        },
+        {
+            "port": 8088,
+            "process": "docker-proxy"
+        },
+        {
+            "port": 19999,
+            "process": "netdata"
+        }
+    ],
+    "queues": [
+        "audit_recalculate",
+        "audit_druscan_sync",
+        "locale_translation",
+        "media_entity_thumbnail",
+        "simple_sitemap_engine_submit",
+        "simple_sitemap.views.garbage_collector",
+        "xedc_ai_local",
+        "xedc_ai_review",
+        "xedc_file_cleanup",
+        "xedc_image_import",
+        "xedc_file_scan",
+        "xedc_video_transcode",
+        "xedc_image_optimize",
+        "xedc_download_zip",
+        "xedc_video_duration",
+        "xedc_official_notify",
+        "xedc_tags_scan",
+        "xedc_ui_locale"
+    ],
+    "node": {
+        "version": "v20.20.2",
+        "engines": ">=18"
+    },
+    "ffmpeg": {
+        "version": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+        "encoders": [
+            "libx264",
+            "libx265",
+            "libvpx",
+            "libvpx-vp9",
+            "aac"
+        ]
+    },
+    "docker": {
+        "compose": [
+            "/opt/matomo/compose.yaml"
+        ],
+        "images": [
+            "matomo-matomo-1=matomo:5-apache",
+            "matomo-db-1=mariadb:lts"
+        ]
+    },
+    "netdata": {
+        "version": "netdata v2.12.2",
+        "install": "kickstart",
+        "claim_present": false
+    },
+    "memory_mb": 7731,
+    "timezone": "Etc/UTC",
+    "ufw_active": false,
+    "external_services": {
+        "redis": true,
+        "memcached": false,
+        "solr": false,
+        "elasticsearch": false,
+        "smtp": {
+            "enabled": false,
+            "host": "smtp.gmail.com"
+        },
+        "object_storage": {
+            "provider": "cloudflare_r2",
+            "credentials": "environment-or-private-files"
+        },
+        "matomo": {
+            "runtime": "docker"
+        },
+        "recaptcha": false,
+        "turnstile": false,
+        "oauth": false
+    }
+}

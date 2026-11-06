@@ -1,0 +1,8 @@
+{
+  "domain": "test1.local",
+  "www": false,
+  "timezone": "UTC",
+  "client_max_body_size": "32m",
+  "upload_max_filesize": "32M",
+  "post_max_size": "32M"
+}

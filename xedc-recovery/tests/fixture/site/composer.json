@@ -1,0 +1,11 @@
+{
+  "name": "xedc/fixture-site",
+  "description": "小型恢复测试站点",
+  "require": {
+    "php": ">=8.1"
+  },
+  "config": {
+    "allow-plugins": true,
+    "sort-packages": true
+  }
+}

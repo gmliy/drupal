@@ -1,0 +1,12 @@
+memory_limit = {{memory_limit}}
+upload_max_filesize = {{upload_max_filesize}}
+post_max_size = {{post_max_size}}
+max_execution_time = {{max_execution_time}}
+max_input_time = {{max_input_time}}
+max_input_vars = {{max_input_vars}}
+max_file_uploads = {{max_file_uploads}}
+date.timezone = {{timezone}}
+opcache.enable = 1
+opcache.memory_consumption = {{opcache_memory}}
+opcache.max_accelerated_files = 20000
+opcache.interned_strings_buffer = 32
