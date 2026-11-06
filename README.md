@@ -81,9 +81,10 @@ GH_TOKEN=xxxx bash <(curl -fsSL -H "Authorization: token xxxx" https://raw.githu
 tmux attach -t xedc-restore
 ```
 
-日志在 `/var/log/xedc-restore.log`，权限 600。查看用：
+日志在 `/var/log/xedc-restore.log`，权限 600。查看用 `cat` 或 `tail -f`：
 
 ```bash
+cat /var/log/xedc-restore.log
 tail -f /var/log/xedc-restore.log
 ```
 

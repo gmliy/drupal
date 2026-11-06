@@ -4,15 +4,16 @@
 
 - systemd 的 enable、daemon-reload 和开机自启
 - Let's Encrypt 正式证书
-- 向真实 Cloudflare R2 第一次上传不出现 501
-- 亲手在 SSH 里输入凭据后 `tmux attach -t xedc-restore`，断线再接上
+- 向真实 Cloudflare R2 第一次上传不出现 501。MinIO 上没有 ERROR 不能代替这一项
+- 亲手在 SSH 里输入凭据后 `tmux attach -t xedc-restore`，断线再接上。脚本喂给伪终端的输入不能代替
+- 会话结束时终端打印真实退出码。日志 `/var/log/xedc-restore.log` 权限 600，用 `cat` 或 `tail -f` 查看
 
 在一台全新 VPS 上亲手做一遍：
 
 1. 用 Ubuntu 24.04 或 Debian 12 的空机器，root 登录。
 2. DNS 的 A 记录先指到这台机器。Cloudflare 橙云开启时，SSL 模式用 Full (strict)。
 3. 按 README 的一条命令恢复。中途只做两件事：输入 R2 凭据（Secret 不回显），看到软件清单后输入 `y`。
-4. 断线后执行 `tmux attach -t xedc-restore`。失败后用原来的命令加上 `--resume`。
+4. 断线后执行 `tmux attach -t xedc-restore`。结束后终端要打印退出码。失败后看 `cat /var/log/xedc-restore.log`，再用原来的命令加上 `--resume`。
 5. 浏览器打开首页、`/user/login`、`/admin`、`/models`、`/articles`、`/sitemap.xml`，确认是正式证书而不是自签。
 6. `drush status` 能看数据库和文件路径。Redis `PONG`。`ffmpeg -encoders` 有 libx264。
 7. 上传一个短视频，确认转码队列会动，页面能播放。

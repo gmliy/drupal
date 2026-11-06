@@ -1,44 +1,58 @@
 # 恢复工具测试报告
 
-测试日期：2026-11-06。分支 `feature/recovery-v3`。完整五系统一起跑过，不是 `--quick`。Ubuntu 26.10 在补上 MariaDB 套接字检测后单独重跑，域名替换已通过。
+测试日期：2026-11-06。分支 `fix/r2-tmux-php85`。五个系统一起跑完，不是 `--quick`。宿主机内存只够并发 1，每容器大约 3.9GB。
 
-静态检查：全部 `.sh` 通过 `bash -n` 和 `shellcheck -S error`。
+静态检查：改过的脚本通过 `bash -n` 和 `shellcheck -S error`。
 
 ## 测试矩阵
 
-状态只有通过。耗时来自各阶段容器运行时间。
+耗时是容器运行时间。Ubuntu 22.04 的 R2，以及 Ubuntu 24.04 的域名和幂等，在第一次全量跑完后按原快照重跑并通过。第一次里 22.04 的 `latest-1` 选中了 MinIO 里上一轮留下的完整备份；24.04 的域名和幂等当时已经打印通过，随后因为测试脚本在容器运行中被改写，bash 在结尾报了引号错误。下表是最终通过的耗时。
 
-| 系统 | 备份 | 恢复 | 域名 | 视频 | 幂等 | 续跑 | 只读自检 | R2 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Ubuntu 22.04 | 通过 29s | 通过 277s | 通过 95s | 通过 2s | 通过 233s | 通过 5s | 通过 3s | 通过 90s |
-| Ubuntu 24.04 | 通过 34s | 通过 280s | 通过 83s | 通过 2s | 通过 164s | 通过 5s | 通过 3s | 通过 127s |
-| Ubuntu 26.04 | 通过 35s | 通过 302s | 通过 86s | 通过 4s | 通过 204s | 通过 7s | 通过 3s | 通过 109s |
-| Ubuntu 26.10 | 通过 33s | 通过 293s | 通过 101s | 通过 2s | 通过 187s | 通过 6s | 通过 3s | 通过 103s |
-| Debian 12 | 通过 23s | 通过 208s | 通过 63s | 通过 2s | 通过 114s | 通过 5s | 通过 3s | 通过 58s |
+| 系统 | 备份 | 恢复 | 域名 | 视频 | 幂等 | 续跑 | 只读自检 | R2 | PHP | 交互 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Ubuntu 22.04 | 通过 38s | 通过 355s | 通过 133s | 通过 2s | 通过 224s | 通过 5s | 通过 3s | 通过 136s | 通过 1s | 通过 11s |
+| Ubuntu 24.04 | 通过 36s | 通过 353s | 通过 121s | 通过 2s | 通过 187s | 通过 4s | 通过 2s | 通过 115s | 通过 1s | 通过 8s |
+| Ubuntu 26.04 | 通过 42s | 通过 272s | 通过 52s | 通过 3s | 通过 92s | 通过 6s | 通过 3s | 通过 59s | 通过 1s | 通过 9s |
+| Ubuntu 26.10 | 通过 43s | 通过 267s | 通过 83s | 通过 3s | 通过 148s | 通过 5s | 通过 3s | 通过 88s | 通过 1s | 通过 9s |
+| Debian 12 | 通过 29s | 通过 216s | 通过 71s | 通过 2s | 通过 131s | 通过 4s | 通过 2s | 通过 74s | 通过 1s | 通过 8s |
 
-日志在 `xedc-recovery/tests/logs/`。主流程是 `<系统>.log`，分支是 `<系统>-<阶段>.log`。
+日志在 `xedc-recovery/tests/logs/`。22.04 和 24.04 的主流程日志被后来的 `--from-stage` 清空，上表耗时来自当时的 `status.tsv`。从中途重跑时不再清空这份日志。
 
-并发按内存自动降到 1。每容器大约 3.6GB，且内存和交换上限相同，避免把宿主机交换打满。
+## PHP
+
+恢复后 `php -v`、`php-fpm8.5` 和 nginx 的 `fastcgi_pass unix:/run/php/php8.5-fpm.sock` 都是 8.5。页面响应头 `X-PHP-Version` 也是 8.5。没有降级。
+
+| 系统 | 来源 | 版本 |
+| --- | --- | --- |
+| Ubuntu 22.04 | ppa:ondrej/php | 8.5.12 |
+| Ubuntu 24.04 | ppa:ondrej/php | 8.5.12 |
+| Ubuntu 26.04 | 系统源 archive.ubuntu.com | 8.5.4-0ubuntu1.5 |
+| Ubuntu 26.10 | 系统源 archive.ubuntu.com | 8.5.9-0ubuntu2.1 |
+| Debian 12 | packages.sury.org/php | 8.5.12 |
+
+Ubuntu 26.04 和 26.10 的系统源里已经有 8.5，没有再加 Ondřej 源。
+
+## R2 与交互
+
+备份上传使用官方 rclone 1.76.0。仍保留的 26.04、26.10、Debian 12 备份日志里，上传顺序是备份包、`.sha256`、`manifest.json`、`.complete`，然后是 `bootstrap/install.sh` 和 `bootstrap/xedc-recovery.tar.gz`。这些日志里没有 ERROR、NotImplemented 或重试。22.04 重跑的 R2 日志里 `latest-1` 是 `drupal-backup-20200101T000000`。
+
+五个系统的交互测试都包含：没有 TTY 又没有凭据时直接失败并提示环境变量；环境变量凭据得到退出码 0；伪终端输入凭据得到退出码 0。日志里能看到「恢复失败，退出码 1」和「恢复完成，退出码 0」。
 
 ## 这轮修过的点
 
-- Ubuntu 26.04 的 Ondřej PHP 源没有 Release 文件。源加不上去时删掉该源，改用系统里的 PHP 8.5。
-- Ubuntu 26.10 的客户端是 `mariadb` / `mariadb-dump`，不再假定一定有 `mysql`。
-- Ubuntu 26.10 域名替换改为连接实际的 MariaDB 套接字，并写进 PHP 的 `pdo_mysql.default_socket`。
-- 备份包里的 manifest 成员是 `./manifest.json`。恢复和 `r2:latest-1` 都按这个路径读取。
-- 系统没有 Netdata 软件包时给出警告并继续恢复。Ubuntu 26.04 的软件源里没有这个包。
+- 安装官方 rclone，装不上再回退系统包并警告。Cloudflare 关掉默认校验和、HEAD 和数据完整性保护，避免第一次上传返回 501 后再重试。
+- 工具包固定为 `bootstrap/xedc-recovery.tar.gz` 和 `bootstrap/install.sh`。
+- 域名、确认和 R2 凭据在进入 tmux 之前读完。凭据放在权限 600 的临时文件里，会话启动后立即删除。结束时写入真实退出码。
+- 按清单安装 PHP 8.5。源里没有该版本就停止，不改用 8.3 或 8.4。`--php` 可以指定别的版本。
 
 ## 无法在 Docker 里验证
 
-这些没有记成通过。
+这些没有记成通过。步骤在 `xedc-recovery/tests/real-server-checklist.md`。
 
-- systemd 的完整启用、开机自启和守护进程监督。容器里用 `service` 启动。
-- Let's Encrypt 的正式证书和自动续期。测试使用自签证书。
-- 真实的 Cloudflare R2。测试用 MinIO，桶前缀按系统分开。
-- Netdata 云端 claim。令牌不进备份，恢复后需要重新 claim。
-- Docker 守护进程。容器里只能确认客户端已安装。
-
-真实机器上的步骤见 `xedc-recovery/tests/real-server-checklist.md`。
+- systemd 的 enable、daemon-reload 和开机自启。容器里用 `service` 启动。
+- Let's Encrypt 正式证书。测试使用自签证书。
+- 真实 Cloudflare R2 上第一次上传不出现 501。这里用的是 MinIO。
+- 人手在 SSH 里输入凭据后 `tmux attach -t xedc-restore`，断线再接上。测试用伪终端喂输入。
 
 ## 已知限制和手动步骤
 
@@ -49,8 +63,8 @@
 - 实验室数据库容器、sing-box、snap、SSM、CUPS、浏览器调试端口不恢复。
 - DNS、Cloudflare 记录、邮件 SPF/DKIM、Google 和 Telegram 回调、搜索引擎验证需要人工核对。
 - `xedc-push-gmliy` 定时任务里的令牌可能过期，要在新服务器上单独确认。
-- Ubuntu 26.04 / 26.10 使用发行版 PHP 8.5。更早的系统从 Ondřej 源安装 PHP 8.5；源不可用时安装不低于 8.2 的最高版本并警告。
+- Netdata claim token 不进备份，恢复后要重新 claim。
 
 ## 合并
 
-合并提交：`0ba2319`。已合并到 `main`。
+合并提交：待写入。
