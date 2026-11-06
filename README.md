@@ -29,6 +29,46 @@ sudo grep result= /var/log/xedc-recovery/upload-xedc-migration-20261105T214600Z.
 
 把时间戳换成 `ls /var/backups/xedc` 里看到的那一份。
 
+## 新服务器单独拉取工具
+
+只把恢复工具下载到 `/opt/xedc/drupal`，不恢复网站，不下载 R2 备份。私有和公有各用一组命令。
+
+### 私有拉取
+
+新服务器已经有旧服务器传来的 `/root/.config/xedc-recovery/github-deploy.key` 时：
+
+```bash
+sudo GIT_SSH_COMMAND="ssh -i /root/.config/xedc-recovery/github-deploy.key -o IdentitiesOnly=yes" \
+  git clone --depth 1 --filter=blob:none --sparse git@github.com:gmliy/drupal.git /opt/xedc/drupal
+sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
+```
+
+新服务器还没有这把钥匙时，用能读取私有仓库的令牌。把 `令牌` 换成实际令牌，不要写进仓库：
+
+```bash
+sudo git clone --depth 1 --filter=blob:none --sparse https://x-access-token:令牌@github.com/gmliy/drupal.git /opt/xedc/drupal
+sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
+```
+
+已经克隆过，只更新私有仓库里的工具：
+
+```bash
+sudo GIT_SSH_COMMAND="ssh -i /root/.config/xedc-recovery/github-deploy.key -o IdentitiesOnly=yes" \
+  git -C /opt/xedc/drupal pull --ff-only
+```
+
+### 公有拉取
+
+仓库是 Public 时，新服务器不需要 Deploy Key，也不需要令牌：
+
+```bash
+sudo git clone --depth 1 --filter=blob:none --sparse https://github.com/gmliy/drupal.git /opt/xedc/drupal
+sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
+sudo git -C /opt/xedc/drupal pull --ff-only
+```
+
+仓库现在是 Private。没登录 GitHub 时，这组 `https://github.com/gmliy/drupal.git` 命令会失败。改成 Public 之后再执行。
+
 ## 快速恢复
 
 新服务器二选一。现在仓库是私有的，用第一节。仓库改成 Public 之后，用第二节的 HTTPS 命令。
