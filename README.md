@@ -35,17 +35,28 @@ sudo grep result= /var/log/xedc-recovery/upload-xedc-migration-20261105T214600Z.
 
 ### 私有仓库
 
-新服务器执行：
+新服务器上直接执行下面的克隆会失败。`gmliy/drupal` 是私有仓库，GitHub 会拒绝没有钥匙的机器。只读 Deploy Key 放在仓库里面，机器还没克隆到仓库时，拿不到这把钥匙。
+
+不要在新服务器执行 `recover.sh --init-deploy-key`。那条命令会在没有钥匙的机器上另造一把钥匙。GitHub 上登记的是原来那一把，新造的钥匙不能用来克隆。
+
+钥匙已经配好，在旧服务器的 `/root/.config/xedc-recovery/github-deploy.key`。恢复前把它放到新服务器的同一路径。在旧服务器执行：
 
 ```bash
-sudo git clone --depth 1 --filter=blob:none --sparse git@github.com:gmliy/drupal.git /opt/xedc/drupal
+sudo scp /root/.config/xedc-recovery/github-deploy.key root@新服务器:/root/github-deploy.key
+```
+
+然后在新服务器执行：
+
+```bash
+sudo install -d -m 700 /root/.config/xedc-recovery
+sudo install -m 600 /root/github-deploy.key /root/.config/xedc-recovery/github-deploy.key
+sudo GIT_SSH_COMMAND="ssh -i /root/.config/xedc-recovery/github-deploy.key -o IdentitiesOnly=yes" \
+  git clone --depth 1 --filter=blob:none --sparse git@github.com:gmliy/drupal.git /opt/xedc/drupal
 sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
 sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --domain 新域名
 ```
 
-第三条会自动做完这些事：安装 GitHub 只读钥匙、age 私钥和 R2 凭据，更新工具，从 R2 下载最新备份，核对后恢复网站。
-
-第一次克隆要用这台机器上已经能读取 `gmliy/drupal` 的 GitHub 权限。克隆下来之后，钥匙会自动装好，不用再单独拷贝私钥。钥匙怎么配，看下面「私有仓库怎么配置 GitHub 密钥」。
+最后一条会安装 age 私钥和 R2 凭据，核对 Deploy Key，从 R2 下载最新备份并恢复网站。
 
 指定某一份备份：
 
@@ -116,34 +127,16 @@ sudo /opt/xedc/drupal/xedc-recovery/restore.sh --login-link --domain 新域名
 
 这把钥匙只用来拉取恢复工具，不能改仓库。它和加密备份的 age 私钥不是同一把。
 
-钥匙已经放在私有仓库的 `xedc-recovery/secure/github-deploy.key`。备份时会自动更新这个文件，并放进 R2 备份的加密包。新服务器按上面的私有恢复命令执行后，会自动装到：
+这把钥匙已经固定，并且已经加到 `gmliy/drupal` 的 Deploy keys，只允许读取。私钥在旧服务器和仓库的这两个位置，内容相同：
 
 ```text
 /root/.config/xedc-recovery/github-deploy.key
+xedc-recovery/secure/github-deploy.key
 ```
 
-旧服务器还没有这把钥匙时，做一次：
+备份时会把旧服务器上的这一把写进仓库副本，并放进 R2 加密包。新服务器要先按上面的步骤放好同一把私钥，才能克隆。克隆完成后，恢复命令发现仓库里的钥匙和本机一致，就继续使用，不会另造一把。
 
-1. 在旧服务器执行，屏幕上会打印一行公钥：
-
-```bash
-sudo /var/www/drupal/xedc-recovery/recover.sh --init-deploy-key
-```
-
-2. 打开 <https://github.com/gmliy/drupal/settings/keys>。
-3. 点 **Add deploy key**。
-4. Title 填 `xedc-recovery-readonly`。
-5. Key 里粘贴刚才打印的那一整行。
-6. 不要勾选 **Allow write access**。
-7. 保存。
-
-然后做一次备份，把私钥写进仓库副本和 R2 加密包：
-
-```bash
-sudo /var/www/drupal/xedc-recovery/backup.sh --upload-r2
-```
-
-备份不会自动 `git push`。钥匙文件和现在仓库里的不一致时，提交并推送后，别的机器 `git pull` 才能拿到新文件。R2 加密包里的那一份，恢复时会自动安装。
+`recover.sh --init-deploy-key` 只在这台机器上还没有私钥文件时才会生成新钥匙。现在不要执行它。
 
 以后更新私有仓库里的工具：
 
@@ -205,10 +198,13 @@ scp /var/backups/xedc/xedc-migration-20261105T214600Z.tar.zst.sha256 root@新服
 scp /var/backups/xedc/xedc-migration-20261105T214600Z.manifest.public.json root@新服务器:/root/
 ```
 
-新服务器先拉取工具，装上解密用的 age 私钥。私有仓库：
+新服务器先放好上一节那把 Deploy Key，再拉取工具。私有仓库：
 
 ```bash
-sudo git clone --depth 1 --filter=blob:none --sparse git@github.com:gmliy/drupal.git /opt/xedc/drupal
+sudo install -d -m 700 /root/.config/xedc-recovery
+sudo install -m 600 /root/github-deploy.key /root/.config/xedc-recovery/github-deploy.key
+sudo GIT_SSH_COMMAND="ssh -i /root/.config/xedc-recovery/github-deploy.key -o IdentitiesOnly=yes" \
+  git clone --depth 1 --filter=blob:none --sparse git@github.com:gmliy/drupal.git /opt/xedc/drupal
 sudo git -C /opt/xedc/drupal sparse-checkout set xedc-recovery
 sudo /opt/xedc/drupal/xedc-recovery/bootstrap-recover.sh --dry-run
 ```

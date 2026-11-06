@@ -46,7 +46,7 @@ xedc_github_init_deploy_key() {
 xedc_github_require_key() {
   local key
   key=$(xedc_github_deploy_key)
-  [[ -f $key && ! -L $key ]] || xedc_die "找不到 GitHub 只读 Deploy Key。先在源服务器执行 recover.sh --init-deploy-key，把公钥加到仓库后，把私钥放到 ${key}。"
+  [[ -f $key && ! -L $key ]] || xedc_die "找不到 GitHub 只读 Deploy Key。新服务器请放上已有的私钥 ${key}，不要执行 --init-deploy-key，那会生成另一把钥匙。"
   chmod 600 "$key" || true
 }
 
