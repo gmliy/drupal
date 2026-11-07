@@ -29,7 +29,7 @@ Netdata claim token、数据库密码、R2 密钥、SMTP 口令不得进入 Git�
 - `--setup-r2` 交互配置并测试连通，可选每天两次的 cron，日志 `/var/log/xedc-backup.log`，失败可选 Telegram
 - `--list` 列出本地和 R2 备份
 
-备份内容：站点代码（排除 `vendor` 和 `node_modules`）、Drush 导出的配置、`settings.php`、数据库（`mysqldump --single-transaction --routines --triggers` 再压成 zstd）、公开和私有文件、nginx/PHP/Redis/MariaDB/cron/systemd/Docker/Netdata/logrotate/ufw/fail2ban/sysctl 以及自定义脚本清单。`exclude.list` 命中的 nginx 站点、compose 项目、数据卷、单元、cron 和脚本不打包。站点仍启用清单里的 Drupal 模块时，日志写「该模块恢复时将被卸载」，不因此中断备份。打进新包之前，从暂存副本里去掉这些模块的配置、Composer 包和模块目录；主题和自定义模块里的硬编码保留。不改旧服务器上的文件。
+备份内容：站点代码（排除 `vendor` 和 `node_modules`）、Drush 导出的配置、`settings.php`、数据库（`mysqldump --single-transaction --routines --triggers` 再压成 zstd）、公开和私有文件、nginx/PHP/Redis/MariaDB/cron/systemd/Docker/Netdata/logrotate/ufw/fail2ban/sysctl 以及自定义脚本清单。表前缀从 `settings.php` 读取。`cache`、`cache_*`、`cachetags`、`watchdog`、`sessions`、`flood`、`semaphore` 只导出结构：先用 `--ignore-table` 导出其余表的数据，再用 `--no-data` 补这些表的结构。`queue` 仍导出数据。`exclude.list` 命中的 nginx 站点、compose 项目、数据卷、单元、cron 和脚本不打包。站点仍启用清单里的 Drupal 模块时，日志写「该模块恢复时将被卸载」，不因此中断备份。打进新包之前，从暂存副本里去掉这些模块的配置、Composer 包和模块目录；主题和自定义模块里的硬编码保留。不改旧服务器上的文件。
 
 输出 `tar.zst`，不加密，不用 age 或 gpg。备份前开维护模式，结束或失败都关掉。本地目录 `/var/backups/xedc` 权限 700，文件 600。
 
@@ -43,11 +43,11 @@ R2 使用官方最新稳定版 rclone，装不上才回退系统包并警告。C
 
 `restore.sh` 参数包括 `--from local:/路径`、`--from r2:latest`、`r2:latest-1`、`r2:时间版本`、`--domain`、`--old-domain`、`--www`、`--https auto|self|off`、`--email`、`--php`、`--yes`、`--force`、`--verify`、`--resume`、`--clean-excluded`、`--keep-matomo-module`、`--list-local`、`--list-r2`。`--https self` 只用自签证书，不向 Let's Encrypt 重复签发。`--matomo-domain` 不再恢复 Matomo，传入时只警告并忽略。
 
-没有 `--force` 时，发现已有站点就停止。有 `--force` 时先备份旧数据库。`--verify` 只读，不改系统。`--resume` 从失败步骤继续，不重复已成功的步骤。还原前比较配置哈希，和上次脚本写入的不同就保留当前文件并提示，不覆盖手动修改。`--clean-excluded` 默认只打印残留；加上 `--yes` 才执行 `compose down -v`、删除 nginx 配置和停用单元。`--keep-matomo-module` 保留 Drupal 模块，Matomo 服务仍然不恢复。
+没有 `--force` 时，发现已有站点就停止。有 `--force` 时先备份旧数据库。`--verify` 只读，不改系统。`--resume` 从失败步骤继续，不重复已成功的步骤。数据库导入成功后写入 `database-imported`。`--resume` 看到这个标记且目标库非空时跳过导入；标记和库不一致，或目标库非空但导入未完成时，先删除再重建。还原前比较配置哈希，和上次脚本写入的不同就保留当前文件并提示，不覆盖手动修改。`--clean-excluded` 默认只打印残留；加上 `--yes` 才执行 `compose down -v`、删除 nginx 配置和停用单元。`--keep-matomo-module` 保留 Drupal 模块，Matomo 服务仍然不恢复。
 
 域名、安装确认和 R2 凭据都在进入 tmux 之前于前台终端读完。没有 TTY 又缺参数时直接报错，并提示用命令参数或环境变量。凭据经权限 600 的临时文件交给会话，会话启动后立即删除，不进入日志、命令行和进程列表。随后自动 `tmux attach -t xedc-restore`。日志 `/var/log/xedc-restore.log`，权限 600，用 `cat` 或 `tail -f` 查看。会话结束写入真实退出码。失败时提示日志路径和 `--resume`。新服务器不需要解密口令。
 
-然后安装软件、建库、导入、还原代码。`composer install` 前先 `composer check-platform-reqs`，不兼容就列出包并停止，不忽略平台检查。数据库导入和代码还原之后、`drush updb` 与 `cim` 之前，默认卸载 `exclude.list` 里的 Drupal 模块：删掉 `config/sync` 里的对应配置和 `core.extension.yml` 条目，删掉引用它们的 block、views 和菜单，`drush pm:uninstall`，`drush config:delete`，清掉相关 state 和 key_value，再 `composer remove` 存在的包。然后 `updb`、`cim`、`cr`，并确认模块仍未启用。被其他模块依赖时列出依赖，卸载失败写入失败项，不中断整个恢复。配置和数据库里的跟踪脚本、站点 ID、matomo 域名自动清理。主题和自定义模块里的硬编码只报告文件和行号。`--keep-matomo-module` 跳过这一步。接着构建主题、改 `settings.php`、还原服务、处理域名和 HTTPS、自检。自检通过后再启动名字里带 worker 的单元，例如 `xedc-import-worker`。首页 HTML 不得出现 matomo 跟踪脚本，也不得请求 matomo 域名。
+然后安装软件、建库、导入、还原代码。导入前按备份里的表前缀丢掉缓存表、`cachetags`、`watchdog`、`sessions`、`flood`、`semaphore` 的 `INSERT`/`REPLACE`，因此旧备份里的重复 `cid` 不会让导入失败；`queue` 的数据保留。不用 `mysql --force`。失败时只打印表名、行号和一行错误摘要，不把整条 `INSERT` 打到终端。导入完成、配置导入之后，以及域名替换之后，都执行 `drush cr`。域名替换若改写了 Matomo 配置，且没有 `--keep-matomo-module`，会再清一次配置和数据库里的跟踪项。`composer install` 前先 `composer check-platform-reqs`，不兼容就列出包并停止，不忽略平台检查。数据库导入和代码还原之后、`drush updb` 与 `cim` 之前，默认卸载 `exclude.list` 里的 Drupal 模块：删掉 `config/sync` 里的对应配置和 `core.extension.yml` 条目，删掉引用它们的 block、views 和菜单，`drush pm:uninstall`，`drush config:delete`，清掉相关 state 和 key_value，再 `composer remove` 存在的包。然后 `updb`、`cim`、`cr`，并确认模块仍未启用。被其他模块依赖时列出依赖，卸载失败写入失败项，不中断整个恢复。配置和数据库里的跟踪脚本、站点 ID、matomo 域名自动清理。主题和自定义模块里的硬编码只报告文件和行号。`--keep-matomo-module` 跳过这一步。接着构建主题、改 `settings.php`、还原服务、处理域名和 HTTPS、自检。自检通过后再启动名字里带 worker 的单元，例如 `xedc-import-worker`。首页 HTML 不得出现 matomo 跟踪脚本，也不得请求 matomo 域名。
 
 还原服务时的顺序是：复制备份里的 nginx（跳过排除清单）、证书基础文件、把旧域名换成新域名、写主站配置、补上缺失证书、`nginx -t`、启动 Docker、还原卷、再启动未被排除的容器。旧备份里的 Matomo 文件也跳过：不还原 `matomo.conf`，不 `compose up`，不建网络和数据卷，不为它的子域名申请证书。`--resume` 会再次从备份复制配置；若文件哈希与上次脚本写入的不同，则保留手动修改。域名变更后不得留着旧域名。
 

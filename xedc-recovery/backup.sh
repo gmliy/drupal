@@ -10,6 +10,8 @@ source "$ROOT/lib/r2.sh"
 source "$ROOT/lib/system.sh"
 # shellcheck source=lib/rclone.sh
 source "$ROOT/lib/rclone.sh"
+# shellcheck source=lib/db.sh
+source "$ROOT/lib/db.sh"
 
 TARGET=both
 KEEP_LOCAL=7
@@ -307,7 +309,7 @@ elif command -v mariadb-dump >/dev/null 2>&1; then
 else
   xedc_die "没有 mysqldump 或 mariadb-dump"
 fi
-"$dump_bin" --defaults-extra-file="$cnf" --single-transaction --routines --triggers "$db_name" \
+db_dump_database "$cnf" "$db_name" "$SITE/web/sites/default/settings.php" "$dump_bin" \
   | php "$ROOT/lib/php/strip_excluded.php" --mode stream \
   | zstd -T0 -3 -o "$stage/db/site.sql.zst"
 rm -f "$cnf"

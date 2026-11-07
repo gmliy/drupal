@@ -38,6 +38,8 @@ source "$ROOT/lib/domain.sh"
 source "$ROOT/lib/modules.sh"
 # shellcheck source=lib/version.sh
 source "$ROOT/lib/version.sh"
+# shellcheck source=lib/db.sh
+source "$ROOT/lib/db.sh"
 
 ORIGINAL_ARGS=("$@")
 FROM=""
@@ -609,11 +611,22 @@ step_database() {
   prepare_db_names
   mariadb_configure
   mariadb_enable
+  local bin sql settings prefix marked
+  bin=$(mariadb_root)
+  if [[ "$RESUME" == 1 && -f "$(db_imported_file)" ]]; then
+    marked=$(cat "$(db_imported_file)")
+    if [[ "$marked" == "$DB_NAME" ]] && db_target_nonempty "$bin" "$DB_NAME"; then
+      xedc_log "数据库已导入，跳过重复导入"
+      return 0
+    fi
+    xedc_log "导入标记和目标库不一致，重新导入"
+  fi
   if [[ -f "$SITE/web/sites/default/settings.php" && "$FORCE" == 1 ]]; then
     backup_existing
   fi
-  local bin sql
-  bin=$(mariadb_root)
+  if db_target_nonempty "$bin" "$DB_NAME"; then
+    xedc_log "目标库 ${DB_NAME} 非空，先删除再导入"
+  fi
   sql=$(mktemp)
   cat >"$sql" <<EOF
 DROP DATABASE IF EXISTS \`${DB_NAME}\`;
@@ -631,7 +644,20 @@ EOF
   elif [[ ! -f "$WORK/db/site.sql.zst" ]]; then
     zstd -dc "$ARCHIVE" | tar -C "$WORK" -xf -
   fi
-  zstd -dc "$WORK/db/site.sql.zst" | sed -E 's/DEFINER=`[^`]+`@`[^`]+`//g' | "$bin" --protocol=socket -u root "$DB_NAME"
+  settings="$WORK/code/web/sites/default/settings.php"
+  prefix=""
+  if [[ -f "$settings" ]]; then
+    prefix=$(db_prefix "$settings")
+  fi
+  if [[ -z "$prefix" ]]; then
+    xedc_log "导入时去掉缓存表数据，表没有前缀"
+  else
+    xedc_log "导入时去掉缓存表数据，表前缀 ${prefix}"
+  fi
+  if ! zstd -dc "$WORK/db/site.sql.zst" | db_import_sql "$bin" "$DB_NAME" "$prefix"; then
+    xedc_die "数据库导入失败。日志 ${XEDC_LOG_FILE:-/var/log/xedc-restore.log}。修好后加 --resume 继续"
+  fi
+  db_mark_imported "$DB_NAME"
   printf '%s\n' "$DB_PASS" >"$XEDC_STATE_DIR/db.pass"
   chmod 600 "$XEDC_STATE_DIR/db.pass"
   xedc_log "数据库 ${DB_NAME} 已导入"
@@ -783,7 +809,7 @@ step_drush() {
   bin=$(xedc_drush)
   "$bin" -r "$SITE" updatedb -y || "$bin" -r "$SITE" updb -y
   "$bin" -r "$SITE" config:import -y || "$bin" -r "$SITE" cim -y || xedc_warn "配置导入没有执行"
-  "$bin" -r "$SITE" cache:rebuild || "$bin" -r "$SITE" cr
+  db_rebuild_cache
   modules_assert_disabled "$SITE" || xedc_fail_item "排除模块在 cim 之后仍启用"
 }
 
@@ -802,11 +828,13 @@ step_domain() {
   local old=$OLD_DOMAIN
   if [[ -z "$old" || ( "$old" == "$DOMAIN" && "$OLD_MATOMO" == "$MATOMO_DOMAIN" ) ]]; then
     xedc_log "域名未改变，保持原样"
+    db_rebuild_cache
     return 0
   fi
   domain_apply_configs
   if [[ "$old" == "$DOMAIN" ]]; then
     xedc_log "主域名未变，只更新了 Matomo 主机名"
+    db_rebuild_cache
     return 0
   fi
   local cnf bin stamp
@@ -833,11 +861,14 @@ EOF
     php -r '$p=$argv[1]; $m=$argv[2]; $t=file_get_contents($p); $t=preg_replace("/^mail:.*$/m", "mail: ".$m, $t); file_put_contents($p,$t);' \
       "$SITE/config/sync/system.site.yml" "$EMAIL"
   fi
-  local bin_drush
-  bin_drush=$(xedc_drush || true)
-  if [[ -n "$bin_drush" ]]; then
-    "$bin_drush" -r "$SITE" cr >/dev/null 2>&1 || true
+  if modules_keep; then
+    xedc_log "保留 Matomo 模块，设置已按新域名替换"
+  else
+    xedc_log "域名替换后再次清理 Matomo 等被排除的配置"
+    modules_php --site "$SITE" --mode config --report "$XEDC_STATE_DIR/module-report.json" >/dev/null || true
+    modules_php --site "$SITE" --mode database --cnf "$cnf" --database "$DB_NAME" >/dev/null || true
   fi
+  db_rebuild_cache
   if grep -RIn --exclude-dir=vendor --exclude-dir=node_modules "$old" "$SITE/web/modules" "$SITE/web/themes" >"$XEDC_STATE_DIR/hardcoded.txt" 2>/dev/null; then
     note_manual "主题或模块代码仍包含旧域名，见 ${XEDC_STATE_DIR}/hardcoded.txt（未改代码）"
   fi
@@ -1027,6 +1058,7 @@ fi
 
 if [[ "$RESUME" != 1 ]]; then
   xedc_step_clear
+  rm -f "$(db_imported_file)"
 fi
 : >"$MANUAL"
 

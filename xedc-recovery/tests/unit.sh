@@ -200,5 +200,157 @@ printf '%s\n' '<script src="https://stats.example/matomo.js"></script>' | php "$
 }
 unset XEDC_EXCLUDE_FILE
 rm -rf "$state" "$hash_file" "$ex" "$site"
+XEDC_TEST_ROOT="$ROOT" php <<'PHP'
+<?php
+require getenv('XEDC_TEST_ROOT') . '/lib/php/settings_db.php';
+require getenv('XEDC_TEST_ROOT') . '/lib/php/sql_filter.php';
+$empty = tempnam(sys_get_temp_dir(), 'xedc-prefix');
+$main = tempnam(sys_get_temp_dir(), 'xedc-prefix');
+$nested = tempnam(sys_get_temp_dir(), 'xedc-prefix');
+file_put_contents($empty, "<?php\n\$databases['default']['default'] = array (\n  'prefix' => '',\n);\n");
+file_put_contents($main, "<?php\n\$databases['default']['default'] = [\n  'prefix' => 'main_',\n];\n");
+file_put_contents($nested, "<?php\n\$databases['default']['default'] = [\n  'prefix' => [\n    'default' => 'dr_',\n  ],\n];\n");
+if (xedc_db_prefix($empty) !== '') { fwrite(STDERR, "空前缀解析错误\n"); exit(1); }
+if (xedc_db_prefix($main) !== 'main_') { fwrite(STDERR, "字符串前缀解析错误\n"); exit(1); }
+if (xedc_db_prefix($nested) !== 'dr_') { fwrite(STDERR, "数组前缀解析错误\n"); exit(1); }
+unlink($empty); unlink($main); unlink($nested);
+foreach (['cache_page' => true, 'cache' => true, 'cachetags' => true, 'watchdog' => true, 'sessions' => true, 'flood' => true, 'semaphore' => true, 'queue' => false, 'node' => false, 'main_cache_page' => true] as $table => $want) {
+  $prefix = str_starts_with($table, 'main_') ? 'main_' : '';
+  if (xedc_is_ephemeral_table($table, $prefix) !== $want) {
+    fwrite(STDERR, "表分类错误: {$table}\n");
+    exit(1);
+  }
+}
+$sql = <<<'SQL'
+CREATE TABLE `cache_page` (
+  `cid` varchar(255) NOT NULL,
+  PRIMARY KEY (`cid`)
+);
+INSERT INTO `cache_page` VALUES ('');
+INSERT INTO `cache_page` VALUES ('https://gitxx.xyz/cosplay/cos?sort_by=totalcount&model=39:', 'line1
+HUGEHTMLMARKER
+semi;colon
+');
+INSERT INTO `cache_page` VALUES ('');
+/* comment ; */
+CREATE TABLE `queue` (`item_id` int NOT NULL, PRIMARY KEY (`item_id`));
+INSERT INTO `queue` VALUES (1, 'keep-queue');
+DELIMITER ;;
+CREATE PROCEDURE keep_me()
+BEGIN
+INSERT INTO cache_page VALUES ('from-routine');
+END ;;
+DELIMITER ;
+CREATE TABLE `node` (`nid` int NOT NULL, PRIMARY KEY (`nid`));
+INSERT INTO `node` VALUES (7);
+INSERT INTO `main_cache_page` VALUES ('gone');
+INSERT INTO `main_node` VALUES (3);
+SQL;
+$in = fopen('php://temp', 'r+');
+$out = fopen('php://temp', 'r+');
+$map = fopen('php://temp', 'r+');
+fwrite($in, $sql);
+rewind($in);
+xedc_filter_sql($in, $out, $map, 'main_', 5);
+rewind($out);
+$text = stream_get_contents($out);
+if ($text === false || str_contains($text, 'HUGEHTMLMARKER') || !str_contains($text, 'from-routine')) {
+  fwrite(STDERR, "缓存数据没有滤干净，或存储过程被拆坏\n");
+  exit(1);
+}
+if (!str_contains($text, 'CREATE TABLE `cache_page`') || !str_contains($text, 'keep-queue') || !str_contains($text, 'INSERT INTO `node` VALUES (7)')) {
+  fwrite(STDERR, "结构或业务数据被误删\n");
+  exit(1);
+}
+if (preg_match('/INSERT INTO `cache_page`/i', $text) === 1 || preg_match('/INSERT INTO `main_cache_page`/i', $text) === 1) {
+  fwrite(STDERR, "缓存 INSERT 仍在\n");
+  exit(1);
+}
+if (!str_contains($text, 'INSERT INTO `main_node` VALUES (3)')) {
+  fwrite(STDERR, "带前缀的业务表被误删\n");
+  exit(1);
+}
+rewind($map);
+$mapPath = tempnam(sys_get_temp_dir(), 'xedc-map');
+file_put_contents($mapPath, stream_get_contents($map));
+$err = "ERROR 1062 (23000) at line 1: Duplicate entry '' for key 'PRIMARY'\n" . str_repeat('H', 40) . "HUGEHTMLMARKER" . str_repeat('x', 400);
+$msg = xedc_explain_sql_error($mapPath, $err);
+if (!str_contains($msg, '表 cache_page') || !str_contains($msg, '第 1 行') || str_contains($msg, 'HUGEHTMLMARKER')) {
+  fwrite(STDERR, "错误摘要不正确: {$msg}\n");
+  exit(1);
+}
+unlink($mapPath);
+fwrite(STDOUT, "sql filter ok\n");
+PHP
+sql_db=xedc_sqlfilter_test
+sql_cleanup() {
+  mysql --protocol=socket -u root -e "DROP DATABASE IF EXISTS \`${sql_db}\`" >/dev/null 2>&1 || true
+}
+if mysql --protocol=socket -u root -N -e 'SELECT 1' >/dev/null 2>&1; then
+  trap sql_cleanup EXIT
+  sql_file=$(mktemp)
+  cat >"$sql_file" <<'EOF'
+CREATE TABLE `cache_page` (
+  `cid` varchar(255) NOT NULL,
+  `data` longblob,
+  PRIMARY KEY (`cid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `cache_page` VALUES ('', 'one');
+INSERT INTO `cache_page` VALUES ('https://gitxx.xyz/cosplay/cos?sort_by=totalcount&model=39:', 'line1
+HUGEHTMLMARKER
+semi;colon
+');
+INSERT INTO `cache_page` VALUES ('', 'two');
+CREATE TABLE `queue` (
+  `item_id` int NOT NULL,
+  `data` longblob,
+  PRIMARY KEY (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `queue` VALUES (1, 'keep-queue');
+CREATE TABLE `node` (
+  `nid` int NOT NULL,
+  PRIMARY KEY (`nid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `node` VALUES (7);
+EOF
+  sql_cleanup
+  mysql --protocol=socket -u root -e "CREATE DATABASE \`${sql_db}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+  raw_err=$(mktemp)
+  if mysql --protocol=socket -u root --batch "$sql_db" <"$sql_file" >/dev/null 2>"$raw_err"; then
+    echo "未过滤的重复 cid 不应该导入成功" >&2
+    exit 1
+  fi
+  grep -q '1062' "$raw_err"
+  if grep -q 'HUGEHTMLMARKER' "$raw_err"; then
+    echo "原始错误里出现了缓存 HTML" >&2
+    exit 1
+  fi
+  sql_cleanup
+  mysql --protocol=socket -u root -e "CREATE DATABASE \`${sql_db}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+  map=$(mktemp)
+  if ! php "$ROOT/lib/php/sql_filter.php" --filter --prefix '' --map "$map" <"$sql_file" \
+    | mysql --protocol=socket -u root --batch "$sql_db" >/dev/null; then
+    echo "过滤后的缓存备份导入失败" >&2
+    exit 1
+  fi
+  rows=$(mysql --protocol=socket -u root -N -e "SELECT COUNT(*) FROM \`${sql_db}\`.cache_page")
+  queue=$(mysql --protocol=socket -u root -N -e "SELECT data FROM \`${sql_db}\`.queue")
+  node=$(mysql --protocol=socket -u root -N -e "SELECT nid FROM \`${sql_db}\`.node")
+  [[ "$rows" == 0 ]]
+  [[ "$queue" == keep-queue ]]
+  [[ "$node" == 7 ]]
+  sql_cleanup
+  mysql --protocol=socket -u root -e "CREATE DATABASE \`${sql_db}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+  if ! php "$ROOT/lib/php/sql_filter.php" --filter --prefix '' --map "$map" <"$sql_file" \
+    | mysql --protocol=socket -u root --batch "$sql_db" >/dev/null; then
+    echo "第二次导入失败" >&2
+    exit 1
+  fi
+  rm -f "$sql_file" "$raw_err" "$map"
+  sql_cleanup
+  trap - EXIT
+else
+  echo "本机没有 socket root，跳过真实导入"
+fi
 echo "unit ok"
 exit "$fail"

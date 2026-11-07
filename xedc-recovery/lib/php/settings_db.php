@@ -30,6 +30,30 @@ function xedc_match_last(string $src, string $pattern): string
   return (string) end($matches[1]);
 }
 
+function xedc_db_prefix(string $settings): string
+{
+  $src = xedc_settings_source($settings);
+  $pos = strpos($src, "['default']['default']");
+  if ($pos === false) {
+    $pos = strpos($src, '["default"]["default"]');
+  }
+  $slice = $pos === false ? $src : substr($src, $pos, 6000);
+  if (preg_match('/[\'"]prefix[\'"]\s*=>\s*[\'"]([^\'"]*)[\'"]/', $slice, $match) === 1) {
+    $prefix = $match[1];
+  } elseif (
+    preg_match('/[\'"]prefix[\'"]\s*=>\s*(?:array\s*\(|\[)(.{0,800}?)(?:\)|\])/s', $slice, $match) === 1
+    && preg_match('/[\'"]default[\'"]\s*=>\s*[\'"]([^\'"]*)[\'"]/', $match[1], $nested) === 1
+  ) {
+    $prefix = $nested[1];
+  } else {
+    return '';
+  }
+  if (preg_match('/^[A-Za-z0-9_]*$/', $prefix) !== 1) {
+    throw new RuntimeException('settings.php 的表前缀含有非法字符');
+  }
+  return $prefix;
+}
+
 function xedc_db_credentials(string $settings): array
 {
   $src = xedc_settings_source($settings);
@@ -72,14 +96,31 @@ if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath((string) $argv[0]) === rea
   $write = '';
   $settings = '';
   $root = false;
+  $prefixOnly = false;
   for ($i = 1; $i < $argc; $i++) {
     if ($argv[$i] === '--write-cnf') {
       $write = (string) ($argv[++$i] ?? '');
+    } elseif ($argv[$i] === '--prefix') {
+      $prefixOnly = true;
+      $settings = (string) ($argv[++$i] ?? '');
     } elseif ($argv[$i] === '--root') {
       $root = true;
     } else {
       $settings = (string) $argv[$i];
     }
+  }
+  if ($prefixOnly) {
+    if ($settings === '') {
+      fwrite(STDERR, "用法: settings_db.php --prefix settings.php\n");
+      exit(2);
+    }
+    try {
+      echo xedc_db_prefix($settings), "\n";
+    } catch (Throwable $e) {
+      fwrite(STDERR, $e->getMessage() . "\n");
+      exit(1);
+    }
+    exit(0);
   }
   if ($settings === '' || $write === '') {
     fwrite(STDERR, "用法: settings_db.php --write-cnf 文件 [--root] settings.php\n");

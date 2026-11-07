@@ -46,6 +46,8 @@ bash xedc-recovery/backup.sh --list
 
 本地目录是 `/var/backups/xedc/`，目录权限 700，文件权限 600。默认保留本地 7 份、R2 30 份。
 
+数据库里的 `cache`、`cache_*`、`cachetags`、`watchdog`、`sessions`、`flood`、`semaphore` 只保存表结构，不保存数据。表前缀从 `settings.php` 读取，不写死。`queue` 里的待处理任务仍会备份。已经打好的旧包里如果还带着这些表的数据，恢复时会自动丢掉，不会因为重复的缓存主键中断。
+
 ## 二、一条命令恢复（新服务器，全新空系统）
 
 先创建 GitHub 只读令牌：打开 GitHub → Settings → Developer settings → Fine-grained tokens。只勾选仓库 `gmliy/drupal`，权限只给 Contents: Read-only。下面命令里的 `xxxx` 换成这个令牌。
@@ -88,7 +90,7 @@ cat /var/log/xedc-restore.log
 tail -f /var/log/xedc-restore.log
 ```
 
-失败时终端会打印退出码。把原来的整条命令照抄一遍，在末尾加上 `--resume`。没有交互终端时，域名、`--yes` 和 R2 环境变量要一次写全，脚本不会停下来等输入。
+失败时终端会打印退出码。数据库导入失败时只打印出错的表名和行号，不会把缓存里的 HTML 刷到终端。把原来的整条命令照抄一遍，在末尾加上 `--resume`。已经导入成功的库不会再导一次。没有交互终端时，域名、`--yes` 和 R2 环境变量要一次写全，脚本不会停下来等输入。
 
 ```bash
 GH_TOKEN=xxxx bash <(curl -fsSL -H "Authorization: token xxxx" https://raw.githubusercontent.com/gmliy/drupal/main/xedc-recovery/install.sh) --from r2:latest --domain 新域名 --email 邮箱 --resume
@@ -136,7 +138,7 @@ drush cr
 2. 下载备份并校验 sha256。校验失败会改用上一份带 `.complete` 的备份。
 3. 列出要安装的软件，等你输入 `y`。测试可以加 `--yes` 跳过。
 4. 安装并配置 nginx、PHP、MariaDB、Redis、Composer、Node、ffmpeg、7z、Docker、Netdata、Certbot。
-5. 用随机密码建库建用户，导入数据。
+5. 用随机密码建库建用户。目标库里已经有表时，先删除再导入。导入前去掉缓存表、`cachetags`、`watchdog`、`sessions`、`flood`、`semaphore` 的数据行。失败时只打印表名、行号和一行错误，不会把缓存里的 HTML 刷到终端。导入成功后会记下状态。
 6. 还原代码和文件，执行 `composer install --no-dev`，构建主题，权限交给 `www-data`。
 7. 改 `settings.php` 里的数据库、域名和 Redis，保留原来的 hash salt。
 8. 还原 cron、systemd、Docker Compose 和 Netdata 配置。
@@ -190,7 +192,7 @@ certbot --nginx -d 新域名 -d www.新域名 --email 邮箱
 bash xedc-recovery/restore.sh --from r2:latest --domain 新域名 --email 邮箱 --php 8.4 --yes
 ```
 
-**恢复到一半断了。** `tmux attach -t xedc-restore` 看画面。确认进程没了之后，用原来的命令加 `--resume`。已成功的步骤不会重做。你亲手改过的配置，哈希和脚本上次写入的不同，会保留并提示，不会被备份覆盖。失败时看 `cat /var/log/xedc-restore.log`。
+**恢复到一半断了。** `tmux attach -t xedc-restore` 看画面。确认进程没了之后，用原来的命令加 `--resume`。已成功的步骤不会重做，已经导入成功的数据库也不会再导一次。你亲手改过的配置，哈希和脚本上次写入的不同，会保留并提示，不会被备份覆盖。失败时看 `cat /var/log/xedc-restore.log`。数据库导入失败时，日志里是表名和行号。
 
 **想先看系统是否正常，又不想改任何东西。**
 
