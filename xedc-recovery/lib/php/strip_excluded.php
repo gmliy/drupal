@@ -192,6 +192,11 @@ function xedc_strip_composer(string $site): array
       xedc_rrmdir($path);
     }
   }
+  foreach (glob($site . '/web/modules/contrib/*') ?: [] as $path) {
+    if (is_dir($path) && xedc_strip_match(basename($path))) {
+      xedc_rrmdir($path);
+    }
+  }
   return array_values(array_unique($removed));
 }
 

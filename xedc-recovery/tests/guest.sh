@@ -159,7 +159,11 @@ case "$mode" in
     mkdir -p /var/www/drupal/web/sites/default/files
     ffmpeg -y -hide_banner -loglevel error -f lavfi -i testsrc=size=160x120:rate=10:duration=1 -f lavfi -i sine=frequency=440:sample_rate=8000:duration=1 -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest /var/www/drupal/web/sites/default/files/clip.mp4
     ffmpeg -y -hide_banner -loglevel error -i /var/www/drupal/web/sites/default/files/clip.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart /tmp/transcoded.mp4
-    ffprobe -v error -show_entries stream=codec_name -of csv=p=0 /tmp/transcoded.mp4 | grep -q h264
+    codecs=$(ffprobe -v error -show_entries stream=codec_name -of csv=p=0 /tmp/transcoded.mp4 || true)
+    case "$codecs" in
+      *h264*) ;;
+      *) echo "转码结果没有 h264: ${codecs}"; exit 1 ;;
+    esac
     chown www-data:www-data /var/www/drupal/web/sites/default/files/clip.mp4
     code=""
     for _ in 1 2 3 4 5 6 7 8 9 10; do
@@ -519,25 +523,50 @@ PY
       export XEDC_MANIFEST=/var/lib/xedc-recovery/manifest.json
     fi
     redis_configure
+    echo "after redis_configure"
     mariadb_configure
+    echo "after mariadb_configure"
     php_configure
+    echo "after php_configure"
     nginx_configure
+    echo "after nginx_configure"
     ver=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;')
-    echo "redis $(stat -c '%a %U %G' /etc/redis/xedc.conf) dir $(stat -c '%a %U %G' /etc/redis)"
-    echo "mysql $(stat -c '%a %U %G' /etc/mysql/mariadb.conf.d/99-xedc.cnf)"
-    echo "nginx $(stat -c '%a %U %G' /etc/nginx/conf.d/xedc.conf)"
-    echo "php $(stat -c '%a %U %G' "/etc/php/${ver}/fpm/pool.d/www.conf")"
-    [[ "$(stat -c '%a %U %G' /etc/redis/xedc.conf)" == "640 redis redis" ]]
-    [[ "$(stat -c '%a %U %G' /etc/mysql/mariadb.conf.d/99-xedc.cnf)" == "640 mysql mysql" ]]
-    [[ "$(stat -c '%a %U %G' /etc/nginx/conf.d/xedc.conf)" == "640 root www-data" ]]
-    [[ "$(stat -c '%a %U %G' "/etc/php/${ver}/fpm/pool.d/www.conf")" == "640 root www-data" ]]
-    runuser -u redis -- test -r /etc/redis/xedc.conf
-    runuser -u mysql -- test -r /etc/mysql/mariadb.conf.d/99-xedc.cnf
-    runuser -u www-data -- test -r /etc/nginx/conf.d/xedc.conf
-    runuser -u www-data -- test -r "/etc/php/${ver}/fpm/pool.d/www.conf"
-    grep -q '^vm.overcommit_memory=1$' /etc/sysctl.d/99-xedc.conf
-    [[ "$(stat -c '%a' /etc/sysctl.d/99-xedc.conf)" == "644" ]]
-    [[ "$(stat -c '%a %U %G' /etc/redis)" == "755 root root" ]]
+    expect_perm() {
+      local path=$1 want=$2 got
+      got=$(stat -c '%a %U %G' "$path" 2>&1 || true)
+      echo "${path}: ${got}"
+      if [[ "$got" != "$want" ]]; then
+        echo "权限不符 ${path}: 得到 ${got}，期望 ${want}"
+        exit 1
+      fi
+    }
+    expect_perm /etc/redis/xedc.conf "640 redis redis"
+    expect_perm /etc/mysql/mariadb.conf.d/99-xedc.cnf "640 mysql mysql"
+    expect_perm /etc/nginx/conf.d/xedc.conf "640 root www-data"
+    expect_perm "/etc/php/${ver}/fpm/pool.d/www.conf" "640 root www-data"
+    check_read() {
+      local user=$1 file=$2
+      if ! runuser -u "$user" -- test -r "$file"; then
+        echo "用户 ${user} 仍不能读 ${file}"
+        namei -l "$file" || true
+        exit 1
+      fi
+    }
+    check_read redis /etc/redis/xedc.conf
+    check_read mysql /etc/mysql/mariadb.conf.d/99-xedc.cnf
+    check_read www-data /etc/nginx/conf.d/xedc.conf
+    check_read www-data "/etc/php/${ver}/fpm/pool.d/www.conf"
+    if ! grep -q '^vm.overcommit_memory=1$' /etc/sysctl.d/99-xedc.conf; then
+      echo "缺少 vm.overcommit_memory=1"
+      cat /etc/sysctl.d/99-xedc.conf || true
+      exit 1
+    fi
+    sys_mode=$(stat -c '%a' /etc/sysctl.d/99-xedc.conf)
+    if [[ "$sys_mode" != "644" ]]; then
+      echo "sysctl 权限 ${sys_mode}"
+      exit 1
+    fi
+    expect_perm /etc/redis "755 root root"
     if ! id netdata >/dev/null 2>&1; then
       useradd --system --no-create-home --shell /usr/sbin/nologin netdata
     fi
@@ -975,6 +1004,8 @@ EOF
 }
 EOF
     cp "$fix/web/modules/contrib/matomo/matomo.info.yml" "$work/code/web/modules/contrib/matomo/"
+    mkdir -p "$work/code/web/themes/custom/xedc/templates"
+    cp "$fix/web/themes/custom/xedc/templates/matomo-hardcode.html.twig" "$work/code/web/themes/custom/xedc/templates/"
     mkdir -p "$work/code/vendor/drupal/matomo" "$work/code/vendor/drupal/matomo_reports"
     printf '%s\n' '{"name":"drupal/matomo","version":"1.0.0"}' >"$work/code/vendor/drupal/matomo/composer.json"
     printf '%s\n' '{"name":"drupal/matomo_reports","version":"1.0.0"}' >"$work/code/vendor/drupal/matomo_reports/composer.json"
@@ -986,12 +1017,20 @@ EOF
     printf '%s\n' "INSERT INTO page_content (id, body, packed) VALUES (2, '<script src=\"https://x.gitxx.xyz/matomo.js\"></script>', 'matomo');" >>"$work/db/site.sql"
     zstd -f -3 -o "$sqlz" "$work/db/site.sql"
     rm -f "$work/db/site.sql"
+    rm -f "$work/code/composer.lock"
+    COMPOSER_DISABLE_NETWORK=1 composer update --no-install --no-interaction --working-dir="$work/code"
     old=/tmp/old-matomo.tar.zst
     tar -C "$work" -cf - . | zstd -3 -o "$old"
     export COMPOSER_DISABLE_NETWORK=1
     XEDC_NO_TMUX=1 bash /opt/xedc-recovery/restore.sh --force --from "local:${old}" --domain test1.local --email admin@test1.local --https self --www no --yes
-    [[ ! -f /etc/nginx/conf.d/matomo.conf ]]
-    [[ ! -d /opt/matomo ]]
+    must_absent() {
+      if [[ -e "$1" ]]; then
+        echo "不应存在 $1"
+        exit 1
+      fi
+    }
+    must_absent /etc/nginx/conf.d/matomo.conf
+    must_absent /opt/matomo
     if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
       if docker ps -a --format '{{.Names}}' | grep -i matomo; then echo "仍有 matomo 容器"; exit 1; fi
       if docker volume ls -q | grep -i matomo; then echo "仍有 matomo 卷"; exit 1; fi
@@ -1005,8 +1044,9 @@ EOF
       echo "配置或 composer 仍有 Matomo"
       exit 1
     fi
-    [[ ! -e /var/www/drupal/vendor/drupal/matomo ]]
-    [[ ! -e /var/www/drupal/web/modules/contrib/matomo ]]
+    must_absent /var/www/drupal/vendor/drupal/matomo
+    must_absent /var/www/drupal/vendor/drupal/matomo_reports
+    must_absent /var/www/drupal/web/modules/contrib/matomo
     if curl -k -s --resolve test1.local:443:127.0.0.1 https://test1.local/ | grep -Ei 'matomo\.js|piwik\.js'; then
       echo "首页仍有跟踪脚本"
       exit 1

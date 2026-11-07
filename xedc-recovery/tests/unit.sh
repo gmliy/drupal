@@ -176,7 +176,7 @@ site=$(mktemp -d)
 mkdir -p "$site/config/sync" "$site/web/themes/custom/xedc" "$site/vendor/drupal/matomo" "$site/web/modules/custom/xedc_stats"
 printf '%s\n' 'module:' '  matomo: 0' '  system: 0' >"$site/config/sync/core.extension.yml"
 printf '%s\n' 'url: https://x.example/matomo.js' >"$site/config/sync/matomo.settings.yml"
-printf '%s\n' '{"require":{"php":">=8.1","drupal/matomo":"1.0.0"}}' >"$site/composer.json"
+printf '%s\n' '{"require":{"php":">=8.1","drupal/matomo":"1.0.0"},"repositories":[{"type":"path","url":"vendor/drupal/matomo"}]}' >"$site/composer.json"
 printf '%s\n' '<script src="https://x.example/matomo.js"></script>' >"$site/web/themes/custom/xedc/a.twig"
 printf '%s\n' 'name: Stats' 'dependencies:' '  - matomo' >"$site/web/modules/custom/xedc_stats/xedc_stats.info.yml"
 printf 'x\n' >"$site/vendor/drupal/matomo/x"

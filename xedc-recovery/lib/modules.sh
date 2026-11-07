@@ -54,6 +54,7 @@ modules_cleanup() {
       for dep in "${deps[@]}"; do
         [[ -n "$dep" ]] && xedc_log "依赖 ${dep}"
       done
+      xedc_fail_item "卸载模块 ${mod} 失败：被其他模块依赖"
       blocked+=("$mod")
     fi
     if [[ -n "$bin" ]]; then

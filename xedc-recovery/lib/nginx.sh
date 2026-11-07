@@ -32,7 +32,9 @@ nginx_render_site() {
     fi
     sock="/run/php/php$(php_target_version)-fpm.sock"
   fi
-  if nginx -V 2>&1 | grep -q with-http_mp4_module; then
+  local nginx_build
+  nginx_build=$(nginx -V 2>&1 || true)
+  if grep -q with-http_mp4_module <<<"$nginx_build"; then
     mp4="mp4;"
   else
     mp4=""

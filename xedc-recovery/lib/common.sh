@@ -516,6 +516,10 @@ xedc_apply_perms() {
   fi
   chown "$user:$group" "$path"
   chmod "$mode" "$path"
+  if [[ -d "$path" ]]; then
+    # 目录上原有的 setgid，数字模式清不掉。2770 再 chmod 0755 会变成 2755。
+    chmod a-s "$path"
+  fi
 }
 
 xedc_apply_tree() {
