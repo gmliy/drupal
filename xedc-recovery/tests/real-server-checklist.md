@@ -8,9 +8,12 @@
 - 亲手在 SSH 里输入凭据后 `tmux attach -t xedc-restore`，断线再接上。脚本喂给伪终端的输入不能代替
 - 会话结束时终端打印真实退出码。日志 `/var/log/xedc-restore.log` 权限 600，用 `cat` 或 `tail -f` 查看
 - Redis 配置属主是 `redis:redis`、权限 `0640`，`redis` 用户读得到。`sysctl vm.overcommit_memory` 为 1
-- `docker compose version` 有输出。Matomo 起不来时恢复停止，并留下 `docker compose logs`
+- `docker compose version` 有输出。非核心容器起不来时主站继续，报告的失败项里有容器日志
 - 只有带 `[Install]` 的单元被 enable。`xedc-import-worker` 在站点自检通过之后才启动
 - `xedc-push-gmliy.service`、`xedc-push-gmliy.timer` 没有出现在新服务器上
+- `nginx -t` 能通过。没有 `matomo.conf`，也没有 Matomo 容器、网络和数据卷
+- 首页 HTML 没有 matomo 跟踪脚本。`drush pm:list` 里 matomo 未启用
+- DNS 已指向本机时，主域名是 Let's Encrypt 证书，目录里没有 `.selfsigned`。DNS 还没指向时，恢复仍成功，最后的手工步骤里有 `certbot certonly --webroot`
 
 在一台全新 VPS 上亲手做一遍：
 

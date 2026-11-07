@@ -2,7 +2,9 @@
   "name": "xedc/fixture-site",
   "description": "小型恢复测试站点",
   "require": {
-    "php": ">=8.1"
+    "php": ">=8.1",
+    "drupal/matomo": "2.0.x-dev@dev",
+    "drupal/matomo_reports": "1.0.0"
   },
   "config": {
     "allow-plugins": true,

@@ -66,6 +66,7 @@ fetch_github() {
   rm -rf "$DEST"
   mkdir -p "$DEST"
   cp -a "$top/xedc-recovery/." "$DEST/"
+  printf '%s\n' github >"$DEST/.installed-from"
   rm -rf "$extract" "$tmp"
 }
 
@@ -131,6 +132,7 @@ EOF
   rm -rf "$DEST"
   mkdir -p "$DEST"
   tar -xzf "$pack/xedc-recovery.tar.gz" -C "$DEST"
+  printf '%s\n' r2 >"$DEST/.installed-from"
   rm -rf "$pack" "$conf"
 }
 
@@ -153,6 +155,12 @@ else
 fi
 
 find "$DEST" -name '*.sh' -exec chmod 755 {} +
+if [[ -f "$DEST/VERSION" ]]; then
+  ver=$(sed -n 's/^version=//p' "$DEST/VERSION" | head -n 1)
+  built=$(sed -n 's/^built=//p' "$DEST/VERSION" | head -n 1)
+  echo "工具版本: ${ver:-未知}"
+  echo "构建时间: ${built:-未知}"
+fi
 if [[ "${XEDC_INSTALL_ONLY:-0}" == 1 ]]; then
   echo "工具已下载到 ${DEST}"
   exit 0

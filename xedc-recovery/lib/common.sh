@@ -39,6 +39,13 @@ xedc_log() {
   fi
 }
 
+xedc_log_text() {
+  local line
+  while IFS= read -r line; do
+    xedc_log "$line"
+  done
+}
+
 xedc_warn() {
   xedc_log "警告: $*"
 }
@@ -211,17 +218,36 @@ xedc_systemd() {
   [[ -d /run/systemd/system ]]
 }
 
+xedc_svc_diag() {
+  local name=$1
+  xedc_log "服务 ${name} 没有启动"
+  if xedc_systemd; then
+    xedc_log "systemctl status ${name}"
+    systemctl status "$name" --no-pager -l >&2 || true
+    xedc_log "journalctl -xeu ${name} -n 30"
+    journalctl -xeu "$name" -n 30 --no-pager >&2 || true
+    return 0
+  fi
+  if xedc_have service; then
+    service "$name" status >&2 || true
+  fi
+}
+
 xedc_svc() {
   local name=$1
   if xedc_systemd; then
     systemctl enable "$name" >/dev/null 2>&1 || true
-    systemctl restart "$name"
-    return $?
+    if systemctl restart "$name"; then
+      return 0
+    fi
+    xedc_svc_diag "$name"
+    return 1
   fi
   if xedc_have service; then
     if service "$name" restart || service "$name" start; then
       return 0
     fi
+    xedc_svc_diag "$name"
     return 1
   fi
   return 1
@@ -331,9 +357,9 @@ xedc_fail_inject() {
 
 xedc_restore_skip() {
   local name=$1
-  case "$name" in
-    xedc-push-gmliy.service|xedc-push-gmliy.timer|xedc-push-gmliy.sh) return 0 ;;
-  esac
+  if declare -F xedc_excluded >/dev/null 2>&1 && xedc_excluded "$name"; then
+    return 0
+  fi
   if [[ -n "${XEDC_MANIFEST:-}" && -f ${XEDC_MANIFEST} ]]; then
     if php -r '
       $j = json_decode((string) file_get_contents($argv[1]), true);
@@ -388,8 +414,8 @@ xedc_default_perm() {
     /etc/redis|/etc/redis/*)
       if [[ -d "$path" ]]; then
         user=root
-        group=redis
-        mode=0750
+        group=root
+        mode=0755
       else
         user=redis
         group=redis
@@ -426,6 +452,15 @@ xedc_default_perm() {
         mode=0640
       fi
       ;;
+    /etc/netdata|/etc/netdata/*|/opt/netdata/etc/netdata|/opt/netdata/etc/netdata/*)
+      if [[ -d "$path" ]]; then
+        mode=0755
+      else
+        user=root
+        group=netdata
+        mode=0640
+      fi
+      ;;
     /etc/ssl/xedc/*.key)
       mode=0600
       ;;
@@ -441,15 +476,28 @@ xedc_default_perm() {
   printf '%s %s %s\n' "$mode" "$user" "$group"
 }
 
+xedc_service_path() {
+  local path=$1
+  case "$path" in
+    /etc/redis|/etc/redis/*|/etc/mysql|/etc/mysql/*|/etc/php|/etc/php/*|/etc/nginx|/etc/nginx/*|/etc/netdata|/etc/netdata/*|/opt/netdata/etc/netdata|/opt/netdata/etc/netdata/*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
 xedc_apply_perms() {
   local path=$1 spec mode user group
   [[ -e "$path" ]] || return 0
-  if spec=$(xedc_recorded_perm "$path"); then
-    read -r mode user group <<<"$spec"
+  # 服务配置不沿用旧机器记下来的权限。umask 077 会把它们写成 root 的 0600，服务用户读不到。
+  if xedc_service_path "$path"; then
+    spec=$(xedc_default_perm "$path")
+  elif spec=$(xedc_recorded_perm "$path"); then
+    :
   else
     spec=$(xedc_default_perm "$path")
-    read -r mode user group <<<"$spec"
   fi
+  read -r mode user group <<<"$spec"
   local fallback=0
   if ! id "$user" >/dev/null 2>&1; then
     user=root
@@ -494,19 +542,81 @@ xedc_dump_perms() {
   done < <(find "$root" -print0)
 }
 
+xedc_fix_perm_chain() {
+  local path=$1
+  local dir
+  xedc_apply_perms "$path"
+  dir=$(dirname "$path")
+  while [[ "$dir" != "/" && "$dir" != "." ]]; do
+    if xedc_service_path "$dir"; then
+      xedc_apply_perms "$dir"
+    fi
+    dir=$(dirname "$dir")
+  done
+}
+
 xedc_assert_readable() {
-  local user=$1 file=$2
+  local user=$1 file=$2 try
   [[ -e "$file" ]] || xedc_die "配置不存在: ${file}"
-  if id "$user" >/dev/null 2>&1 && runuser -u "$user" -- test -r "$file"; then
+  for try in 1 2; do
+    if id "$user" >/dev/null 2>&1 && runuser -u "$user" -- test -r "$file"; then
+      return 0
+    fi
+    xedc_log "用户 ${user} 无法读取 ${file}"
+    if xedc_have namei; then
+      namei -l "$file" >&2 || true
+    else
+      ls -ld "$file" "$(dirname "$file")" >&2 || true
+    fi
+    if [[ "$try" == 2 ]]; then
+      xedc_die "用户 ${user} 无法读取 ${file}"
+    fi
+    xedc_log "已按服务用户重设 ${file} 的权限并重试"
+    xedc_fix_perm_chain "$file"
+  done
+}
+
+xedc_file_hash() {
+  sha256sum "$1" | awk '{print $1}'
+}
+
+xedc_hash_db() {
+  printf '%s\n' "${XEDC_STATE_DIR}/written.sha256"
+}
+
+xedc_remember_hash() {
+  local path=$1 hash db tmp
+  [[ -f "$path" ]] || return 0
+  hash=$(xedc_file_hash "$path")
+  mkdir -p "$XEDC_STATE_DIR"
+  db=$(xedc_hash_db)
+  tmp=$(mktemp)
+  if [[ -f "$db" ]]; then
+    awk -v p="$path" '$1 != p { print }' "$db" >"$tmp" || true
+  fi
+  printf '%s %s\n' "$path" "$hash" >>"$tmp"
+  mv "$tmp" "$db"
+  chmod 600 "$db"
+}
+
+xedc_user_modified() {
+  local path=$1 stored="" db
+  [[ -f "$path" ]] || return 1
+  db=$(xedc_hash_db)
+  [[ -f "$db" ]] || return 1
+  stored=$(awk -v p="$path" '$1 == p { print $2; exit }' "$db")
+  [[ -n "$stored" ]] || return 1
+  [[ "$(xedc_file_hash "$path")" != "$stored" ]]
+}
+
+xedc_keep_manual() {
+  local path=$1
+  if xedc_user_modified "$path"; then
+    xedc_warn "保留手动修改的配置 ${path}"
+    xedc_apply_perms "$path"
     return 0
   fi
-  xedc_log "用户 ${user} 无法读取 ${file}"
-  if xedc_have namei; then
-    namei -l "$file" >&2 || true
-  else
-    ls -ld "$file" >&2 || true
-  fi
-  xedc_die "用户 ${user} 无法读取 ${file}"
+  return 1
 }
 
 xedc_ipv6() {
@@ -547,3 +657,6 @@ xedc_site_root() {
   fi
   return 1
 }
+
+# shellcheck source=exclude.sh
+source "$(dirname "${BASH_SOURCE[0]}")/exclude.sh"

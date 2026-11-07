@@ -2,7 +2,14 @@ server {
     listen 80;
     {{ipv6_80}}
     server_name {{canonical}} {{alias}};
-    return 301 https://{{canonical}}$request_uri;
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type text/plain;
+        allow all;
+    }
+    location / {
+        return 301 https://{{canonical}}$request_uri;
+    }
 }
 
 server {

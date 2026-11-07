@@ -1,0 +1,4 @@
+id: matomo_script
+plugin: matomo_block
+settings:
+  id: matomo_script

@@ -15,10 +15,29 @@ xedc_copy_dir() {
   rsync -a "$src/" "$dest/"
 }
 
+xedc_copy_filtered() {
+  local src=$1 dest=$2 path rel
+  [[ -d "$src" ]] || return 0
+  mkdir -p "$dest"
+  while IFS= read -r -d '' path; do
+    rel=${path#"$src"/}
+    if xedc_conf_excluded "$path" || xedc_excluded "$rel" || xedc_excluded "$(basename "$path")"; then
+      xedc_log "备份跳过 ${path}"
+      continue
+    fi
+    if [[ -d "$path" ]]; then
+      mkdir -p "$dest/$rel"
+    else
+      mkdir -p "$dest/$(dirname "$rel")"
+      cp -a "$path" "$dest/$rel"
+    fi
+  done < <(find "$src" -mindepth 1 -print0)
+}
+
 system_capture() {
   local dest=$1
   mkdir -p "$dest"
-  xedc_copy_dir /etc/nginx "$dest/nginx"
+  xedc_copy_filtered /etc/nginx "$dest/nginx"
   xedc_copy_dir /etc/php "$dest/php"
   xedc_copy_dir /etc/mysql "$dest/mysql"
   xedc_copy_dir /etc/redis "$dest/redis"
@@ -32,11 +51,19 @@ system_capture() {
   local unit
   shopt -s nullglob
   for unit in /etc/systemd/system/xedc-*; do
+    if xedc_excluded "$(basename "$unit")" || xedc_is_git_push_file "$unit"; then
+      xedc_log "备份跳过 $(basename "$unit")"
+      continue
+    fi
     cp -a "$unit" "$dest/systemd/"
   done
   local cronf
   for cronf in /etc/cron.d/xedc-* /etc/cron.d/php /etc/cron.d/certbot; do
     if [[ -f "$cronf" ]]; then
+      if xedc_excluded "$(basename "$cronf")" || xedc_is_git_push_file "$cronf"; then
+        xedc_log "备份跳过 $(basename "$cronf")"
+        continue
+      fi
       cp -a "$cronf" "$dest/cron.d/"
     fi
   done
@@ -51,19 +78,30 @@ system_capture() {
     mkdir -p "$dest/netdata-opt"
     rsync -a --exclude 'claim.conf' --exclude '*claim*' --exclude '*token*' /opt/netdata/etc/netdata/ "$dest/netdata-opt/"
   fi
-  if [[ -d /opt/matomo ]]; then
-    mkdir -p "$dest/docker/matomo"
-    local item
-    for item in compose.yaml docker-compose.yml .env; do
-      if [[ -f "/opt/matomo/$item" ]]; then
-        cp -a "/opt/matomo/$item" "$dest/docker/matomo/"
+  if [[ -d /opt ]]; then
+    local opt
+    shopt -s nullglob
+    for opt in /opt/*/compose.yaml /opt/*/docker-compose.yml; do
+      [[ -f "$opt" ]] || continue
+      if xedc_excluded "$opt" || xedc_excluded "$(basename "$(dirname "$opt")")"; then
+        xedc_log "备份跳过 ${opt}"
+        continue
       fi
+      local proj
+      proj=$(basename "$(dirname "$opt")")
+      mkdir -p "$dest/docker/$proj"
+      cp -a "$(dirname "$opt")/." "$dest/docker/$proj/"
     done
+    shopt -u nullglob
   fi
   local script rel
   shopt -s nullglob
   for script in /usr/local/sbin/xedc-* /usr/local/bin/xedc-*; do
     if [[ -f "$script" ]]; then
+      if xedc_excluded "$(basename "$script")" || xedc_is_git_push_file "$script"; then
+        xedc_log "备份跳过 $(basename "$script")"
+        continue
+      fi
       rel=${script#/}
       mkdir -p "$dest/rootfs/$(dirname "$rel")"
       cp -a "$script" "$dest/rootfs/$rel"
@@ -90,8 +128,12 @@ system_capture() {
     local vol
     while IFS= read -r vol; do
       [[ -z "$vol" ]] && continue
+      if xedc_excluded "$vol"; then
+        xedc_log "备份跳过卷 ${vol}"
+        continue
+      fi
       case "$vol" in
-        *matomo*|*xedc*)
+        *xedc*)
           if docker run --rm -v "${vol}:/volume:ro" alpine tar -C /volume -cf - . 2>/dev/null | zstd -3 -o "$dest/docker/volumes/${vol}.tar.zst"; then
             printf '%s\n' "$vol" >>"$dest/docker/volumes.list"
           else
@@ -107,8 +149,12 @@ xedc_install_filtered_file() {
   local src=$1 dest=$2
   local base filtered
   base=$(basename "$dest")
-  if xedc_restore_skip "$base" || xedc_is_git_push_file "$src"; then
-    xedc_log "不还原 ${base}：这是旧服务器上的 Git 推送任务"
+  if xedc_excluded "$base" || xedc_restore_skip "$base"; then
+    xedc_log "不还原 ${base}：按 exclude.list 排除"
+    return 0
+  fi
+  if xedc_is_git_push_file "$src"; then
+    xedc_log "不还原 ${base}：这是向 Git 推送的任务，只属于旧服务器"
     return 0
   fi
   filtered=$(mktemp)
@@ -128,8 +174,12 @@ system_restore_unit() {
   local src=$1
   local base dest
   base=$(basename "$src")
-  if xedc_restore_skip "$base" || xedc_is_git_push_file "$src"; then
-    xedc_log "不还原 ${base}：这是旧服务器上的 Git 推送任务"
+  if xedc_excluded "$base" || xedc_restore_skip "$base"; then
+    xedc_log "不还原 ${base}：按 exclude.list 排除"
+    return 0
+  fi
+  if xedc_is_git_push_file "$src"; then
+    xedc_log "不还原 ${base}：这是向 Git 推送的任务，只属于旧服务器"
     return 0
   fi
   mkdir -p /etc/systemd/system
@@ -180,9 +230,23 @@ system_restore() {
   fi
   if [[ -d "$src/nginx/conf.d" ]]; then
     xedc_prepare_dir /etc/nginx/conf.d
-    cp -a "$src/nginx/conf.d/." /etc/nginx/conf.d/
+    local ng
+    shopt -s nullglob
+    for ng in "$src/nginx/conf.d"/*; do
+      [[ -f "$ng" ]] || continue
+      if xedc_conf_excluded "$ng" || xedc_excluded "$(basename "$ng")"; then
+        xedc_log "按 exclude.list 不还原 nginx 配置 $(basename "$ng")"
+        continue
+      fi
+      if xedc_keep_manual "/etc/nginx/conf.d/$(basename "$ng")"; then
+        continue
+      fi
+      cp -a "$ng" "/etc/nginx/conf.d/$(basename "$ng")"
+      xedc_apply_perms "/etc/nginx/conf.d/$(basename "$ng")"
+      xedc_remember_hash "/etc/nginx/conf.d/$(basename "$ng")"
+    done
+    shopt -u nullglob
     rm -f /etc/nginx/conf.d/drupal.conf /etc/nginx/conf.d/default.conf
-    xedc_apply_tree /etc/nginx/conf.d
   fi
   local ver=""
   if [[ -f "$XEDC_STATE_DIR/php-version" ]]; then
@@ -271,33 +335,34 @@ system_restore() {
   if [[ -d "$src/netdata" ]]; then
     mkdir -p /etc/netdata
     rsync -a --exclude 'claim.conf' --exclude '*claim*' --exclude '*token*' "$src/netdata/" /etc/netdata/
+    xedc_apply_tree /etc/netdata
   fi
   if [[ -d "$src/netdata-opt" && -d /opt/netdata/etc/netdata ]]; then
     rsync -a --exclude 'claim.conf' --exclude '*claim*' --exclude '*token*' "$src/netdata-opt/" /opt/netdata/etc/netdata/
   fi
-  if [[ -d "$src/docker/matomo" ]]; then
-    mkdir -p /opt/matomo
-    local item
-    for item in compose.yaml docker-compose.yml .env; do
-      if [[ -f "$src/docker/matomo/$item" ]]; then
-        cp -a "$src/docker/matomo/$item" "/opt/matomo/$item"
-        xedc_apply_perms "/opt/matomo/$item"
+  if [[ -d "$src/docker" ]]; then
+    local proj
+    shopt -s nullglob
+    for proj in "$src/docker"/*; do
+      [[ -d "$proj" ]] || continue
+      [[ "$(basename "$proj")" == "volumes" ]] && continue
+      if xedc_excluded "$(basename "$proj")"; then
+        xedc_log "按 exclude.list 不还原容器项目 $(basename "$proj")"
+        continue
       fi
     done
-    if [[ -f /opt/matomo/compose.yaml || -f /opt/matomo/docker-compose.yml ]]; then
-      if ! declare -F docker_compose_up >/dev/null 2>&1; then
-        # shellcheck source=docker.sh
-        source "$(dirname "${BASH_SOURCE[0]}")/docker.sh"
-      fi
-      docker_compose_up /opt/matomo
-    fi
+    shopt -u nullglob
   fi
   if [[ -d "$src/rootfs" ]]; then
     local rel dest
     while IFS= read -r -d '' rel; do
       dest="/${rel#"$src/rootfs/"}"
-      if xedc_restore_skip "$(basename "$rel")" || xedc_is_git_push_file "$rel"; then
-        xedc_log "不还原 $(basename "$rel")：这是旧服务器上的 Git 推送任务"
+      if xedc_excluded "$(basename "$rel")" || xedc_restore_skip "$(basename "$rel")"; then
+        xedc_log "不还原 $(basename "$rel")：按 exclude.list 排除"
+        continue
+      fi
+      if xedc_is_git_push_file "$rel"; then
+        xedc_log "不还原 $(basename "$rel")：这是向 Git 推送的任务，只属于旧服务器"
         continue
       fi
       mkdir -p "$(dirname "$dest")"
@@ -308,17 +373,27 @@ system_restore() {
   if [[ -d "$src/netdata" || -d "$src/netdata-opt" ]]; then
     xedc_warn "Netdata 配置已还原。claim token 不在备份里，请重新 claim"
   fi
-  if [[ -f "$src/docker/volumes.list" ]] && docker info >/dev/null 2>&1; then
-    local vol archive
-    while IFS= read -r vol; do
-      [[ -z "$vol" ]] && continue
-      archive="$src/docker/volumes/${vol}.tar.zst"
-      [[ -f "$archive" ]] || continue
-      docker volume create "$vol" >/dev/null
-      zstd -dc "$archive" | docker run --rm -i -v "${vol}:/volume" alpine tar -C /volume -xf - || xedc_warn "未能还原 Docker 卷 ${vol}"
-    done <"$src/docker/volumes.list"
-  fi
   xedc_warn "Netdata claim token 不会恢复。请在新服务器重新 claim"
+}
+
+system_restore_volumes() {
+  local src=$1 vol archive
+  [[ -f "$src/docker/volumes.list" ]] || return 0
+  if ! docker info >/dev/null 2>&1; then
+    xedc_warn "Docker 守护进程还没起来，卷稍后再还原"
+    return 0
+  fi
+  while IFS= read -r vol; do
+    [[ -z "$vol" ]] && continue
+    if xedc_excluded "$vol"; then
+      xedc_log "按 exclude.list 不还原卷 ${vol}"
+      continue
+    fi
+    archive="$src/docker/volumes/${vol}.tar.zst"
+    [[ -f "$archive" ]] || continue
+    docker volume create "$vol" >/dev/null
+    zstd -dc "$archive" | docker run --rm -i -v "${vol}:/volume" alpine tar -C /volume -xf - || xedc_warn "未能还原 Docker 卷 ${vol}"
+  done <"$src/docker/volumes.list"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

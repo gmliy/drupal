@@ -53,6 +53,13 @@ GRANT ALL PRIVILEGES ON xedc.* TO 'xedc'@'localhost';
 FLUSH PRIVILEGES;
 SQL
   sql --protocol=socket -u root xedc < /opt/xedc-recovery/tests/fixture/schema.sql
+  mkdir -p /opt/matomo /etc/nginx/conf.d /etc/systemd/system
+  printf '%s\n' 'services: { matomo: { image: matomo:5-apache } }' >/opt/matomo/compose.yaml
+  printf '%s\n' 'server { server_name x.gitxx.xyz; listen 8088; }' >/etc/nginx/conf.d/matomo.conf
+  printf '%s\n' 'server { server_name matomo.gitxx.xyz; }' >/etc/nginx/conf.d/analytics.conf
+  printf '%s\n' '[Service]' 'ExecStart=/bin/true' >/etc/systemd/system/xedc-matomo.service
+  printf '%s\n' '0 3 * * * root docker compose -f /opt/matomo/compose.yaml up -d' >/etc/cron.d/xedc-matomo
+  chmod 644 /etc/cron.d/xedc-matomo /etc/nginx/conf.d/matomo.conf /etc/nginx/conf.d/analytics.conf
   printf '%s\n' '*/15 * * * * cd /var/www/drupal && /var/www/drupal/bin/drush cron --quiet' | crontab -
   printf '%s\n' '*/15 * * * * root /var/www/drupal/bin/drush cron --quiet' >/etc/cron.d/xedc-drupal
   chmod 644 /etc/cron.d/xedc-drupal
@@ -95,6 +102,33 @@ case "$mode" in
       --s3-force-path-style | sed '/^$/d' | sort)
     printf 'bootstrap: %s\n' "${boot[*]}"
     [[ "${boot[*]}" == "install.sh xedc-recovery.tar.gz" ]]
+    if ! grep -q '恢复时将被卸载' /var/log/xedc-backup.log; then
+      echo "启用中的排除模块没有提示恢复时卸载"
+      exit 1
+    fi
+    if ! grep -q '排除清单' /var/log/xedc-backup.log; then
+      echo "备份日志没有打印排除清单"
+      exit 1
+    fi
+    file=$(archive_path)
+    [[ -n "$file" ]]
+    members=$(tar -I zstd -tf "$file")
+    if printf '%s\n' "$members" | grep -E 'system/nginx/.*/matomo|analytics\.conf|system/docker/matomo|matomo\.service|cron.d/.*matomo|code/config/sync/matomo|code/vendor/drupal/matomo|code/web/modules/contrib/matomo'; then
+      echo "新备份包仍有 Matomo 服务、配置或模块文件"
+      exit 1
+    fi
+    if tar -I zstd -xOf "$file" ./manifest.json | grep -i matomo; then
+      echo "manifest 仍有 Matomo"
+      exit 1
+    fi
+    if tar -I zstd -xOf "$file" ./code/composer.json | grep -i matomo; then
+      echo "备份里的 composer.json 仍有 Matomo"
+      exit 1
+    fi
+    if ! printf '%s\n' "$members" | grep -q 'themes/custom/xedc/templates/matomo-hardcode.html.twig'; then
+      echo "主题里的硬编码应留在备份里，恢复时只报告"
+      exit 1
+    fi
     echo "XEDC_STAGE backup PASS"
     ;;
   target)
@@ -127,10 +161,15 @@ case "$mode" in
     ffmpeg -y -hide_banner -loglevel error -i /var/www/drupal/web/sites/default/files/clip.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart /tmp/transcoded.mp4
     ffprobe -v error -show_entries stream=codec_name -of csv=p=0 /tmp/transcoded.mp4 | grep -q h264
     chown www-data:www-data /var/www/drupal/web/sites/default/files/clip.mp4
-    code=$(curl -k -s -o /dev/null -w '%{http_code}' --resolve test1.local:443:127.0.0.1 https://test1.local/video)
-    [[ "$code" == "200" ]]
-    code=$(curl -k -s -o /dev/null -w '%{http_code}' --resolve test1.local:443:127.0.0.1 https://test1.local/sites/default/files/clip.mp4)
-    [[ "$code" == "200" ]]
+    code=""
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      code=$(curl -k -s -o /dev/null -w '%{http_code}' --resolve test1.local:443:127.0.0.1 https://test1.local/video || true)
+      [[ "$code" == "200" ]] && break
+      sleep 0.5
+    done
+    [[ "$code" == "200" ]] || { echo "视频页 HTTP ${code}"; exit 1; }
+    code=$(curl -k -s -o /dev/null -w '%{http_code}' --resolve test1.local:443:127.0.0.1 https://test1.local/sites/default/files/clip.mp4 || true)
+    [[ "$code" == "200" ]] || { echo "视频文件 HTTP ${code}"; exit 1; }
     echo "XEDC_STAGE video PASS"
     ;;
   idem)
@@ -154,8 +193,10 @@ case "$mode" in
       echo "预期中途失败，但命令成功了"
       exit 1
     fi
-    XEDC_FAIL_STEP=domain bash /opt/xedc-recovery/restore.sh --resume --from "local:${file}" --domain test1.local --email admin@test1.local --https self --www no --yes
+    unset XEDC_FAIL_STEP
+    bash /opt/xedc-recovery/restore.sh --resume --from "local:${file}" --domain test1.local --email admin@test1.local --https self --www no --yes
     echo "XEDC_STAGE resume PASS"
+    exit 0
     ;;
   verify)
     start_stack
@@ -267,6 +308,23 @@ EOF
     grep -R -F 'unix:/run/php/php8.5-fpm.sock' /etc/nginx/conf.d
     hdr=$(curl -k -sI --resolve test1.local:443:127.0.0.1 https://test1.local/ | tr -d '\r' | awk 'tolower($1)=="x-php-version:" {print $2; exit}' || true)
     [[ "$hdr" == 8.5.* ]]
+    if grep -RIn 'matomo' /var/www/drupal/config/sync /var/www/drupal/composer.json; then
+      echo "恢复后的配置或 composer.json 仍有 Matomo"
+      exit 1
+    fi
+    if [[ -d /var/www/drupal/vendor/drupal/matomo || -d /var/www/drupal/web/modules/contrib/matomo ]]; then
+      echo "恢复后仍有 Matomo 模块目录"
+      exit 1
+    fi
+    if curl -k -s --resolve test1.local:443:127.0.0.1 https://test1.local/ | grep -Ei 'matomo\.js|piwik\.js'; then
+      echo "首页仍有 Matomo 脚本"
+      exit 1
+    fi
+    if ! grep -q 'matomo-hardcode.html.twig' /var/lib/xedc-recovery/module-code-refs.txt; then
+      echo "没有报告主题里的硬编码"
+      exit 1
+    fi
+    grep -q 'matomo.js' /var/www/drupal/web/themes/custom/xedc/templates/matomo-hardcode.html.twig
     echo "XEDC_STAGE php PASS"
     ;;
   prompts)
@@ -446,8 +504,8 @@ PY
     deny_out=$(xedc_assert_readable redis /etc/redis/xedc.conf 2>&1)
     deny_rc=$?
     set -e
-    if [[ "$deny_rc" == 0 ]] || ! printf '%s\n' "$deny_out" | grep -q '无法读取'; then
-      echo "root 只读配置应被拒绝"
+    if [[ "$deny_rc" != 0 ]] || ! printf '%s\n' "$deny_out" | grep -q '无法读取'; then
+      echo "root 只读配置应报告无法读取并自动修好"
       printf '%s\n' "$deny_out"
       exit 1
     fi
@@ -464,10 +522,14 @@ PY
     mariadb_configure
     php_configure
     nginx_configure
+    ver=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;')
+    echo "redis $(stat -c '%a %U %G' /etc/redis/xedc.conf) dir $(stat -c '%a %U %G' /etc/redis)"
+    echo "mysql $(stat -c '%a %U %G' /etc/mysql/mariadb.conf.d/99-xedc.cnf)"
+    echo "nginx $(stat -c '%a %U %G' /etc/nginx/conf.d/xedc.conf)"
+    echo "php $(stat -c '%a %U %G' "/etc/php/${ver}/fpm/pool.d/www.conf")"
     [[ "$(stat -c '%a %U %G' /etc/redis/xedc.conf)" == "640 redis redis" ]]
     [[ "$(stat -c '%a %U %G' /etc/mysql/mariadb.conf.d/99-xedc.cnf)" == "640 mysql mysql" ]]
     [[ "$(stat -c '%a %U %G' /etc/nginx/conf.d/xedc.conf)" == "640 root www-data" ]]
-    ver=$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;')
     [[ "$(stat -c '%a %U %G' "/etc/php/${ver}/fpm/pool.d/www.conf")" == "640 root www-data" ]]
     runuser -u redis -- test -r /etc/redis/xedc.conf
     runuser -u mysql -- test -r /etc/mysql/mariadb.conf.d/99-xedc.cnf
@@ -475,6 +537,17 @@ PY
     runuser -u www-data -- test -r "/etc/php/${ver}/fpm/pool.d/www.conf"
     grep -q '^vm.overcommit_memory=1$' /etc/sysctl.d/99-xedc.conf
     [[ "$(stat -c '%a' /etc/sysctl.d/99-xedc.conf)" == "644" ]]
+    [[ "$(stat -c '%a %U %G' /etc/redis)" == "755 root root" ]]
+    if ! id netdata >/dev/null 2>&1; then
+      useradd --system --no-create-home --shell /usr/sbin/nologin netdata
+    fi
+    mkdir -p /etc/netdata
+    printf '%s\n' 'bind to = 127.0.0.1' >/etc/netdata/xedc.conf
+    xedc_apply_perms /etc/netdata
+    xedc_apply_perms /etc/netdata/xedc.conf
+    [[ "$(stat -c '%a %U %G' /etc/netdata/xedc.conf)" == "640 root netdata" ]]
+    [[ "$(stat -c '%a' /etc/netdata)" == "755" ]]
+    runuser -u netdata -- test -r /etc/netdata/xedc.conf
     echo "XEDC_STAGE perms PASS"
     ;;
   lowmem)
@@ -511,32 +584,37 @@ PY
       fi
     done
     hash -r
-    mkdir -p /opt/matomo
-    printf '%s\n' 'services: {}' >/opt/matomo/compose.yaml
+    mkdir -p /opt/xedc-extra
+    printf '%s\n' 'services: {}' >/opt/xedc-extra/compose.yaml
+    export XEDC_STATE_DIR=/tmp/xedc-compose-state
+    rm -rf "$XEDC_STATE_DIR"
+    mkdir -p "$XEDC_STATE_DIR"
     set +e
-    miss_out=$(docker_compose_up /opt/matomo 2>&1)
+    miss_out=$(docker_compose_up /opt/xedc-extra 2>&1)
     miss_rc=$?
     set -e
-    for plugin in "${moved[@]}"; do
-      mv "${plugin}.baktest" "$plugin"
-    done
-    if [[ "$miss_rc" == 0 ]] || printf '%s\n' "$miss_out" | grep -q '编排文件已还原'; then
-      echo "缺少 compose 时不应继续"
+    if [[ "$miss_rc" != 0 ]]; then
+      echo "非核心容器失败不应中断恢复"
       printf '%s\n' "$miss_out"
       exit 1
     fi
-    printf '%s\n' "$miss_out" | grep -q 'docker-compose-v2'
-    docker_install_compose
-    docker compose version
-    set +e
-    daemon_out=$(docker_compose_up /opt/matomo 2>&1)
-    daemon_rc=$?
-    set -e
-    if [[ "$daemon_rc" == 0 ]]; then
-      echo "守护进程没起来时容器不应算启动成功"
+    if printf '%s\n' "$miss_out" | grep -q '编排文件已还原'; then
+      echo "不能只写编排文件已还原"
       exit 1
     fi
-    printf '%s\n' "$daemon_out" | grep -E '守护进程未运行|容器启动失败|日志如下'
+    docker compose version
+    if docker info >/dev/null 2>&1; then
+      printf '%s\n' "$miss_out" | grep -E '容器已启动|容器启动失败|日志如下'
+    else
+      printf '%s\n' "$miss_out" | grep -E '守护进程未运行|容器启动失败|日志如下'
+      grep -E '守护进程未运行|容器启动失败' "$XEDC_STATE_DIR/failures.txt"
+    fi
+    for plugin in "${moved[@]}"; do
+      if [[ -e "${plugin}.baktest" && ! -e "$plugin" ]]; then
+        mv "${plugin}.baktest" "$plugin"
+      fi
+      rm -f "${plugin}.baktest"
+    done
     echo "XEDC_STAGE compose PASS"
     ;;
   redisresume)
@@ -582,7 +660,376 @@ PY
     [[ "$(stat -c '%a %U %G' /etc/redis/xedc.conf)" == "640 redis redis" ]]
     runuser -u redis -- test -r /etc/redis/xedc.conf
     redis-cli ping | grep -q PONG
+    saved=$(mktemp)
+    cp /etc/nginx/conf.d/xedc.conf "$saved"
+    printf '\nbad_directive;\n' >>/etc/nginx/conf.d/xedc.conf
+    rm -f /var/lib/xedc-recovery/steps/services.done \
+      /var/lib/xedc-recovery/steps/drush.done \
+      /var/lib/xedc-recovery/steps/domain.done \
+      /var/lib/xedc-recovery/steps/https.done \
+      /var/lib/xedc-recovery/steps/selfcheck.done \
+      /var/lib/xedc-recovery/steps/workers.done
+    set +e
+    XEDC_NO_TMUX=1 bash /opt/xedc-recovery/restore.sh --resume --from "local:${file}" --domain test1.local --email admin@test1.local --https self --www no --yes
+    bad_rc=$?
+    set -e
+    if [[ "$bad_rc" == 0 ]]; then
+      echo "手动改坏的主站配置不应被覆盖成能通过的版本"
+      exit 1
+    fi
+    if ! grep -q '保留手动修改' /var/log/xedc-restore.log; then
+      echo "没有提示保留手动修改"
+      exit 1
+    fi
+    cp "$saved" /etc/nginx/conf.d/xedc.conf
+    printf '\n# manual-gzip-marker\n' >>/etc/nginx/conf.d/gzip.conf
+    rm -f /var/lib/xedc-recovery/steps/services.done \
+      /var/lib/xedc-recovery/steps/drush.done \
+      /var/lib/xedc-recovery/steps/domain.done \
+      /var/lib/xedc-recovery/steps/https.done \
+      /var/lib/xedc-recovery/steps/selfcheck.done \
+      /var/lib/xedc-recovery/steps/workers.done
+    XEDC_NO_TMUX=1 bash /opt/xedc-recovery/restore.sh --resume --from "local:${file}" --domain test1.local --email admin@test1.local --https self --www no --yes
+    grep -q 'manual-gzip-marker' /etc/nginx/conf.d/gzip.conf
+    [[ "$(stat -c '%a %U %G' /etc/redis/xedc.conf)" == "640 redis redis" ]]
+    redis-cli ping | grep -q PONG
+    rm -f "$saved"
     echo "XEDC_STAGE redisresume PASS"
+    ;;
+  certs)
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/domain.sh
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/certbot.sh
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/nginx.sh
+    export XEDC_LOG_FILE=/var/log/xedc-restore.log
+    export DOMAIN=tlte.top OLD_DOMAIN=gitxx.xyz EMAIL=gitxx@gmail.com
+    export HTTPS=auto XEDC_HTTPS_MODE=auto WWW=no
+    export MATOMO_DOMAIN=shop.tlte.top OLD_MATOMO=shop.gitxx.xyz
+    MANUAL=/tmp/xedc-manual.txt
+    : >"$MANUAL"
+    note_manual() { printf '%s\n' "$*" >>"$MANUAL"; }
+    nginx -t >/dev/null
+    cat >/etc/nginx/conf.d/shop.conf <<'EOF'
+server {
+    server_name shop.gitxx.xyz;
+    location / { proxy_pass http://127.0.0.1:8088; }
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/shop.gitxx.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/shop.gitxx.xyz/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}
+server {
+    if ($host = shop.gitxx.xyz) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+    listen 80;
+    listen [::]:80;
+    server_name shop.gitxx.xyz;
+    return 404; # managed by Certbot
+}
+EOF
+    rm -rf /etc/letsencrypt/live/shop.gitxx.xyz /etc/letsencrypt/live/shop.tlte.top /etc/letsencrypt/live/tlte.top
+    mkdir -p /etc/letsencrypt/live/shop.gitxx.xyz
+    openssl req -x509 -nodes -days 2 -newkey rsa:2048 \
+      -keyout /etc/letsencrypt/live/shop.gitxx.xyz/privkey.pem \
+      -out /etc/letsencrypt/live/shop.gitxx.xyz/fullchain.pem \
+      -subj /CN=shop.gitxx.xyz >/dev/null 2>&1
+    rm -f /etc/letsencrypt/options-ssl-nginx.conf
+    set +e
+    miss_include=$(nginx_test 2>&1)
+    miss_rc=$?
+    set -e
+    [[ "$miss_rc" != 0 ]]
+    printf '%s\n' "$miss_include" | grep -q 'nginx 配置检测失败'
+    printf '%s\n' "$miss_include" | grep -q 'options-ssl-nginx.conf'
+    certbot_ensure_snippets
+    [[ -s /etc/letsencrypt/options-ssl-nginx.conf ]]
+    [[ -s /etc/letsencrypt/ssl-dhparams.pem ]]
+    rm -rf /etc/letsencrypt/live/shop.gitxx.xyz
+    set +e
+    miss_cert=$(nginx_test 2>&1)
+    miss_rc=$?
+    set -e
+    [[ "$miss_rc" != 0 ]]
+    printf '%s\n' "$miss_cert" | grep -q 'fullchain.pem'
+    printf '%s\n' 'server { server_name x.gitxx.xyz; }' >/etc/nginx/conf.d/matomo.conf
+    domain_apply_configs
+    [[ ! -f /etc/nginx/conf.d/matomo.conf ]]
+    grep -q 'server_name shop.tlte.top;' /etc/nginx/conf.d/shop.conf
+    grep -q '/etc/letsencrypt/live/shop.tlte.top/fullchain.pem' /etc/nginx/conf.d/shop.conf
+    if grep -q 'gitxx.xyz' /etc/nginx/conf.d/shop.conf; then
+      echo "替换后 nginx 仍有旧域名"
+      exit 1
+    fi
+    nginx_prepare_http
+    nginx_ensure_certs
+    grep -q 'acme-challenge' /etc/nginx/conf.d/shop.conf
+    if grep -q 'if ($host' /etc/nginx/conf.d/shop.conf; then
+      echo "Matomo 的 80 端口仍会跳走挑战文件"
+      exit 1
+    fi
+    [[ -f /etc/letsencrypt/live/shop.tlte.top/.selfsigned ]]
+    export XEDC_DOMAIN=tlte.top XEDC_WWW=no XEDC_WEB_ROOT=/var/www/drupal/web
+    nginx_configure
+    nginx_ensure_certs
+    [[ -f /etc/letsencrypt/live/tlte.top/.selfsigned ]]
+    nginx_test
+    install -d /tmp/fakebin
+    cat >/tmp/fakebin/dig <<'EOF'
+#!/bin/bash
+if [[ "$*" == *NS* ]]; then
+  echo ns1.example.net.
+  exit 0
+fi
+if [[ -f /tmp/dns-hit ]]; then
+  hostname -I | awk '{print $1}'
+  exit 0
+fi
+echo 203.0.113.10
+EOF
+    cat >/tmp/fakebin/certbot <<'EOF'
+#!/bin/bash
+printf '%s\n' "$*" >>/tmp/certbot-calls
+domain=""
+prev=""
+for arg in "$@"; do
+  if [[ "$prev" == "-d" ]]; then
+    domain=$arg
+    break
+  fi
+  prev=$arg
+done
+if [[ -f /tmp/fail-shop && "$domain" == "shop.tlte.top" ]]; then
+  exit 1
+fi
+dir="/etc/letsencrypt/live/${domain}"
+mkdir -p "$dir" /tmp/xedc-ca
+if [[ ! -s /tmp/xedc-ca/ca.key ]]; then
+  openssl req -x509 -nodes -newkey rsa:2048 -keyout /tmp/xedc-ca/ca.key -out /tmp/xedc-ca/ca.crt -subj /CN=FakeCA -days 30 >/dev/null 2>&1
+fi
+openssl req -nodes -newkey rsa:2048 -keyout "${dir}/privkey.pem" -out /tmp/xedc-ca/req.csr -subj "/CN=${domain}" >/dev/null 2>&1
+openssl x509 -req -in /tmp/xedc-ca/req.csr -CA /tmp/xedc-ca/ca.crt -CAkey /tmp/xedc-ca/ca.key -CAcreateserial -out "${dir}/fullchain.pem" -days 30 >/dev/null 2>&1
+rm -f "${dir}/.selfsigned"
+chmod 644 "${dir}/fullchain.pem"
+chmod 640 "${dir}/privkey.pem"
+exit 0
+EOF
+    chmod 755 /tmp/fakebin/dig /tmp/fakebin/certbot
+    export PATH="/tmp/fakebin:${PATH}"
+    hash -r
+    : >/tmp/certbot-calls
+    rm -f /tmp/dns-hit /tmp/fail-shop
+    certbot_upgrade_domain tlte.top main
+    certbot_upgrade_domain shop.tlte.top matomo
+    if [[ -s /tmp/certbot-calls ]]; then
+      echo "DNS 未指向本机时不应签发"
+      cat /tmp/certbot-calls
+      exit 1
+    fi
+    [[ -f /etc/letsencrypt/live/tlte.top/.selfsigned ]]
+    [[ -f /etc/letsencrypt/live/shop.tlte.top/.selfsigned ]]
+    grep -q 'tlte.top 目前是临时自签证书' "$MANUAL"
+    grep -q 'shop.tlte.top 目前是临时自签证书' "$MANUAL"
+    grep -q 'certbot certonly --webroot' "$MANUAL"
+    nginx_test
+    touch /tmp/dns-hit
+    : >/tmp/certbot-calls
+    certbot_upgrade_domain tlte.top main
+    certbot_upgrade_domain shop.tlte.top matomo
+    grep -q -- '-d tlte.top' /tmp/certbot-calls
+    grep -q -- '-d shop.tlte.top' /tmp/certbot-calls
+    certbot_cert_is_real tlte.top
+    certbot_cert_is_real shop.tlte.top
+    if [[ -f /etc/letsencrypt/live/tlte.top/.selfsigned || -f /etc/letsencrypt/live/shop.tlte.top/.selfsigned ]]; then
+      echo "正式证书仍带着自签标记"
+      exit 1
+    fi
+    calls=$(wc -l </tmp/certbot-calls)
+    certbot_upgrade_domain tlte.top main
+    certbot_upgrade_domain shop.tlte.top matomo
+    [[ "$(wc -l </tmp/certbot-calls)" == "$calls" ]]
+    nginx_test
+    rm -rf /etc/letsencrypt/live/shop.tlte.top
+    certbot_selfsign shop.tlte.top
+    touch /tmp/fail-shop
+    before_calls=$(wc -l </tmp/certbot-calls)
+    set +e
+    certbot_upgrade_domain shop.tlte.top matomo
+    matomo_rc=$?
+    set -e
+    [[ "$matomo_rc" == 0 ]]
+    [[ "$(wc -l </tmp/certbot-calls)" -gt "$before_calls" ]]
+    [[ -f /etc/letsencrypt/live/shop.tlte.top/.selfsigned ]]
+    certbot_cert_is_real tlte.top
+    nginx_test
+    cat >/etc/nginx/conf.d/shop.conf <<'EOF'
+server {
+    server_name shop.gitxx.xyz;
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/shop.gitxx.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/shop.gitxx.xyz/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}
+EOF
+    rm -rf /etc/letsencrypt/live/shop.gitxx.xyz
+    printf '%s\n' 'server { server_name x.gitxx.xyz; }' >/etc/nginx/conf.d/matomo.conf
+    domain_apply_configs
+    [[ ! -f /etc/nginx/conf.d/matomo.conf ]]
+    nginx_prepare_http
+    nginx_ensure_certs
+    grep -q 'server_name shop.tlte.top;' /etc/nginx/conf.d/shop.conf
+    if grep -q 'gitxx.xyz' /etc/nginx/conf.d/shop.conf; then
+      echo "--resume 重新复制后又变回旧域名"
+      exit 1
+    fi
+    nginx_test
+    export XEDC_HTTPS_MODE=self
+    : >/tmp/certbot-calls
+    certbot_upgrade_domain tlte.top main
+    [[ ! -s /tmp/certbot-calls ]]
+    printf '%s\n' 'server { listen 80; server_name broken.example; this is not valid }' >/etc/nginx/conf.d/broken.conf
+    nginx_quarantine_sites
+    [[ -f /etc/nginx/disabled/broken.conf ]]
+    nginx -t
+    if grep -R 'gitxx.xyz' /etc/nginx/conf.d /etc/nginx/sites-enabled 2>/dev/null; then
+      echo "域名变更后仍有旧域名"
+      exit 1
+    fi
+    echo "XEDC_STAGE certs PASS"
+    ;;
+  matomo)
+    start_stack
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/system.sh
+    rm -f /var/lib/xedc-recovery/enable-units /var/lib/xedc-recovery/deferred-units
+    unitdir=$(mktemp -d)
+    printf '%s\n' '[Service]' 'ExecStart=/bin/true' >"$unitdir/xedc-push-gmliy.service"
+    printf '%s\n' '[Service]' 'ExecStart=/bin/true' >"$unitdir/noinstall.service"
+    printf '%s\n' '[Service]' 'ExecStart=/bin/true' '[Install]' 'WantedBy=multi-user.target' >"$unitdir/xedc-import-worker.service"
+    system_restore_unit "$unitdir/xedc-push-gmliy.service"
+    system_restore_unit "$unitdir/noinstall.service"
+    system_restore_unit "$unitdir/xedc-import-worker.service"
+    [[ ! -f /etc/systemd/system/xedc-push-gmliy.service ]]
+    [[ -f /etc/systemd/system/noinstall.service ]]
+    if [[ -f /var/lib/xedc-recovery/enable-units ]] && grep -q 'noinstall.service' /var/lib/xedc-recovery/enable-units; then
+      echo "没有 [Install] 的单元被 enable 了"
+      exit 1
+    fi
+    grep -q 'xedc-import-worker.service' /var/lib/xedc-recovery/deferred-units
+    if [[ -f /var/lib/xedc-recovery/enable-units ]] && grep -q 'xedc-import-worker.service' /var/lib/xedc-recovery/enable-units; then
+      echo "worker 不应在自检前 enable"
+      exit 1
+    fi
+    rm -f /etc/systemd/system/noinstall.service /etc/systemd/system/xedc-import-worker.service
+    rm -f /var/lib/xedc-recovery/enable-units /var/lib/xedc-recovery/deferred-units
+    mkdir -p /opt/matomo /etc/nginx/conf.d
+    printf '%s\n' 'services: { web: { image: matomo:5-apache } }' >/opt/matomo/compose.yaml
+    printf '%s\n' 'server { server_name x.gitxx.xyz; }' >/etc/nginx/conf.d/matomo.conf
+    clean_out=$(bash /opt/xedc-recovery/restore.sh --clean-excluded 2>&1 || true)
+    printf '%s\n' "$clean_out" | grep -q '/opt/matomo'
+    [[ -d /opt/matomo ]]
+    [[ -f /etc/nginx/conf.d/matomo.conf ]]
+    bash /opt/xedc-recovery/restore.sh --clean-excluded --yes
+    [[ ! -d /opt/matomo ]]
+    [[ ! -f /etc/nginx/conf.d/matomo.conf ]]
+    rule=$(mktemp)
+    cp /opt/xedc-recovery/exclude.list "$rule"
+    printf '\n%s\n' shoptest >>"$rule"
+    export XEDC_EXCLUDE_FILE=$rule
+    sys=$(mktemp -d)
+    mkdir -p "$sys/nginx/conf.d"
+    printf '%s\n' 'server { server_name shoptest.example; listen 127.0.0.1:9; }' >"$sys/nginx/conf.d/shoptest.conf"
+    printf '%s\n' 'server { server_name ok.example; listen 127.0.0.1:9; }' >"$sys/nginx/conf.d/ok.conf"
+    system_restore "$sys"
+    [[ ! -f /etc/nginx/conf.d/shoptest.conf ]]
+    [[ -f /etc/nginx/conf.d/ok.conf ]]
+    rm -f /etc/nginx/conf.d/ok.conf
+    unset XEDC_EXCLUDE_FILE
+    file=$(archive_path)
+    [[ -n "$file" ]]
+    work=$(mktemp -d)
+    tar -I zstd -xf "$file" -C "$work"
+    fix=/opt/xedc-recovery/tests/fixture/site
+    mkdir -p "$work/code/config/sync" "$work/code/web/modules/contrib/matomo" "$work/code/vendor/drupal/matomo" \
+      "$work/system/nginx/conf.d" "$work/system/docker/matomo" "$work/system/systemd"
+    cp "$fix/config/sync/core.extension.yml" "$fix/config/sync/matomo.settings.yml" \
+      "$fix/config/sync/block.block.matomo_script.yml" "$fix/config/sync/views.settings.yml" \
+      "$work/code/config/sync/"
+    cat >"$work/code/composer.json" <<'EOF'
+{
+  "name": "xedc/fixture-site",
+  "require": {
+    "php": ">=8.1",
+    "drupal/matomo": "*",
+    "drupal/matomo_reports": "*"
+  },
+  "repositories": [
+    {"type": "path", "url": "vendor/drupal/matomo", "options": {"symlink": false}},
+    {"type": "path", "url": "vendor/drupal/matomo_reports", "options": {"symlink": false}}
+  ],
+  "config": {"allow-plugins": true}
+}
+EOF
+    cp "$fix/web/modules/contrib/matomo/matomo.info.yml" "$work/code/web/modules/contrib/matomo/"
+    mkdir -p "$work/code/vendor/drupal/matomo" "$work/code/vendor/drupal/matomo_reports"
+    printf '%s\n' '{"name":"drupal/matomo","version":"1.0.0"}' >"$work/code/vendor/drupal/matomo/composer.json"
+    printf '%s\n' '{"name":"drupal/matomo_reports","version":"1.0.0"}' >"$work/code/vendor/drupal/matomo_reports/composer.json"
+    printf '%s\n' 'server { server_name x.gitxx.xyz; listen 8088; include /etc/letsencrypt/options-ssl-nginx.conf; }' >"$work/system/nginx/conf.d/matomo.conf"
+    printf '%s\n' 'services: { web: { image: matomo:5-apache } }' >"$work/system/docker/matomo/compose.yaml"
+    printf '%s\n' '[Service]' 'ExecStart=/bin/true' >"$work/system/systemd/matomo.service"
+    sqlz="$work/db/site.sql.zst"
+    zstd -dc "$sqlz" >"$work/db/site.sql"
+    printf '%s\n' "INSERT INTO page_content (id, body, packed) VALUES (2, '<script src=\"https://x.gitxx.xyz/matomo.js\"></script>', 'matomo');" >>"$work/db/site.sql"
+    zstd -f -3 -o "$sqlz" "$work/db/site.sql"
+    rm -f "$work/db/site.sql"
+    old=/tmp/old-matomo.tar.zst
+    tar -C "$work" -cf - . | zstd -3 -o "$old"
+    export COMPOSER_DISABLE_NETWORK=1
+    XEDC_NO_TMUX=1 bash /opt/xedc-recovery/restore.sh --force --from "local:${old}" --domain test1.local --email admin@test1.local --https self --www no --yes
+    [[ ! -f /etc/nginx/conf.d/matomo.conf ]]
+    [[ ! -d /opt/matomo ]]
+    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+      if docker ps -a --format '{{.Names}}' | grep -i matomo; then echo "仍有 matomo 容器"; exit 1; fi
+      if docker volume ls -q | grep -i matomo; then echo "仍有 matomo 卷"; exit 1; fi
+      if docker network ls --format '{{.Name}}' | grep -i matomo; then echo "仍有 matomo 网络"; exit 1; fi
+    fi
+    if /var/www/drupal/bin/drush -r /var/www/drupal pm:list --status=enabled | grep -E 'matomo.*Enabled'; then
+      echo "模块仍启用"
+      exit 1
+    fi
+    if grep -RIn 'matomo' /var/www/drupal/config/sync /var/www/drupal/composer.json; then
+      echo "配置或 composer 仍有 Matomo"
+      exit 1
+    fi
+    [[ ! -e /var/www/drupal/vendor/drupal/matomo ]]
+    [[ ! -e /var/www/drupal/web/modules/contrib/matomo ]]
+    if curl -k -s --resolve test1.local:443:127.0.0.1 https://test1.local/ | grep -Ei 'matomo\.js|piwik\.js'; then
+      echo "首页仍有跟踪脚本"
+      exit 1
+    fi
+    if sql --protocol=socket -u root -N -e "SELECT body FROM page_content" xedc | grep -Ei 'matomo|piwik'; then
+      echo "数据库仍有跟踪脚本"
+      exit 1
+    fi
+    grep -q 'matomo.js' /var/www/drupal/web/themes/custom/xedc/templates/matomo-hardcode.html.twig
+    nginx -t
+    XEDC_NO_TMUX=1 bash /opt/xedc-recovery/restore.sh --force --keep-matomo-module --from "local:${old}" --domain test1.local --email admin@test1.local --https self --www no --yes
+    grep -q 'drupal/matomo' /var/www/drupal/composer.json
+    [[ -f /var/www/drupal/config/sync/matomo.settings.yml ]]
+    [[ ! -f /etc/nginx/conf.d/matomo.conf ]]
+    [[ ! -d /opt/matomo ]]
+    mkdir -p "$work/code/web/modules/custom/xedc_stats"
+    printf '%s\n' 'name: Stats' 'type: module' 'dependencies:' '  - matomo' >"$work/code/web/modules/custom/xedc_stats/xedc_stats.info.yml"
+    dep=/tmp/dep-matomo.tar.zst
+    tar -C "$work" -cf - . | zstd -3 -o "$dep"
+    rm -f /var/lib/xedc-recovery/failures.txt
+    XEDC_NO_TMUX=1 bash /opt/xedc-recovery/restore.sh --force --from "local:${dep}" --domain test1.local --email admin@test1.local --https self --www no --yes
+    grep -E '依赖|卸载模块' /var/lib/xedc-recovery/failures.txt
+    echo "XEDC_STAGE matomo PASS"
     ;;
   *)
     echo "未知模式 $mode" >&2

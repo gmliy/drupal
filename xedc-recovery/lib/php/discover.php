@@ -2,6 +2,39 @@
 
 declare(strict_types=1);
 
+function xedc_discover_rules(): array
+{
+  $file = getenv('XEDC_EXCLUDE_FILE');
+  if (!is_string($file) || $file === '') {
+    $file = dirname(__DIR__, 2) . '/exclude.list';
+  }
+  if (!is_file($file)) {
+    return [];
+  }
+  $rules = [];
+  foreach (file($file) ?: [] as $line) {
+    $line = trim((string) (preg_replace('/\s+#.*$/', '', $line) ?? $line));
+    if ($line === '' || str_starts_with($line, '#')) {
+      continue;
+    }
+    $rules[] = $line;
+  }
+  return $rules;
+}
+
+function xedc_discover_excluded(string $value): bool
+{
+  if ($value === '') {
+    return false;
+  }
+  foreach (xedc_discover_rules() as $rule) {
+    if (str_contains($value, $rule)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function xedc_sh(string $command): string
 {
   $spec = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
@@ -160,6 +193,9 @@ $clientMax = (string) ($hints['client_max_body_size'] ?? '');
 $nginxConf = xedc_sh("nginx -V 2>&1 || true");
 $serverNames = [];
 foreach (glob('/etc/nginx/conf.d/*.conf') ?: [] as $conf) {
+  if (xedc_discover_excluded(basename($conf))) {
+    continue;
+  }
   $text = (string) file_get_contents($conf);
   if (preg_match('/client_max_body_size\s+([^;]+);/', $text, $m) === 1 && $clientMax === '') {
     $clientMax = trim($m[1]);
@@ -329,8 +365,17 @@ foreach (preg_split("/\n/", $listenRaw) ?: [] as $line) {
 $nodeBin = is_executable('/usr/bin/node') ? '/usr/bin/node' : 'node';
 $nodeVersion = xedc_sh(escapeshellarg($nodeBin) . ' -v 2>/dev/null || true');
 $compose = [];
-foreach (['/opt/matomo/compose.yaml', '/opt/matomo/docker-compose.yml'] as $composeFile) {
-  if (is_file($composeFile)) {
+foreach (glob('/opt/*/compose.yaml') ?: [] as $composeFile) {
+  if (xedc_discover_excluded($composeFile) || xedc_discover_excluded(basename(dirname($composeFile)))) {
+    continue;
+  }
+  $compose[] = $composeFile;
+}
+foreach (glob('/opt/*/docker-compose.yml') ?: [] as $composeFile) {
+  if (xedc_discover_excluded($composeFile) || xedc_discover_excluded(basename(dirname($composeFile)))) {
+    continue;
+  }
+  if (!in_array($composeFile, $compose, true)) {
     $compose[] = $composeFile;
   }
 }
@@ -342,6 +387,9 @@ foreach (preg_split("/\n/", $imageRaw) ?: [] as $line) {
   }
   [$name, $image] = explode("\t", $line, 2);
   if (preg_match('/^(xedc-|minio)/', $name) === 1 || str_contains($name, 'lab') || str_contains($name, 'recover')) {
+    continue;
+  }
+  if (xedc_discover_excluded($name) || xedc_discover_excluded($image)) {
     continue;
   }
   $images[] = $name . '=' . $image;
@@ -501,12 +549,66 @@ $manifest = [
       'provider' => $storageProvider,
       'credentials' => 'environment-or-private-files',
     ],
-    'matomo' => ['runtime' => $compose !== [] ? 'docker' : 'module'],
     'recaptcha' => false,
     'turnstile' => false,
     'oauth' => false,
   ],
 ];
+
+$skipPorts = [];
+$portRaw = xedc_sh("docker ps --format '{{.Names}}\t{{.Ports}}' 2>/dev/null || true");
+foreach (preg_split("/\n/", $portRaw) ?: [] as $line) {
+  if (!str_contains($line, "\t")) {
+    continue;
+  }
+  [$name, $ports] = explode("\t", $line, 2);
+  if (!xedc_discover_excluded($name)) {
+    continue;
+  }
+  if (preg_match_all('/:(\d+)->/', $ports, $pm)) {
+    foreach ($pm[1] as $port) {
+      $skipPorts[(int) $port] = true;
+    }
+  }
+}
+$manifest['listeners'] = array_values(array_filter(
+  $manifest['listeners'],
+  static fn (array $row): bool => !isset($skipPorts[(int) ($row['port'] ?? 0)]) && !xedc_discover_excluded((string) ($row['process'] ?? ''))
+));
+$manifest['nginx']['server_names'] = array_values(array_filter(
+  $manifest['nginx']['server_names'],
+  static fn (string $name): bool => !xedc_discover_excluded($name)
+));
+$manifest['services'] = array_values(array_filter(
+  $manifest['services'],
+  static fn (string $name): bool => !xedc_discover_excluded($name)
+));
+$manifest['timers'] = array_values(array_filter(
+  $manifest['timers'],
+  static fn (string $name): bool => !xedc_discover_excluded($name)
+));
+$manifest['cron'] = array_values(array_filter(
+  $manifest['cron'],
+  static function (array $row): bool {
+    return !xedc_discover_excluded((string) ($row['summary'] ?? '')) && !xedc_discover_excluded(json_encode($row) ?: '');
+  }
+));
+$manifest['packages'] = array_values(array_filter(
+  $manifest['packages'],
+  static fn (array $row): bool => !xedc_discover_excluded((string) ($row['name'] ?? ''))
+));
+$manifest['docker']['compose'] = array_values(array_filter(
+  $manifest['docker']['compose'],
+  static fn (string $path): bool => !xedc_discover_excluded($path)
+));
+$manifest['docker']['images'] = array_values(array_filter(
+  $manifest['docker']['images'],
+  static fn (string $row): bool => !xedc_discover_excluded($row)
+));
+$manifest['restore_skip'] = array_values(array_filter(
+  $manifest['restore_skip'],
+  static fn (array $row): bool => !xedc_discover_excluded((string) ($row['name'] ?? ''))
+));
 
 $json = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 if ($json === false) {

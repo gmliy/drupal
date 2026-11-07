@@ -59,6 +59,19 @@ Ubuntu 26.04 和 26.10 的系统源里已经有 8.5，没有再加 Ondřej 源�
 
 带 `[Install]` 才 `enable`、没有 `[Install]` 不 `enable`、`xedc-import-worker` 等 worker 在自检通过后才启动，这些要在真实服务器上确认。Docker 里没有可用的 systemd，不能记成通过。这一轮还没有合并。
 
+## 换域名和证书
+
+Ubuntu 24.04 快照上的 `certs` 用例通过，9 秒。容器里申请不到公网 Let's Encrypt 证书，正式签发用的是假 `certbot`，不能记成真实证书已通过。
+
+| 场景 | Docker |
+| --- | --- |
+| 缺少 `options-ssl-nginx.conf` 或证书文件 | `nginx -t` 失败时，日志里有完整报错，不只是「nginx 配置检测失败」 |
+| 旧域名 `gitxx.xyz`、Matomo `x.gitxx.xyz` 换成 `tlte.top`、`x.tlte.top` | nginx 配置、证书路径一起换。再次写入旧配置后还会换成新域名 |
+| DNS 未指向本机 | 保留 `.selfsigned`，不调用签发，退出码不是失败，手工提示里有 `certbot certonly --webroot` |
+| DNS 已指向本机 | 临时自签被换成正式证书，已有有效证书时不再次签发。Matomo 签发失败只警告，主站证书还在，`nginx -t` 仍通过 |
+
+真实服务器还要看：公网 DNS 指向本机后，主域名和 `x.<新域名>` 都能签下 Let's Encrypt 证书，Matomo 页面不再引用旧主机名。
+
 ## 无法在 Docker 里验证
 
 这些没有记成通过。步骤在 `xedc-recovery/tests/real-server-checklist.md`。

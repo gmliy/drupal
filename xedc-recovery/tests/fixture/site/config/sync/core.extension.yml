@@ -1,0 +1,7 @@
+module:
+  system: 0
+  user: 0
+  matomo: 0
+  matomo_tagmanager: 0
+theme:
+  stark: 0

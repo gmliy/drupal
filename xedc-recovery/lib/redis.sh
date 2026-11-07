@@ -31,12 +31,22 @@ redis_overcommit() {
 }
 
 redis_configure() {
+  # 根因：进程 umask 077 时，新建文件是 0600、目录是 0700，属主是 root。
+  # 若再把组改成 redis 却不给组读权限，就是实测的 -rw------- root redis。
+  # redis-server.service 的 User=redis。ProtectSystem=true 并不挡住读取 /etc；
+  # 单元里的 UMask=007 只影响 redis 自己创建的文件。本机没有强制执行的 redis AppArmor 配置。
+  # 所以失败是自主访问控制，不是 AppArmor。写完后必须显式 chown redis:redis、chmod 0640，目录 0755。
   xedc_load_tune
   xedc_prepare_dir /etc/redis
-  php "$XEDC_ROOT/lib/php/render.php" "$XEDC_ROOT/templates/redis-xedc.conf.tpl" /etc/redis/xedc.conf <<JSON
+  if xedc_keep_manual /etc/redis/xedc.conf; then
+    :
+  else
+    php "$XEDC_ROOT/lib/php/render.php" "$XEDC_ROOT/templates/redis-xedc.conf.tpl" /etc/redis/xedc.conf <<JSON
 {"redis_maxmemory":"${REDIS_MAXMEMORY}"}
 JSON
-  xedc_apply_perms /etc/redis/xedc.conf
+    xedc_apply_perms /etc/redis/xedc.conf
+    xedc_remember_hash /etc/redis/xedc.conf
+  fi
   if [[ -f /etc/redis/redis.conf ]] && ! grep -q '/etc/redis/xedc.conf' /etc/redis/redis.conf; then
     printf '\ninclude /etc/redis/xedc.conf\n' >>/etc/redis/redis.conf
   fi
@@ -53,7 +63,11 @@ redis_enable() {
   if [[ -f /etc/redis/redis.conf ]]; then
     xedc_assert_readable redis /etc/redis/redis.conf
   fi
-  xedc_svc redis-server || xedc_svc redis || true
+  if ! xedc_svc redis-server && ! xedc_svc redis; then
+    xedc_warn "Redis 错误日志："
+    tail -n 40 /var/log/redis/redis-server.log >&2 || true
+    xedc_die "Redis 没有启动"
+  fi
   local i
   for i in 1 2 3 4 5 6 7 8 9 10; do
     if redis-cli ping 2>/dev/null | grep -q PONG; then
@@ -61,6 +75,7 @@ redis_enable() {
     fi
     sleep 0.3
   done
+  xedc_svc_diag redis-server || true
   xedc_warn "Redis 错误日志："
   tail -n 40 /var/log/redis/redis-server.log >&2 || true
   xedc_die "Redis 没有启动"

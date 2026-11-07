@@ -26,12 +26,16 @@ $out = preg_replace_callback('/\{\{([A-Za-z0-9_]+)\}\}/', static function (array
 }, $tpl);
 
 $dir = dirname($argv[2]);
+$oldUmask = umask(0022);
 if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+  umask($oldUmask);
   fwrite(STDERR, "无法创建目录\n");
   exit(1);
 }
 if (file_put_contents($argv[2], $out) === false) {
+  umask($oldUmask);
   fwrite(STDERR, "无法写入输出\n");
   exit(1);
 }
 chmod($argv[2], 0644);
+umask($oldUmask);

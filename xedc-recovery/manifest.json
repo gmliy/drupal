@@ -116,8 +116,7 @@
         "client_max_body_size": "220m",
         "server_names": [
             "gitxx.xyz",
-            "www.gitxx.xyz",
-            "x.gitxx.xyz"
+            "www.gitxx.xyz"
         ],
         "mp4": true,
         "slice": true
@@ -398,10 +397,6 @@
             "process": "mariadbd"
         },
         {
-            "port": 8088,
-            "process": "docker-proxy"
-        },
-        {
             "port": 19999,
             "process": "netdata"
         }
@@ -441,13 +436,8 @@
         ]
     },
     "docker": {
-        "compose": [
-            "/opt/matomo/compose.yaml"
-        ],
-        "images": [
-            "matomo-matomo-1=matomo:5-apache",
-            "matomo-db-1=mariadb:lts"
-        ]
+        "compose": [],
+        "images": []
     },
     "netdata": {
         "version": "netdata v2.12.2",
@@ -469,9 +459,6 @@
         "object_storage": {
             "provider": "cloudflare_r2",
             "credentials": "environment-or-private-files"
-        },
-        "matomo": {
-            "runtime": "docker"
         },
         "recaptcha": false,
         "turnstile": false,

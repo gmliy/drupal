@@ -22,6 +22,9 @@ docker_install_compose() {
     xedc_die "没有 compose 软件包。Ubuntu 安装 docker-compose-v2，Docker 官方源安装 docker-compose-plugin"
   fi
   xedc_apt_install "$pkg" || xedc_die "未能安装 ${pkg}"
+  if ! docker compose version >/dev/null 2>&1; then
+    apt-get install -y --reinstall "$pkg" || xedc_die "未能重装 ${pkg}"
+  fi
   docker compose version >/dev/null 2>&1 || xedc_die "docker compose version 失败。Ubuntu 需要 docker-compose-v2，Docker 官方源需要 docker-compose-plugin"
   xedc_log "Docker Compose $(docker compose version 2>/dev/null | head -n 1)"
 }
@@ -44,28 +47,76 @@ docker_install() {
 docker_configure() { return 0; }
 
 docker_compose_up() {
-  local dir=$1 log
+  local dir=$1 critical=${2:-0} log reason
+  if xedc_excluded "$dir" || xedc_excluded "$(basename "$dir")"; then
+    xedc_log "按 exclude.list 不启动 $(basename "$dir")"
+    return 0
+  fi
   log=$(mktemp)
-  if ! docker compose version >"$log" 2>&1; then
-    cat "$log" >&2 || true
+  if ! docker_install_compose >"$log" 2>&1; then
+    reason=$(cat "$log")
+    printf '%s\n' "$reason" >&2
     rm -f "$log"
-    xedc_die "没有 docker compose。Ubuntu 安装 docker-compose-v2，Docker 官方源安装 docker-compose-plugin。不能只还原编排文件就继续"
+    xedc_fail_item "没有 docker compose，目录 ${dir}。${reason}"
+    if [[ "$critical" == 1 ]]; then
+      xedc_die "docker compose version 失败。Ubuntu 需要 docker-compose-v2，Docker 官方源需要 docker-compose-plugin"
+    fi
+    return 0
+  fi
+  if ! docker compose version >/dev/null 2>&1; then
+    rm -f "$log"
+    xedc_fail_item "docker compose version 失败，目录 ${dir}"
+    if [[ "$critical" == 1 ]]; then
+      xedc_die "docker compose version 失败"
+    fi
+    return 0
   fi
   if ! docker info >"$log" 2>&1; then
-    xedc_log "Docker 守护进程未运行，容器没有启动"
-    cat "$log" >&2 || true
+    reason=$(cat "$log")
+    xedc_log "Docker 守护进程未运行，容器没有启动: ${dir}"
+    printf '%s\n' "$reason" >&2
     rm -f "$log"
-    xedc_die "Docker 守护进程未运行，容器没有启动。目录 ${dir}"
+    xedc_fail_item "Docker 守护进程未运行，容器没有启动: ${dir}"
+    if [[ "$critical" == 1 ]]; then
+      xedc_die "Docker 守护进程未运行，容器没有启动。目录 ${dir}"
+    fi
+    return 0
   fi
   if ! (cd "$dir" && docker compose up -d) >"$log" 2>&1; then
-    xedc_log "容器启动失败，日志如下"
-    cat "$log" >&2 || true
+    xedc_log "容器启动失败: ${dir}"
+    printf '%s\n' "$(cat "$log")" >&2
     (cd "$dir" && docker compose logs --no-color) >&2 || true
+    reason=$(tail -n 20 "$log" | tr '\n' ' ')
     rm -f "$log"
-    xedc_die "容器启动失败: ${dir}"
+    xedc_fail_item "容器启动失败: ${dir}。${reason}"
+    if [[ "$critical" == 1 ]]; then
+      xedc_die "容器启动失败: ${dir}"
+    fi
+    return 0
   fi
   rm -f "$log"
   xedc_log "容器已启动: ${dir}"
+}
+
+docker_launch_restored() {
+  local src=$1 dir name
+  [[ -d "$src/docker" ]] || return 0
+  shopt -s nullglob
+  for dir in "$src/docker"/*; do
+    [[ -d "$dir" ]] || continue
+    name=$(basename "$dir")
+    if xedc_excluded "$name"; then
+      xedc_log "按 exclude.list 不启动 ${name}"
+      continue
+    fi
+    if [[ ! -f "$dir/compose.yaml" && ! -f "$dir/docker-compose.yml" ]]; then
+      continue
+    fi
+    mkdir -p "/opt/${name}"
+    cp -a "$dir/." "/opt/${name}/"
+    docker_compose_up "/opt/${name}" 0 || xedc_fail_item "容器项目 ${name} 没有启动"
+  done
+  shopt -u nullglob
 }
 
 docker_enable() {
@@ -77,6 +128,14 @@ docker_enable() {
     return 0
   fi
   xedc_warn "当前环境没有 systemd，Docker 守护进程未启动。软件包已安装"
+  return 0
+}
+
+matomo_launch() {
+  xedc_log "Matomo 服务不在恢复范围内"
+  if [[ -d /opt/matomo ]]; then
+    xedc_log "按 exclude.list 不启动 /opt/matomo"
+  fi
   return 0
 }
 

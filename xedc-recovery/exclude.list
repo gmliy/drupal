@@ -1,0 +1,7 @@
+# 一行一个关键字。# 开头是注释。
+# 匹配范围：nginx 配置名和 server_name、compose 项目、容器、镜像、数据卷、
+# systemd 单元、cron、目录路径、Drupal 模块名、composer 包名。
+# 以后要排除别的服务，只改这个文件。
+# 单元或 cron 内容含 git push 的任务也会跳过，令牌只留在旧服务器。
+matomo
+xedc-push-gmliy

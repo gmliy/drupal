@@ -94,7 +94,34 @@ tail -f /var/log/xedc-restore.log
 GH_TOKEN=xxxx bash <(curl -fsSL -H "Authorization: token xxxx" https://raw.githubusercontent.com/gmliy/drupal/main/xedc-recovery/install.sh) --from r2:latest --domain 新域名 --email 邮箱 --resume
 ```
 
-域名要带 www 作为主站时，加上 `--www yes`。只要自签证书时加 `--https self`。先不要证书时加 `--https off`。
+域名要带 www 作为主站时，加上 `--www yes`。只要自签证书时加 `--https self`。先不要证书时加 `--https off`。PHP 版本用 `--php 8.4` 覆盖，默认 8.5。
+
+Matomo 服务和 Drupal 模块都不恢复。旧备份里即使带有 Matomo，也不会还原容器、nginx 配置或证书。要临时保留模块（服务仍不恢复）：
+
+```bash
+bash /opt/xedc-recovery/restore.sh --from r2:latest --domain 新域名 --email 邮箱 --keep-matomo-module --yes
+```
+
+排除规则在 `xedc-recovery/exclude.list`，一行一个关键字。只打印服务器上的残留：
+
+```bash
+bash /opt/xedc-recovery/restore.sh --clean-excluded
+```
+
+确认后真正删除：
+
+```bash
+bash /opt/xedc-recovery/restore.sh --clean-excluded --yes
+```
+
+已经恢复出来、又想手工卸掉模块：
+
+```bash
+drush pm:uninstall matomo matomo_reports -y
+drush config:delete matomo.settings -y
+composer remove drupal/matomo drupal/matomo_reports
+drush cr
+```
 
 ## 三、恢复前准备
 
@@ -163,7 +190,7 @@ certbot --nginx -d 新域名 -d www.新域名 --email 邮箱
 bash xedc-recovery/restore.sh --from r2:latest --domain 新域名 --email 邮箱 --php 8.4 --yes
 ```
 
-**恢复到一半断了。** `tmux attach -t xedc-restore` 看画面。确认进程没了之后，用原来的命令加 `--resume`。
+**恢复到一半断了。** `tmux attach -t xedc-restore` 看画面。确认进程没了之后，用原来的命令加 `--resume`。已成功的步骤不会重做。你亲手改过的配置，哈希和脚本上次写入的不同，会保留并提示，不会被备份覆盖。失败时看 `cat /var/log/xedc-restore.log`。
 
 **想先看系统是否正常，又不想改任何东西。**
 

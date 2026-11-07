@@ -18,6 +18,19 @@ while [[ $i -lt ${#args[@]} ]]; do
     status|updb|updatedb|cr|cache:rebuild|cron|queue:list|cex|config:export|cim|config:import)
       cmd=$a
       ;;
+    pm:uninstall|pmu)
+      cmd=pmu
+      i=$((i + 1))
+      pmu_mod=${args[$i]:-}
+      ;;
+    pm:list|pml)
+      cmd=pml
+      ;;
+    config:delete)
+      cmd=cdel
+      i=$((i + 1))
+      del_name=${args[$i]:-}
+      ;;
     maint:set)
       cmd=maint
       i=$((i + 1))
@@ -49,6 +62,32 @@ case "$cmd" in
     ;;
   queue:list)
     echo "xedc_video_transcode"
+    ;;
+  pmu)
+    if [[ -d "$root/web/modules/custom" ]] && grep -Rqs --include='*.info.yml' -E "(^|[^A-Za-z0-9_])${pmu_mod:-matomo}([^A-Za-z0-9_]|$)" "$root/web/modules/custom"; then
+      echo "blocked by custom module" >&2
+      exit 1
+    fi
+    ext="$root/config/sync/core.extension.yml"
+    if [[ -f "$ext" && -n "${pmu_mod:-}" ]]; then
+      grep -v -E "^[[:space:]]+${pmu_mod}:" "$ext" >"${ext}.tmp" || true
+      mv "${ext}.tmp" "$ext"
+    fi
+    echo "uninstalled ${pmu_mod:-}"
+    ;;
+  pml)
+    ext="$root/config/sync/core.extension.yml"
+    if [[ -f "$ext" ]]; then
+      awk '/^module:/{m=1; next} /^[^ ]/{m=0} m && /^[[:space:]]+[A-Za-z0-9_]+:/{name=$1; gsub(/:/,"",name); printf "%s  Enabled\n", name}' "$ext"
+    fi
+    ;;
+  cdel)
+    shopt -s nullglob
+    for f in "$root/config/sync/${del_name:-none}"*; do
+      rm -f "$f"
+    done
+    shopt -u nullglob
+    echo "deleted ${del_name:-}"
     ;;
   *)
     echo "ok ${cmd:-drush}"

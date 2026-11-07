@@ -103,6 +103,8 @@ stage_rank() {
     lowmem) echo 13 ;;
     compose) echo 14 ;;
     redisresume) echo 15 ;;
+    certs) echo 16 ;;
+    matomo) echo 17 ;;
     *) echo 1 ;;
   esac
 }
@@ -186,7 +188,7 @@ run_container() {
     volumes+=(-v "$ROOT/install.sh:/opt/install.sh:ro")
   else
     case "$mode" in
-      perms|lowmem|compose|redisresume)
+      perms|lowmem|compose|redisresume|certs|matomo)
         volumes+=(-v "$ROOT:/opt/xedc-recovery:ro")
         ;;
       *)
@@ -233,6 +235,8 @@ declare -A mode_cmd=(
   [lowmem]="/opt/xedc-recovery/tests/guest.sh lowmem"
   [compose]="/opt/xedc-recovery/tests/guest.sh compose"
   [redisresume]="/opt/xedc-recovery/tests/guest.sh redisresume"
+  [certs]="/opt/xedc-recovery/tests/guest.sh certs"
+  [matomo]="/opt/xedc-recovery/tests/guest.sh matomo"
 )
 
 wait_slot() {
@@ -339,7 +343,7 @@ for pid in "${pids[@]}"; do
   fi
 done
 
-branches=(domain video idem resume verify r2 php prompts perms lowmem compose redisresume)
+branches=(domain video idem resume verify r2 php prompts perms lowmem compose redisresume certs matomo)
 pids=()
 for os in "${systems[@]}"; do
   if [[ "${READY[$os]}" != 1 ]]; then

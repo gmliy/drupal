@@ -96,5 +96,109 @@ if xedc_is_worker_unit nginx.service; then
   exit 1
 fi
 rm -f "$perm_file" "$unit"
+# shellcheck source=../lib/domain.sh
+source "$ROOT/lib/domain.sh"
+dom=$(mktemp)
+printf '%s\n' 'server_name x.gitxx.xyz;' 'ssl_certificate /etc/letsencrypt/live/x.gitxx.xyz/fullchain.pem;' >"$dom"
+OLD_DOMAIN=gitxx.xyz
+DOMAIN=tlte.top
+OLD_MATOMO=x.gitxx.xyz
+MATOMO_DOMAIN=stats.example.net
+domain_replace_file "$dom"
+grep -q 'server_name stats.example.net;' "$dom"
+grep -q '/etc/letsencrypt/live/stats.example.net/fullchain.pem' "$dom"
+if grep -q 'gitxx.xyz' "$dom"; then
+  echo "自定义 Matomo 域名被主域名替换污染了" >&2
+  exit 1
+fi
+printf '%s\n' 'server_name x.gitxx.xyz;' >"$dom"
+MATOMO_DOMAIN=x.tlte.top
+domain_replace_file "$dom"
+grep -q 'server_name x.tlte.top;' "$dom"
+printf '%s\n' 'server_name x.gitxx.xyz;' >"$dom"
+domain_replace_file "$dom"
+grep -q 'server_name x.tlte.top;' "$dom"
+acme=$(mktemp)
+cat >"$acme" <<'EOF'
+server {
+    server_name x.gitxx.xyz;
+    location / { proxy_pass http://127.0.0.1:8088; }
+    ssl_certificate /etc/letsencrypt/live/x.gitxx.xyz/fullchain.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+}
+server {
+    if ($host = x.gitxx.xyz) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+    listen 80;
+    listen [::]:80;
+    server_name x.gitxx.xyz;
+    return 404; # managed by Certbot
+}
+EOF
+php "$ROOT/lib/php/nginx_acme.php" "$acme"
+grep -q 'acme-challenge' "$acme"
+grep -q 'root /var/www/letsencrypt;' "$acme"
+if grep -q 'if ($host' "$acme"; then
+  echo "80 端口仍会把 ACME 挑战跳走" >&2
+  exit 1
+fi
+if grep -q 'return 404; # managed by Certbot' "$acme"; then
+  echo "Certbot 的 404 还在" >&2
+  exit 1
+fi
+count=$(grep -c 'acme-challenge' "$acme")
+php "$ROOT/lib/php/nginx_acme.php" "$acme"
+[[ "$(grep -c 'acme-challenge' "$acme")" == "$count" ]]
+rm -f "$dom" "$acme"
+state=$(mktemp -d)
+XEDC_STATE_DIR=$state
+hash_file=$(mktemp)
+printf 'one\n' >"$hash_file"
+xedc_remember_hash "$hash_file"
+if xedc_user_modified "$hash_file"; then
+  echo "刚写入的文件不应算手动修改" >&2
+  exit 1
+fi
+printf 'two\n' >"$hash_file"
+xedc_user_modified "$hash_file"
+xedc_keep_manual "$hash_file"
+grep -q 'two' "$hash_file"
+ex=$(mktemp)
+printf '%s\n' '# 注释' 'matomo' >"$ex"
+XEDC_EXCLUDE_FILE=$ex
+xedc_excluded matomo.conf
+if xedc_excluded nginx.conf; then
+  echo "无关配置被排除规则命中" >&2
+  exit 1
+fi
+site=$(mktemp -d)
+mkdir -p "$site/config/sync" "$site/web/themes/custom/xedc" "$site/vendor/drupal/matomo" "$site/web/modules/custom/xedc_stats"
+printf '%s\n' 'module:' '  matomo: 0' '  system: 0' >"$site/config/sync/core.extension.yml"
+printf '%s\n' 'url: https://x.example/matomo.js' >"$site/config/sync/matomo.settings.yml"
+printf '%s\n' '{"require":{"php":">=8.1","drupal/matomo":"1.0.0"}}' >"$site/composer.json"
+printf '%s\n' '<script src="https://x.example/matomo.js"></script>' >"$site/web/themes/custom/xedc/a.twig"
+printf '%s\n' 'name: Stats' 'dependencies:' '  - matomo' >"$site/web/modules/custom/xedc_stats/xedc_stats.info.yml"
+printf 'x\n' >"$site/vendor/drupal/matomo/x"
+php "$ROOT/lib/php/strip_excluded.php" --site "$site" --mode list-modules | grep -qx matomo
+php "$ROOT/lib/php/strip_excluded.php" --site "$site" --mode dependents --module matomo | grep -q xedc_stats.info.yml
+php "$ROOT/lib/php/strip_excluded.php" --site "$site" --mode all >/dev/null
+if grep -q 'matomo:' "$site/config/sync/core.extension.yml"; then
+  echo "core.extension 仍有 matomo" >&2
+  exit 1
+fi
+[[ ! -f "$site/config/sync/matomo.settings.yml" ]]
+if grep -q 'drupal/matomo' "$site/composer.json"; then
+  echo "composer.json 仍有包" >&2
+  exit 1
+fi
+[[ ! -d "$site/vendor/drupal/matomo" ]]
+grep -q 'matomo.js' "$site/web/themes/custom/xedc/a.twig"
+printf '%s\n' '<script src="https://stats.example/matomo.js"></script>' | php "$ROOT/lib/php/strip_excluded.php" --mode stream | grep -q '<script' && {
+  echo "跟踪脚本没有从流里去掉" >&2
+  exit 1
+}
+unset XEDC_EXCLUDE_FILE
+rm -rf "$state" "$hash_file" "$ex" "$site"
 echo "unit ok"
 exit "$fail"

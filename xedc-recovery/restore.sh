@@ -32,6 +32,12 @@ source "$ROOT/lib/docker.sh"
 source "$ROOT/lib/netdata.sh"
 # shellcheck source=lib/certbot.sh
 source "$ROOT/lib/certbot.sh"
+# shellcheck source=lib/domain.sh
+source "$ROOT/lib/domain.sh"
+# shellcheck source=lib/modules.sh
+source "$ROOT/lib/modules.sh"
+# shellcheck source=lib/version.sh
+source "$ROOT/lib/version.sh"
 
 ORIGINAL_ARGS=("$@")
 FROM=""
@@ -45,12 +51,17 @@ VERIFY=0
 RESUME=0
 LIST_LOCAL=0
 LIST_R2=0
+CLEAN=0
+KEEP_MODULES=0
 
 usage() {
   cat <<'EOF'
 用法: restore.sh --from local:/路径/包.tar.zst|--from r2:latest|r2:latest-1|r2:时间
   --domain 域名 [--old-domain 旧域名] [--www yes|no] [--https auto|self|off]
-  [--email 邮箱] [--php 8.5] [--yes] [--force] [--verify] [--resume] [--list-local] [--list-r2]
+  [--email 邮箱] [--php 8.5] [--yes] [--force] [--verify] [--resume]
+  [--clean-excluded] [--keep-matomo-module] [--list-local] [--list-r2]
+--https self 只用自签证书。--clean-excluded 清理排除清单残留，加上 --yes 才执行。
+--keep-matomo-module 保留 Drupal 模块，Matomo 服务仍然不恢复。
 EOF
 }
 
@@ -59,6 +70,12 @@ while [[ $# -gt 0 ]]; do
     --from) FROM=${2:-}; shift 2 ;;
     --domain) DOMAIN=${2:-}; shift 2 ;;
     --old-domain) OLD_DOMAIN=${2:-}; shift 2 ;;
+    --matomo-domain)
+      xedc_warn "Matomo 服务和模块默认不恢复，已忽略 --matomo-domain"
+      shift 2
+      ;;
+    --clean-excluded) CLEAN=1; shift ;;
+    --keep-matomo-module) KEEP_MODULES=1; shift ;;
     --www) WWW=${2:-}; shift 2 ;;
     --https) HTTPS=${2:-}; shift 2 ;;
     --email) EMAIL=${2:-}; shift 2 ;;
@@ -78,6 +95,20 @@ if [[ -n "${XEDC_PHP_VERSION:-}" && ! "${XEDC_PHP_VERSION}" =~ ^[0-9]+\.[0-9]+$ 
   xedc_die "--php 需要 8.5 这种写法"
 fi
 export XEDC_PHP_VERSION="${XEDC_PHP_VERSION:-}"
+export XEDC_KEEP_MODULES=$KEEP_MODULES
+umask 022
+xedc_print_version
+xedc_warn_bootstrap_version || true
+
+if [[ "$CLEAN" == 1 && -z "$FROM" && "$VERIFY" != 1 && "$LIST_LOCAL" != 1 && "$LIST_R2" != 1 ]]; then
+  xedc_require_root
+  if [[ "${XEDC_YES:-0}" == 1 ]]; then
+    xedc_clean_excluded_apply
+  else
+    xedc_clean_excluded_print
+  fi
+  exit 0
+fi
 
 list_local() {
   xedc_backup_perms
@@ -139,6 +170,12 @@ ask_line() {
 prepare_foreground() {
   if [[ "$VERIFY" == 1 || "$LIST_LOCAL" == 1 || "$LIST_R2" == 1 ]]; then
     return 0
+  fi
+  if [[ -z "$FROM" ]]; then
+    FROM=$(ask_line "--from（local:/路径 或 r2:latest）: " || true)
+  fi
+  if [[ -z "$FROM" ]]; then
+    xedc_die "没有 --from。请在命令里写上 --from local:/路径 或 --from r2:latest。没有交互终端时不能询问"
   fi
   if [[ -z "$DOMAIN" ]]; then
     DOMAIN=$(ask_line "新域名: " || true)
@@ -257,6 +294,7 @@ enter_tmux() {
     [[ -n "${XEDC_FAIL_STEP:-}" ]] && printf 'export XEDC_FAIL_STEP=%q\n' "$XEDC_FAIL_STEP"
     [[ -n "${XEDC_RESOLVE_ONLY:-}" ]] && printf 'export XEDC_RESOLVE_ONLY=%q\n' "$XEDC_RESOLVE_ONLY"
     [[ -n "${XEDC_TEST:-}" ]] && printf 'export XEDC_TEST=%q\n' "$XEDC_TEST"
+    [[ -n "${XEDC_KEEP_MODULES:-}" ]] && printf 'export XEDC_KEEP_MODULES=%q\n' "$XEDC_KEEP_MODULES"
     if [[ -n "$r2file" ]]; then
       printf 'r2file=%q\n' "$r2file"
       printf '%s\n' 'if [[ -f "$r2file" ]]; then' '  set -a' '  # shellcheck disable=SC1090' '  source "$r2file"' '  set +a' '  rm -f "$r2file"' 'fi' 'unset r2file'
@@ -340,7 +378,14 @@ if [[ -z "${XEDC_INSIDE_TMUX:-}" && "${XEDC_NO_TMUX:-0}" != "1" ]]; then
   if [[ -n "$DOMAIN" ]]; then
     tmux_args+=(--domain "$DOMAIN")
   fi
+  if [[ -n "$FROM" ]]; then
+    tmux_args+=(--from "$FROM")
+  fi
+  if [[ "$KEEP_MODULES" == 1 ]]; then
+    tmux_args+=(--keep-matomo-module)
+  fi
   enter_tmux "${tmux_args[@]}"
+  exit $?
 fi
 load_r2_handoff
 
@@ -348,6 +393,13 @@ export XEDC_LOG_FILE=$XEDC_RESTORE_LOG
 mkdir -p "$(dirname "$XEDC_RESTORE_LOG")" "$XEDC_STATE_DIR" /var/lock
 touch "$XEDC_RESTORE_LOG"
 chmod 600 "$XEDC_RESTORE_LOG"
+if [[ "$VERIFY" != 1 && "$LIST_LOCAL" != 1 && "$LIST_R2" != 1 ]]; then
+  xedc_log_exclude_list
+  xedc_clean_excluded_print
+  if [[ "$CLEAN" == 1 && "${XEDC_YES:-0}" == 1 ]]; then
+    xedc_clean_excluded_apply
+  fi
+fi
 lock=/var/lock/xedc-restore.pid
 if [[ -f "$lock" ]]; then
   oldpid=$(cat "$lock" 2>/dev/null || true)
@@ -382,6 +434,9 @@ cleanup_secrets() {
 }
 note_manual() {
   mkdir -p "$XEDC_STATE_DIR"
+  if [[ -f "$MANUAL" ]] && grep -Fxq -- "$*" "$MANUAL"; then
+    return 0
+  fi
   printf '%s\n' "$*" >>"$MANUAL"
 }
 
@@ -610,6 +665,7 @@ step_code() {
   fi
   if [[ -f "$SITE/composer.json" ]]; then
     export COMPOSER_ALLOW_SUPERUSER=1
+    modules_strip_composer "$SITE"
     xedc_log "检查 Composer 平台要求"
     if [[ -f "$SITE/composer.lock" ]] && ! composer check-platform-reqs --no-interaction --working-dir="$SITE"; then
       xedc_die "Composer 平台要求不满足。上面列出了不兼容的包。没有忽略平台检查。日志: ${XEDC_RESTORE_LOG}。可在原命令末尾加 --resume"
@@ -683,6 +739,9 @@ step_services() {
   if [[ -d "$WORK/system" ]]; then
     system_restore "$WORK/system"
   fi
+  # 先换域名和补证书，再做 nginx -t。--resume 会重新复制备份里的旧配置，所以这里每次都替换。
+  domain_apply_configs
+  certbot_ensure_snippets
   xedc_write_tune
   php_configure
   local ver pool
@@ -694,24 +753,38 @@ step_services() {
   redis_configure
   mariadb_configure
   nginx_configure
+  nginx_prepare_http
+  nginx_ensure_certs
   netdata_configure
+  php_align_paths
   php_enable
   redis_enable
   mariadb_enable
   nginx_enable
   docker_enable
+  if [[ -d "${WORK}/system" ]]; then
+    system_restore_volumes "$WORK/system"
+  fi
+  if [[ -d "${WORK:-}/system" ]]; then
+    docker_launch_restored "$WORK/system"
+  fi
   netdata_enable
   certbot_enable
   xedc_svc cron || xedc_warn "cron 未能启动"
-  php_align_paths
 }
 
 step_drush() {
   local bin
+  if [[ -z "${DB_PASS:-}" && -f "$XEDC_STATE_DIR/db.pass" ]]; then
+    DB_PASS=$(cat "$XEDC_STATE_DIR/db.pass")
+  fi
+  prepare_db_names
+  modules_cleanup "$SITE"
   bin=$(xedc_drush)
   "$bin" -r "$SITE" updatedb -y || "$bin" -r "$SITE" updb -y
   "$bin" -r "$SITE" config:import -y || "$bin" -r "$SITE" cim -y || xedc_warn "配置导入没有执行"
   "$bin" -r "$SITE" cache:rebuild || "$bin" -r "$SITE" cr
+  modules_assert_disabled "$SITE" || xedc_fail_item "排除模块在 cim 之后仍启用"
 }
 
 replace_in_file() {
@@ -725,10 +798,15 @@ step_domain() {
     DB_PASS=$(cat "$XEDC_STATE_DIR/db.pass")
   fi
   prepare_db_names
-  local old=${OLD_DOMAIN:-}
-  [[ -n "$old" ]] || old=$(xedc_manifest_get "$MANIFEST" domain)
-  if [[ -z "$old" || "$old" == "$DOMAIN" ]]; then
+  domain_resolve
+  local old=$OLD_DOMAIN
+  if [[ -z "$old" || ( "$old" == "$DOMAIN" && "$OLD_MATOMO" == "$MATOMO_DOMAIN" ) ]]; then
     xedc_log "域名未改变，保持原样"
+    return 0
+  fi
+  domain_apply_configs
+  if [[ "$old" == "$DOMAIN" ]]; then
+    xedc_log "主域名未变，只更新了 Matomo 主机名"
     return 0
   fi
   local cnf bin stamp
@@ -749,15 +827,6 @@ EOF
   xedc_log "域名替换预览"
   php "$ROOT/lib/php/domain_replace.php" --from "$old" --to "$DOMAIN" --cnf "$cnf" --database "$DB_NAME" \
     --path "$SITE/config" --dry-run
-  local f
-  for f in "$SITE/web/robots.txt" "$SITE/web/sitemap.xml" /etc/netdata/netdata.conf /opt/matomo/compose.yaml; do
-    replace_in_file "$f" "$old" "$DOMAIN"
-  done
-  if [[ -d /etc/cron.d ]]; then
-    while IFS= read -r f; do
-      replace_in_file "$f" "$old" "$DOMAIN"
-    done < <(grep -RIl "$old" /etc/cron.d 2>/dev/null || true)
-  fi
   php "$ROOT/lib/php/domain_replace.php" --from "$old" --to "$DOMAIN" --cnf "$cnf" --database "$DB_NAME" \
     --path "$SITE/config" --apply
   if [[ -n "$EMAIL" && -f "$SITE/config/sync/system.site.yml" ]]; then
@@ -780,7 +849,7 @@ step_https() {
   export XEDC_DOMAIN=$DOMAIN
   export XEDC_WWW=${WWW:-no}
   export XEDC_WEB_ROOT="$SITE/web"
-  certbot_cloudflare_hint "$DOMAIN" || true
+  domain_resolve
   if [[ "$HTTPS" == "off" ]]; then
     export XEDC_HTTPS_MODE=off
     nginx_configure
@@ -788,26 +857,34 @@ step_https() {
     note_manual "未启用 HTTPS"
     return 0
   fi
-  if [[ "$HTTPS" == "auto" ]] && [[ -n "$EMAIL" ]] && certbot_points_here "$DOMAIN"; then
-    if certbot_issue "$DOMAIN" "$EMAIL" "${WWW:-no}"; then
-      nginx_enable || true
-      return 0
-    fi
-    xedc_warn "certbot 失败，改用自签证书"
-  elif [[ "$HTTPS" == "auto" ]]; then
-    xedc_warn "域名尚未指向本机，先使用自签证书。DNS 生效后可再执行 certbot"
-    note_manual "DNS 指向本机后执行: certbot --nginx -d ${DOMAIN} -d www.${DOMAIN} --email ${EMAIL:-你的邮箱}"
+  if [[ "$HTTPS" == "self" ]]; then
+    export XEDC_HTTPS_MODE=self
+    nginx_configure
+    nginx_enable
+    note_manual "当前是自签证书，浏览器会提示不受信任。要正式证书时去掉 --https self，并在 DNS 指向本机后重跑原命令"
+    return 0
   fi
-  export XEDC_HTTPS_MODE=self
-  nginx_configure
-  nginx_enable
-  note_manual "当前是自签证书，浏览器会提示不受信任"
+  export XEDC_HTTPS_MODE=auto
+  certbot_cloudflare_hint "$DOMAIN" || true
+  certbot_ensure_snippets
+  nginx_prepare_http
+  nginx_ensure_certs
+  certbot_upgrade_domain "$DOMAIN" main
+  nginx_reload || nginx_enable
 }
 
 selfcheck() {
   local fail=0 code path scheme bin
   scheme=https
   [[ "$HTTPS" == "off" ]] && scheme=http
+  local home_body
+  home_body=$(curl -k -s --resolve "${DOMAIN}:443:127.0.0.1" --resolve "${DOMAIN}:80:127.0.0.1" "${scheme}://${DOMAIN}/" || true)
+  if [[ "${XEDC_KEEP_MODULES:-0}" != 1 ]] && printf '%s' "$home_body" | grep -Ei 'matomo\.js|piwik\.js|<script[^>]+(matomo|piwik)|https?://[^"'\'' ]*(matomo|piwik)' >/dev/null; then
+    echo "✘ 首页仍有 Matomo 跟踪脚本或对 Matomo 域名的请求"
+    fail=1
+  else
+    echo "✔ 首页没有 Matomo 跟踪脚本"
+  fi
   for path in / /user/login /admin /models /articles /sitemap.xml; do
     code=$(curl -k -s -o /dev/null -w '%{http_code}' --resolve "${DOMAIN}:443:127.0.0.1" --resolve "${DOMAIN}:80:127.0.0.1" "${scheme}://${DOMAIN}${path}" || true)
     if [[ "$code" == "200" ]]; then
@@ -906,6 +983,21 @@ selfcheck() {
   else
     echo "✘ Docker"
     fail=1
+  fi
+  if [[ -s "$XEDC_STATE_DIR/removed-modules.txt" ]]; then
+    echo "已卸载的模块："
+    cat "$XEDC_STATE_DIR/removed-modules.txt"
+  fi
+  if [[ -f "$XEDC_STATE_DIR/module-report.json" ]]; then
+    php -r '$j=json_decode((string) file_get_contents($argv[1]), true); echo "已删除配置文件 ", count($j["files"] ?? []), " 个，清理配置行 ", (int) ($j["lines"] ?? 0), " 行\n";' "$XEDC_STATE_DIR/module-report.json" || true
+  fi
+  if [[ -s "$XEDC_STATE_DIR/module-code-refs.txt" ]]; then
+    echo "未改动的硬编码引用："
+    cat "$XEDC_STATE_DIR/module-code-refs.txt"
+  fi
+  if [[ -s "$XEDC_STATE_DIR/failures.txt" ]]; then
+    echo "失败项："
+    cat "$XEDC_STATE_DIR/failures.txt"
   fi
   echo "你需要手动做的事："
   if [[ -f "$MANUAL" ]]; then
