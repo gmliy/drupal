@@ -57,7 +57,7 @@ R2 使用官方最新稳定版 rclone，装不上才回退系统包并警告。C
 
 Redis 把 `vm.overcommit_memory=1` 写入 `/etc/sysctl.d/99-xedc.conf` 并执行 `sysctl --system`。
 
-安装 Docker 时同时安装 Compose，并且在启动任何容器之前完成。Ubuntu 用 `docker-compose-v2`，Docker 官方源用 `docker-compose-plugin`。`docker compose version` 失败就停止。容器启动失败要输出容器日志和原因，列入失败项。Netdata 和其他非核心服务失败不中断主站恢复，最终报告醒目列出。
+安装 Docker 时同时安装 Compose，并且在启动任何容器之前完成。Ubuntu 用 `docker-compose-v2`，Docker 官方源用 `docker-compose-plugin`。Debian 12 系统源没有这些包时，先启用 backports 里的 `docker-compose-v2`，仍没有就安装官方 Compose 插件二进制。`docker compose version` 失败就停止。容器启动失败要输出容器日志和原因，列入失败项。Netdata 和其他非核心服务失败不中断主站恢复，最终报告醒目列出。
 
 systemd 单元还原后，只对含 `[Install]` 的单元执行 enable。没有这一段的不 enable，由 timer 或其他单元触发。`exclude.list` 中的单元，以及内容是向 Git 推送的任务，不还原。原因写在发现报告里。
 

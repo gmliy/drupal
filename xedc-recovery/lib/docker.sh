@@ -4,6 +4,56 @@ set -euo pipefail
 # shellcheck source=common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
+docker_compose_pkg() {
+  if dpkg-query -W -f '${Status}' docker-ce 2>/dev/null | grep -q 'install ok installed'; then
+    printf '%s\n' docker-compose-plugin
+    return 0
+  fi
+  if apt-cache show docker-compose-v2 >/dev/null 2>&1; then
+    printf '%s\n' docker-compose-v2
+    return 0
+  fi
+  if apt-cache show docker-compose-plugin >/dev/null 2>&1; then
+    printf '%s\n' docker-compose-plugin
+    return 0
+  fi
+  return 1
+}
+
+docker_enable_backports() {
+  local id codename
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  id=${ID:-}
+  codename=${VERSION_CODENAME:-}
+  [[ "$id" == "debian" && -n "$codename" ]] || return 1
+  if [[ ! -f /etc/apt/sources.list.d/xedc-backports.list ]]; then
+    printf 'deb http://deb.debian.org/debian %s-backports main\n' "$codename" >/etc/apt/sources.list.d/xedc-backports.list
+  fi
+  xedc_apt_update
+}
+
+docker_install_compose_binary() {
+  local arch asset dest
+  arch=$(uname -m)
+  case "$arch" in
+    x86_64|aarch64|armv7) ;;
+    armv7l) arch=armv7 ;;
+    *) xedc_die "架构 ${arch} 没有对应的 Docker Compose 插件" ;;
+  esac
+  asset="docker-compose-linux-${arch}"
+  if ! xedc_have curl; then
+    xedc_apt_install curl ca-certificates || xedc_die "没有 curl，无法下载 Docker Compose 插件"
+  fi
+  dest=/usr/libexec/docker/cli-plugins/docker-compose
+  mkdir -p "$(dirname "$dest")" /usr/lib/docker/cli-plugins
+  xedc_log "系统源没有 compose 软件包，改为安装官方插件"
+  curl -fsSL "https://github.com/docker/compose/releases/latest/download/${asset}" -o "$dest" \
+    || xedc_die "下载 Docker Compose 插件失败"
+  chmod 755 "$dest"
+  cp -a "$dest" /usr/lib/docker/cli-plugins/docker-compose
+}
+
 docker_install_compose() {
   if docker compose version >/dev/null 2>&1; then
     xedc_log "Docker Compose $(docker compose version 2>/dev/null | head -n 1)"
@@ -11,19 +61,18 @@ docker_install_compose() {
   fi
   xedc_apt_update
   local pkg=""
-  if dpkg-query -W -f '${Status}' docker-ce 2>/dev/null | grep -q 'install ok installed'; then
-    pkg=docker-compose-plugin
-  elif apt-cache show docker-compose-v2 >/dev/null 2>&1; then
-    pkg=docker-compose-v2
-  elif apt-cache show docker-compose-plugin >/dev/null 2>&1; then
-    pkg=docker-compose-plugin
-  fi
+  pkg=$(docker_compose_pkg || true)
   if [[ -z "$pkg" ]]; then
-    xedc_die "没有 compose 软件包。Ubuntu 安装 docker-compose-v2，Docker 官方源安装 docker-compose-plugin"
+    docker_enable_backports || true
+    pkg=$(docker_compose_pkg || true)
   fi
-  xedc_apt_install "$pkg" || xedc_die "未能安装 ${pkg}"
-  if ! docker compose version >/dev/null 2>&1; then
-    apt-get install -y --reinstall "$pkg" || xedc_die "未能重装 ${pkg}"
+  if [[ -n "$pkg" ]]; then
+    xedc_apt_install "$pkg" || xedc_die "未能安装 ${pkg}"
+    if ! docker compose version >/dev/null 2>&1; then
+      apt-get install -y --reinstall "$pkg" || xedc_die "未能重装 ${pkg}"
+    fi
+  else
+    docker_install_compose_binary
   fi
   docker compose version >/dev/null 2>&1 || xedc_die "docker compose version 失败。Ubuntu 需要 docker-compose-v2，Docker 官方源需要 docker-compose-plugin"
   xedc_log "Docker Compose $(docker compose version 2>/dev/null | head -n 1)"
