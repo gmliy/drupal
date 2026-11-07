@@ -100,4 +100,4 @@ Ubuntu 24.04 快照上的 `certs` 用例通过，9 秒。容器里申请不到�
 
 ## 合并
 
-本轮合并到 `main` 并推送。远端没有 `feature/recovery-v3`。
+本轮快进合并到 `main` 并已推送，提交 `8358078`。远端没有 `feature/recovery-v3`。
