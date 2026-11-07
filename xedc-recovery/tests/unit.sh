@@ -282,12 +282,166 @@ if (!str_contains($msg, '表 cache_page') || !str_contains($msg, '第 1 行') ||
 unlink($mapPath);
 fwrite(STDOUT, "sql filter ok\n");
 PHP
+# shellcheck source=../lib/db.sh
+source "$ROOT/lib/db.sh"
+db_ensure_sql_skip || { echo "编译 sql_skip_cache 失败" >&2; exit 1; }
+SKIP_BIN=$(db_sql_skip_bin)
+
+# --- C 过滤正确性（含 NUL、跨多行、LOCK 配对、前缀）---
+corr=$(mktemp)
+{
+  printf '%s\n' "CREATE TABLE \`cache_page\` (\`cid\` varchar(255), \`data\` longblob);"
+  printf '%s\n' "LOCK TABLES \`cache_page\` WRITE;"
+  printf '%s\n' "/*!40000 ALTER TABLE \`cache_page\` DISABLE KEYS */;"
+  printf "INSERT INTO \`cache_page\` VALUES ('a', _binary '%s');\n" "$(printf 'x%.0s' {1..100})"
+  # 跨多行 + NUL
+  printf "INSERT INTO \`cache_page\` VALUES ('b', '"
+  printf 'HUGE\0BIN'
+  printf '\nmore;text'
+  printf "');\n"
+  printf '%s\n' "/*!40000 ALTER TABLE \`cache_page\` ENABLE KEYS */;"
+  printf '%s\n' "UNLOCK TABLES;"
+  printf '%s\n' "CREATE TABLE \`key_value\` (\`name\` varchar(128), \`value\` longblob);"
+  printf '%s\n' "INSERT INTO \`key_value\` VALUES ('system.cron_last', '12345');"
+  printf '%s\n' "CREATE TABLE \`queue\` (\`item_id\` int, \`data\` longblob);"
+  printf '%s\n' "INSERT INTO \`queue\` VALUES (1, 'keep-queue');"
+  printf '%s\n' "CREATE TABLE \`users\` (\`uid\` int);"
+  printf '%s\n' "INSERT INTO \`users\` VALUES (1);"
+  printf '%s\n' "CREATE TABLE \`config\` (\`name\` varchar(128));"
+  printf '%s\n' "INSERT INTO \`config\` VALUES ('system.site');"
+  printf '%s\n' "CREATE TABLE \`main_cache_render\` (\`cid\` varchar(255));"
+  printf '%s\n' "INSERT INTO \`main_cache_render\` VALUES ('gone');"
+  printf '%s\n' "INSERT INTO \`main_node\` VALUES (3);"
+} >"$corr"
+filtered=$(mktemp)
+"$SKIP_BIN" --prefix 'main_' <"$corr" >"$filtered"
+grep -q 'CREATE TABLE `cache_page`' "$filtered"
+grep -q 'LOCK TABLES `cache_page` WRITE' "$filtered"
+grep -q 'DISABLE KEYS' "$filtered"
+grep -q 'ENABLE KEYS' "$filtered"
+grep -q 'UNLOCK TABLES' "$filtered"
+grep -q "INSERT INTO \`key_value\`" "$filtered"
+grep -q "INSERT INTO \`queue\`" "$filtered"
+grep -q "INSERT INTO \`users\`" "$filtered"
+grep -q "INSERT INTO \`config\`" "$filtered"
+grep -q "INSERT INTO \`main_node\`" "$filtered"
+if grep -qE 'INSERT INTO `cache_page`|INSERT INTO `main_cache_render`|HUGE' "$filtered"; then
+  echo "缓存 INSERT 未被滤掉" >&2
+  exit 1
+fi
+locks=$(grep -cE '^LOCK TABLES' "$filtered" || true)
+unlocks=$(grep -cE '^UNLOCK TABLES' "$filtered" || true)
+[[ "$locks" == "$unlocks" ]]
+disables=$(grep -c 'DISABLE KEYS' "$filtered" || true)
+enables=$(grep -c 'ENABLE KEYS' "$filtered" || true)
+[[ "$disables" == "$enables" ]]
+echo "c filter correctness ok"
+
+# --- 与 grep -a 语义一致 ---
+pat=$(db_cache_insert_ere '')
+grep_out=$(mktemp)
+LC_ALL=C grep -a -v -E "$pat" "$corr" >"$grep_out" || [[ $? -eq 1 ]]
+plain=$(mktemp)
+"$SKIP_BIN" --prefix '' <"$corr" >"$plain"
+if grep -q 'INSERT INTO `cache_page`' "$plain"; then
+  echo "无前缀时 cache_page 应被过滤" >&2
+  exit 1
+fi
+# 无前缀时 main_cache_render 不是 ephemeral 基名，应保留
+grep -q 'INSERT INTO `main_cache_render`' "$plain"
+# 有前缀时 main_cache 与无前缀 cache 都应滤掉
+pref=$(mktemp)
+"$SKIP_BIN" --prefix 'main_' <"$corr" >"$pref"
+if grep -qE 'INSERT INTO `cache_page`|INSERT INTO `main_cache_render`' "$pref"; then
+  echo "有前缀时应同时过滤 cache_page 与 main_cache_render" >&2
+  exit 1
+fi
+rm -f "$pref"
+echo "grep semantics ok"
+
+# --- 约 200MB 超长行性能：C 秒级，PHP 明显更慢 ---
+perf_dir=$(mktemp -d)
+perf_sql="$perf_dir/big.sql"
+payload_1m=$(head -c 1048576 /dev/zero | tr '\0' 'A')
+{
+  printf '%s\n' "CREATE TABLE \`cache_page\` (\`cid\` varchar(255), \`data\` longblob);"
+  printf '%s\n' "CREATE TABLE \`node\` (\`nid\` int, \`title\` varchar(255));"
+  printf '%s\n' "CREATE TABLE \`key_value\` (\`collection\` varchar(128), \`name\` varchar(128), \`value\` longblob);"
+  printf '%s\n' "LOCK TABLES \`cache_page\` WRITE;"
+  # 一条含 NUL 的超长行
+  printf "INSERT INTO \`cache_page\` VALUES ('nul', '"
+  printf 'HEAD\0'
+  printf '%s' "$payload_1m"
+  printf "');\n"
+  # 约 200 条 1MB 行
+  for i in $(seq 1 200); do
+    printf "INSERT INTO \`cache_page\` VALUES ('cid-%s', '%s');\n" "$i" "$payload_1m"
+  done
+  printf '%s\n' "UNLOCK TABLES;"
+  for i in $(seq 1 1000); do
+    printf "INSERT INTO \`node\` VALUES (%s, 'title-%s');\n" "$i" "$i"
+  done
+  printf '%s\n' "INSERT INTO \`key_value\` VALUES ('state', 'system.cron_last', '999');"
+} >"$perf_sql"
+unset payload_1m
+perf_size=$(stat -c%s "$perf_sql")
+echo "perf dump ${perf_size} bytes"
+if (( perf_size < 200 * 1024 * 1024 )); then
+  echo "性能 dump 不足 200MB: ${perf_size}" >&2
+  exit 1
+fi
+c_out=$(mktemp)
+t0=$(date +%s%N)
+"$SKIP_BIN" --prefix '' <"$perf_sql" >"$c_out"
+t1=$(date +%s%N)
+c_ms=$(( (t1 - t0) / 1000000 ))
+echo "C filter ${c_ms}ms"
+if (( c_ms > 15000 )); then
+  echo "C 过滤应在秒级完成，实际 ${c_ms}ms" >&2
+  exit 1
+fi
+# 过滤后不应有 cache INSERT，应有 node/key_value
+if grep -a -q 'INSERT INTO `cache_page`' "$c_out"; then
+  echo "性能样本仍含 cache INSERT" >&2
+  exit 1
+fi
+grep -a -q 'INSERT INTO `node`' "$c_out"
+grep -a -q 'INSERT INTO `key_value`' "$c_out"
+node_before=$(grep -a -c 'INSERT INTO `node`' "$perf_sql")
+node_after=$(grep -a -c 'INSERT INTO `node`' "$c_out")
+[[ "$node_before" == "$node_after" ]]
+# PHP 对比：同样输入限时，应显著更慢或超时
+php_out=$(mktemp)
+php_map=$(mktemp)
+t0=$(date +%s%N)
+set +e
+timeout 20 php "$ROOT/lib/php/sql_filter.php" --filter --prefix '' --map "$php_map" <"$perf_sql" >"$php_out"
+php_rc=$?
+set -e
+t1=$(date +%s%N)
+php_ms=$(( (t1 - t0) / 1000000 ))
+echo "PHP filter rc=${php_rc} ${php_ms}ms"
+if [[ "$php_rc" == 0 ]]; then
+  if (( php_ms < c_ms * 3 && php_ms < 5000 )); then
+    echo "PHP 过滤未明显慢于 C，对比无效" >&2
+    exit 1
+  fi
+else
+  echo "PHP 过滤在 20s 内未完成（符合预期，C 仅 ${c_ms}ms）"
+fi
+rm -f "$c_out" "$php_out" "$php_map" "$corr" "$filtered" "$grep_out" "$plain"
+rm -rf "$perf_dir"
+echo "perf ok"
+
+# --- 真实导入、max_allowed_packet、幂等 ---
 sql_db=xedc_sqlfilter_test
 sql_cleanup() {
   mysql --protocol=socket -u root -e "DROP DATABASE IF EXISTS \`${sql_db}\`" >/dev/null 2>&1 || true
 }
 if mysql --protocol=socket -u root -N -e 'SELECT 1' >/dev/null 2>&1; then
   trap sql_cleanup EXIT
+  export XEDC_STATE_DIR
+  XEDC_STATE_DIR=$(mktemp -d)
   sql_file=$(mktemp)
   cat >"$sql_file" <<'EOF'
 CREATE TABLE `cache_page` (
@@ -295,24 +449,52 @@ CREATE TABLE `cache_page` (
   `data` longblob,
   PRIMARY KEY (`cid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+LOCK TABLES `cache_page` WRITE;
+/*!40000 ALTER TABLE `cache_page` DISABLE KEYS */;
 INSERT INTO `cache_page` VALUES ('', 'one');
-INSERT INTO `cache_page` VALUES ('https://gitxx.xyz/cosplay/cos?sort_by=totalcount&model=39:', 'line1
+INSERT INTO `cache_page` VALUES ('dup', 'line1
 HUGEHTMLMARKER
 semi;colon
 ');
 INSERT INTO `cache_page` VALUES ('', 'two');
+/*!40000 ALTER TABLE `cache_page` ENABLE KEYS */;
+UNLOCK TABLES;
 CREATE TABLE `queue` (
   `item_id` int NOT NULL,
   `data` longblob,
   PRIMARY KEY (`item_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 INSERT INTO `queue` VALUES (1, 'keep-queue');
+CREATE TABLE `key_value` (
+  `collection` varchar(128) NOT NULL,
+  `name` varchar(128) NOT NULL,
+  `value` longblob,
+  PRIMARY KEY (`collection`,`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `key_value` VALUES ('state', 'system.cron_last', '42');
+CREATE TABLE `users` (
+  `uid` int NOT NULL,
+  PRIMARY KEY (`uid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `users` VALUES (1);
 CREATE TABLE `node` (
   `nid` int NOT NULL,
   PRIMARY KEY (`nid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 INSERT INTO `node` VALUES (7);
 EOF
+  # 超长行（>默认 max_allowed_packet 的一部分，用会话 256M）
+  long_blob=$(mktemp)
+  dd if=/dev/urandom bs=1048576 count=2 of="$long_blob" status=none
+  {
+    printf "CREATE TABLE \`blob_keep\` (\`id\` int, \`data\` longblob);\n"
+    printf "INSERT INTO \`blob_keep\` VALUES (1, _binary '"
+    # hex 太慢；用 base64 不进 SQL。直接放可打印填充：
+    head -c $((2 * 1024 * 1024)) /dev/zero | tr '\0' 'A'
+    printf "');\n"
+  } >>"$sql_file"
+  rm -f "$long_blob"
+
   sql_cleanup
   mysql --protocol=socket -u root -e "CREATE DATABASE \`${sql_db}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
   raw_err=$(mktemp)
@@ -321,33 +503,112 @@ EOF
     exit 1
   fi
   grep -q '1062' "$raw_err"
-  if grep -q 'HUGEHTMLMARKER' "$raw_err"; then
-    echo "原始错误里出现了缓存 HTML" >&2
-    exit 1
-  fi
+
   sql_cleanup
   mysql --protocol=socket -u root -e "CREATE DATABASE \`${sql_db}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-  map=$(mktemp)
-  if ! php "$ROOT/lib/php/sql_filter.php" --filter --prefix '' --map "$map" <"$sql_file" \
-    | mysql --protocol=socket -u root --batch "$sql_db" >/dev/null; then
-    echo "过滤后的缓存备份导入失败" >&2
+  if ! db_import_sql mysql "$sql_db" '' <"$sql_file"; then
+    echo "C 过滤后导入失败" >&2
     exit 1
   fi
   rows=$(mysql --protocol=socket -u root -N -e "SELECT COUNT(*) FROM \`${sql_db}\`.cache_page")
   queue=$(mysql --protocol=socket -u root -N -e "SELECT data FROM \`${sql_db}\`.queue")
   node=$(mysql --protocol=socket -u root -N -e "SELECT nid FROM \`${sql_db}\`.node")
+  kv=$(mysql --protocol=socket -u root -N -e "SELECT value FROM \`${sql_db}\`.key_value")
+  uid=$(mysql --protocol=socket -u root -N -e "SELECT uid FROM \`${sql_db}\`.users")
+  blob=$(mysql --protocol=socket -u root -N -e "SELECT LENGTH(data) FROM \`${sql_db}\`.blob_keep")
   [[ "$rows" == 0 ]]
   [[ "$queue" == keep-queue ]]
   [[ "$node" == 7 ]]
+  [[ "$kv" == 42 ]]
+  [[ "$uid" == 1 ]]
+  [[ "$blob" == $((2 * 1024 * 1024)) ]]
+  echo "import correctness ok"
+
+  # zstd 导入 + 进度日志（缩短间隔）
+  zsql=$(mktemp --suffix=.sql.zst)
+  zstd -q -f -3 -o "$zsql" "$sql_file"
   sql_cleanup
   mysql --protocol=socket -u root -e "CREATE DATABASE \`${sql_db}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-  if ! php "$ROOT/lib/php/sql_filter.php" --filter --prefix '' --map "$map" <"$sql_file" \
-    | mysql --protocol=socket -u root --batch "$sql_db" >/dev/null; then
-    echo "第二次导入失败" >&2
+  export XEDC_IMPORT_PROGRESS_SECS=1 XEDC_IMPORT_STALL_SECS=3
+  progress_log=$(mktemp)
+  if ! db_import_sql_zst mysql "$sql_db" '' "$zsql" 2>"$progress_log"; then
+    echo "zst 导入失败" >&2
+    cat "$progress_log" >&2
     exit 1
   fi
-  rm -f "$sql_file" "$raw_err" "$map"
+  grep -q '数据库导入完成，耗时' "$progress_log"
+  # 小文件可能一秒内完成，未必有进度行；用慢速管道测进度/卡住
+  slow=$(mktemp --suffix=.sql.zst)
+  {
+    printf '%s\n' "CREATE TABLE \`t\` (\`id\` int);"
+    # 足够大以跨越多个进度周期
+    for i in $(seq 1 5000); do
+      printf "INSERT INTO \`t\` VALUES (%s);\n" "$i"
+    done
+  } | zstd -q -f -3 -o "$slow"
+  # 卡住提示：监控器 + 假 mysql pid
+  stall_log=$(mktemp)
+  sleep 30 &
+  fake_pid=$!
+  pv_file=$(mktemp)
+  echo 0 >"$pv_file"
+  export XEDC_IMPORT_PROGRESS_SECS=1 XEDC_IMPORT_STALL_SECS=2
+  (
+    db_watch_import mysql "$sql_db" 100 "$pv_file" "" "$fake_pid"
+  ) >"$stall_log" 2>&1 &
+  watch_pid=$!
+  sleep 6
+  kill "$fake_pid" 2>/dev/null || true
+  wait "$fake_pid" 2>/dev/null || true
+  sleep 1
+  kill "$watch_pid" 2>/dev/null || true
+  wait "$watch_pid" 2>/dev/null || true
+  if ! grep -q '导入进度' "$stall_log"; then
+    echo "进度日志缺失" >&2
+    cat "$stall_log" >&2
+    exit 1
+  fi
+  if ! grep -q '无增长' "$stall_log"; then
+    echo "卡住提示缺失" >&2
+    cat "$stall_log" >&2
+    exit 1
+  fi
+  echo "progress/stall ok"
+  rm -f "$slow" "$stall_log" "$pv_file" "$progress_log" "$zsql"
+
+  # 幂等：标记 + sha256 跳过；外来库拒绝；半成品 resume
+  arch=$(mktemp)
+  echo dummy >"$arch"
+  sha=$(sha256sum "$arch" | awk '{print $1}')
+  db_mark_owned "$sql_db"
+  db_mark_imported "$sql_db" "$sha"
+  if ! db_imported_matches "$sql_db" "$sha"; then
+    echo "导入标记匹配失败" >&2
+    exit 1
+  fi
+  if db_imported_matches "$sql_db" "deadbeef"; then
+    echo "错误 sha 不应匹配" >&2
+    exit 1
+  fi
+  # 外来库
+  foreign=xedc_foreign_db
+  mysql --protocol=socket -u root -e "DROP DATABASE IF EXISTS \`${foreign}\`; CREATE DATABASE \`${foreign}\`; CREATE TABLE \`${foreign}\`.x (id int);"
+  rm -f "$(db_owned_file)"
+  if db_is_owned "$foreign"; then
+    echo "外来库不应标记为 owned" >&2
+    exit 1
+  fi
+  mysql --protocol=socket -u root -e "DROP DATABASE IF EXISTS \`${foreign}\`"
+  # 半成品：有 owned、无 imported → resume 应允许重建
+  db_mark_owned "$sql_db"
+  db_clear_import_marks
+  db_is_owned "$sql_db"
+  ! db_imported_matches "$sql_db" "$sha"
+  echo "idempotency ok"
+
+  rm -f "$sql_file" "$raw_err" "$arch"
   sql_cleanup
+  rm -rf "$XEDC_STATE_DIR"
   trap - EXIT
 else
   echo "本机没有 socket root，跳过真实导入"

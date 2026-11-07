@@ -20,5 +20,6 @@ web/sites/default/settings.php
 **/r2.env
 xedc-recovery/tests/logs/
 xedc-recovery/tests/work/
+xedc-recovery/lib/sql_skip_cache
 __pycache__/
 *.pyc

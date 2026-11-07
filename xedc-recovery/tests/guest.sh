@@ -82,6 +82,10 @@ case "$mode" in
       echo "备份日志出现 ERROR、501 或重试"
       exit 1
     fi
+    if ! grep -q '缓存类表数据行数为 0' /var/log/xedc-backup.log; then
+      echo "备份未确认缓存表无数据"
+      exit 1
+    fi
     mapfile -t ups < <(grep -oE 'R2 上传 [^[:space:]]+' /var/log/xedc-backup.log | awk '{print $NF}')
     [[ "${#ups[@]}" -eq 6 ]]
     [[ "${ups[0]}" == *.tar.zst && "${ups[0]}" != *.sha256 ]]

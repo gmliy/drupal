@@ -12,15 +12,22 @@ ONLY=""
 JOBS_ARG=""
 QUICK=0
 FROM_STAGE=""
+SKIP_UNIT=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --only) ONLY=${2:-}; shift 2 ;;
     --jobs) JOBS_ARG=${2:-}; shift 2 ;;
     --quick) QUICK=1; shift ;;
     --from-stage) FROM_STAGE=${2:-}; shift 2 ;;
+    --skip-unit) SKIP_UNIT=1; shift ;;
     *) echo "未知参数: $1" >&2; exit 2 ;;
   esac
 done
+
+if [[ "$SKIP_UNIT" != 1 && -z "$FROM_STAGE" ]]; then
+  echo "先跑单元测试与静态检查"
+  bash "$ROOT/tests/unit.sh"
+fi
 
 declare -A BASE=(
   [ubuntu-22.04]=ubuntu:22.04

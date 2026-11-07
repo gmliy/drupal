@@ -309,9 +309,31 @@ elif command -v mariadb-dump >/dev/null 2>&1; then
 else
   xedc_die "没有 mysqldump 或 mariadb-dump"
 fi
+db_dump_started=$(date +%s)
 db_dump_database "$cnf" "$db_name" "$SITE/web/sites/default/settings.php" "$dump_bin" \
   | php "$ROOT/lib/php/strip_excluded.php" --mode stream \
   | zstd -T0 -3 -o "$stage/db/site.sql.zst"
+db_dump_elapsed=$(( $(date +%s) - db_dump_started ))
+db_zst_size=$(stat -c%s "$stage/db/site.sql.zst" 2>/dev/null || echo 0)
+# 新备份里缓存类表不应有数据行
+db_prefix_now=$(db_prefix "$SITE/web/sites/default/settings.php" || true)
+cache_pat=$(db_cache_insert_ere "$db_prefix_now")
+cache_inserts=$(zstd -dc "$stage/db/site.sql.zst" | LC_ALL=C grep -a -cE "$cache_pat" || true)
+if [[ "${cache_inserts:-0}" != 0 ]]; then
+  xedc_warn "数据库 dump 仍含 ${cache_inserts} 条缓存类 INSERT，应只导结构"
+else
+  xedc_log "数据库 dump 缓存类表数据行数为 0"
+fi
+prev_stats="$XEDC_BACKUP_DIR/last-db-stats.txt"
+if [[ -f "$prev_stats" ]]; then
+  prev_size=$(awk -F= '/^size=/{print $2; exit}' "$prev_stats")
+  prev_time=$(awk -F= '/^seconds=/{print $2; exit}' "$prev_stats")
+  xedc_log "数据库 dump ${db_zst_size} 字节 / ${db_dump_elapsed} 秒（上次 ${prev_size:-?} 字节 / ${prev_time:-?} 秒）"
+else
+  xedc_log "数据库 dump ${db_zst_size} 字节 / ${db_dump_elapsed} 秒"
+fi
+printf 'size=%s\nseconds=%s\n' "$db_zst_size" "$db_dump_elapsed" >"$prev_stats"
+chmod 600 "$prev_stats"
 rm -f "$cnf"
 system_capture "$stage/system"
 

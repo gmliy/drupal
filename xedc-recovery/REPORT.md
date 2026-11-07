@@ -92,8 +92,12 @@ Ubuntu 24.04 快照上的 `certs` 用例通过，9 秒。容器里申请不到�
 - `xedc-push-gmliy` 和其它向 Git 推送的任务不还原。令牌留在旧服务器。
 - Netdata claim token 不进备份，恢复后要重新 claim。
 
+## 数据库导入加速（2026-11-07）
+
+分支 `fix/recovery-round2`。真实 2GB 服务器上 PHP 逐行过滤超长缓存 INSERT 会卡死；已改为 C 过滤器 `sql_skip_cache`（语义同 `LC_ALL=C grep -a -v -E` 行首表名），并加导入进度、卡住提示、`max_allowed_packet=256M`、会话加速与 sha256 幂等标记。备份端缓存表仍只导结构。
+
+单元测试通过：约 210MB 超长行 C 过滤约 64ms，旧 PHP 过滤 20s 内未完成；正确性、进度/卡住、幂等用例通过。五系统 Docker 主流程备份/恢复均已通过；分支用例跑到一半按要求停止，未再重试。
+
 ## 合并
 
-上一轮快进到 `main` 并已推送，没有单独的合并提交。当时记下的提交是 `fe5d883`，其后报告修订是 `1da59c8`。远端没有 `feature/recovery-v3`。
-
-配置权限、Compose 和 Redis 续跑这一轮在分支 `fix/redis-perms-compose`，还没有合并，也没有推送。
+本轮合并到 `main` 并推送。远端没有 `feature/recovery-v3`。

@@ -135,7 +135,7 @@ foreach (preg_split("/\n/", $release) ?: [] as $line) {
 $domain = (string) ($hints['domain'] ?? '');
 $www = (bool) ($hints['www'] ?? false);
 $settings = $site !== '' ? $site . '/web/sites/default/settings.php' : '';
-$db = ['name' => '', 'host' => 'localhost', 'port' => '3306', 'driver' => 'mysql'];
+$db = ['name' => '', 'host' => 'localhost', 'port' => '3306', 'driver' => 'mysql', 'prefix' => ''];
 if ($settings !== '' && is_file($settings)) {
   $active = xedc_active_lines((string) file_get_contents($settings));
   if (preg_match_all("/['\"]database['\"]\\s*=>\\s*['\"]([^'\"]+)['\"]/", $active, $m) && $m[1] !== []) {
@@ -146,6 +146,12 @@ if ($settings !== '' && is_file($settings)) {
   }
   if (preg_match_all("/['\"]port['\"]\\s*=>\\s*['\"]([^'\"]+)['\"]/", $active, $m) && $m[1] !== []) {
     $db['port'] = (string) end($m[1]);
+  }
+  require_once __DIR__ . '/settings_db.php';
+  try {
+    $db['prefix'] = xedc_db_prefix($settings);
+  } catch (Throwable $e) {
+    $db['prefix'] = '';
   }
   if (preg_match("/trusted_host_patterns[\\s\\S]{0,500}?'\\^([^']+)'/", $active, $m) === 1) {
     $candidate = str_replace(['\\\\.', '\\.'], '.', $m[1]);

@@ -43,11 +43,11 @@ R2 使用官方最新稳定版 rclone，装不上才回退系统包并警告。C
 
 `restore.sh` 参数包括 `--from local:/路径`、`--from r2:latest`、`r2:latest-1`、`r2:时间版本`、`--domain`、`--old-domain`、`--www`、`--https auto|self|off`、`--email`、`--php`、`--yes`、`--force`、`--verify`、`--resume`、`--clean-excluded`、`--keep-matomo-module`、`--list-local`、`--list-r2`。`--https self` 只用自签证书，不向 Let's Encrypt 重复签发。`--matomo-domain` 不再恢复 Matomo，传入时只警告并忽略。
 
-没有 `--force` 时，发现已有站点就停止。有 `--force` 时先备份旧数据库。`--verify` 只读，不改系统。`--resume` 从失败步骤继续，不重复已成功的步骤。数据库导入成功后写入 `database-imported`。`--resume` 看到这个标记且目标库非空时跳过导入；标记和库不一致，或目标库非空但导入未完成时，先删除再重建。还原前比较配置哈希，和上次脚本写入的不同就保留当前文件并提示，不覆盖手动修改。`--clean-excluded` 默认只打印残留；加上 `--yes` 才执行 `compose down -v`、删除 nginx 配置和停用单元。`--keep-matomo-module` 保留 Drupal 模块，Matomo 服务仍然不恢复。
+没有 `--force` 时，发现已有站点就停止。有 `--force` 时先备份旧数据库。`--verify` 只读，不改系统。`--resume` 从失败步骤继续，不重复已成功的步骤。数据库导入成功后写入 `database-imported`（含备份包 sha256）。`--resume` 看到这个标记且 sha256 与当前备份一致、目标库非空时跳过导入；标记不一致、导入未完成或半成品库，先删除再重建。目标库已有非本工具创建的数据时，必须带 `--force` 才能清空，默认报错停止。还原前比较配置哈希，和上次脚本写入的不同就保留当前文件并提示，不覆盖手动修改。`--clean-excluded` 默认只打印残留；加上 `--yes` 才执行 `compose down -v`、删除 nginx 配置和停用单元。`--keep-matomo-module` 保留 Drupal 模块，Matomo 服务仍然不恢复。
 
 域名、安装确认和 R2 凭据都在进入 tmux 之前于前台终端读完。没有 TTY 又缺参数时直接报错，并提示用命令参数或环境变量。凭据经权限 600 的临时文件交给会话，会话启动后立即删除，不进入日志、命令行和进程列表。随后自动 `tmux attach -t xedc-restore`。日志 `/var/log/xedc-restore.log`，权限 600，用 `cat` 或 `tail -f` 查看。会话结束写入真实退出码。失败时提示日志路径和 `--resume`。新服务器不需要解密口令。
 
-然后安装软件、建库、导入、还原代码。导入前按备份里的表前缀丢掉缓存表、`cachetags`、`watchdog`、`sessions`、`flood`、`semaphore` 的 `INSERT`/`REPLACE`，因此旧备份里的重复 `cid` 不会让导入失败；`queue` 的数据保留。不用 `mysql --force`。失败时只打印表名、行号和一行错误摘要，不把整条 `INSERT` 打到终端。导入完成、配置导入之后，以及域名替换之后，都执行 `drush cr`。域名替换若改写了 Matomo 配置，且没有 `--keep-matomo-module`，会再清一次配置和数据库里的跟踪项。`composer install` 前先 `composer check-platform-reqs`，不兼容就列出包并停止，不忽略平台检查。数据库导入和代码还原之后、`drush updb` 与 `cim` 之前，默认卸载 `exclude.list` 里的 Drupal 模块：删掉 `config/sync` 里的对应配置和 `core.extension.yml` 条目，删掉引用它们的 block、views 和菜单，`drush pm:uninstall`，`drush config:delete`，清掉相关 state 和 key_value，再 `composer remove` 存在的包。然后 `updb`、`cim`、`cr`，并确认模块仍未启用。被其他模块依赖时列出依赖，卸载失败写入失败项，不中断整个恢复。配置和数据库里的跟踪脚本、站点 ID、matomo 域名自动清理。主题和自定义模块里的硬编码只报告文件和行号。`--keep-matomo-module` 跳过这一步。接着构建主题、改 `settings.php`、还原服务、处理域名和 HTTPS、自检。自检通过后再启动名字里带 worker 的单元，例如 `xedc-import-worker`。首页 HTML 不得出现 matomo 跟踪脚本，也不得请求 matomo 域名。
+然后安装软件、建库、导入、还原代码。导入管道为 `pv -n 压缩包 | zstd -dc | LC_ALL=C grep -a -v -E '行首缓存表 INSERT'`（或等价的 C 过滤器 `sql_skip_cache`，用于跨多行 INSERT），再交给 mysql。必须加 `grep -a`（dump 含 NUL/二进制）。只匹配行首表名，不按整行内容做正则；表前缀来自 `settings.php` 或 manifest。过滤的只能是 `cache`、`cache_*`、`cachetags`、`sessions`、`watchdog`、`flood`、`semaphore` 的 `INSERT`/`REPLACE`；`key_value`、`queue`、`users`、`config` 等一律保留。过滤后 `LOCK`/`UNLOCK` 与 `DISABLE`/`ENABLE KEYS` 保持配对。导入前将会话 `max_allowed_packet` 调到至少 256M，并在导入期间关闭 `foreign_key_checks`、`unique_checks`、`autocommit`（结束 `COMMIT` 并恢复）。按服务器内存（1GB–8GB）调整 InnoDB 等参数。每 10 秒写进度（已读字节/百分比、目标库当前大小）；5 分钟两项都无增长时打印正在导入的表名、MariaDB 状态和 `SHOW PROCESSLIST` 摘要。导入结束打印耗时。不用 `mysql --force`。失败时只打印表名、行号和一行错误摘要，不把整条 `INSERT` 打到终端。导入完成、配置导入之后，以及域名替换之后，都执行 `drush cr`。域名替换若改写了 Matomo 配置，且没有 `--keep-matomo-module`，会再清一次配置和数据库里的跟踪项。`composer install` 前先 `composer check-platform-reqs`，不兼容就列出包并停止，不忽略平台检查。数据库导入和代码还原之后、`drush updb` 与 `cim` 之前，默认卸载 `exclude.list` 里的 Drupal 模块：删掉 `config/sync` 里的对应配置和 `core.extension.yml` 条目，删掉引用它们的 block、views 和菜单，`drush pm:uninstall`，`drush config:delete`，清掉相关 state 和 key_value，再 `composer remove` 存在的包。然后 `updb`、`cim`、`cr`，并确认模块仍未启用。被其他模块依赖时列出依赖，卸载失败写入失败项，不中断整个恢复。配置和数据库里的跟踪脚本、站点 ID、matomo 域名自动清理。主题和自定义模块里的硬编码只报告文件和行号。`--keep-matomo-module` 跳过这一步。接着构建主题、改 `settings.php`、还原服务、处理域名和 HTTPS、自检。自检通过后再启动名字里带 worker 的单元，例如 `xedc-import-worker`。首页 HTML 不得出现 matomo 跟踪脚本，也不得请求 matomo 域名。
 
 还原服务时的顺序是：复制备份里的 nginx（跳过排除清单）、证书基础文件、把旧域名换成新域名、写主站配置、补上缺失证书、`nginx -t`、启动 Docker、还原卷、再启动未被排除的容器。旧备份里的 Matomo 文件也跳过：不还原 `matomo.conf`，不 `compose up`，不建网络和数据卷，不为它的子域名申请证书。`--resume` 会再次从备份复制配置；若文件哈希与上次脚本写入的不同，则保留手动修改。域名变更后不得留着旧域名。
 
@@ -94,7 +94,7 @@ Drupal 的 trusted host、base_url、cookie domain 要改。配置和数据库�
 
 ## 10. 测试
 
-先做 `bash -n` 和 shellcheck，有 error 级问题就不要启动容器。`tests/run-all.sh` 默认同时跑五个系统。内存不够就降低并发。`--quick` 只跑 Ubuntu 24.04 和 26.04，合并前必须跑满五个系统。
+先做 `bash -n` 和 shellcheck，有 error 级问题就不要启动容器。`tests/unit.sh` 覆盖：约 200MB 超长缓存行（含 NUL）的过滤性能（秒级，并对比旧 PHP 过滤）、非缓存表行数/校验和、缓存表结构保留数据为空、`key_value`/`queue`/`users` 不被误删、LOCK 配对、`max_allowed_packet`、进度日志（可缩短间隔）、卡住提示、`--resume` 幂等与外来库拒删。`tests/run-all.sh` 默认同时跑五个系统。内存不够就降低并发。`--quick` 只跑 Ubuntu 24.04 和 26.04，合并前必须跑满五个系统。
 
 基础镜像只预装 curl 和证书。nginx、PHP、MariaDB 必须在恢复流程里真正安装。用小型夹具数据。MinIO 模拟 R2。某个系统失败不影响其他系统。
 

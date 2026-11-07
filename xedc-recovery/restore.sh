@@ -611,20 +611,27 @@ step_database() {
   prepare_db_names
   mariadb_configure
   mariadb_enable
-  local bin sql settings prefix marked
+  local bin sql settings prefix archive_sha
   bin=$(mariadb_root)
-  if [[ "$RESUME" == 1 && -f "$(db_imported_file)" ]]; then
-    marked=$(cat "$(db_imported_file)")
-    if [[ "$marked" == "$DB_NAME" ]] && db_target_nonempty "$bin" "$DB_NAME"; then
-      xedc_log "数据库已导入，跳过重复导入"
-      return 0
-    fi
-    xedc_log "导入标记和目标库不一致，重新导入"
+  archive_sha=""
+  if [[ -n "${ARCHIVE:-}" && -f "$ARCHIVE" ]]; then
+    archive_sha=$(db_archive_sha256 "$ARCHIVE")
   fi
-  if [[ -f "$SITE/web/sites/default/settings.php" && "$FORCE" == 1 ]]; then
-    backup_existing
+  if [[ "$RESUME" == 1 ]] && db_imported_matches "$DB_NAME" "$archive_sha" && db_target_nonempty "$bin" "$DB_NAME"; then
+    xedc_log "数据库已导入（标记与备份 sha256 一致），跳过重复导入"
+    return 0
+  fi
+  if [[ "$RESUME" == 1 && -f "$(db_imported_file)" ]]; then
+    xedc_log "导入标记和目标库或不一致，清空后重新导入"
+    db_clear_import_marks
   fi
   if db_target_nonempty "$bin" "$DB_NAME"; then
+    if ! db_is_owned "$DB_NAME" && [[ "$FORCE" != 1 ]]; then
+      xedc_die "目标库 ${DB_NAME} 已有非本工具创建的数据。确认后加 --force 才能清空"
+    fi
+    if [[ "$FORCE" == 1 ]]; then
+      backup_existing
+    fi
     xedc_log "目标库 ${DB_NAME} 非空，先删除再导入"
   fi
   sql=$(mktemp)
@@ -638,6 +645,8 @@ FLUSH PRIVILEGES;
 EOF
   "$bin" --protocol=socket -u root <"$sql"
   rm -f "$sql"
+  db_mark_owned "$DB_NAME"
+  db_clear_import_marks
   if [[ ! -d "$WORK" ]]; then
     WORK=$(mktemp -d)
     zstd -dc "$ARCHIVE" | tar -C "$WORK" -xf -
@@ -649,15 +658,18 @@ EOF
   if [[ -f "$settings" ]]; then
     prefix=$(db_prefix "$settings")
   fi
+  if [[ -z "$prefix" && -f "${MANIFEST:-}" ]]; then
+    prefix=$(db_prefix_from_manifest "$MANIFEST")
+  fi
   if [[ -z "$prefix" ]]; then
     xedc_log "导入时去掉缓存表数据，表没有前缀"
   else
     xedc_log "导入时去掉缓存表数据，表前缀 ${prefix}"
   fi
-  if ! zstd -dc "$WORK/db/site.sql.zst" | db_import_sql "$bin" "$DB_NAME" "$prefix"; then
+  if ! db_import_sql_zst "$bin" "$DB_NAME" "$prefix" "$WORK/db/site.sql.zst"; then
     xedc_die "数据库导入失败。日志 ${XEDC_LOG_FILE:-/var/log/xedc-restore.log}。修好后加 --resume 继续"
   fi
-  db_mark_imported "$DB_NAME"
+  db_mark_imported "$DB_NAME" "$archive_sha"
   printf '%s\n' "$DB_PASS" >"$XEDC_STATE_DIR/db.pass"
   chmod 600 "$XEDC_STATE_DIR/db.pass"
   xedc_log "数据库 ${DB_NAME} 已导入"
