@@ -40,6 +40,8 @@ source "$ROOT/lib/modules.sh"
 source "$ROOT/lib/version.sh"
 # shellcheck source=lib/db.sh
 source "$ROOT/lib/db.sh"
+# shellcheck source=lib/disk.sh
+source "$ROOT/lib/disk.sh"
 
 ORIGINAL_ARGS=("$@")
 FROM=""
@@ -55,13 +57,16 @@ LIST_LOCAL=0
 LIST_R2=0
 CLEAN=0
 KEEP_MODULES=0
+WORKDIR_OVERRIDE=""
+KEEP_PACKAGE=0
 
 usage() {
   cat <<'EOF'
 用法: restore.sh --from local:/路径/包.tar.zst|--from r2:latest|r2:latest-1|r2:时间
   --domain 域名 [--old-domain 旧域名] [--www yes|no] [--https auto|self|off]
   [--email 邮箱] [--php 8.5] [--yes] [--force] [--verify] [--resume]
-  [--clean-excluded] [--keep-matomo-module] [--list-local] [--list-r2]
+  [--workdir 路径] [--keep-package] [--clean-excluded] [--keep-matomo-module]
+  [--list-local] [--list-r2]
 --https self 只用自签证书。--clean-excluded 清理排除清单残留，加上 --yes 才执行。
 --keep-matomo-module 保留 Drupal 模块，Matomo 服务仍然不恢复。
 EOF
@@ -86,6 +91,8 @@ while [[ $# -gt 0 ]]; do
     --force) FORCE=1; shift ;;
     --verify) VERIFY=1; shift ;;
     --resume) RESUME=1; shift ;;
+    --workdir) WORKDIR_OVERRIDE=${2:-}; shift 2 ;;
+    --keep-package) KEEP_PACKAGE=1; shift ;;
     --list-local) LIST_LOCAL=1; shift ;;
     --list-r2) LIST_R2=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -98,7 +105,9 @@ if [[ -n "${XEDC_PHP_VERSION:-}" && ! "${XEDC_PHP_VERSION}" =~ ^[0-9]+\.[0-9]+$ 
 fi
 export XEDC_PHP_VERSION="${XEDC_PHP_VERSION:-}"
 export XEDC_KEEP_MODULES=$KEEP_MODULES
+export RESUME=$RESUME
 umask 022
+xedc_init_runtime_dirs
 xedc_print_version
 xedc_warn_bootstrap_version || true
 
@@ -240,7 +249,7 @@ EOF
 
 write_r2_handoff() {
   local f
-  f=$(mktemp /tmp/xedc-r2.XXXXXX)
+  f=$(xedc_mktemp r2.XXXXXX)
   chmod 600 "$f"
   cat >"$f" <<EOF
 R2_ACCOUNT_ID=${R2_ACCOUNT_ID-}
@@ -282,15 +291,21 @@ enter_tmux() {
     : >"$XEDC_RESTORE_LOG"
     chmod 600 "$XEDC_RESTORE_LOG"
   fi
-  local r2file="" cmd rcfile tail_pid=""
-  rcfile=/tmp/xedc-restore.exit
+  local r2file="" cmd rcfile tail_pid="" workdir
+  workdir=$(xedc_resolve_workdir "${WORKDIR_OVERRIDE:-${XEDC_WORKDIR:-}}")
+  export XEDC_WORKDIR="$workdir"
+  export TMPDIR="$workdir"
+  rcfile="$XEDC_RUN_DIR/restore.exit"
   if [[ "$FROM" == r2:* ]]; then
     r2file=$(write_r2_handoff)
   fi
-  cmd=$(mktemp)
+  cmd=$(xedc_mktemp cmd.XXXXXX)
   chmod 700 "$cmd"
   {
     printf '%s\n' '#!/bin/bash' 'set +e' 'set -o pipefail' 'export XEDC_INSIDE_TMUX=1' 'export XEDC_LOG_MIRROR=1'
+    printf 'export XEDC_WORKDIR=%q\n' "$workdir"
+    printf 'export TMPDIR=%q\n' "$workdir"
+    printf 'export XEDC_RUN_DIR=%q\n' "$XEDC_RUN_DIR"
     [[ -n "${XEDC_YES:-}" ]] && printf 'export XEDC_YES=%q\n' "$XEDC_YES"
     [[ -n "${XEDC_PHP_VERSION:-}" ]] && printf 'export XEDC_PHP_VERSION=%q\n' "$XEDC_PHP_VERSION"
     [[ -n "${XEDC_FAIL_STEP:-}" ]] && printf 'export XEDC_FAIL_STEP=%q\n' "$XEDC_FAIL_STEP"
@@ -412,6 +427,7 @@ fi
 printf '%s\n' "$$" >"$lock"
 
 WORK=""
+WORK_ROOT=""
 RCLONE_CONF=""
 ARCHIVE=""
 STAMP=""
@@ -425,13 +441,28 @@ DB_PORT="3306"
 MANUAL="$XEDC_STATE_DIR/manual.txt"
 trap 'rm -f /var/lock/xedc-restore.pid; cleanup_secrets' EXIT
 
+xedc_prune_downloaded_package() {
+  [[ "$KEEP_PACKAGE" == 1 ]] && return 0
+  [[ -n "${ARCHIVE:-}" && -f "$ARCHIVE" ]] || return 0
+  case "$ARCHIVE" in
+    "$XEDC_STATE_DIR/downloads"/*)
+      xedc_log "校验完成，删除已下载备份包以节省磁盘"
+      rm -f "$ARCHIVE" "${ARCHIVE%.tar.zst}.tar.zst.sha256"
+      ;;
+  esac
+}
+
 cleanup_secrets() {
   if [[ -n "$RCLONE_CONF" && -f "$RCLONE_CONF" ]]; then
     rm -f "$RCLONE_CONF"
   fi
+  if [[ -n "${XEDC_KEEP_WORK:-}" ]]; then
+    return 0
+  fi
   if [[ -n "$WORK" && -d "$WORK" ]]; then
     rm -rf "$WORK"
   fi
+  rm -f "$XEDC_STATE_DIR/work.path" "$XEDC_STATE_DIR/work.incomplete" 2>/dev/null || true
   return 0
 }
 note_manual() {
@@ -467,8 +498,21 @@ prompt_r2() {
   xedc_die "没有 R2 凭据。请设置 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY、R2_BUCKET。日志: ${XEDC_RESTORE_LOG}。继续请加上 --resume"
 }
 
+download_manifest_only() {
+  local conf=$1 stamp=$2 dest=$3
+  xedc_r2 "$conf" copyto "$(xedc_r2_remote "${stamp}.manifest.json")" "$dest/${stamp}.manifest.json" || return 1
+}
+
 download_one() {
   local conf=$1 stamp=$2 dest=$3
+  if [[ ! -f "$dest/${stamp}.manifest.json" ]]; then
+    download_manifest_only "$conf" "$stamp" "$dest" || true
+  fi
+  if [[ -f "$dest/${stamp}.manifest.json" ]]; then
+    WORK_ROOT=$(xedc_pick_work_root "$WORKDIR_OVERRIDE")
+    export XEDC_WORKDIR="$WORK_ROOT"
+    xedc_disk_precheck_restore "$dest/${stamp}.tar.zst" "$dest/${stamp}.manifest.json" "$WORK_ROOT"
+  fi
   xedc_r2 "$conf" copyto "$(xedc_r2_remote "${stamp}.tar.zst")" "$dest/${stamp}.tar.zst"
   xedc_r2 "$conf" copyto "$(xedc_r2_remote "${stamp}.tar.zst.sha256")" "$dest/${stamp}.tar.zst.sha256"
   xedc_r2 "$conf" copyto "$(xedc_r2_remote "${stamp}.manifest.json")" "$dest/${stamp}.manifest.json" || true
@@ -496,6 +540,11 @@ step_fetch() {
     if [[ -f "$(dirname "$path")/${STAMP}.manifest.json" ]]; then
       MANIFEST="$(dirname "$path")/${STAMP}.manifest.json"
     fi
+    WORK_ROOT=$(xedc_pick_work_root "$WORKDIR_OVERRIDE")
+    export XEDC_WORKDIR="$WORK_ROOT"
+    if [[ -f "${MANIFEST:-}" ]]; then
+      xedc_disk_precheck_restore "$path" "$MANIFEST" "$WORK_ROOT"
+    fi
   elif [[ "$FROM" == r2:* ]]; then
     local spec=${FROM#r2:}
     prompt_r2
@@ -515,6 +564,12 @@ step_fetch() {
     while (( idx >= 0 )); do
       chosen=${stamps[$idx]}
       rm -f "$dest/${chosen}.tar.zst" "$dest/${chosen}.tar.zst.sha256"
+      download_manifest_only "$RCLONE_CONF" "$chosen" "$dest" || true
+      if [[ -f "$dest/${chosen}.manifest.json" ]]; then
+        WORK_ROOT=$(xedc_pick_work_root "$WORKDIR_OVERRIDE")
+        export XEDC_WORKDIR="$WORK_ROOT"
+        xedc_disk_precheck_restore "$dest/${chosen}.tar.zst" "$dest/${chosen}.manifest.json" "$WORK_ROOT"
+      fi
       if download_one "$RCLONE_CONF" "$chosen" "$dest"; then
         ARCHIVE="$dest/${chosen}.tar.zst"
         STAMP=$chosen
@@ -529,19 +584,16 @@ step_fetch() {
   else
     xedc_die "请指定 --from local:/路径 或 --from r2:latest"
   fi
-  if [[ -z "$MANIFEST" || ! -f "$MANIFEST" ]]; then
+  WORK_ROOT=$(xedc_pick_work_root "$WORKDIR_OVERRIDE")
+  export XEDC_WORKDIR="$WORK_ROOT"
+  if [[ -f "$MANIFEST" ]]; then
+    xedc_disk_precheck_restore "$ARCHIVE" "$MANIFEST" "$WORK_ROOT"
+  elif [[ -z "$MANIFEST" || ! -f "$MANIFEST" ]]; then
     local unpack
-    unpack=$(mktemp -d)
-    set +o pipefail
-    zstd -dc "$ARCHIVE" | tar -C "$unpack" -xf - ./manifest.json 2>/dev/null || true
-    if [[ ! -f "$unpack/manifest.json" ]]; then
-      zstd -dc "$ARCHIVE" | tar -C "$unpack" -xf - manifest.json 2>/dev/null || true
-    fi
-    set -o pipefail
-    if [[ ! -f "$unpack/manifest.json" ]]; then
-      xedc_die "备份里没有 manifest.json"
-    fi
+    unpack=$(xedc_work_mktemp_d manifest.XXXXXX)
+    xedc_archive_extract_manifest "$ARCHIVE" "$unpack" || xedc_die "无法从备份读取 manifest.json"
     MANIFEST="$unpack/manifest.json"
+    xedc_disk_precheck_restore "$ARCHIVE" "$MANIFEST" "$WORK_ROOT"
   fi
   cp "$MANIFEST" "$XEDC_STATE_DIR/manifest.json"
   printf '%s\n' "$ARCHIVE" >"$XEDC_STATE_DIR/archive.path"
@@ -634,7 +686,7 @@ step_database() {
     fi
     xedc_log "目标库 ${DB_NAME} 非空，先删除再导入"
   fi
-  sql=$(mktemp)
+  sql=$(xedc_mktemp sql.XXXXXX)
   cat >"$sql" <<EOF
 DROP DATABASE IF EXISTS \`${DB_NAME}\`;
 CREATE DATABASE \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -647,11 +699,26 @@ EOF
   rm -f "$sql"
   db_mark_owned "$DB_NAME"
   db_clear_import_marks
-  if [[ ! -d "$WORK" ]]; then
-    WORK=$(mktemp -d)
-    zstd -dc "$ARCHIVE" | tar -C "$WORK" -xf -
-  elif [[ ! -f "$WORK/db/site.sql.zst" ]]; then
-    zstd -dc "$ARCHIVE" | tar -C "$WORK" -xf -
+  xedc_work_resume_cleanup
+  if [[ -z "$WORK" || ! -d "$WORK" ]]; then
+    WORK=$(xedc_work_dir)
+  fi
+  xedc_work_mark_incomplete "$WORK"
+  xedc_disk_check_dir "$WORK" "$(xedc_restore_need_kb "$ARCHIVE" "$MANIFEST")"
+  if [[ ! -f "$WORK/code/web/sites/default/settings.php" ]]; then
+    xedc_archive_member_to_file "$ARCHIVE" "code/web/sites/default/settings.php" \
+      "$WORK/code/web/sites/default/settings.php" 2>/dev/null || \
+      xedc_archive_extract "$ARCHIVE" "$WORK" ./code/web/sites/default/settings.php \
+        code/web/sites/default/settings.php 2>/dev/null || true
+  fi
+  local import_via_stream=0
+  if [[ -f "$WORK/db/site.sql.zst" ]]; then
+    import_via_stream=0
+  elif db_archive_has_sql_zst "$ARCHIVE"; then
+    import_via_stream=1
+  else
+    xedc_archive_extract "$ARCHIVE" "$WORK" ./db ./db/site.sql.zst db/site.sql.zst db || \
+      xedc_archive_extract "$ARCHIVE" "$WORK" db
   fi
   settings="$WORK/code/web/sites/default/settings.php"
   prefix=""
@@ -666,20 +733,33 @@ EOF
   else
     xedc_log "导入时去掉缓存表数据，表前缀 ${prefix}"
   fi
-  if ! db_import_sql_zst "$bin" "$DB_NAME" "$prefix" "$WORK/db/site.sql.zst"; then
+  if [[ "$import_via_stream" == 1 ]]; then
+    if ! db_import_sql_zst_from_archive "$bin" "$DB_NAME" "$prefix" "$ARCHIVE" "${MANIFEST:-}"; then
+      xedc_die "数据库导入失败。日志 ${XEDC_LOG_FILE:-/var/log/xedc-restore.log}。修好后加 --resume 继续"
+    fi
+  elif ! db_import_sql_zst "$bin" "$DB_NAME" "$prefix" "$WORK/db/site.sql.zst"; then
     xedc_die "数据库导入失败。日志 ${XEDC_LOG_FILE:-/var/log/xedc-restore.log}。修好后加 --resume 继续"
   fi
   db_mark_imported "$DB_NAME" "$archive_sha"
   printf '%s\n' "$DB_PASS" >"$XEDC_STATE_DIR/db.pass"
   chmod 600 "$XEDC_STATE_DIR/db.pass"
   xedc_log "数据库 ${DB_NAME} 已导入"
+  rm -f "$WORK/db/site.sql.zst" 2>/dev/null || true
+  xedc_prune_downloaded_package
 }
 
 extract_archive() {
-  if [[ -z "$WORK" || ! -d "$WORK/code" ]]; then
-    WORK=$(mktemp -d)
-    zstd -dc "$ARCHIVE" | tar -C "$WORK" -xf -
+  xedc_work_resume_cleanup
+  if [[ -z "$WORK" || ! -d "$WORK" ]]; then
+    WORK=$(xedc_work_dir)
+    xedc_work_mark_incomplete "$WORK"
   fi
+  xedc_disk_check_dir "$WORK"
+  if [[ ! -d "$WORK/code" ]]; then
+    xedc_archive_extract "$ARCHIVE" "$WORK" ./code ./files code files
+  fi
+  xedc_prune_downloaded_package
+  xedc_work_mark_complete
 }
 
 step_code() {
@@ -850,7 +930,7 @@ step_domain() {
     return 0
   fi
   local cnf bin stamp
-  cnf=$(mktemp)
+  cnf=$(xedc_mktemp domain-cnf.XXXXXX)
   chmod 600 "$cnf"
   cat >"$cnf" <<EOF
 [client]
@@ -1111,6 +1191,13 @@ ensure_php() {
 }
 
 ensure_php
+if [[ -n "$WORKDIR_OVERRIDE" ]]; then
+  export XEDC_WORKDIR=$(xedc_resolve_workdir "$WORKDIR_OVERRIDE")
+  export TMPDIR="$XEDC_WORKDIR"
+else
+  xedc_init_runtime_dirs
+fi
+xedc_work_resume_cleanup
 run_step fetch step_fetch
 if [[ -z "$WWW" ]]; then
   www_flag=$(xedc_manifest_get "$MANIFEST" www || true)

@@ -101,7 +101,7 @@ modules_cleanup() {
   else
     unset XEDC_KEEP_PACKAGES
   fi
-  cnf=$(mktemp)
+  cnf=$(xedc_mktemp)
   chmod 600 "$cnf"
   if [[ -n "${DB_USER:-}" && -n "${DB_PASS:-}" && -n "${DB_NAME:-}" ]]; then
     cat >"$cnf" <<EOF

@@ -416,8 +416,8 @@ db_import_sql_zst() {
   [[ -f "$sql_zst" ]] || return 1
   [[ "$db" =~ ^[A-Za-z0-9_]+$ ]] || return 1
 
-  err=$(mktemp)
-  pv_file=$(mktemp)
+  err=$(xedc_mktemp)
+  pv_file=$(xedc_mktemp)
   rc=0
   start=$(date +%s)
   total=$(stat -c%s "$sql_zst" 2>/dev/null || echo 0)
@@ -491,7 +491,7 @@ db_import_sql_zst() {
 db_import_sql() {
   local bin=$1 db=$2 prefix=$3
   local err rc
-  err=$(mktemp)
+  err=$(xedc_mktemp)
   rc=0
   db_import_prepare_global "$bin"
   {
@@ -506,6 +506,74 @@ db_import_sql() {
     return "$rc"
   fi
   rm -f "$err"
+}
+
+db_archive_has_sql_zst() {
+  local archive=$1
+  [[ -f "$archive" ]] || return 1
+  zstd -dc "$archive" 2>/dev/null | tar -t 2>/dev/null | grep -qE '(^|\.?/?)db/site\.sql\.zst$'
+}
+
+db_import_sql_zst_from_archive() {
+  local bin=$1 db=$2 prefix=$3 archive=$4 manifest=${5:-}
+  local err pv_file rc start end elapsed total=0 have_pv=0
+  local mysql_pid watch_pid reader_pid saved_flush pipe_pid
+
+  [[ -f "$archive" ]] || return 1
+  [[ "$db" =~ ^[A-Za-z0-9_]+$ ]] || return 1
+  if [[ -f "$manifest" ]]; then
+    total=$(php -r '
+      $j=json_decode((string) file_get_contents($argv[1]),true);
+      echo (int) (($j["backup"]["database_zst_bytes"] ?? 0));
+    ' "$manifest" 2>/dev/null || echo 0)
+  fi
+
+  err=$(xedc_mktemp)
+  pv_file=$(xedc_mktemp)
+  rc=0
+  start=$(date +%s)
+  saved_flush=$("$bin" --protocol=socket -u root -N -e "SELECT @@GLOBAL.innodb_flush_log_at_trx_commit" 2>/dev/null || echo 1)
+  db_import_prepare_global "$bin"
+  if db_ensure_pv; then
+    have_pv=1
+  fi
+  pat=$(db_cache_insert_ere "$prefix")
+  xedc_log "流式导入数据库（不落盘 sql 包）: ${pat}"
+  if ! db_ensure_sql_skip; then
+    xedc_warn "sql_skip_cache 未编译，流式导入仅用行首 grep"
+  fi
+  (
+    db_import_session_sql
+    zstd -dc "$archive" | { tar -xO ./db/site.sql.zst 2>/dev/null || tar -xO db/site.sql.zst 2>/dev/null; } \
+      | zstd -dc | db_filter_stream "$prefix"
+    db_import_finish_sql
+  ) | "$bin" --protocol=socket -u root --default-character-set=utf8mb4 --max_allowed_packet=256M "$db" \
+    >/dev/null 2>"$err" &
+  mysql_pid=$!
+  pipe_pid=$mysql_pid
+  sleep 0.3
+  reader_pid=$(pgrep -a zstd 2>/dev/null | awk '/zstd -dc/{print $1; exit}')
+  db_watch_import "$bin" "$db" "$total" "$pv_file" "$reader_pid" "$mysql_pid" &
+  watch_pid=$!
+  if ! wait "$mysql_pid"; then
+    rc=$?
+  fi
+  kill "$watch_pid" 2>/dev/null || true
+  wait "$watch_pid" 2>/dev/null || true
+  if [[ "$saved_flush" =~ ^[0-9]+$ ]]; then
+    "$bin" --protocol=socket -u root -e "SET GLOBAL innodb_flush_log_at_trx_commit=${saved_flush}" >/dev/null 2>&1 || true
+  fi
+  "$bin" --protocol=socket -u root -e "SET GLOBAL foreign_key_checks=1; SET GLOBAL unique_checks=1;" >/dev/null 2>&1 || true
+  end=$(date +%s)
+  elapsed=$((end - start))
+  if [[ "$rc" != 0 ]]; then
+    db_explain_mysql_error "$err" >&2
+    rm -f "$err" "$pv_file"
+    return "$rc"
+  fi
+  xedc_log "数据库流式导入完成，耗时 ${elapsed} 秒"
+  rm -f "$err" "$pv_file"
+  return 0
 }
 
 db_rebuild_cache() {

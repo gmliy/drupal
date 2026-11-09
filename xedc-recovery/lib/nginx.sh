@@ -254,7 +254,7 @@ nginx_quarantine_sites() {
   if nginx -t >/dev/null 2>&1; then
     return 0
   fi
-  tmp=$(mktemp -d)
+  tmp=$(xedc_mktemp_d)
   list="$tmp/list"
   : >"$list"
   shopt -s nullglob

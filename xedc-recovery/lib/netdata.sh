@@ -16,7 +16,7 @@ netdata_install() {
     fi
     if [[ "$install_kind" == "kickstart" ]]; then
       local ks
-      ks=$(mktemp)
+      ks=$(xedc_mktemp)
       if curl -fsSL --max-time 60 -o "$ks" https://get.netdata.cloud/kickstart.sh && bash "$ks" --dont-wait --stable-channel --disable-telemetry; then
         rm -f "$ks"
         xedc_warn "Netdata 已安装。claim token 不会恢复，请重新 claim"

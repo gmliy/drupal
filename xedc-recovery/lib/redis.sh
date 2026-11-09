@@ -23,11 +23,13 @@ redis_overcommit() {
     printf '%s\n' 'vm.overcommit_memory=1' >>"$file"
   fi
   xedc_apply_perms "$file"
-  if ! sysctl --system >/tmp/xedc-sysctl.out 2>&1; then
+  local sysctl_out
+  sysctl_out=$(xedc_mktemp sysctl.XXXXXX)
+  if ! sysctl --system >"$sysctl_out" 2>&1; then
     xedc_warn "sysctl --system 未能全部应用。真实服务器上请确认 vm.overcommit_memory=1"
-    cat /tmp/xedc-sysctl.out >&2 || true
+    cat "$sysctl_out" >&2 || true
   fi
-  rm -f /tmp/xedc-sysctl.out
+  rm -f "$sysctl_out"
 }
 
 redis_configure() {

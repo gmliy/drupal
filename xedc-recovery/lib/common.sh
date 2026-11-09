@@ -28,6 +28,94 @@ XEDC_BACKUP_DIR="${XEDC_BACKUP_DIR:-/var/backups/xedc}"
 XEDC_R2_ENV="${XEDC_R2_ENV:-/root/.config/xedc-recovery/r2.env}"
 XEDC_BACKUP_LOG="${XEDC_BACKUP_LOG:-/var/log/xedc-backup.log}"
 XEDC_RESTORE_LOG="${XEDC_RESTORE_LOG:-/var/log/xedc-restore.log}"
+XEDC_RUN_DIR="${XEDC_RUN_DIR:-/run/xedc}"
+XEDC_WORKDIR="${XEDC_WORKDIR:-/var/lib/xedc-recovery/work}"
+
+xedc_path_fstype() {
+  local path=${1:-/}
+  df -PT "$path" 2>/dev/null | awk 'NR==2 {print $2}'
+}
+
+xedc_path_mount() {
+  local path=$1
+  df -P "$path" 2>/dev/null | awk 'NR==2 {print $1 " " $6}'
+}
+
+xedc_is_volatile_fs() {
+  local fs
+  fs=$(xedc_path_fstype "$1")
+  [[ "$fs" == tmpfs || "$fs" == ramfs ]]
+}
+
+xedc_largest_disk_mount() {
+  df -PT -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | awk '
+    NR > 1 && $2 != "tmpfs" && $2 != "ramfs" && $6 !~ /^\/(proc|sys|dev|run)(\/|$)/ {
+      print $4+0, $6
+    }' | sort -rn | head -n 1 | awk '{print $2}'
+}
+
+xedc_resolve_workdir() {
+  local hint=${1:-${XEDC_WORKDIR:-/var/lib/xedc-recovery/work}}
+  local root=$hint mount=""
+  mkdir -p "$root" 2>/dev/null || true
+  if xedc_is_volatile_fs "$root"; then
+    local alt
+    alt=$(xedc_largest_disk_mount)
+    if [[ -n "$alt" && "$alt" != "/" ]]; then
+      mount=$(xedc_path_mount "$root")
+      root="${alt%/}/xedc-recovery/work"
+      xedc_warn "工作目录在内存盘（${mount}），已自动改用 ${root}"
+    else
+      xedc_die "工作目录 ${root} 位于 tmpfs/ramfs，且找不到更大的磁盘分区。请用 --workdir 指定磁盘路径"
+    fi
+  fi
+  mkdir -p "$root"
+  chmod 700 "$root"
+  printf '%s\n' "$root"
+}
+
+xedc_init_runtime_dirs() {
+  mkdir -p "$XEDC_RUN_DIR"
+  chmod 700 "$XEDC_RUN_DIR"
+  local wd
+  wd=$(xedc_resolve_workdir "${XEDC_WORKDIR:-}")
+  export XEDC_WORKDIR="$wd"
+  export TMPDIR="$wd"
+}
+
+# 小文件：凭据交接、日志缓冲、哈希暂存
+xedc_mktemp() {
+  if [[ -z "${XEDC_RUNTIME_INIT:-}" ]]; then
+    xedc_init_runtime_dirs
+    XEDC_RUNTIME_INIT=1
+  fi
+  mktemp -p "$XEDC_RUN_DIR" "$@"
+}
+
+xedc_mktemp_d() {
+  if [[ -z "${XEDC_RUNTIME_INIT:-}" ]]; then
+    xedc_init_runtime_dirs
+    XEDC_RUNTIME_INIT=1
+  fi
+  mktemp -d -p "$XEDC_RUN_DIR" "$@"
+}
+
+# 大文件：解压目录、数据库导出路径、下载缓冲
+xedc_work_mktemp() {
+  if [[ -z "${XEDC_RUNTIME_INIT:-}" ]]; then
+    xedc_init_runtime_dirs
+    XEDC_RUNTIME_INIT=1
+  fi
+  mktemp -p "$XEDC_WORKDIR" "$@"
+}
+
+xedc_work_mktemp_d() {
+  if [[ -z "${XEDC_RUNTIME_INIT:-}" ]]; then
+    xedc_init_runtime_dirs
+    XEDC_RUNTIME_INIT=1
+  fi
+  mktemp -d -p "$XEDC_WORKDIR" "$@"
+}
 
 xedc_log() {
   local line
@@ -594,7 +682,7 @@ xedc_remember_hash() {
   hash=$(xedc_file_hash "$path")
   mkdir -p "$XEDC_STATE_DIR"
   db=$(xedc_hash_db)
-  tmp=$(mktemp)
+  tmp=$(xedc_mktemp)
   if [[ -f "$db" ]]; then
     awk -v p="$path" '$1 != p { print }' "$db" >"$tmp" || true
   fi
@@ -664,3 +752,38 @@ xedc_site_root() {
 
 # shellcheck source=exclude.sh
 source "$(dirname "${BASH_SOURCE[0]}")/exclude.sh"
+
+xedc_dir_size_bytes() {
+  local dir=$1
+  [[ -d "$dir" ]] || { echo 0; return; }
+  du -sb "$dir" 2>/dev/null | awk '{print $1}'
+}
+
+xedc_prune_tree_by_exclude() {
+  local root=$1
+  [[ -d "$root" ]] || return 0
+  local path rel bytes saved=0
+  while IFS= read -r -d '' path; do
+    rel=${path#"$root"/}
+    [[ -n "$rel" ]] || continue
+    if xedc_excluded_path "$rel" || xedc_excluded_path "$(basename "$path")"; then
+      bytes=$(stat -c%s "$path" 2>/dev/null || echo 0)
+      rm -rf "$path"
+      saved=$((saved + bytes))
+      xedc_backup_skip_logged "$rel" "$bytes"
+    fi
+  done < <(find "$root" \( -name '*.bak' -o -name '*.bak-*' -o -name '*.orig' -o -name '*.old' -o -name '*~' \
+    -o -iname '*REPORT*.md' -o -iname '*AUDIT*.md' \) -print0 2>/dev/null)
+  # 目录规则（docs-archive 等）
+  while IFS= read -r rule; do
+    [[ -n "$rule" ]] || continue
+    [[ "$rule" == *"*"* ]] && continue
+    if [[ -d "$root/$rule" ]]; then
+      bytes=$(xedc_dir_size_bytes "$root/$rule")
+      rm -rf "$root/$rule"
+      saved=$((saved + bytes))
+      xedc_backup_skip_logged "$rule/" "$bytes"
+    fi
+  done < <(xedc_exclude_rules)
+  echo "$saved"
+}

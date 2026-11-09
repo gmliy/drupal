@@ -88,7 +88,7 @@ xedc_rclone_conf() {
     xedc_die "缺少 R2 凭据。可执行 backup.sh --setup-r2，或导出 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY、R2_BUCKET"
   fi
   local conf provider
-  conf=$(mktemp)
+  conf=$(xedc_mktemp)
   chmod 600 "$conf"
   if xedc_r2_cloudflare; then
     provider=Cloudflare
@@ -165,7 +165,7 @@ xedc_r2() {
     fi
   fi
   local err rc=0 line safe
-  err=$(mktemp)
+  err=$(xedc_mktemp)
   chmod 600 "$err"
   rclone "${args[@]}" "$@" 2>"$err" || rc=$?
   if [[ -s "$err" ]]; then
