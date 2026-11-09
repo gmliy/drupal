@@ -44,6 +44,7 @@ case "$TARGET" in
 esac
 
 xedc_require_root
+xedc_init_runtime_dirs
 mkdir -p "$(dirname "$XEDC_BACKUP_LOG")" /var/lock
 export XEDC_LOG_FILE=$XEDC_BACKUP_LOG
 exec 9>/var/lock/xedc-backup.lock
@@ -221,6 +222,8 @@ fi
 SITE=$(xedc_site_root) || xedc_die "找不到 Drupal 站点"
 export XEDC_SITE_ROOT=$SITE
 xedc_log "站点 ${SITE}"
+rm -f "${XEDC_STATE_DIR}/backup-skipped.tsv"
+xedc_log_test_cache_volumes
 mkdir -p "$XEDC_STATE_DIR" "$XEDC_BACKUP_DIR"
 chmod 700 "$XEDC_BACKUP_DIR"
 local_manifest="$XEDC_STATE_DIR/manifest.json"
@@ -256,7 +259,7 @@ else
   xedc_warn "没有 drush，跳过维护模式和配置导出"
 fi
 
-stage=$(mktemp -d "$XEDC_BACKUP_DIR/stage.XXXXXX")
+stage=$(mktemp -d -p "$XEDC_BACKUP_DIR" stage.XXXXXX)
 mkdir -p "$stage/code" "$stage/files/public" "$stage/files/private" "$stage/db" "$stage/system"
 cp "$local_manifest" "$stage/manifest.json"
 public="$SITE/web/sites/default/files"
@@ -288,9 +291,13 @@ rsync -a \
   --exclude 'private/' \
   --exclude 'xedc-recovery/tests/logs/' \
   --exclude 'xedc-recovery/tests/work/' \
+  --exclude 'docs/' \
+  --exclude 'docs-archive/' \
+  --exclude '_server/db.sql' \
   --exclude '*.tar.zst' \
   --exclude 'r2.env' \
   "$SITE/" "$stage/code/"
+saved_code=$(xedc_prune_tree_by_exclude "$stage/code")
 php "$ROOT/lib/php/strip_excluded.php" --site "$stage/code" --mode composer >/dev/null
 php "$ROOT/lib/php/strip_excluded.php" --site "$stage/code" --mode config >/dev/null
 mapfile -d '' hits < <(find "$stage/code" \( -iname '*matomo*' -o -iname '*piwik*' \) ! -path '*/themes/*' ! -path '*/modules/custom/*' -print0)
@@ -298,7 +305,7 @@ if ((${#hits[@]} > 0)); then
   rm -rf "${hits[@]}" 2>/dev/null || true
 fi
 
-cnf=$(mktemp)
+cnf=$(xedc_mktemp)
 chmod 600 "$cnf"
 php "$ROOT/lib/php/settings_db.php" --write-cnf "$cnf" "$SITE/web/sites/default/settings.php" >/dev/null
 db_name=$(xedc_manifest_get "$local_manifest" database.name)
@@ -337,9 +344,43 @@ chmod 600 "$prev_stats"
 rm -f "$cnf"
 system_capture "$stage/system"
 
+code_bytes=$(xedc_dir_size_bytes "$stage/code")
+files_bytes=$(( $(xedc_dir_size_bytes "$stage/files/public") + $(xedc_dir_size_bytes "$stage/files/private") ))
+db_bytes=$(stat -c%s "$stage/db/site.sql.zst" 2>/dev/null || echo 0)
+sys_bytes=$(xedc_dir_size_bytes "$stage/system")
+vol_bytes=0
+if [[ -d "$stage/system/docker/volumes" ]]; then
+  vol_bytes=$(du -sb "$stage/system/docker/volumes" 2>/dev/null | awk '{print $1}')
+fi
+unpacked_bytes=$((code_bytes + files_bytes + db_bytes + sys_bytes))
+xedc_log "备份暂存体积: 站点代码 ${code_bytes} 字节，文件 ${files_bytes}，数据库 ${db_bytes}，系统配置 ${sys_bytes}，Docker 卷 ${vol_bytes}"
+if [[ -f "${XEDC_STATE_DIR}/backup-skipped.tsv" ]]; then
+  skip_saved=$(awk -F'\t' '{s+=$2} END {print s+0}' "${XEDC_STATE_DIR}/backup-skipped.tsv")
+  xedc_log "排除清单累计约节省 ${skip_saved} 字节（详见 ${XEDC_STATE_DIR}/backup-skipped.tsv）"
+fi
+xedc_log "暂存目录前 15 大项:"
+du -ab "$stage" 2>/dev/null | sort -nr | head -n 15 | while IFS= read -r line; do xedc_log "  ${line}"; done
+
 stamp=$(date -u '+%Y%m%dT%H%M%S')
 base="drupal-backup-${stamp}"
 archive="$XEDC_BACKUP_DIR/${base}.tar.zst"
+est_archive_bytes=$((unpacked_bytes / 4 + db_bytes))
+backup_manifest_json() {
+  php -r 'echo json_encode([
+    "archive_bytes" => (int)$argv[1],
+    "unpacked_bytes" => (int)$argv[2],
+    "database_zst_bytes" => (int)$argv[3],
+    "categories" => [
+      "code" => (int)$argv[4],
+      "files" => (int)$argv[5],
+      "database" => (int)$argv[3],
+      "system" => (int)$argv[6],
+      "docker_volumes" => (int)$argv[7],
+    ],
+  ], JSON_UNESCAPED_UNICODE);' \
+    "$1" "$unpacked_bytes" "$db_bytes" "$code_bytes" "$files_bytes" "$sys_bytes" "$vol_bytes"
+}
+php "$ROOT/lib/php/backup_manifest.php" --file "$stage/manifest.json" --json "$(backup_manifest_json "$est_archive_bytes")"
 (
   umask 077
   tar -C "$stage" -cf - . | zstd -T0 -3 -o "$archive"
@@ -348,7 +389,9 @@ archive="$XEDC_BACKUP_DIR/${base}.tar.zst"
     sha256sum "${base}.tar.zst" >"${base}.tar.zst.sha256"
   )
 )
+archive_bytes=$(stat -c%s "$archive")
 cp "$stage/manifest.json" "$XEDC_BACKUP_DIR/${base}.manifest.json"
+php "$ROOT/lib/php/backup_manifest.php" --file "$XEDC_BACKUP_DIR/${base}.manifest.json" --json "$(backup_manifest_json "$archive_bytes")"
 printf '%s\n' "$(awk '{print $1}' "$XEDC_BACKUP_DIR/${base}.tar.zst.sha256")" >"$XEDC_BACKUP_DIR/${base}.complete"
 chmod 600 "$XEDC_BACKUP_DIR/${base}".*
 xedc_backup_perms

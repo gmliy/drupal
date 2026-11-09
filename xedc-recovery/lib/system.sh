@@ -21,7 +21,7 @@ xedc_copy_filtered() {
   mkdir -p "$dest"
   while IFS= read -r -d '' path; do
     rel=${path#"$src"/}
-    if xedc_conf_excluded "$path" || xedc_excluded "$rel" || xedc_excluded "$(basename "$path")"; then
+    if xedc_conf_excluded "$path" || xedc_excluded_path "$rel" || xedc_excluded "$(basename "$path")"; then
       xedc_log "备份跳过 ${path}"
       continue
     fi
@@ -125,23 +125,36 @@ system_capture() {
   } >"$dest/bins.txt"
   if xedc_have docker && docker info >/dev/null 2>&1; then
     mkdir -p "$dest/docker/volumes"
-    local vol
+    # shellcheck source=docker.sh
+    source "$(dirname "${BASH_SOURCE[0]}")/docker.sh"
+    local vol allow saved=0 mount_bytes
+    declare -A site_vols=()
+    while IFS= read -r vol; do
+      [[ -n "$vol" ]] && site_vols[$vol]=1
+    done < <(xedc_docker_site_volumes)
     while IFS= read -r vol; do
       [[ -z "$vol" ]] && continue
+      mount_bytes=$(docker system df -v 2>/dev/null | awk -v v="$vol" '$1=="Local" && $2==v {gsub(/[^0-9.]/,"",$3); print $3; exit}')
       if xedc_excluded "$vol"; then
-        xedc_log "备份跳过卷 ${vol}"
+        xedc_backup_skip_logged "docker volume ${vol}" "${mount_bytes:-0}"
         continue
       fi
-      case "$vol" in
-        *xedc*)
-          if docker run --rm -v "${vol}:/volume:ro" alpine tar -C /volume -cf - . 2>/dev/null | zstd -3 -o "$dest/docker/volumes/${vol}.tar.zst"; then
-            printf '%s\n' "$vol" >>"$dest/docker/volumes.list"
-          else
-            xedc_warn "未能打包 Docker 卷 ${vol}"
-          fi
-          ;;
-      esac
+      if [[ -z "${site_vols[$vol]:-}" ]]; then
+        xedc_backup_skip_logged "未使用的卷 ${vol}" "${mount_bytes:-0}"
+        continue
+      fi
+      if docker run --rm -v "${vol}:/volume:ro" alpine tar -C /volume -cf - . 2>/dev/null | zstd -3 -o "$dest/docker/volumes/${vol}.tar.zst"; then
+        printf '%s\n' "$vol" >>"$dest/docker/volumes.list"
+        local vs
+        vs=$(stat -c%s "$dest/docker/volumes/${vol}.tar.zst" 2>/dev/null || echo 0)
+        saved=$((saved + vs))
+      else
+        xedc_warn "未能打包 Docker 卷 ${vol}"
+      fi
     done < <(docker volume ls -q)
+    if (( saved > 2147483648 )); then
+      xedc_warn "Docker 卷备份合计超过 2GB（${saved} 字节），请确认站点确实需要"
+    fi
   fi
 }
 
@@ -157,7 +170,7 @@ xedc_install_filtered_file() {
     xedc_log "不还原 ${base}：这是向 Git 推送的任务，只属于旧服务器"
     return 0
   fi
-  filtered=$(mktemp)
+  filtered=$(xedc_mktemp)
   grep -Ev 'git[[:space:]]+push|xedc-push-gmliy' "$src" >"$filtered" || true
   if ! grep -Eq '^[^#[:space:]]' "$filtered"; then
     xedc_log "不还原 ${base}：内容只剩 Git 推送"
@@ -275,17 +288,21 @@ system_restore() {
     shopt -u nullglob
   fi
   if [[ -s "$src/cron/root.cron" ]]; then
-    xedc_install_filtered_file "$src/cron/root.cron" /tmp/xedc-root.cron
-    if [[ -f /tmp/xedc-root.cron ]]; then
-      crontab -u root /tmp/xedc-root.cron || xedc_warn "root crontab 未能还原"
-      rm -f /tmp/xedc-root.cron
+    local root_cron
+    root_cron=$(xedc_mktemp root.cron.XXXXXX)
+    xedc_install_filtered_file "$src/cron/root.cron" "$root_cron"
+    if [[ -f "$root_cron" ]]; then
+      crontab -u root "$root_cron" || xedc_warn "root crontab 未能还原"
+      rm -f "$root_cron"
     fi
   fi
   if [[ -s "$src/cron/www-data.cron" ]]; then
-    xedc_install_filtered_file "$src/cron/www-data.cron" /tmp/xedc-www.cron
-    if [[ -f /tmp/xedc-www.cron ]]; then
-      crontab -u www-data /tmp/xedc-www.cron || xedc_warn "www-data crontab 未能还原"
-      rm -f /tmp/xedc-www.cron
+    local www_cron
+    www_cron=$(xedc_mktemp www.cron.XXXXXX)
+    xedc_install_filtered_file "$src/cron/www-data.cron" "$www_cron"
+    if [[ -f "$www_cron" ]]; then
+      crontab -u www-data "$www_cron" || xedc_warn "www-data crontab 未能还原"
+      rm -f "$www_cron"
     fi
   fi
   if [[ -d "$src/systemd" ]]; then

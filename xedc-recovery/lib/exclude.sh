@@ -30,16 +30,69 @@ xedc_exclude_rules() {
   done <"$file"
 }
 
+xedc_exclude_glob() {
+  local name=$1 pattern=$2 base
+  [[ -n "$name" && -n "$pattern" ]] || return 1
+  if [[ "$pattern" != *"*"* && "$pattern" != *"?"* ]]; then
+    [[ "$name" == *"$pattern"* ]]
+    return
+  fi
+  base=$(basename "$name")
+  case "$name" in
+    $pattern) return 0 ;;
+  esac
+  case "$base" in
+    $pattern) return 0 ;;
+  esac
+  return 1
+}
+
+xedc_excluded_glob() {
+  xedc_exclude_glob "$@"
+}
+
 xedc_excluded() {
   local name=$1 rule
   [[ -n "$name" ]] || return 1
   while IFS= read -r rule; do
     [[ -n "$rule" ]] || continue
-    if [[ "$name" == *"$rule"* ]]; then
+    if xedc_exclude_glob "$name" "$rule"; then
       return 0
     fi
   done < <(xedc_exclude_rules)
   return 1
+}
+
+# 相对路径（如 code/docs-archive/foo）或绝对路径。
+xedc_excluded_path() {
+  local path=$1 rel base
+  [[ -n "$path" ]] || return 1
+  base=$(basename "$path")
+  if xedc_excluded "$path" || xedc_excluded "$base"; then
+    return 0
+  fi
+  rel=${path#/}
+  while IFS= read -r rule; do
+    [[ -n "$rule" ]] || continue
+    if xedc_exclude_glob "$rel" "$rule" || xedc_exclude_glob "$path" "$rule"; then
+      return 0
+    fi
+    if [[ "$rel" == "$rule"/* ]] || [[ "$rel" == "$rule" ]]; then
+      return 0
+    fi
+  done < <(xedc_exclude_rules)
+  return 1
+}
+
+xedc_backup_skip_logged() {
+  local what=$1 bytes=${2:-0}
+  mkdir -p "$XEDC_STATE_DIR"
+  printf '%s\t%s\n' "$what" "${bytes:-0}" >>"${XEDC_STATE_DIR}/backup-skipped.tsv"
+  if [[ "$bytes" =~ ^[0-9]+$ && "$bytes" -gt 0 ]]; then
+    xedc_log "备份已排除: ${what}（约 ${bytes} 字节）"
+  else
+    xedc_log "备份已排除: ${what}"
+  fi
 }
 
 xedc_conf_excluded() {
@@ -74,6 +127,18 @@ xedc_log_exclude_list() {
   while IFS= read -r rule; do
     [[ -n "$rule" ]] && xedc_log "排除: ${rule}"
   done < <(xedc_exclude_rules)
+}
+
+xedc_log_test_cache_volumes() {
+  command -v docker >/dev/null 2>&1 || return 0
+  docker info >/dev/null 2>&1 || return 0
+  local vol
+  while IFS= read -r vol; do
+    [[ -n "$vol" ]] || continue
+    if xedc_excluded "$vol"; then
+      xedc_log "发现测试/缓存卷 ${vol}，备份时将排除"
+    fi
+  done < <(docker volume ls -q 2>/dev/null || true)
 }
 
 xedc_fail_item() {
