@@ -10,6 +10,11 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
+XEDC_WORKDIR=${XEDC_WORKDIR:-/var/lib/xedc-recovery/work}
+XEDC_RUN_DIR=${XEDC_RUN_DIR:-/run/xedc}
+mkdir -p "$XEDC_WORKDIR" "$XEDC_RUN_DIR"
+chmod 700 "$XEDC_WORKDIR" "$XEDC_RUN_DIR"
+export TMPDIR="$XEDC_WORKDIR"
 if [[ ! -d /run/systemd/system ]]; then
   printf '%s\n' '#!/bin/sh' 'exit 101' >/usr/sbin/policy-rc.d
   chmod 755 /usr/sbin/policy-rc.d
@@ -24,7 +29,7 @@ install_rclone() {
     aarch64|arm64) arch=linux-arm64 ;;
     *) arch="" ;;
   esac
-  tmp=$(mktemp -d)
+  tmp=$(mktemp -d -p "$XEDC_WORKDIR")
   if [[ -n "$arch" ]] && curl -fsSL --max-time 90 -o "$tmp/rclone.zip" "https://downloads.rclone.org/rclone-current-${arch}.zip" && unzip -qo "$tmp/rclone.zip" -d "$tmp"; then
     bin=$(find "$tmp" -type f -name rclone | head -n 1 || true)
     if [[ -n "$bin" ]]; then
@@ -50,13 +55,13 @@ REF=${XEDC_GIT_REF:-main}
 
 fetch_github() {
   local tmp extract top
-  tmp=$(mktemp)
+  tmp=$(mktemp -p "$XEDC_WORKDIR")
   curl -fsSL \
     -H "Authorization: Bearer ${GH_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
     -o "$tmp" \
     "${API}/repos/${REPO}/tarball/${REF}"
-  extract=$(mktemp -d)
+  extract=$(mktemp -d -p "$XEDC_WORKDIR")
   tar -xzf "$tmp" -C "$extract"
   top=$(find "$extract" -mindepth 1 -maxdepth 1 -type d | head -n 1)
   if [[ ! -d "$top/xedc-recovery" ]]; then
@@ -101,7 +106,7 @@ fetch_r2() {
     esac
   fi
   local conf pack
-  conf=$(mktemp)
+  conf=$(mktemp -p "$XEDC_RUN_DIR")
   chmod 600 "$conf"
   cat >"$conf" <<EOF
 [r2]

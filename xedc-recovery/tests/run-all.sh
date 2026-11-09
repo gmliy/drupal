@@ -27,6 +27,24 @@ done
 if [[ "$SKIP_UNIT" != 1 && -z "$FROM_STAGE" ]]; then
   echo "先跑单元测试与静态检查"
   bash "$ROOT/tests/unit.sh"
+  echo "磁盘与工作目录 Docker 专项（ubuntu 24.04）"
+  docker rm -f xedc-disk-spec >/dev/null 2>&1 || true
+  if ! docker run --name xedc-disk-spec --rm --tmpfs /tmp:size=64m --privileged \
+    -v "$ROOT:/opt/xedc-recovery:ro" \
+    -e XEDC_TEST=1 -e XEDC_NO_TMUX=1 -e XEDC_DISK_LITE=1 \
+    ubuntu:24.04 \
+    bash /opt/xedc-recovery/tests/guest.sh disk >"$LOG_DIR/disk-spec.log" 2>&1
+  then
+    echo "disk 专项失败，见 $LOG_DIR/disk-spec.log" >&2
+    tail -20 "$LOG_DIR/disk-spec.log" >&2
+    exit 1
+  fi
+  if ! docker run --rm -v "$ROOT:/opt/xedc-recovery:ro" ubuntu:24.04 \
+    bash /opt/xedc-recovery/tests/guest.sh workdir >"$LOG_DIR/workdir-spec.log" 2>&1
+  then
+    echo "workdir 专项失败，见 $LOG_DIR/workdir-spec.log" >&2
+    exit 1
+  fi
 fi
 
 declare -A BASE=(
@@ -112,6 +130,10 @@ stage_rank() {
     redisresume) echo 15 ;;
     certs) echo 16 ;;
     matomo) echo 17 ;;
+    junkrestore) echo 18 ;;
+    workresume) echo 19 ;;
+    workdir) echo 20 ;;
+    disk) echo 21 ;;
     *) echo 1 ;;
   esac
 }
@@ -184,10 +206,10 @@ run_container() {
   local prefix="os-${os}/"
   docker rm -f "$name" >/dev/null 2>&1 || true
   local -a volumes=(
-    -v "xedc-cache-apt-${os}:/var/cache/apt/archives"
-    -v xedc-cache-composer:/root/.composer/cache
-    -v xedc-cache-npm:/root/.npm
-    -v xedc-cache-node:/var/cache/xedc
+    -v "xedc-test-cache-apt-${os}:/var/cache/apt/archives"
+    -v xedc-test-cache-composer:/root/.composer/cache
+    -v xedc-test-cache-npm:/root/.npm
+    -v xedc-test-cache-node:/var/cache/xedc
   )
   if [[ "$mode" == "source" ]]; then
     volumes+=(-v "$ROOT:/opt/xedc-recovery:ro")
@@ -209,12 +231,17 @@ run_container() {
   fi
   # shellcheck disable=SC2206
   local -a cmd=(bash ${mode_cmd[$mode]})
+  local -a dextra=()
+  if [[ "$mode" == "target" ]]; then
+    dextra+=(--tmpfs /tmp:size=64m)
+  fi
   timeout 3600 docker run --name "$name" \
     --network xedc-test \
     --memory "$mem" \
     --memory-swap "$mem" \
     --cpus "$cpu_each" \
     --shm-size 128m \
+    "${dextra[@]}" \
     "${volumes[@]}" \
     -e XEDC_TEST=1 \
     -e R2_ACCOUNT_ID=xedctest \
@@ -244,6 +271,8 @@ declare -A mode_cmd=(
   [redisresume]="/opt/xedc-recovery/tests/guest.sh redisresume"
   [certs]="/opt/xedc-recovery/tests/guest.sh certs"
   [matomo]="/opt/xedc-recovery/tests/guest.sh matomo"
+  [junkrestore]="/opt/xedc-recovery/tests/guest.sh junkrestore"
+  [workresume]="/opt/xedc-recovery/tests/guest.sh workresume"
 )
 
 wait_slot() {
@@ -350,7 +379,7 @@ for pid in "${pids[@]}"; do
   fi
 done
 
-branches=(domain video idem resume verify r2 php prompts perms lowmem compose redisresume certs matomo)
+branches=(domain video idem resume verify r2 php prompts perms lowmem compose redisresume certs matomo junkrestore workresume)
 pids=()
 for os in "${systems[@]}"; do
   if [[ "${READY[$os]}" != 1 ]]; then

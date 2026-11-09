@@ -17,7 +17,7 @@ xedc_rclone_zip_arch() {
 xedc_install_rclone() {
   local arch tmp zip bin dir
   arch=$(xedc_rclone_zip_arch || true)
-  tmp=$(mktemp -d)
+  tmp=$(xedc_work_mktemp_d)
   if [[ -n "$arch" ]]; then
     xedc_apt_install unzip ca-certificates curl || true
     zip="$tmp/rclone.zip"

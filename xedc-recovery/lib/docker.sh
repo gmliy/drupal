@@ -78,6 +78,40 @@ docker_install_compose() {
   xedc_log "Docker Compose $(docker compose version 2>/dev/null | head -n 1)"
 }
 
+# 站点 compose 项目引用的卷名 + 这些项目运行中容器挂载的卷。
+xedc_docker_site_volumes() {
+  local vol proj opt name mounts
+  if ! command -v docker >/dev/null 2>&1; then
+    return 0
+  fi
+  docker info >/dev/null 2>&1 || return 0
+  declare -A out=()
+  shopt -s nullglob
+  for opt in /opt/*/compose.yaml /opt/*/docker-compose.yml /opt/*/docker-compose.yaml; do
+    [[ -f "$opt" ]] || continue
+    proj=$(basename "$(dirname "$opt")")
+    if xedc_excluded "$proj" || xedc_excluded "$opt"; then
+      continue
+    fi
+    if docker compose -f "$opt" config --volumes 2>/dev/null; then
+      while IFS= read -r vol; do
+        [[ -n "$vol" ]] && out["$vol"]=1
+      done < <(docker compose -f "$opt" config --volumes 2>/dev/null || true)
+    fi
+    while IFS= read -r name; do
+      [[ -n "$name" ]] || continue
+      if xedc_excluded "$name"; then
+        continue
+      fi
+      while IFS= read -r vol; do
+        [[ -n "$vol" ]] && out["$vol"]=1
+      done < <(docker inspect "$name" --format '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}}{{"\n"}}{{end}}{{end}}' 2>/dev/null || true)
+    done < <(docker ps -a --filter "label=com.docker.compose.project=${proj}" --format '{{.Names}}' 2>/dev/null || true)
+  done
+  shopt -u nullglob
+  printf '%s\n' "${!out[@]}"
+}
+
 docker_install() {
   if ! xedc_have docker; then
     if ! xedc_apt_install docker.io; then
@@ -101,7 +135,7 @@ docker_compose_up() {
     xedc_log "按 exclude.list 不启动 $(basename "$dir")"
     return 0
   fi
-  log=$(mktemp)
+  log=$(xedc_mktemp)
   if ! docker_install_compose >"$log" 2>&1; then
     reason=$(cat "$log")
     printf '%s\n' "$reason" >&2

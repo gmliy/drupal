@@ -11,7 +11,7 @@ composer_install() {
   fi
   xedc_apt_install curl ca-certificates unzip
   local setup
-  setup=$(mktemp)
+  setup=$(xedc_mktemp)
   curl -fsSL --max-time 60 -o "$setup" https://getcomposer.org/installer
   php "$setup" --install-dir=/usr/local/bin --filename=composer
   rm -f "$setup"

@@ -307,7 +307,7 @@ php_align_paths() {
     sed -i -E "s/php8\\.[0-9]+/php${ver}/g" "$file"
   done
   shopt -u nullglob
-  tmp=$(mktemp)
+  tmp=$(xedc_mktemp)
   if crontab -l -u root >"$tmp" 2>/dev/null; then
     sed -i -E "s/php8\\.[0-9]+/php${ver}/g" "$tmp"
     crontab -u root "$tmp" || true
