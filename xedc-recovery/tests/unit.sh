@@ -3,6 +3,23 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT"
 fail=0
+static_bad=0
+while IFS= read -r f; do
+  case "$f" in
+    */tests/*) continue ;;
+  esac
+  if grep -E '\bmktemp\b' "$f" 2>/dev/null | grep -vE '(^|[^-])mktemp -p|mktemp -d -p|xedc_mktemp|xedc_work_mktemp|#\s*shellcheck'; then
+    echo "mktemp 未带 -p: $f" >&2
+    static_bad=1
+  fi
+  if grep -E '="/tmp/|/tmp/xedc|mktemp /tmp' "$f" 2>/dev/null; then
+    echo "硬编码 /tmp: $f" >&2
+    static_bad=1
+  fi
+done < <(find "$ROOT" -name '*.sh' -type f ! -path '*/tests/*')
+if [[ "$static_bad" != 0 ]]; then
+  fail=1
+fi
 while IFS= read -r file; do
   if ! bash -n "$file"; then
     echo "bash -n 失败: $file"
@@ -613,5 +630,60 @@ EOF
 else
   echo "本机没有 socket root，跳过真实导入"
 fi
+# --- 排除 glob、备份裁剪、磁盘预检 ---
+# shellcheck source=../lib/exclude.sh
+source "$ROOT/lib/exclude.sh"
+xedc_excluded_glob 'www.conf.bak-2024-01-01' '*.bak-*' || { echo 'glob bak-* 失败' >&2; exit 1; }
+xedc_excluded_glob 'DRUPAL_AUDIT.md' '*AUDIT*.md' || { echo 'glob AUDIT 失败' >&2; exit 1; }
+xedc_excluded xedc-cache-npm || { echo 'xedc-cache 应排除' >&2; exit 1; }
+xedc_excluded xedc-test-cache-npm || { echo 'xedc-test 应排除' >&2; exit 1; }
+pr=$(mktemp -d)
+mkdir -p "$pr/code/docs-archive" "$pr/system/docker/volumes" "$pr/system/nginx/conf.d"
+printf 'x' >"$pr/system/docker/volumes/xedc-cache-npm.tar.zst"
+printf 'y' >"$pr/system/nginx/conf.d/s.gitxx.xyz.conf"
+printf 'z' >"$pr/code/FOO_REPORT_bar.md"
+printf 'keep' >"$pr/code/index.php"
+XEDC_STATE_DIR=$(mktemp -d)
+xedc_prune_tree_by_exclude "$pr/code"
+[[ ! -f "$pr/code/FOO_REPORT_bar.md" ]] || { echo 'REPORT 未删' >&2; exit 1; }
+[[ -f "$pr/code/index.php" ]] || { echo '误删 index' >&2; exit 1; }
+rm -rf "$pr" "$XEDC_STATE_DIR"
+# shellcheck source=../lib/disk.sh
+source "$ROOT/lib/disk.sh"
+man=$(mktemp)
+printf '%s\n' '{"backup":{"archive_bytes":1000000,"unpacked_bytes":5000000,"database_zst_bytes":200000}}' >"$man"
+need=$(xedc_restore_need_kb /nonexist "$man")
+if [[ ! "$need" =~ ^[0-9]+$ ]] || (( need < 1000 )); then
+  echo "磁盘估算异常: ${need}" >&2
+  exit 1
+fi
+small=$(mktemp -d)
+mountpoint -q /tmp 2>/dev/null || true
+if ! (xedc_disk_precheck_restore /dev/null "$man" "$small") 2>/tmp/xedc-precheck.err; then
+  grep -q '磁盘空间不足' /tmp/xedc-precheck.err
+  echo "disk precheck ok"
+else
+  echo "小目录预检应失败（若分区极大则跳过）"
+fi
+rm -f "$man" /tmp/xedc-precheck.err
+rmdir "$small" 2>/dev/null || rm -rf "$small"
+arch=$(mktemp --suffix=.tar.zst)
+dest=$(mktemp -d)
+printf 'line\n' | zstd -qf -o "$arch"
+if ! xedc_archive_extract "$arch" "$dest/bad" 2>/tmp/xedc-tar.err; then
+  lines=$(wc -l < /tmp/xedc-tar.err | tr -d ' ')
+  [[ "${lines:-0}" -lt 50 ]]
+  echo "tar brief errors ok"
+fi
+rm -f "$arch" /tmp/xedc-tar.err
+rm -rf "$dest"
+pack=$(mktemp -d)
+mkdir -p "$pack/stage"
+printf '{"site_root":"/var/www/drupal"}' >"$pack/stage/manifest.json"
+php "$ROOT/lib/php/backup_manifest.php" --file "$pack/stage/manifest.json" --json '{"archive_bytes":1,"unpacked_bytes":2,"database_zst_bytes":3,"categories":{"code":1,"files":0,"database":3,"system":0,"docker_volumes":0}}'
+grep -q '"unpacked_bytes": 2' "$pack/stage/manifest.json"
+rm -rf "$pack"
+echo "exclude/disk unit ok"
+
 echo "unit ok"
 exit "$fail"

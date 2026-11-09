@@ -77,6 +77,18 @@ archive_path() {
 case "$mode" in
   source)
     prepare_fixture
+    mkdir -p /var/www/drupal/docs /var/www/drupal/docs-archive /var/www/drupal/_server
+    printf 'doc\n' >/var/www/drupal/docs/readme.md
+    printf 'old\n' >/var/www/drupal/docs-archive/legacy.md
+    printf '# REPORT\n' >/var/www/drupal/ROOT_REPORT_2024.md
+    printf 'duplicate sql\n' >/var/www/drupal/_server/db.sql
+    printf '%s\n' 'server { server_name s.gitxx.xyz; }' >/etc/nginx/conf.d/s.gitxx.xyz.conf
+    printf '%s\n' '# backup' >/etc/nginx/conf.d/www.conf.bak-2024-01-01
+    if command -v docker >/dev/null 2>&1; then
+      docker volume rm -f xedc-cache-npm xedc-test-junk >/dev/null 2>&1 || true
+      docker volume create xedc-cache-npm >/dev/null
+      docker volume create xedc-test-junk >/dev/null
+    fi
     XEDC_PHP_VERSION=8.5 bash /opt/xedc-recovery/backup.sh --target both --keep-local 7 --keep-r2 30
     if grep -E 'ERROR|NotImplemented|重试|Attempt [0-9]+/' /var/log/xedc-backup.log; then
       echo "备份日志出现 ERROR、501 或重试"
@@ -114,18 +126,37 @@ case "$mode" in
       echo "备份日志没有打印排除清单"
       exit 1
     fi
+    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+      if ! grep -qE 'xedc-cache|测试/缓存卷|已排除|缓存卷' /var/log/xedc-backup.log; then
+        echo "备份未记录测试缓存卷排除"
+        exit 1
+      fi
+    fi
+    if ! grep -q '备份暂存体积' /var/log/xedc-backup.log; then
+      echo "备份未输出体积明细"
+      exit 1
+    fi
     file=$(archive_path)
     [[ -n "$file" ]]
-    members=$(tar -I zstd -tf "$file")
+    members=$(zstd -dc "$file" | tar -tf -)
     if printf '%s\n' "$members" | grep -E 'system/nginx/.*/matomo|analytics\.conf|system/docker/matomo|matomo\.service|cron.d/.*matomo|code/config/sync/matomo|code/vendor/drupal/matomo|code/web/modules/contrib/matomo'; then
       echo "新备份包仍有 Matomo 服务、配置或模块文件"
       exit 1
     fi
-    if tar -I zstd -xOf "$file" ./manifest.json | grep -i matomo; then
+    if printf '%s\n' "$members" | grep -E \
+      'system/docker/volumes/(xedc-cache|xedc-test|xedc-recover)|\.bak-|s\.gitxx\.xyz|code/docs-archive/|code/docs/|code/[^/]*REPORT[^/]*\.md|code/[^/]*AUDIT[^/]*\.md|code/_server/db\.sql'; then
+      echo "备份包仍含应排除的缓存卷、备份残留或无关文档"
+      exit 1
+    fi
+    if ! zstd -dc "$file" | tar -xO ./manifest.json 2>/dev/null | grep -q 'unpacked_bytes'; then
+      echo "manifest 缺少 backup.unpacked_bytes 体积字段"
+      exit 1
+    fi
+    if zstd -dc "$file" | tar -xO ./manifest.json | grep -i matomo; then
       echo "manifest 仍有 Matomo"
       exit 1
     fi
-    if tar -I zstd -xOf "$file" ./code/composer.json | grep -i matomo; then
+    if zstd -dc "$file" | tar -xO ./code/composer.json | grep -i matomo; then
       echo "备份里的 composer.json 仍有 Matomo"
       exit 1
     fi
@@ -420,7 +451,7 @@ PY
       echo "日志里出现了凭据"
       exit 1
     fi
-    if compgen -G '/tmp/xedc-r2.*' >/dev/null; then
+    if compgen -G '/run/xedc/r2.*' >/dev/null; then
       echo "凭据临时文件还在"
       exit 1
     fi
@@ -488,10 +519,13 @@ if rc != 0 or "恢复完成，退出码 0" not in text:
 PY
     [[ "$(cat /tmp/pty-r2.code)" == 0 ]]
     [[ "$(grep -c '开始 fetch' /var/log/xedc-restore.log || true)" == 1 ]]
-    if compgen -G '/tmp/xedc-r2.*' >/dev/null; then
+    if compgen -G '/run/xedc/r2.*' >/dev/null; then
       echo "凭据临时文件还在"
       exit 1
     fi
+  if tmux has-session -t xedc-restore 2>/dev/null; then
+    tmux show-environment -t xedc-restore XEDC_WORKDIR 2>/dev/null | grep -q 'xedc-recovery/work' || true
+  fi
     echo "XEDC_STAGE prompts PASS"
     ;;
   perms)
@@ -985,7 +1019,7 @@ EOF
     file=$(archive_path)
     [[ -n "$file" ]]
     work=$(mktemp -d)
-    tar -I zstd -xf "$file" -C "$work"
+    zstd -dc "$file" | tar -xf - -C "$work"
     fix=/opt/xedc-recovery/tests/fixture/site
     mkdir -p "$work/code/config/sync" "$work/code/web/modules/contrib/matomo" "$work/code/vendor/drupal/matomo" \
       "$work/system/nginx/conf.d" "$work/system/docker/matomo" "$work/system/systemd"
@@ -1074,6 +1108,126 @@ EOF
     XEDC_NO_TMUX=1 bash /opt/xedc-recovery/restore.sh --force --from "local:${dep}" --domain test1.local --email admin@test1.local --https self --www no --yes
     grep -E '依赖|卸载模块' /var/lib/xedc-recovery/failures.txt
     echo "XEDC_STAGE matomo PASS"
+    ;;
+  junkrestore)
+    prepare_fixture
+    XEDC_PHP_VERSION=8.5 bash /opt/xedc-recovery/backup.sh --target local --keep-local 3
+    file=$(archive_path)
+    [[ -n "$file" ]] || { echo "没有基准备份"; exit 1; }
+    junk=$(mktemp -d -p /var/lib/xedc-recovery/work)
+    zstd -dc "$file" | tar -C "$junk" -xf -
+    mkdir -p "$junk/system/docker/volumes" "$junk/code/docs-archive"
+    printf 'junk' >"$junk/system/docker/volumes/xedc-cache-npm.tar.zst"
+    printf '%s\n' 'server { server_name s.gitxx.xyz; }' >"$junk/system/nginx/conf.d/s.gitxx.xyz.conf"
+    printf 'x' >"$junk/code/docs-archive/junk.md"
+    printf 'x' >"$junk/code/OLD_REPORT.md"
+    oldjunk=$(mktemp -p /var/lib/xedc-recovery/work --suffix=.tar.zst)
+    tar -C "$junk" -cf - . | zstd -3 -o "$oldjunk"
+    rm -rf "$junk"
+    XEDC_NO_TMUX=1 bash /opt/xedc-recovery/restore.sh --from "local:${oldjunk}" --domain test1.local --email admin@test1.local --https self --www no --yes --force
+    [[ ! -f /etc/nginx/conf.d/s.gitxx.xyz.conf ]]
+    [[ ! -d /var/www/drupal/docs-archive ]]
+    echo "XEDC_STAGE junkrestore PASS"
+    ;;
+  disk)
+    apt-get update -y
+    apt-get install -y --no-install-recommends zstd tar curl ca-certificates
+    file=""
+    if [[ "${XEDC_DISK_LITE:-0}" == 1 ]]; then
+      mkdir -p /var/lib/xedc-recovery/work /run/xedc
+      chmod 700 /var/lib/xedc-recovery/work /run/xedc
+      file=$(mktemp -p /var/lib/xedc-recovery/work lite.XXXXXX)
+      file="${file}.tar.zst"
+      mkdir -p /tmp/xedc-lite/{code/web/sites/default,db}
+      printf '{"backup":{"archive_bytes":12000,"unpacked_bytes":80000,"database_zst_bytes":2000}}' >/tmp/xedc-lite/manifest.json
+      cp /opt/xedc-recovery/tests/fixture/site/web/sites/default/settings.php /tmp/xedc-lite/code/web/sites/default/
+      printf 'SELECT 1;\n' | zstd -3 -f -o /tmp/xedc-lite/db/site.sql.zst
+      tar -C /tmp/xedc-lite -cf - . | zstd -3 -f -o "$file"
+    else
+      apt-get install -y --no-install-recommends mariadb-server mariadb-client php-cli rsync gzip
+      prepare_fixture
+      XEDC_PHP_VERSION=8.5 bash /opt/xedc-recovery/backup.sh --target local --keep-local 3
+      file=$(archive_path)
+    fi
+    [[ -n "$file" && -f "$file" ]] || { echo "没有备份包"; exit 1; }
+    export ROOT=/opt/xedc-recovery
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/common.sh
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/disk.sh
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/db.sh
+    xedc_init_runtime_dirs
+    small=$(mktemp -d -p /var/lib/xedc-recovery/work)
+    if ! mount -t tmpfs -o size=32m tmpfs "$small" 2>/dev/null; then
+      echo "无法挂载测试 tmpfs（需真实服务器验证）"
+      exit 0
+    fi
+    manf=$(mktemp -p /var/lib/xedc-recovery/work)
+    printf '%s\n' '{"backup":{"archive_bytes":120000000,"unpacked_bytes":400000000,"database_zst_bytes":30000000}}' >"$manf"
+    set +e
+    ( xedc_disk_precheck_restore "$file" "$manf" "$small" ) 2>/tmp/xedc-precheck-disk.err
+    prc=$?
+    set -e
+    umount "$small" || true
+    rmdir "$small" 2>/dev/null || true
+    if [[ "$prc" == 0 ]]; then
+      echo "小工作目录预检应失败"
+      exit 1
+    fi
+    grep -q '磁盘空间不足' /tmp/xedc-precheck-disk.err
+    rm -f /tmp/xedc-precheck-disk.err "$manf"
+    tmp_before=$(du -sk /tmp 2>/dev/null | awk '{print $1}')
+    unpack=$(xedc_work_mktemp_d extract.XXXXXX)
+    if ! xedc_archive_extract_manifest "$file" "$unpack"; then
+      echo "无法解压 manifest 做 /tmp 占用检测"
+      exit 1
+    fi
+    tmp_after=$(du -sk /tmp 2>/dev/null | awk '{print $1}')
+    if (( tmp_after - tmp_before >= 2048 )); then
+      echo "/tmp 解压期间增长过大: $((tmp_after - tmp_before))KB"
+      exit 1
+    fi
+    rm -rf "$unpack"
+    set +o pipefail
+    sql_sz=$(zstd -dc "$file" | tar -xO ./db/site.sql.zst 2>/dev/null | wc -c | tr -d ' ')
+    set -o pipefail
+    if [[ ! "$sql_sz" =~ ^[0-9]+$ ]] || (( sql_sz < 1 )); then
+      echo "无法流式读取 db/site.sql.zst（${sql_sz:-空}）"
+      exit 1
+    fi
+    stream_copy=$(mktemp -p /var/lib/xedc-recovery/work stream.XXXXXX)
+    zstd -dc "$file" | tar -xO ./db/site.sql.zst >"$stream_copy"
+    if [[ "$(wc -c <"$stream_copy")" != "$sql_sz" ]]; then
+      echo "流式 tarball 成员大小不一致"
+      exit 1
+    fi
+    rm -f "$stream_copy"
+    find /var/lib/xedc-recovery/work -name 'site.sql.zst' 2>/dev/null | grep -q . && { echo "不应落盘 site.sql.zst"; exit 1; }
+    echo "XEDC_STAGE disk PASS"
+    ;;
+  workresume)
+    prepare_fixture
+    file=$(archive_path)
+    [[ -n "$file" ]] || { echo "没有备份"; exit 1; }
+    work=$(mktemp -d -p /var/lib/xedc-recovery/work restore.XXXXXX)
+    printf '%s\n' "$work" >/var/lib/xedc-recovery/work.path
+    printf '%s\n' "$work" >/var/lib/xedc-recovery/work.incomplete
+    mkdir -p "$work/code"
+    dd if=/dev/zero of="$work/code/partial.bin" bs=1M count=5 2>/dev/null
+    rm -f /var/lib/xedc-recovery/steps/database.done
+    XEDC_NO_TMUX=1 bash /opt/xedc-recovery/restore.sh --resume --from "local:${file}" --domain test1.local --email admin@test1.local --https self --www no --yes --force
+    [[ ! -f "$work/code/partial.bin" ]] || [[ ! -d "$work" ]]
+    echo "XEDC_STAGE workresume PASS"
+    ;;
+  workdir)
+    # shellcheck source=/dev/null
+    source /opt/xedc-recovery/lib/common.sh
+    xedc_init_runtime_dirs
+    [[ "$XEDC_WORKDIR" == */xedc-recovery/work* ]]
+    [[ "$TMPDIR" == "$XEDC_WORKDIR" ]]
+    [[ -d "$XEDC_RUN_DIR" && "$(stat -c '%a' "$XEDC_RUN_DIR")" == 700 ]]
+    echo "XEDC_STAGE workdir PASS"
     ;;
   *)
     echo "未知模式 $mode" >&2
