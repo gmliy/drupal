@@ -706,6 +706,100 @@ if xedc_excluded_path 'modules/foo/docs/readme'; then
   exit 1
 fi
 xedc_excluded_path 'docs/readme' || { echo '根 docs 应排除' >&2; exit 1; }
+if xedc_excluded_path 'web/modules/custom/foo/docs/KEEP_REPORT.md'; then
+  echo '模块内报告被误排除' >&2
+  exit 1
+fi
+xedc_excluded_path 'ROOT_REPORT.md' || { echo '根报告应排除' >&2; exit 1; }
+pr2=$(mktemp -d)
+mkdir -p "$pr2/web/modules/custom/foo/docs" "$pr2/web/themes/custom/xedc" "$pr2/docs"
+printf 'keep\n' >"$pr2/web/modules/custom/foo/docs/KEEP_REPORT.md"
+printf 'bak\n' >"$pr2/web/themes/custom/xedc/a.css.bak-x"
+printf 'root\n' >"$pr2/docs/readme.md"
+printf 'root report\n' >"$pr2/ROOT_AUDIT.md"
+XEDC_STATE_DIR=$(mktemp -d)
+xedc_prune_tree_by_exclude "$pr2" >/dev/null
+[[ -f "$pr2/web/modules/custom/foo/docs/KEEP_REPORT.md" ]] || { echo '裁剪误删模块报告' >&2; exit 1; }
+[[ ! -f "$pr2/web/themes/custom/xedc/a.css.bak-x" ]] || { echo '裁剪未删主题 bak' >&2; exit 1; }
+[[ ! -d "$pr2/docs" ]] || { echo '裁剪未删根 docs' >&2; exit 1; }
+[[ ! -f "$pr2/ROOT_AUDIT.md" ]] || { echo '裁剪未删根审计' >&2; exit 1; }
+rm -rf "$pr2" "$XEDC_STATE_DIR"
+
+inv=$(mktemp -d)
+mkdir -p "$inv/site/web/modules/custom/alpha/docs" "$inv/site/web/themes/custom/beta/build/css" \
+  "$inv/site/config/sync" "$inv/site/web/sites/default" "$inv/stage"
+printf '%s\n' 'name: Alpha' 'type: module' >"$inv/site/web/modules/custom/alpha/alpha.info.yml"
+printf 'keep report\n' >"$inv/site/web/modules/custom/alpha/docs/KEEP_REPORT.md"
+printf '%s\n' 'name: Beta' 'type: theme' >"$inv/site/web/themes/custom/beta/beta.info.yml"
+printf 'css\n' >"$inv/site/web/themes/custom/beta/build/css/a.css"
+printf '%s\n' '<?php' '$settings["hash_salt"]="x";' >"$inv/site/web/sites/default/settings.php"
+printf '%s\n' 'module:' '  alpha: 0' 'theme:' '  beta: 0' >"$inv/site/config/sync/core.extension.yml"
+printf '%s\n' 'name: Site' >"$inv/site/config/sync/system.site.yml"
+cp -a "$inv/site/." "$inv/stage/"
+sum=$(php "$ROOT/lib/php/custom_code.php" inventory --site "$inv/site" --stage "$inv/stage" \
+  --list "$inv/custom-code.list" --manifest "$inv/manifest.json")
+[[ "$sum" == *'modules=1'* && "$sum" == *'themes=1'* && "$sum" == *'names=alpha'* ]] || {
+  echo "清单摘要异常: $sum" >&2
+  exit 1
+}
+grep -q 'KEEP_REPORT.md' <<<"$(find "$inv/stage" -name 'KEEP_REPORT.md')"
+rm -rf "$inv/stage/web/modules/custom/alpha"
+if php "$ROOT/lib/php/custom_code.php" inventory --site "$inv/site" --stage "$inv/stage" \
+  --list "$inv/bad.list" >/tmp/xedc-cc-bad.err 2>&1; then
+  echo '缺少自定义模块时清单应失败' >&2
+  exit 1
+fi
+grep -q '不在备份范围内' /tmp/xedc-cc-bad.err
+rm -f /tmp/xedc-cc-bad.err
+
+repo=$(mktemp -d)
+mkdir -p "$repo/site/packages/hello" "$repo/stage"
+printf '%s\n' '{' '"name":"xedc/hello",' '"version":"1.0.0"' '}' >"$repo/site/packages/hello/composer.json"
+printf 'hello\n' >"$repo/site/packages/hello/Hello.php"
+cat >"$repo/site/composer.json" <<'JSON'
+{
+  "name": "xedc/site",
+  "repositories": [
+    {"type": "path", "url": "packages/hello"},
+    {"packagist.org": false}
+  ],
+  "require": {"xedc/hello": "*"}
+}
+JSON
+cp -a "$repo/site/." "$repo/stage/"
+mkdir -p "$repo/site/config/sync" "$repo/stage/config/sync"
+printf '%s\n' 'module:' '  system: 0' >"$repo/site/config/sync/core.extension.yml"
+cp -a "$repo/site/config/sync/." "$repo/stage/config/sync/"
+php "$ROOT/lib/php/custom_code.php" inventory --site "$repo/site" --stage "$repo/stage" \
+  --list "$repo/list" --manifest "$repo/manifest.json" >/dev/null
+[[ -f "$repo/stage/packages/hello/Hello.php" ]] || { echo 'path 仓库没有进暂存' >&2; exit 1; }
+if ! composer install --no-interaction --no-dev --working-dir="$repo/stage" >/tmp/xedc-path-composer.log 2>&1; then
+  echo 'path 仓库 composer install 失败' >&2
+  cat /tmp/xedc-path-composer.log >&2
+  exit 1
+fi
+rm -rf "$repo/missing/packages"
+mkdir -p "$repo/missing"
+cp "$repo/site/composer.json" "$repo/missing/composer.json"
+if composer install --no-interaction --no-dev --working-dir="$repo/missing" >/tmp/xedc-path-missing.log 2>&1; then
+  echo '缺少 path 目录时 composer install 不应成功' >&2
+  exit 1
+fi
+rm -rf "$inv" "$repo" /tmp/xedc-path-composer.log /tmp/xedc-path-missing.log
+
+# shellcheck source=../lib/node.sh
+source "$ROOT/lib/node.sh"
+fake=$(xedc_mktemp_d)
+printf '%s\n' '#!/bin/bash' 'exit 1' >"$fake/npm"
+chmod 755 "$fake/npm"
+theme=$(xedc_mktemp_d)
+mkdir -p "$theme/build"
+printf 'old-build\n' >"$theme/build/a.css"
+printf '%s\n' '{"scripts":{"build":"node build.js"}}' >"$theme/package.json"
+PATH="${fake}:${PATH}" xedc_theme_rebuild_one "$theme"
+grep -q 'old-build' "$theme/build/a.css" || { echo '构建失败没有回退编译产物' >&2; exit 1; }
+rm -rf "$fake" "$theme"
+php "$ROOT/lib/php/strip_excluded.php" --mode selftest
 
 echo "unit ok"
 exit "$fail"

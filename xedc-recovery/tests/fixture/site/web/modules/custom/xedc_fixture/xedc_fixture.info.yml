@@ -1,0 +1,4 @@
+name: XEDC Fixture
+type: module
+core_version_requirement: ^11
+description: 恢复测试用的自定义模块

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 备份 Drupal 站点。输出 tar.zst，不加密。
-set -euo pipefail
+set -Eeuo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=lib/common.sh
 source "$ROOT/lib/common.sh"
@@ -22,7 +22,14 @@ DO_LIST=0
 DO_SETUP=0
 SITE=""
 INCLUDE_STYLES=0
+DO_CEX=1
 XEDC_VERBOSE=0
+CC_MOD=0
+CC_THEME=0
+CC_FILES=0
+CC_BYTES=0
+CC_NAMES=""
+CC_THEME_NAMES=""
 export XEDC_VERBOSE
 BACKUP_STEP="启动"
 BACKUP_TOTAL=8
@@ -31,7 +38,7 @@ BACKUP_STARTED=$(date +%s)
 
 usage() {
   cat <<'EOF'
-用法: backup.sh [--target local|r2|both] [--keep-local N] [--keep-r2 N] [--setup-r2] [--list] [--verbose] [--include-styles]
+用法: backup.sh [--target local|r2|both] [--keep-local N] [--keep-r2 N] [--setup-r2] [--list] [--verbose] [--include-styles] [--no-cex]
 EOF
 }
 
@@ -47,10 +54,13 @@ xedc_backup_stage() {
   fi
 }
 
-xedc_backup_err() {
-  local line=$1 rc=$2
-  xedc_say "备份失败: 步骤 ${BACKUP_STEP}，行 ${line}，退出码 ${rc}"
-  xedc_log_detail "失败: 步骤 ${BACKUP_STEP}，行 ${line}，退出码 ${rc}"
+xedc_backup_on_err() {
+  local rc=$1 line=$2
+  trap - ERR
+  BACKUP_FAIL_REASON="步骤 ${BACKUP_STEP}，行 ${line}，退出码 ${rc}"
+  xedc_say "失败: ${BACKUP_FAIL_REASON}"
+  xedc_log_detail "失败: ${BACKUP_FAIL_REASON} 命令: ${BASH_COMMAND:-}"
+  exit "$rc"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -62,6 +72,7 @@ while [[ $# -gt 0 ]]; do
     --list) DO_LIST=1; shift ;;
     --verbose) XEDC_VERBOSE=1; export XEDC_VERBOSE; shift ;;
     --include-styles) INCLUDE_STYLES=1; shift ;;
+    --no-cex) DO_CEX=0; shift ;;
     -h|--help) usage; exit 0 ;;
     *) xedc_die "未知参数: $1" ;;
   esac
@@ -234,12 +245,17 @@ xedc_backup_exit() {
   if [[ "$DO_LIST" == 1 || "$DO_SETUP" == 1 ]]; then
     exit "$rc"
   fi
-  if (( rc != 0 && BACKUP_OK != 1 )); then
-    xedc_telegram "备份失败，日志 ${XEDC_BACKUP_LOG}"
+  if [[ "$BACKUP_OK" == 1 && "$rc" == 0 ]]; then
+    exit 0
   fi
+  if [[ "$rc" == 0 ]]; then
+    rc=1
+  fi
+  xedc_say "备份失败: ${BACKUP_FAIL_REASON:-步骤 ${BACKUP_STEP}，退出码 ${rc}}"
+  xedc_telegram "备份失败，日志 ${XEDC_BACKUP_LOG}"
   exit "$rc"
 }
-trap 'e=$?; xedc_backup_err $LINENO $e; exit $e' ERR
+trap 'xedc_backup_on_err $? ${LINENO}' ERR
 trap xedc_backup_exit EXIT
 
 if [[ "$DO_SETUP" == 1 ]]; then
@@ -305,8 +321,31 @@ if [[ -n "$bin" ]]; then
   else
     xedc_warn "未能打开维护模式"
   fi
-  if ! "$bin" -r "$SITE" cex -y; then
-    xedc_warn "drush cex 失败，继续备份已有配置"
+  cfg_out=$("$bin" -r "$SITE" config:status 2>&1) || cfg_rc=$?
+  cfg_rc=${cfg_rc:-0}
+  xedc_log_detail "drush config:status 退出码 ${cfg_rc}"
+  while IFS= read -r cfg_line; do
+    [[ -n "$cfg_line" ]] && xedc_log_detail "config:status: ${cfg_line}"
+  done <<<"$cfg_out"
+  cfg_drift=0
+  if grep -q 'No differences' <<<"$cfg_out"; then
+    cfg_drift=0
+  elif grep -Eq 'Different|Only in sync|Only in DB|\.yml' <<<"$cfg_out" || [[ "$cfg_rc" != 0 ]]; then
+    cfg_drift=1
+  fi
+  if [[ "$cfg_drift" == 1 ]]; then
+    xedc_say "警告: 数据库与 config/sync 不一致"
+    xedc_log "数据库与 config/sync 不一致"
+    if [[ "$DO_CEX" == 1 ]]; then
+      xedc_say "执行 drush cex"
+      if ! "$bin" -r "$SITE" cex -y; then
+        xedc_warn "drush cex 失败，继续备份已有配置"
+      fi
+    else
+      xedc_say "已指定 --no-cex，不执行导出"
+    fi
+  else
+    xedc_log "配置与数据库一致"
   fi
 else
   xedc_warn "没有 drush，跳过维护模式和配置导出"
@@ -378,10 +417,35 @@ xedc_say "[3/${BACKUP_TOTAL}] 同步站点代码 完成 $(( $(date +%s) - t0 )) 
 saved_code=$(xedc_prune_tree_by_exclude "$stage/code")
 php "$ROOT/lib/php/strip_excluded.php" --site "$stage/code" --mode composer >/dev/null
 php "$ROOT/lib/php/strip_excluded.php" --site "$stage/code" --mode config >/dev/null
-mapfile -d '' hits < <(find "$stage/code" \( -iname '*matomo*' -o -iname '*piwik*' \) ! -path '*/themes/*' ! -path '*/modules/custom/*' -print0)
+hits=()
+mapfile -d '' hits < <(find "$stage/code" \( -iname '*matomo*' -o -iname '*piwik*' \) ! -path '*/themes/*' ! -path '*/modules/custom/*' -print0) || true
 if ((${#hits[@]} > 0)); then
   rm -rf "${hits[@]}" 2>/dev/null || true
 fi
+BACKUP_STEP="核对自定义代码"
+cc_summary=""
+if ! cc_summary=$(php "$ROOT/lib/php/custom_code.php" inventory \
+  --site "$SITE" \
+  --stage "$stage/code" \
+  --list "$stage/custom-code.list" \
+  --manifest "$stage/manifest.json" \
+  --include "$ROOT/include.list"); then
+  BACKUP_FAIL_REASON="自定义代码没有完整进入备份"
+  xedc_say "警告: 自定义代码清单与备份不一致"
+  xedc_die "$BACKUP_FAIL_REASON"
+fi
+if [[ "$cc_summary" =~ ^SUMMARY\ modules=([0-9]+)\ themes=([0-9]+)\ files=([0-9]+)\ bytes=([0-9]+)\ names=([^ ]*)\ theme_names=(.*)$ ]]; then
+  CC_MOD=${BASH_REMATCH[1]}
+  CC_THEME=${BASH_REMATCH[2]}
+  CC_FILES=${BASH_REMATCH[3]}
+  CC_BYTES=${BASH_REMATCH[4]}
+  CC_NAMES=${BASH_REMATCH[5]}
+  CC_THEME_NAMES=${BASH_REMATCH[6]}
+else
+  BACKUP_FAIL_REASON="自定义代码摘要无法解析"
+  xedc_die "$BACKUP_FAIL_REASON"
+fi
+xedc_log_detail "自定义代码主题: ${CC_THEME_NAMES:-无}"
 
 cnf=$(xedc_mktemp)
 chmod 600 "$cnf"
@@ -399,11 +463,9 @@ db_dump_started=$(date +%s)
 zflags=(-T0 -3 -o "$stage/db/site.sql.zst")
 zq=$(xedc_zstd_quiet_flag)
 [[ -n "$zq" ]] && zflags=("$zq" "${zflags[@]}")
-set +o pipefail
 db_dump_database "$cnf" "$db_name" "$SITE/web/sites/default/settings.php" "$dump_bin" \
   | php "$ROOT/lib/php/strip_excluded.php" --mode stream \
   | zstd "${zflags[@]}"
-set -o pipefail
 db_dump_elapsed=$(( $(date +%s) - db_dump_started ))
 xedc_say "[4/${BACKUP_TOTAL}] 导出数据库 完成 ${db_dump_elapsed} 秒"
 db_zst_size=$(stat -c%s "$stage/db/site.sql.zst" 2>/dev/null || echo 0)
@@ -488,9 +550,7 @@ zpack=( -T0 -3 -o "$archive" )
 [[ -n "$zq" ]] && zpack=("$zq" "${zpack[@]}")
 (
   umask 077
-  set +o pipefail
   tar -C "$stage" -cf - . | zstd "${zpack[@]}"
-  set -o pipefail
   (
     cd "$XEDC_BACKUP_DIR"
     sha256sum "${base}.tar.zst" >"${base}.tar.zst.sha256"
@@ -584,9 +644,20 @@ if [[ "$TARGET" != local ]]; then
   xedc_log_detail "R2 上传完成 ${base}"
 fi
 
-BACKUP_OK=1
 sha=$(awk '{print $1}' "$XEDC_BACKUP_DIR/${base}.tar.zst.sha256")
 total_elapsed=$(( $(date +%s) - BACKUP_STARTED ))
+xedc_say "自定义代码摘要: 模块 ${CC_MOD:-0} 个、主题 ${CC_THEME:-0} 个、共 ${CC_FILES:-0} 个文件、总大小 $(xedc_human_bytes "${CC_BYTES:-0}")"
+if [[ -n "${CC_NAMES:-}" ]]; then
+  xedc_say "模块: ${CC_NAMES//,/ }"
+else
+  xedc_say "模块: 无"
+fi
+if [[ -n "${CC_THEME_NAMES:-}" ]]; then
+  xedc_say "主题: ${CC_THEME_NAMES//,/ }"
+else
+  xedc_say "主题: 无"
+fi
+BACKUP_OK=1
 xedc_say "备份完成: ${archive} $(xedc_human_bytes "$archive_bytes") sha256=${sha} 耗时 ${total_elapsed} 秒"
 xedc_log_detail "备份完成 ${base}"
 exit 0

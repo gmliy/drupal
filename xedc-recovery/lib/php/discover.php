@@ -250,7 +250,7 @@ foreach (['ffmpeg', 'ffprobe', '7z', '7za', '7zz', 'convert', 'magick', 'wkhtmlt
   }
 }
 
-$ffmpegVersion = xedc_sh('ffmpeg -version 2>/dev/null | head -1 || true');
+$ffmpegVersion = xedc_sh("ffmpeg -version 2>/dev/null | awk 'NR==1 { line = \$0 } END { if (NR > 0) print line }' || true");
 $encoders = [];
 $encoderRaw = xedc_sh('ffmpeg -hide_banner -encoders 2>/dev/null || true');
 foreach (['libx264', 'libx265', 'libvpx', 'libvpx-vp9', 'aac'] as $encoder) {
@@ -451,7 +451,13 @@ sort($extensionsRequired);
 
 $externalCommands = [];
 if ($site !== '') {
-  $scan = xedc_sh('grep -RIn --exclude-dir=tests --exclude-dir=node_modules --include=*.php --include=*.module --include=*.inc -E "proc_open|shell_exec|passthru|Process\\(|ffmpeg|ffprobe|7zz|7za|/bin/7z" ' . escapeshellarg($site . '/web/modules/custom') . ' ' . escapeshellarg($site . '/web/themes/custom') . ' 2>/dev/null | head -120 || true');
+  $scan = xedc_sh(
+    'grep -RIn --exclude-dir=tests --exclude-dir=node_modules --include=*.php --include=*.module --include=*.inc -E '
+    . escapeshellarg('proc_open|shell_exec|passthru|Process\\(|ffmpeg|ffprobe|7zz|7za|/bin/7z') . ' '
+    . escapeshellarg($site . '/web/modules/custom') . ' '
+    . escapeshellarg($site . '/web/themes/custom')
+    . " 2>/dev/null | awk 'NR<=120 { print }' || true"
+  );
   if (str_contains($scan, 'ffmpeg')) {
     $externalCommands[] = 'ffmpeg';
   }
@@ -477,7 +483,7 @@ if ($site !== '' && is_file($site . '/composer.json')) {
 
 $mem = (int) xedc_sh("awk '/MemTotal/{print int(\$2/1024)}' /proc/meminfo");
 $timezone = xedc_sh('timedatectl show -p Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null || true');
-$ufw = xedc_sh('ufw status 2>/dev/null | head -1 || true');
+$ufw = xedc_sh("ufw status 2>/dev/null | awk 'NR==1 { line = \$0 } END { if (NR > 0) print line }' || true");
 $private = '';
 if ($settings !== '' && is_file($settings)) {
   $active = xedc_active_lines((string) file_get_contents($settings));

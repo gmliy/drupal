@@ -46,7 +46,8 @@ prepare_fixture() {
   cp -a /opt/xedc-recovery/tests/fixture/site/. /var/www/drupal/
   chmod 755 /var/www/drupal/bin/drush
   sql --protocol=socket -u root <<'SQL'
-CREATE DATABASE IF NOT EXISTS xedc CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+DROP DATABASE IF EXISTS xedc;
+CREATE DATABASE xedc CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS 'xedc'@'localhost' IDENTIFIED BY 'fixture-pass';
 ALTER USER 'xedc'@'localhost' IDENTIFIED BY 'fixture-pass';
 GRANT ALL PRIVILEGES ON xedc.* TO 'xedc'@'localhost';
@@ -66,10 +67,15 @@ SQL
 }
 
 archive_path() {
-  local f
-  f=$(ls -1 /var/lib/xedc-recovery/downloads/drupal-backup-*.tar.zst 2>/dev/null | head -n 1 || true)
-  if [[ -z "$f" ]]; then
-    f=$(ls -1 /var/backups/xedc/drupal-backup-*.tar.zst 2>/dev/null | head -n 1 || true)
+  local f=""
+  shopt -s nullglob
+  local -a hits=(/var/lib/xedc-recovery/downloads/drupal-backup-*.tar.zst)
+  if ((${#hits[@]} == 0)); then
+    hits=(/var/backups/xedc/drupal-backup-*.tar.zst)
+  fi
+  shopt -u nullglob
+  if ((${#hits[@]} > 0)); then
+    f=${hits[0]}
   fi
   printf '%s\n' "$f"
 }
@@ -161,10 +167,6 @@ case "$mode" in
       echo "备份包仍含应排除的缓存卷、备份残留、聚合 js 或无关文档"
       exit 1
     fi
-    if ! zstd -dc "$file" | tar -tf - | grep -qE '(^\./)?db/site\.sql\.zst$'; then
-      echo "备份包缺少 db/site.sql.zst"
-      exit 1
-    fi
     if ! zstd -dc "$file" | tar -xO ./manifest.json 2>/dev/null | grep -q 'unpacked_bytes'; then
       echo "manifest 缺少 backup.unpacked_bytes 体积字段"
       exit 1
@@ -181,6 +183,57 @@ case "$mode" in
       echo "主题里的硬编码应留在备份里，恢复时只报告"
       exit 1
     fi
+    if ! grep -qE '(^\./)?db/site\.sql\.zst$' <<<"$members"; then
+      echo "备份包缺少 db/site.sql.zst"
+      exit 1
+    fi
+    if ! grep -q 'custom-code.list' <<<"$members"; then
+      echo "备份包缺少 custom-code.list"
+      exit 1
+    fi
+    if ! grep -q 'modules/custom/xedc_fixture/docs/KEEP_REPORT.md' <<<"$members"; then
+      echo "模块内报告被误排除"
+      exit 1
+    fi
+    if ! grep -q 'themes/custom/xedc/build/css/main.css' <<<"$members"; then
+      echo "主题编译产物 css 不在备份里"
+      exit 1
+    fi
+    if ! grep -q 'themes/custom/xedc/build/js/main.js' <<<"$members"; then
+      echo "主题编译产物 js 不在备份里"
+      exit 1
+    fi
+    if grep -q 'skip.css.bak-old' <<<"$members"; then
+      echo "bak 类文件仍在备份里"
+      exit 1
+    fi
+    if ! grep -q '自定义代码摘要:' /var/log/xedc-backup.log; then
+      echo "备份没有打印自定义代码摘要"
+      exit 1
+    fi
+    if ! grep -q 'xedc_fixture' /var/log/xedc-backup.log; then
+      echo "摘要没有列出 xedc_fixture"
+      exit 1
+    fi
+    mkdir -p /var/lib/xedc-recovery/work
+    list=$(mktemp -p /var/lib/xedc-recovery/work cc.XXXXXX)
+    mfile=$(mktemp -p /var/lib/xedc-recovery/work members.XXXXXX)
+    zstd -dc "$file" | tar -xO ./custom-code.list >"$list"
+    printf '%s\n' "$members" >"$mfile"
+    php /opt/xedc-recovery/lib/php/custom_code.php verify-members --list "$list" --members "$mfile"
+    rm -f "$mfile"
+    tamper=$(mktemp -d -p /var/lib/xedc-recovery/work tamper.XXXXXX)
+    mkdir -p "$tamper/src"
+    zstd -dc "$file" | tar -xf - -C "$tamper/src"
+    rm -rf "$tamper/src/code/web/modules/custom/xedc_fixture"
+    tar -C "$tamper/src" -cf - . | zstd -q -o "$tamper/tampered.tar.zst"
+    tmembers=$(mktemp -p /var/lib/xedc-recovery/work members.XXXXXX)
+    zstd -dc "$tamper/tampered.tar.zst" | tar -tf - >"$tmembers"
+    if php /opt/xedc-recovery/lib/php/custom_code.php verify-members --list "$list" --members "$tmembers"; then
+      echo "删掉自定义模块后预检没有失败"
+      exit 1
+    fi
+    rm -rf "$tamper" "$list" "$tmembers"
     echo "XEDC_STAGE backup PASS"
     ;;
   target)
@@ -1139,11 +1192,18 @@ EOF
     printf 'x' >"$junk/code/docs-archive/junk.md"
     printf 'x' >"$junk/code/OLD_REPORT.md"
     oldjunk=$(mktemp -p /var/lib/xedc-recovery/work --suffix=.tar.zst)
-    tar -C "$junk" -cf - . | zstd -3 -o "$oldjunk"
+    tar -C "$junk" -cf - . | zstd -3 -f -o "$oldjunk"
     rm -rf "$junk"
     XEDC_NO_TMUX=1 bash /opt/xedc-recovery/restore.sh --from "local:${oldjunk}" --domain test1.local --email admin@test1.local --https self --www no --yes --force
-    [[ ! -f /etc/nginx/conf.d/s.gitxx.xyz.conf ]]
-    [[ ! -d /var/www/drupal/docs-archive ]]
+    if [[ -e /etc/nginx/conf.d/s.gitxx.xyz.conf ]]; then
+      echo "失败: 仍有 /etc/nginx/conf.d/s.gitxx.xyz.conf" >&2
+      exit 1
+    fi
+    if [[ -d /var/www/drupal/docs-archive ]]; then
+      echo "失败: 仍有 /var/www/drupal/docs-archive" >&2
+      find /var/www/drupal/docs-archive -print >&2
+      exit 1
+    fi
     echo "XEDC_STAGE junkrestore PASS"
     ;;
   disk)
@@ -1245,6 +1305,122 @@ EOF
     [[ "$TMPDIR" == "$XEDC_WORKDIR" ]]
     [[ -d "$XEDC_RUN_DIR" && "$(stat -c '%a' "$XEDC_RUN_DIR")" == 700 ]]
     echo "XEDC_STAGE workdir PASS"
+    ;;
+  customcode)
+    # shellcheck source=/dev/null
+    . /etc/os-release
+    if [[ "${ID:-}" != "ubuntu" || "${VERSION_ID:-}" != "26.04" ]]; then
+      echo "只允许 Ubuntu 26.04，当前 ${ID:-未知} ${VERSION_ID:-未知}" >&2
+      exit 1
+    fi
+    archive=${XEDC_REAL_BACKUP:-}
+    [[ -n "$archive" && -f "$archive" ]] || { echo "没有真实备份包" >&2; exit 1; }
+    apt-get update -qq
+    cand=$(apt-cache policy php8.5 | awk '/Candidate:/ { if (c == "") c = $2 } END { print c }')
+    if [[ "$cand" != 8.5.* ]]; then
+      echo "Ubuntu 26.04 软件源没有 PHP 8.5（Candidate: ${cand:-无}），停止" >&2
+      apt-cache policy php8.5 >&2 || true
+      exit 1
+    fi
+    echo "系统源 PHP 8.5: ${cand}"
+    apt-get install -y --no-install-recommends zstd php-cli ca-certificates >/dev/null
+    work=$(mktemp -d -p /var/tmp xedc-custom.XXXXXX)
+    mkdir -p "$work/src"
+    zstd -dc "$archive" | tar -xf - -C "$work/src"
+    [[ -f "$work/src/custom-code.list" ]] || { echo "真实备份没有 custom-code.list" >&2; exit 1; }
+    mod=$(awk -F '\t' 'NR>1 && $3=="module" { print $2; exit }' "$work/src/custom-code.list")
+    [[ -n "$mod" && -d "$work/src/code/$mod" ]] || { echo "清单里没有可删除的自定义模块" >&2; exit 1; }
+    rm -rf "$work/src/code/$mod"
+    tar -C "$work/src" -cf - . | zstd -q -o "$work/tampered.tar.zst"
+    zstd -dc "$work/tampered.tar.zst" | tar -tf - >"$work/tampered.members"
+    if php /opt/xedc-recovery/lib/php/custom_code.php verify-members \
+      --list "$work/src/custom-code.list" --members "$work/tampered.members"; then
+      echo "删掉 ${mod} 后，备份校验没有报错" >&2
+      exit 1
+    fi
+    echo "篡改预检已发现缺少 ${mod}"
+    cp "$work/src/custom-code.list" "$work/custom-code.list"
+    cp "$work/src/manifest.json" "$work/manifest.json"
+    before_ext="$work/core.extension.yml"
+    zstd -dc "$archive" | tar -xO ./code/config/sync/core.extension.yml >"$before_ext"
+    rm -rf "$work/src" "$work/tampered.tar.zst" "$work/tampered.members"
+    export XEDC_SELFCHECK_ADMIN=403
+    export XEDC_NO_TMUX=1
+    bash /opt/xedc-recovery/restore.sh \
+      --from "local:${archive}" \
+      --domain gitxx.xyz \
+      --www no \
+      --https self \
+      --email admin@gitxx.xyz \
+      --php 8.5 \
+      --yes \
+      --force
+    site=/var/www/drupal
+    bin="$site/vendor/bin/drush"
+    [[ -x "$bin" ]] || bin=$(command -v drush)
+    php_line=$(php -v | awk 'NR==1 { line = $0 } END { print line }')
+    [[ "$php_line" == PHP\ 8.5.* ]] || { echo "php -v 不是 8.5: ${php_line}" >&2; exit 1; }
+    if ! php /opt/xedc-recovery/lib/php/custom_code.php compare \
+      --site "$site" --list "$work/custom-code.list" --ignore-hash-kind theme; then
+      echo "自定义模块与清单不一致" >&2
+      exit 1
+    fi
+    cfg=$("$bin" -r "$site" config:status 2>&1 || true)
+    printf '%s\n' "$cfg"
+    grep -q 'No differences' <<<"$cfg" || { echo "config:status 仍有差异" >&2; exit 1; }
+    if composer install --no-dev --no-interaction --prefer-dist --working-dir="$site" >"$work/composer.log" 2>&1; then
+      :
+    else
+      echo "恢复后 composer install 失败" >&2
+      cat "$work/composer.log" >&2
+      exit 1
+    fi
+    if grep -Ei 'could not be found|path repository|No driver found to handle' "$work/composer.log"; then
+      echo "composer 无法解析 path 仓库" >&2
+      exit 1
+    fi
+    "$bin" -r "$site" cr >/dev/null
+    home=$(curl -k -s --resolve gitxx.xyz:443:127.0.0.1 --resolve gitxx.xyz:80:127.0.0.1 https://gitxx.xyz/ || true)
+    css_fail=0
+    css_n=0
+    while IFS= read -r href; do
+      [[ -n "$href" ]] || continue
+      css_n=$((css_n + 1))
+      case "$href" in
+        http*) url=$href ;;
+        /*) url="https://gitxx.xyz${href}" ;;
+        *) url="https://gitxx.xyz/${href}" ;;
+      esac
+      code=$(curl -k -s -o /dev/null -w '%{http_code}' --resolve gitxx.xyz:443:127.0.0.1 --resolve gitxx.xyz:80:127.0.0.1 "$url" || true)
+      if [[ "$code" != "200" ]]; then
+        echo "样式 ${url} 返回 ${code}" >&2
+        css_fail=1
+      fi
+    done < <(php /opt/xedc-recovery/tests/css-hrefs.php <<<"$home")
+    [[ "$css_n" -gt 0 && "$css_fail" == 0 ]] || { echo "首页样式没有全部返回 200（${css_n} 个）" >&2; exit 1; }
+    declare -A http=()
+    for path in / /user/login /admin /models /articles /sitemap.xml; do
+      http[$path]=$(curl -k -s -o /dev/null -w '%{http_code}' --resolve gitxx.xyz:443:127.0.0.1 --resolve gitxx.xyz:80:127.0.0.1 "https://gitxx.xyz${path}" || true)
+    done
+    uli=$("$bin" -r "$site" uli --uri=https://gitxx.xyz 2>/dev/null | awk '/^https?:\/\// { line = $0 } END { print line }')
+    admin_auth=$(curl -k -s -o /dev/null -w '%{http_code}' -L --resolve gitxx.xyz:443:127.0.0.1 --resolve gitxx.xyz:80:127.0.0.1 "$uli" || true)
+    table_rc=0
+    php /opt/xedc-recovery/tests/customcode-check.php \
+      "$work/custom-code.list" "$before_ext" "$site/config/sync" "$work/manifest.json" "$site" || table_rc=$?
+    echo "| 首页 | 200 | ${http[/]} | $([[ ${http[/]} == 200 ]] && echo 通过 || echo 失败) |"
+    echo "| 登录页 | 200 | ${http[/user/login]} | $([[ ${http[/user/login]} == 200 ]] && echo 通过 || echo 失败) |"
+    echo "| 后台匿名 | 403 | ${http[/admin]} | $([[ ${http[/admin]} == 403 ]] && echo 通过 || echo 失败) |"
+    echo "| 后台登录 | 200 | ${admin_auth} | $([[ ${admin_auth} == 200 ]] && echo 通过 || echo 失败) |"
+    echo "| /models | 200 | ${http[/models]} | $([[ ${http[/models]} == 200 ]] && echo 通过 || echo 失败) |"
+    echo "| /articles | 200 | ${http[/articles]} | $([[ ${http[/articles]} == 200 ]] && echo 通过 || echo 失败) |"
+    echo "| sitemap | 200 | ${http[/sitemap.xml]} | $([[ ${http[/sitemap.xml]} == 200 ]] && echo 通过 || echo 失败) |"
+    echo "| php -v | 8.5.x | ${php_line} | 通过 |"
+    echo "| 首页样式 | ${css_n} 个 200 | ${css_n} 个 200 | 通过 |"
+    if [[ "$table_rc" != 0 || "${http[/]}" != 200 || "${http[/user/login]}" != 200 || "${http[/admin]}" != 403 || "$admin_auth" != 200 || "${http[/models]}" != 200 || "${http[/articles]}" != 200 || "${http[/sitemap.xml]}" != 200 ]]; then
+      echo "真实备份恢复对比有不一致" >&2
+      exit 1
+    fi
+    echo "XEDC_STAGE customcode PASS"
     ;;
   *)
     echo "未知模式 $mode" >&2

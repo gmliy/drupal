@@ -56,7 +56,7 @@ docker_install_compose_binary() {
 
 docker_install_compose() {
   if docker compose version >/dev/null 2>&1; then
-    xedc_log "Docker Compose $(docker compose version 2>/dev/null | head -n 1)"
+    xedc_log "Docker Compose $(docker compose version 2>/dev/null | xedc_first_line)"
     return 0
   fi
   xedc_apt_update
@@ -75,7 +75,7 @@ docker_install_compose() {
     docker_install_compose_binary
   fi
   docker compose version >/dev/null 2>&1 || xedc_die "docker compose version 失败。Ubuntu 需要 docker-compose-v2，Docker 官方源需要 docker-compose-plugin"
-  xedc_log "Docker Compose $(docker compose version 2>/dev/null | head -n 1)"
+  xedc_log "Docker Compose $(docker compose version 2>/dev/null | xedc_first_line)"
 }
 
 # 站点 compose 项目引用的卷名 + 这些项目运行中容器挂载的卷。

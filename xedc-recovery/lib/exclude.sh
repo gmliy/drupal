@@ -37,7 +37,7 @@ xedc_exclude_glob() {
     [[ "$name" == *"$pattern"* ]]
     return
   fi
-  base=$(basename "$name")
+  base=${name##*/}
   case "$name" in
     $pattern) return 0 ;;
   esac
@@ -66,30 +66,78 @@ xedc_excluded() {
   return 1
 }
 
-# 相对路径（如 code/docs-archive/foo）或绝对路径。
-xedc_excluded_path() {
-  local path=$1 rel base rule
-  [[ -n "$path" ]] || return 1
-  base=$(basename "$path")
-  if xedc_excluded "$path" || xedc_excluded "$base"; then
+# 文件名是编辑器或手工备份残留。只认 .bak / .bak-* / .bak.N / .bakN / .orig / .old / ~。
+xedc_name_is_bak() {
+  local b=$1
+  [[ -n "$b" ]] || return 1
+  [[ "$b" == *~ || "$b" == *.orig || "$b" == *.old || "$b" == *.bak || "$b" == *.bak-* || "$b" == *.bak.* ]] && return 0
+  [[ "$b" =~ \.bak[0-9]+$ ]]
+}
+
+xedc_name_is_report_md() {
+  local b=${1,,}
+  [[ "$b" == *.md && ( "$b" == *report* || "$b" == *audit* ) ]]
+}
+
+# 模块、主题、安装配置、库目录里的同名 docs / 报告不受 exclude.list 文件名规则影响。
+xedc_path_is_project_code() {
+  local rel=${1#/}
+  case "$rel" in
+    web/modules/*|web/themes/*|web/profiles/*|web/libraries/*|modules/*|themes/*|profiles/*|libraries/*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+# 文档、报告和站点根 bak 只匹配预期位置。
+xedc_code_rel_excluded() {
+  local rel=${1#/} base
+  [[ -n "$rel" ]] || return 1
+  if xedc_path_is_project_code "$rel"; then
+    return 1
+  fi
+  base=${rel##*/}
+  case "$rel" in
+    docs|docs/*|docs-archive|docs-archive/*|_server/db.sql)
+      return 0
+      ;;
+  esac
+  if [[ "$rel" != */* ]] && { xedc_name_is_report_md "$base" || xedc_name_is_bak "$base"; }; then
     return 0
   fi
+  case "$rel" in
+    web/sites/*)
+      xedc_name_is_bak "$base"
+      return
+      ;;
+  esac
+  return 1
+}
+
+# 相对路径（如 docs/readme）或绝对路径。项目代码内部不按文件名套用 docs/报告规则。
+xedc_excluded_path() {
+  local path=$1 rel base
+  [[ -n "$path" ]] || return 1
   rel=${path#/}
-  while IFS= read -r rule; do
-    [[ -n "$rule" ]] || continue
-  if [[ "$rule" == "docs" || "$rule" == "docs-archive" ]]; then
-      if [[ "$rel" == "$rule" || "$rel" == "$rule"/* ]]; then
-        return 0
-      fi
-      continue
-    fi
-    if xedc_exclude_glob "$rel" "$rule" || xedc_exclude_glob "$path" "$rule"; then
+  if xedc_path_is_project_code "$rel"; then
+    return 1
+  fi
+  if xedc_code_rel_excluded "$rel"; then
+    return 0
+  fi
+  if [[ "$path" != /* && "$path" != web/* && "$path" != docs/* && "$path" != docs-archive/* && "$path" != _server/* ]]; then
+    base=${rel##*/}
+    if xedc_excluded "$base" || xedc_excluded "$rel"; then
       return 0
     fi
-    if [[ "$rel" == "$rule"/* ]] || [[ "$rel" == "$rule" ]]; then
+  fi
+  if [[ "$path" == /* ]]; then
+    base=${path##*/}
+    if xedc_excluded "$base" || xedc_excluded "$path"; then
       return 0
     fi
-  done < <(xedc_exclude_rules)
+  fi
   return 1
 }
 
@@ -111,7 +159,7 @@ xedc_backup_skip_logged() {
 xedc_conf_excluded() {
   local file=$1 name
   [[ -n "$file" ]] || return 1
-  if xedc_excluded "$file" || xedc_excluded "$(basename "$file")"; then
+  if xedc_excluded "$file" || xedc_excluded "${file##*/}"; then
     return 0
   fi
   [[ -f "$file" ]] || return 1
@@ -166,7 +214,7 @@ xedc_excluded_residue_list() {
   for path in /opt/* /etc/nginx/conf.d/* /etc/nginx/sites-available/* /etc/nginx/sites-enabled/* \
     /etc/systemd/system/* /etc/cron.d/* /usr/local/sbin/* /usr/local/bin/*; do
     [[ -e "$path" ]] || continue
-    name=$(basename "$path")
+    name=${path##*/}
     if xedc_conf_excluded "$path" || xedc_excluded "$name"; then
       printf '%s\n' "$path"
     fi
@@ -214,7 +262,7 @@ xedc_clean_excluded_apply() {
   shopt -s nullglob
   for path in /opt/*; do
     [[ -d "$path" ]] || continue
-    if ! xedc_excluded "$(basename "$path")"; then
+    if ! xedc_excluded "${path##*/}"; then
       continue
     fi
     if [[ -f "$path/compose.yaml" || -f "$path/docker-compose.yml" ]]; then
@@ -246,7 +294,7 @@ xedc_clean_excluded_apply() {
         ;;
       *)
         if [[ -f "$line" && "$line" == /etc/systemd/system/* ]]; then
-          name=$(basename "$line")
+          name=${line##*/}
           systemctl disable --now "$name" >/dev/null 2>&1 || true
         fi
         if [[ -f "$line" && "$line" == /etc/nginx/* ]]; then

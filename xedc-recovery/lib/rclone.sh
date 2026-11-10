@@ -22,7 +22,7 @@ xedc_install_rclone() {
     xedc_apt_install unzip ca-certificates curl || true
     zip="$tmp/rclone.zip"
     if curl -fsSL --max-time 90 -o "$zip" "https://downloads.rclone.org/rclone-current-${arch}.zip" && unzip -qo "$zip" -d "$tmp"; then
-      bin=$(find "$tmp" -type f -name rclone | head -n 1 || true)
+      bin=$(find "$tmp" -type f -name rclone -print -quit)
       if [[ -n "$bin" ]]; then
         install -m 755 "$bin" /usr/local/bin/rclone
         install -m 755 "$bin" /usr/bin/rclone

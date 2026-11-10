@@ -442,7 +442,7 @@ MANUAL="$XEDC_STATE_DIR/manual.txt"
 trap 'rm -f /var/lock/xedc-restore.pid; cleanup_secrets' EXIT
 
 xedc_prune_downloaded_package() {
-  [[ "$KEEP_PACKAGE" == 1 ]] && return 0
+  [[ "$KEEP_PACKAGE" == 1 || "${XEDC_TEST:-0}" == 1 ]] && return 0
   [[ -n "${ARCHIVE:-}" && -f "$ARCHIVE" ]] || return 0
   case "$ARCHIVE" in
     "$XEDC_STATE_DIR/downloads"/*)
@@ -745,7 +745,6 @@ EOF
   chmod 600 "$XEDC_STATE_DIR/db.pass"
   xedc_log "数据库 ${DB_NAME} 已导入"
   rm -f "$WORK/db/site.sql.zst" 2>/dev/null || true
-  xedc_prune_downloaded_package
 }
 
 extract_archive() {
@@ -755,8 +754,21 @@ extract_archive() {
     xedc_work_mark_incomplete "$WORK"
   fi
   xedc_disk_check_dir "$WORK"
-  if [[ ! -d "$WORK/code" ]]; then
-    xedc_archive_extract "$ARCHIVE" "$WORK" ./code ./files code files
+  if [[ ! -f "$WORK/.code-extracted" ]]; then
+    xedc_archive_extract "$ARCHIVE" "$WORK" ./code ./files ./system ./custom-code.list ./manifest.json
+    touch "$WORK/.code-extracted"
+  fi
+  if [[ -f "$WORK/custom-code.list" && -f "${ARCHIVE:-}" ]]; then
+    local members
+    members=$(xedc_mktemp)
+    set +o pipefail
+    zstd -dc "$ARCHIVE" 2>/dev/null | tar -tf - >"$members" 2>/dev/null || true
+    set -o pipefail
+    php "$ROOT/lib/php/custom_code.php" verify-members --list "$WORK/custom-code.list" --members "$members" \
+      || xedc_die "备份包里的自定义代码不完整"
+    rm -f "$members"
+  elif [[ ! -f "$WORK/custom-code.list" ]]; then
+    xedc_warn "备份没有 custom-code.list，跳过自定义代码预检"
   fi
   xedc_prune_downloaded_package
   xedc_work_mark_complete
@@ -772,6 +784,9 @@ step_code() {
   if [[ "$XEDC_ROOT" == "$SITE"* ]]; then
     exclude+=(--exclude 'xedc-recovery/')
   fi
+  rm -rf "$WORK/code/docs" "$WORK/code/docs-archive"
+  rm -f "$WORK/code/_server/db.sql"
+  xedc_prune_tree_by_exclude "$WORK/code" >/dev/null
   rsync -a "${exclude[@]}" "$WORK/code/" "$SITE/"
   local private
   private=$(xedc_manifest_get "$MANIFEST" private_path)
@@ -791,25 +806,19 @@ step_code() {
     if [[ ! -f "$SITE/composer.lock" ]]; then
       xedc_log "没有 composer.lock，安装依赖后再检查平台要求"
     fi
+    if [[ "${XEDC_TEST:-0}" == 1 && -z "${COMPOSER_MEMORY_LIMIT:-}" ]]; then
+      export COMPOSER_MEMORY_LIMIT=768M
+    fi
+    if ! command -v git >/dev/null 2>&1; then
+      xedc_log "安装 git，composer.lock 含只能从源码仓库安装的包"
+      xedc_apt_install git
+    fi
     composer install --no-dev --no-interaction --prefer-dist --working-dir="$SITE"
     if ! composer check-platform-reqs --no-interaction --working-dir="$SITE"; then
       xedc_die "Composer 平台要求不满足。上面列出了不兼容的包。没有忽略平台检查。日志: ${XEDC_RESTORE_LOG}。可在原命令末尾加 --resume"
     fi
   fi
-  local pkg dir
-  if [[ -d "$SITE/web/themes/custom" ]]; then
-    while IFS= read -r pkg; do
-      dir=$(dirname "$pkg")
-      if grep -q '"build"' "$pkg"; then
-        if [[ -f "$dir/package-lock.json" ]]; then
-          npm ci --prefix "$dir"
-        else
-          npm install --prefix "$dir"
-        fi
-        npm run build --prefix "$dir"
-      fi
-    done < <(find "$SITE/web/themes/custom" -name package.json -not -path '*/node_modules/*')
-  fi
+  xedc_theme_rebuild_all "$SITE/web/themes/custom"
   chown -R www-data:www-data "$SITE/web/sites/default/files" "$private"
   find "$SITE/web/sites/default/files" "$private" -type d -exec chmod 755 {} +
   find "$SITE/web/sites/default/files" "$private" -type f -exec chmod 644 {} +
@@ -899,8 +908,23 @@ step_drush() {
   prepare_db_names
   modules_cleanup "$SITE"
   bin=$(xedc_drush)
-  "$bin" -r "$SITE" updatedb -y || "$bin" -r "$SITE" updb -y
-  "$bin" -r "$SITE" config:import -y || "$bin" -r "$SITE" cim -y || xedc_warn "配置导入没有执行"
+  local drush_out
+  drush_out=$(xedc_mktemp)
+  if ! "$bin" -r "$SITE" updatedb -y >"$drush_out" 2>&1; then
+    if ! "$bin" -r "$SITE" updb -y >"$drush_out" 2>&1; then
+      xedc_warn "drush updatedb 失败"
+      awk '{ line[NR] = $0 } END { start = NR - 40; if (start < 1) start = 1; for (i = start; i <= NR; i++) print line[i] }' "$drush_out" >&2
+      rm -f "$drush_out"
+      xedc_die "drush updatedb 失败。日志: ${XEDC_RESTORE_LOG}"
+    fi
+  fi
+  if ! "$bin" -r "$SITE" config:import -y >"$drush_out" 2>&1; then
+    if ! "$bin" -r "$SITE" cim -y >"$drush_out" 2>&1; then
+      xedc_warn "配置导入没有执行"
+      awk '{ line[NR] = $0 } END { start = NR - 40; if (start < 1) start = 1; for (i = start; i <= NR; i++) print line[i] }' "$drush_out" >&2
+    fi
+  fi
+  rm -f "$drush_out"
   db_rebuild_cache
   modules_assert_disabled "$SITE" || xedc_fail_item "排除模块在 cim 之后仍启用"
 }
@@ -1010,7 +1034,7 @@ selfcheck() {
   fi
   for path in / /user/login /admin /models /articles /sitemap.xml; do
     code=$(curl -k -s -o /dev/null -w '%{http_code}' --resolve "${DOMAIN}:443:127.0.0.1" --resolve "${DOMAIN}:80:127.0.0.1" "${scheme}://${DOMAIN}${path}" || true)
-    if [[ "$code" == "200" ]]; then
+    if [[ "$code" == "200" ]] || { [[ "$path" == "/admin" && -n "${XEDC_SELFCHECK_ADMIN:-}" && "$code" == "$XEDC_SELFCHECK_ADMIN" ]]; }; then
       echo "✔ ${path} ${code}"
     else
       echo "✘ ${path} ${code}"
@@ -1087,7 +1111,20 @@ selfcheck() {
     echo "✘ 页面由 PHP ${hdr:-${probe_body:-无响应}} 处理，需要 ${ver}"
     fail=1
   fi
-  if crontab -l 2>/dev/null | grep -q . || grep -Rqs . /etc/cron.d/xedc-* /etc/cron.d/xedc-drupal 2>/dev/null || ls /etc/cron.d/*xedc* >/dev/null 2>&1; then
+  local cron_ok=0 cron_tmp
+  local -a cron_files=()
+  cron_tmp=$(xedc_mktemp)
+  if crontab -l >"$cron_tmp" 2>/dev/null && [[ -s "$cron_tmp" ]]; then
+    cron_ok=1
+  fi
+  rm -f "$cron_tmp"
+  shopt -s nullglob
+  cron_files=(/etc/cron.d/xedc-* /etc/cron.d/xedc-drupal)
+  shopt -u nullglob
+  if ((${#cron_files[@]} > 0)); then
+    cron_ok=1
+  fi
+  if [[ "$cron_ok" == 1 ]]; then
     echo "✔ cron"
   else
     echo "✘ cron"

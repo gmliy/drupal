@@ -3,5 +3,7 @@ module:
   user: 0
   matomo: 0
   matomo_tagmanager: 0
+  xedc_fixture: 0
 theme:
   stark: 0
+  xedc: 0

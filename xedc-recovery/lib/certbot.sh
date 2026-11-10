@@ -20,7 +20,7 @@ certbot_install() {
     fi
   done
   certbot_ensure_snippets
-  xedc_log "certbot $(certbot --version 2>&1 | head -n 1)"
+  xedc_log "certbot $(certbot --version 2>&1 | xedc_first_line)"
 }
 
 certbot_ensure_snippets() {
@@ -34,7 +34,7 @@ certbot_ensure_snippets() {
   )
   if [[ ! -s /etc/letsencrypt/options-ssl-nginx.conf ]]; then
     local src=""
-    src=$(find /usr -path '*certbot_nginx*' -name 'options-ssl-nginx.conf' 2>/dev/null | head -n 1 || true)
+    src=$(find /usr -path '*certbot_nginx*' -name 'options-ssl-nginx.conf' -print -quit 2>/dev/null || true)
     if [[ -n "$src" ]]; then
       cp "$src" /etc/letsencrypt/options-ssl-nginx.conf
     else

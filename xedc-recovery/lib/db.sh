@@ -381,9 +381,9 @@ db_watch_import() {
 db_explain_mysql_error() {
   local err_file=$1
   local useful
-  useful=$(grep -E '^ERROR' "$err_file" | head -n 1 || true)
+  useful=$(awk '/^ERROR/ { print; exit }' "$err_file" 2>/dev/null || true)
   if [[ -z "$useful" ]]; then
-    useful=$(tr '\n' ' ' <"$err_file" | head -c 160)
+    useful=$(awk 'BEGIN { ORS = "" } { gsub(/\n/, " "); s = s $0 } END { print substr(s, 1, 160) }' "$err_file" 2>/dev/null || true)
   fi
   useful=$(printf '%s' "$useful" | tr '\n' ' ')
   if ((${#useful} > 160)); then
@@ -512,9 +512,17 @@ db_import_sql() {
 }
 
 db_archive_has_sql_zst() {
-  local archive=$1
+  local archive=$1 tmp rc=1
   [[ -f "$archive" ]] || return 1
-  zstd -dc "$archive" 2>/dev/null | tar -t 2>/dev/null | grep -qE '(^|\.?/?)db/site\.sql\.zst$'
+  tmp=$(xedc_mktemp)
+  set +o pipefail
+  zstd -dc "$archive" 2>/dev/null | tar -tf - >"$tmp" 2>/dev/null || true
+  set -o pipefail
+  if grep -qE '(^|/)\.?/?db/site\.sql\.zst$' "$tmp"; then
+    rc=0
+  fi
+  rm -f "$tmp"
+  return "$rc"
 }
 
 db_import_sql_zst_from_archive() {

@@ -13,6 +13,8 @@ JOBS_ARG=""
 QUICK=0
 FROM_STAGE=""
 SKIP_UNIT=0
+MEM_FLAG=""
+CPU_FLAG=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --only) ONLY=${2:-}; shift 2 ;;
@@ -20,32 +22,11 @@ while [[ $# -gt 0 ]]; do
     --quick) QUICK=1; shift ;;
     --from-stage) FROM_STAGE=${2:-}; shift 2 ;;
     --skip-unit) SKIP_UNIT=1; shift ;;
+    --memory) MEM_FLAG=${2:-}; shift 2 ;;
+    --cpus) CPU_FLAG=${2:-}; shift 2 ;;
     *) echo "未知参数: $1" >&2; exit 2 ;;
   esac
 done
-
-if [[ "$SKIP_UNIT" != 1 && -z "$FROM_STAGE" ]]; then
-  echo "先跑单元测试与静态检查"
-  bash "$ROOT/tests/unit.sh"
-  echo "磁盘与工作目录 Docker 专项（ubuntu 24.04）"
-  docker rm -f xedc-disk-spec >/dev/null 2>&1 || true
-  if ! docker run --name xedc-disk-spec --rm --tmpfs /tmp:size=64m --privileged \
-    -v "$ROOT:/opt/xedc-recovery:ro" \
-    -e XEDC_TEST=1 -e XEDC_NO_TMUX=1 -e XEDC_DISK_LITE=1 \
-    ubuntu:24.04 \
-    bash /opt/xedc-recovery/tests/guest.sh disk >"$LOG_DIR/disk-spec.log" 2>&1
-  then
-    echo "disk 专项失败，见 $LOG_DIR/disk-spec.log" >&2
-    tail -20 "$LOG_DIR/disk-spec.log" >&2
-    exit 1
-  fi
-  if ! docker run --rm -v "$ROOT:/opt/xedc-recovery:ro" ubuntu:24.04 \
-    bash /opt/xedc-recovery/tests/guest.sh workdir >"$LOG_DIR/workdir-spec.log" 2>&1
-  then
-    echo "workdir 专项失败，见 $LOG_DIR/workdir-spec.log" >&2
-    exit 1
-  fi
-fi
 
 declare -A BASE=(
   [ubuntu-22.04]=ubuntu:22.04
@@ -54,6 +35,39 @@ declare -A BASE=(
   [ubuntu-26.10]=ubuntu:26.10
   [debian-12]=debian:12
 )
+
+if [[ "$SKIP_UNIT" != 1 && -z "$FROM_STAGE" ]]; then
+  echo "先跑单元测试与静态检查"
+  bash "$ROOT/tests/unit.sh"
+  spec_os=${ONLY:-ubuntu-24.04}
+  spec_image=${BASE[$spec_os]:-}
+  if [[ -z "$spec_image" ]]; then
+    echo "未知系统 ${spec_os}" >&2
+    exit 2
+  fi
+  if [[ "$spec_os" == "ubuntu-26.04" ]] && ! docker image inspect "$spec_image" >/dev/null 2>&1; then
+    echo "没有 Ubuntu 26.04 镜像，停止。不会改用其他系统。" >&2
+    exit 1
+  fi
+  echo "磁盘与工作目录 Docker 专项（${spec_os}）"
+  docker rm -f xedc-disk-spec >/dev/null 2>&1 || true
+  if ! docker run --name xedc-disk-spec --rm --tmpfs /tmp:size=64m --privileged \
+    -v "$ROOT:/opt/xedc-recovery:ro" \
+    -e XEDC_TEST=1 -e XEDC_NO_TMUX=1 -e XEDC_DISK_LITE=1 \
+    "$spec_image" \
+    bash /opt/xedc-recovery/tests/guest.sh disk >"$LOG_DIR/disk-spec.log" 2>&1
+  then
+    echo "disk 专项失败，见 $LOG_DIR/disk-spec.log" >&2
+    tail -20 "$LOG_DIR/disk-spec.log" >&2
+    exit 1
+  fi
+  if ! docker run --rm -v "$ROOT:/opt/xedc-recovery:ro" "$spec_image" \
+    bash /opt/xedc-recovery/tests/guest.sh workdir >"$LOG_DIR/workdir-spec.log" 2>&1
+  then
+    echo "workdir 专项失败，见 $LOG_DIR/workdir-spec.log" >&2
+    exit 1
+  fi
+fi
 systems=(ubuntu-22.04 ubuntu-24.04 ubuntu-26.04 ubuntu-26.10 debian-12)
 if [[ "$QUICK" == 1 ]]; then
   systems=(ubuntu-24.04 ubuntu-26.04)
@@ -82,6 +96,29 @@ done
 if [[ -n "$JOBS_ARG" ]]; then
   jobs=$JOBS_ARG
 fi
+mem_mb=0
+case "$MEM_FLAG" in
+  *g|*G) mem_mb=$(awk -v v="${MEM_FLAG%[gG]}" 'BEGIN { printf "%d", v * 1024 }') ;;
+  *m|*M) mem_mb=${MEM_FLAG%[mM]} ;;
+  "") ;;
+  *) mem_mb=$MEM_FLAG ;;
+esac
+if [[ "$mem_mb" =~ ^[0-9]+$ ]] && (( mem_mb > 0 )); then
+  per=$mem_mb
+  jobs=$((budget / mem_mb))
+  if (( jobs < 1 )); then
+    jobs=1
+  fi
+  if (( jobs > ${#systems[@]} )); then
+    jobs=${#systems[@]}
+  fi
+  if [[ -n "$JOBS_ARG" ]]; then
+    jobs=$JOBS_ARG
+  fi
+fi
+if [[ -n "$CPU_FLAG" ]]; then
+  cpu_each=$CPU_FLAG
+fi
 if (( budget < 1 )); then
   echo "可用内存不足" >&2
   exit 1
@@ -109,6 +146,22 @@ if (( disk_kb < 8 * 1024 * 1024 )); then
 fi
 cpus=$(nproc)
 cpu_each=$(awk -v n="$cpus" -v j="$jobs" 'BEGIN { c=n/j; if (c<0.5) c=0.5; if (c>2) c=2; printf "%.2f", c }')
+if [[ "$mem_mb" =~ ^[0-9]+$ ]] && (( mem_mb > 0 )); then
+  per=$mem_mb
+  jobs=$((budget / mem_mb))
+  if (( jobs < 1 )); then
+    jobs=1
+  fi
+  if (( jobs > ${#systems[@]} )); then
+    jobs=${#systems[@]}
+  fi
+  if [[ -n "$JOBS_ARG" ]]; then
+    jobs=$JOBS_ARG
+  fi
+fi
+if [[ -n "$CPU_FLAG" ]]; then
+  cpu_each=$CPU_FLAG
+fi
 echo "并发 ${jobs}，每容器 ${per}MB / ${cpu_each} CPU，可用内存 ${avail_mb}MB"
 
 stage_rank() {
@@ -183,12 +236,29 @@ rclone mkdir :s3:xedc-test \
 declare -A READY=()
 for os in "${systems[@]}"; do
   image=${BASE[$os]}
+  if [[ "$os" == "ubuntu-26.04" ]] && ! docker image inspect "$image" >/dev/null 2>&1; then
+    echo "没有 Ubuntu 26.04 镜像，停止。不会改用其他系统。" >&2
+    exit 1
+  fi
   if ! docker image inspect "$image" >/dev/null 2>&1; then
     if ! docker pull "$image"; then
       mark "$os" image 跳过 "镜像不可用"
       READY[$os]=0
       continue
     fi
+  fi
+  if [[ "$os" == "ubuntu-26.04" ]]; then
+    if ! pol=$(docker run --rm "$image" bash -c 'apt-get update -qq && apt-cache policy php8.5'); then
+      echo "无法读取 Ubuntu 26.04 软件源，停止。不会降级 PHP。" >&2
+      exit 1
+    fi
+    cand=$(printf '%s\n' "$pol" | awk '/Candidate:/ { if (c == "") c = $2 } END { print c }')
+    if [[ "$cand" != 8.5.* ]]; then
+      echo "Ubuntu 26.04 软件源没有 PHP 8.5（Candidate: ${cand:-无}），停止。不会降级 PHP。" >&2
+      printf '%s\n' "$pol" >&2
+      exit 1
+    fi
+    echo "Ubuntu 26.04 软件源 PHP ${cand}"
   fi
   if ! docker image inspect "xedc-base:${os}" >/dev/null 2>&1; then
     docker build -t "xedc-base:${os}" - <<DOCKER
@@ -411,6 +481,42 @@ kill "$loop_pid" >/dev/null 2>&1 || true
 sleep 0.2
 kill -9 "$loop_pid" >/dev/null 2>&1 || true
 wait "$loop_pid" 2>/dev/null || true
+if [[ "$ONLY" == "ubuntu-26.04" ]]; then
+  real_archive=${XEDC_REAL_BACKUP:-}
+  if [[ -z "$real_archive" ]]; then
+    real_archive=$(find /var/backups/xedc -maxdepth 1 -type f -name 'drupal-backup-*.tar.zst' -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk 'NR==1 { print $2 }')
+  fi
+  if [[ -z "$real_archive" || ! -f "$real_archive" ]]; then
+    echo "没有真实备份包，不能做自定义代码恢复" >&2
+    fail=1
+  else
+    mark ubuntu-26.04 customcode 运行中 ""
+    began=$(date +%s)
+    set +e
+    timeout 7200 docker run --name xedc-customcode-ubuntu-26.04 --rm \
+      --network xedc-test \
+      --memory "${per}m" \
+      --memory-swap "${per}m" \
+      --cpus "$cpu_each" \
+      --shm-size 128m \
+      -v "$ROOT:/opt/xedc-recovery:ro" \
+      -v /var/backups/xedc:/opt/real-backups:ro \
+      -e XEDC_TEST=1 \
+      -e XEDC_NO_TMUX=1 \
+      -e XEDC_REAL_BACKUP="/opt/real-backups/${real_archive##*/}" \
+      xedc-base:ubuntu-26.04 \
+      bash /opt/xedc-recovery/tests/guest.sh customcode >"$LOG_DIR/ubuntu-26.04-customcode.log" 2>&1
+    rc=$?
+    set -e
+    if [[ "$rc" == 0 ]]; then
+      mark ubuntu-26.04 customcode 通过 "$(( $(date +%s) - began ))s"
+    else
+      mark ubuntu-26.04 customcode 失败 "$LOG_DIR/ubuntu-26.04-customcode.log"
+      tail -30 "$LOG_DIR/ubuntu-26.04-customcode.log" >&2 || true
+      fail=1
+    fi
+  fi
+fi
 show_status
 bash "$ROOT/tests/cleanup.sh" || true
 if (( fail != 0 )); then

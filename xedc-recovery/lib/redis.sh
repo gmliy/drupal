@@ -6,11 +6,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 redis_install() {
   if xedc_have redis-server; then
-    xedc_log "Redis 已安装: $(redis-server --version 2>/dev/null | head -n 1)"
+    xedc_log "Redis 已安装: $(redis-server --version 2>/dev/null | xedc_first_line)"
   fi
   xedc_apt_install redis-server
   local got
-  got=$(redis-server --version 2>/dev/null | head -n 1 || true)
+  got=$(redis-server --version 2>/dev/null | xedc_first_line || true)
   xedc_log "Redis ${got}"
 }
 

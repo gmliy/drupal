@@ -6,7 +6,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 composer_install() {
   if xedc_have composer; then
-    xedc_log "Composer 已安装: $(composer --version 2>/dev/null | head -n 1)"
+    xedc_log "Composer 已安装: $(composer --version 2>/dev/null | xedc_first_line)"
     return 0
   fi
   xedc_apt_install curl ca-certificates unzip
@@ -15,7 +15,7 @@ composer_install() {
   curl -fsSL --max-time 60 -o "$setup" https://getcomposer.org/installer
   php "$setup" --install-dir=/usr/local/bin --filename=composer
   rm -f "$setup"
-  xedc_log "Composer $(composer --version 2>/dev/null | head -n 1)"
+  xedc_log "Composer $(composer --version 2>/dev/null | xedc_first_line)"
 }
 
 composer_configure() { return 0; }

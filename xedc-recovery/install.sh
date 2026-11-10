@@ -31,7 +31,7 @@ install_rclone() {
   esac
   tmp=$(mktemp -d -p "$XEDC_WORKDIR")
   if [[ -n "$arch" ]] && curl -fsSL --max-time 90 -o "$tmp/rclone.zip" "https://downloads.rclone.org/rclone-current-${arch}.zip" && unzip -qo "$tmp/rclone.zip" -d "$tmp"; then
-    bin=$(find "$tmp" -type f -name rclone | head -n 1 || true)
+    bin=$(find "$tmp" -type f -name rclone -print -quit || true)
     if [[ -n "$bin" ]]; then
       install -m 755 "$bin" /usr/local/bin/rclone
       install -m 755 "$bin" /usr/bin/rclone
@@ -63,7 +63,7 @@ fetch_github() {
     "${API}/repos/${REPO}/tarball/${REF}"
   extract=$(mktemp -d -p "$XEDC_WORKDIR")
   tar -xzf "$tmp" -C "$extract"
-  top=$(find "$extract" -mindepth 1 -maxdepth 1 -type d | head -n 1)
+  top=$(find "$extract" -mindepth 1 -maxdepth 1 -type d -print -quit)
   if [[ ! -d "$top/xedc-recovery" ]]; then
     echo "仓库压缩包里没有 xedc-recovery" >&2
     exit 1
@@ -161,8 +161,8 @@ fi
 
 find "$DEST" -name '*.sh' -exec chmod 755 {} +
 if [[ -f "$DEST/VERSION" ]]; then
-  ver=$(sed -n 's/^version=//p' "$DEST/VERSION" | head -n 1)
-  built=$(sed -n 's/^built=//p' "$DEST/VERSION" | head -n 1)
+  ver=$(sed -n 's/^version=//p' "$DEST/VERSION" | awk 'NR==1 { line = $0 } END { if (NR > 0) print line }')
+  built=$(sed -n 's/^built=//p' "$DEST/VERSION" | awk 'NR==1 { line = $0 } END { if (NR > 0) print line }')
   echo "工具版本: ${ver:-未知}"
   echo "构建时间: ${built:-未知}"
 fi

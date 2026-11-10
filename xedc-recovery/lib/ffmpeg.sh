@@ -9,7 +9,7 @@ ffmpeg_install() {
   if ! xedc_apt_install 7zip; then
     xedc_apt_install p7zip-full || xedc_warn "软件源没有 7z，压缩包导入会失败"
   fi
-  xedc_log "ffmpeg $(ffmpeg -version 2>/dev/null | head -n 1)"
+  xedc_log "ffmpeg $(ffmpeg -version 2>/dev/null | xedc_first_line)"
 }
 
 ffmpeg_configure() { return 0; }

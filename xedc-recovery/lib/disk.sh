@@ -250,6 +250,21 @@ xedc_archive_extract() {
     rm -f "$err"
     return 0
   fi
+  # 从管道解压时，tar 不能回头查找别名，会把已经解开的成员报成 Not found。
+  if grep -q 'Not found in archive' "$err" && ! grep -qiE 'No space left|Permission denied|Cannot open|Unexpected EOF' "$err"; then
+    local member dest_rel ok=0
+    for member in "${members[@]}"; do
+      dest_rel=${member#./}
+      if [[ -e "$dest/$dest_rel" || -e "$dest/$member" ]]; then
+        ok=1
+      fi
+    done
+    if [[ "$ok" == 1 ]]; then
+      xedc_log_detail "tar 返回 ${rc}，请求的内容已解开，继续"
+      rm -f "$err"
+      return 0
+    fi
+  fi
   if grep -qiE 'No space left on device|ENOSPC' "$err"; then
     xedc_disk_enospc_diag "$dest"
     xedc_die "解压失败：磁盘已满。请清理后加 --resume"

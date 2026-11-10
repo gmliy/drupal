@@ -364,6 +364,46 @@ function xedc_strip_tracking_text(string $text): string
   return $next;
 }
 
+function xedc_strip_service_name(string $name): bool
+{
+  foreach (xedc_strip_rules() as $rule) {
+    if ($rule === '' || str_contains($rule, '*') || str_contains($rule, '?')) {
+      continue;
+    }
+    if (in_array($rule, ['docs', 'docs-archive', '_server/db.sql'], true)) {
+      continue;
+    }
+    if (str_contains($name, $rule)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function xedc_strip_extension_data(string $blob): ?string
+{
+  $data = @unserialize($blob, ['allowed_classes' => false]);
+  if (!is_array($data)) {
+    return null;
+  }
+  $removed = 0;
+  foreach (['module', 'theme'] as $section) {
+    if (!isset($data[$section]) || !is_array($data[$section])) {
+      continue;
+    }
+    foreach (array_keys($data[$section]) as $name) {
+      if (xedc_strip_service_name((string) $name)) {
+        unset($data[$section][$name]);
+        $removed++;
+      }
+    }
+  }
+  if ($removed === 0) {
+    return null;
+  }
+  return serialize($data);
+}
+
 function xedc_strip_db(string $cnf, string $database): int
 {
   if (!is_file($cnf) || !extension_loaded('pdo_mysql')) {
@@ -388,6 +428,17 @@ function xedc_strip_db(string $cnf, string $database): int
     }
     if ($table === 'config') {
       $changed += $pdo->exec("DELETE FROM config WHERE name LIKE '%matomo%' OR name LIKE '%piwik%'") ?: 0;
+      $extRows = $pdo->query("SELECT collection, data FROM config WHERE name = 'core.extension'");
+      foreach ($extRows ?: [] as $extRow) {
+        $next = xedc_strip_extension_data((string) ($extRow['data'] ?? ''));
+        if ($next === null) {
+          continue;
+        }
+        $upd = $pdo->prepare('UPDATE config SET data = ? WHERE collection = ? AND name = ?');
+        $upd->execute([$next, (string) ($extRow['collection'] ?? ''), 'core.extension']);
+        $changed++;
+        fwrite(STDERR, "已从数据库 core.extension 去掉排除模块\n");
+      }
       continue;
     }
     if ($table === 'key_value') {
@@ -462,6 +513,24 @@ if ($mode === 'stream') {
   while (($line = fgets(STDIN)) !== false) {
     echo xedc_strip_tracking_text($line);
   }
+  exit(0);
+}
+if ($mode === 'selftest') {
+  $blob = serialize([
+    'module' => ['system' => 0, 'matomo' => 0, 'matomo_tagmanager' => 0],
+    'theme' => ['stark' => 0],
+  ]);
+  $next = xedc_strip_extension_data($blob);
+  $data = is_string($next) ? unserialize($next, ['allowed_classes' => false]) : null;
+  if (!is_array($data) || isset($data['module']['matomo']) || isset($data['module']['matomo_tagmanager']) || !isset($data['module']['system']) || !isset($data['theme']['stark'])) {
+    fwrite(STDERR, "core.extension 清理失败\n");
+    exit(1);
+  }
+  if (xedc_strip_extension_data(serialize(['module' => ['system' => 0]])) !== null) {
+    fwrite(STDERR, "没有排除模块时不应改写 core.extension\n");
+    exit(1);
+  }
+  echo "extension strip ok\n";
   exit(0);
 }
 if ($site === '' || !is_dir($site)) {

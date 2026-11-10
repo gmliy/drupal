@@ -1,6 +1,7 @@
 # 一行一个关键字或 glob（* ?）。# 开头是注释。
-# 匹配范围：nginx 配置名和 server_name、compose 项目、容器、镜像、数据卷、
-# systemd 单元、cron、目录路径、Drupal 模块名、composer 包名、文件名。
+# 服务名（matomo、xedc-test- 等）匹配 nginx、compose、容器、卷、systemd、cron、模块名和包名。
+# docs、docs-archive、*REPORT*.md、*AUDIT*.md、_server/db.sql 只锚定站点根或指定路径，
+# 不匹配模块、主题、安装配置、库目录内部的同名文件。bak 类文件按文件名单独删除。
 matomo
 xedc-push-gmliy
 # Docker 测试缓存与恢复夹具（勿进备份）

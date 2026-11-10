@@ -8,7 +8,7 @@ xedc_version_value() {
   local key=$1 file
   file="${XEDC_ROOT}/VERSION"
   [[ -f "$file" ]] || return 0
-  sed -n "s/^${key}=//p" "$file" | head -n 1
+  sed -n "s/^${key}=//p" "$file" | awk 'NR==1 { line = $0 } END { if (NR > 0) print line }'
 }
 
 xedc_print_version() {
@@ -27,7 +27,7 @@ xedc_warn_bootstrap_version() {
   here=$(xedc_version_value built)
   [[ -n "$here" ]] || return 0
   remote=$(curl -fsSL --max-time 15 "https://raw.githubusercontent.com/${XEDC_GITHUB_REPO:-gmliy/drupal}/main/xedc-recovery/VERSION" 2>/dev/null || true)
-  remote_built=$(printf '%s\n' "$remote" | sed -n 's/^built=//p' | head -n 1)
+  remote_built=$(printf '%s\n' "$remote" | sed -n 's/^built=//p' | awk 'NR==1 { line = $0 } END { if (NR > 0) print line }')
   [[ -n "$remote_built" ]] || return 0
   if [[ "$here" < "$remote_built" ]]; then
     xedc_warn "R2 bootstrap 的工具版本 ${here} 低于 GitHub main ${remote_built}。请在旧服务器重新备份，或改用 GitHub 方式安装"

@@ -61,7 +61,7 @@ xedc_head_lines() {
 }
 
 xedc_first_line() {
-  awk 'NR==1 { print; exit }'
+  awk 'NR==1 { line = $0 } END { if (NR > 0) print line }'
 }
 
 xedc_safe_pipe() {
@@ -875,27 +875,56 @@ xedc_dir_size_bytes() {
 xedc_prune_tree_by_exclude() {
   local root=$1
   [[ -d "$root" ]] || return 0
-  local path rel bytes saved=0
+  local path rel bytes saved=0 rule
+  if [[ -d "$root/docs" ]]; then
+    bytes=$(xedc_dir_size_bytes "$root/docs")
+    rm -rf "$root/docs"
+    saved=$((saved + bytes))
+    xedc_backup_skip_logged "docs/" "$bytes" "只排除站点根文档"
+  fi
+  if [[ -d "$root/docs-archive" ]]; then
+    bytes=$(xedc_dir_size_bytes "$root/docs-archive")
+    rm -rf "$root/docs-archive"
+    saved=$((saved + bytes))
+    xedc_backup_skip_logged "docs-archive/" "$bytes" "只排除站点根文档"
+  fi
+  if [[ -f "$root/_server/db.sql" ]]; then
+    bytes=$(stat -c%s "$root/_server/db.sql" 2>/dev/null || echo 0)
+    rm -f "$root/_server/db.sql"
+    saved=$((saved + bytes))
+    xedc_backup_skip_logged "_server/db.sql" "$bytes" "只排除该路径"
+  fi
   while IFS= read -r -d '' path; do
     rel=${path#"$root"/}
-    [[ -n "$rel" ]] || continue
-    if xedc_excluded_path "$rel" || xedc_excluded_path "$(basename "$path")"; then
-      bytes=$(stat -c%s "$path" 2>/dev/null || echo 0)
-      rm -rf "$path"
-      saved=$((saved + bytes))
-      xedc_backup_skip_logged "$rel" "$bytes"
+    bytes=$(stat -c%s "$path" 2>/dev/null || echo 0)
+    rm -f "$path"
+    saved=$((saved + bytes))
+    xedc_backup_skip_logged "$rel" "$bytes" "只排除站点根报告"
+  done < <(find "$root" -maxdepth 1 -type f \( -iname '*REPORT*.md' -o -iname '*AUDIT*.md' \) -print0 2>/dev/null)
+  while IFS= read -r -d '' path; do
+    rel=${path#"$root"/}
+    if ! xedc_name_is_bak "${path##*/}"; then
+      continue
     fi
-  done < <(find "$root" \( -name '*.bak' -o -name '*.bak-*' -o -name '*.orig' -o -name '*.old' -o -name '*~' \
-    -o -iname '*REPORT*.md' -o -iname '*AUDIT*.md' \) -print0 2>/dev/null)
-  # 目录规则（docs-archive 等）
+    bytes=$(stat -c%s "$path" 2>/dev/null || echo 0)
+    rm -f "$path"
+    saved=$((saved + bytes))
+    xedc_backup_skip_logged "$rel" "$bytes" "bak 类备份文件"
+  done < <(find "$root" -type f -print0 2>/dev/null)
   while IFS= read -r rule; do
     [[ -n "$rule" ]] || continue
-    [[ "$rule" == *"*"* ]] && continue
-    if [[ -d "$root/$rule" ]]; then
-      bytes=$(xedc_dir_size_bytes "$root/$rule")
+    [[ "$rule" == *"*"* || "$rule" == *"?"* ]] && continue
+    case "$rule" in
+      docs|docs-archive|_server/db.sql) continue ;;
+    esac
+    if [[ -e "$root/$rule" ]]; then
+      bytes=$(stat -c%s "$root/$rule" 2>/dev/null || echo 0)
+      if [[ -d "$root/$rule" ]]; then
+        bytes=$(xedc_dir_size_bytes "$root/$rule")
+      fi
       rm -rf "$root/$rule"
       saved=$((saved + bytes))
-      xedc_backup_skip_logged "$rule/" "$bytes"
+      xedc_backup_skip_logged "$rule" "$bytes" "排除清单顶层名称"
     fi
   done < <(xedc_exclude_rules)
   echo "$saved"
