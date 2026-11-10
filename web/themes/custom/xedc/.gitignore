@@ -9,6 +9,3 @@ node_modules
 # local env files
 .env.local
 .env.test.local
-
-# Bootstrap Icons SVGs copied from node_modules by the build
-/assets/icons/bootstrap-icons
