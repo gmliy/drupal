@@ -1,0 +1,15 @@
+enabled: true
+suggest_enabled: true
+complete_enabled: true
+hot_enabled: true
+history_enabled: true
+min_length: 1
+debounce_ms: 250
+group_limit: 4
+cache_seconds: 120
+log_retention_days: 90
+hot_window: week
+page_size: 12
+flood_limit: 180
+flood_window: 60
+track_limit: 30

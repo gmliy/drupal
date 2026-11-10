@@ -1,0 +1,179 @@
+xedc_search.api.suggest:
+  path: '/api/xedc/search/suggest'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\ApiController::suggest'
+  methods: [GET]
+  requirements:
+    _permission: 'access content'
+  options:
+    no_cache: TRUE
+
+xedc_search.api.complete:
+  path: '/api/xedc/search/complete'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\ApiController::complete'
+  methods: [GET]
+  requirements:
+    _permission: 'access content'
+  options:
+    no_cache: TRUE
+
+xedc_search.api.search:
+  path: '/api/xedc/search'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\ApiController::search'
+  methods: [GET]
+  requirements:
+    _permission: 'access content'
+  options:
+    no_cache: TRUE
+
+xedc_search.api.hot:
+  path: '/api/xedc/search/hot'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\ApiController::hot'
+  methods: [GET]
+  requirements:
+    _permission: 'access content'
+  options:
+    no_cache: TRUE
+
+xedc_search.api.history:
+  path: '/api/xedc/search/history'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\ApiController::history'
+  methods: [GET]
+  requirements:
+    _permission: 'access content'
+  options:
+    no_cache: TRUE
+
+xedc_search.api.history_save:
+  path: '/api/xedc/search/history'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\ApiController::historySave'
+  methods: [POST]
+  requirements:
+    _permission: 'access content'
+    _user_is_logged_in: 'TRUE'
+    _csrf_request_header_token: 'TRUE'
+  options:
+    no_cache: TRUE
+
+xedc_search.api.history_delete:
+  path: '/api/xedc/search/history/{id}'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\ApiController::historyDelete'
+  methods: [DELETE]
+  requirements:
+    _permission: 'access content'
+    _user_is_logged_in: 'TRUE'
+    _csrf_request_header_token: 'TRUE'
+    id: \d+
+  options:
+    no_cache: TRUE
+
+xedc_search.api.history_clear:
+  path: '/api/xedc/search/history'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\ApiController::historyClear'
+  methods: [DELETE]
+  requirements:
+    _permission: 'access content'
+    _user_is_logged_in: 'TRUE'
+    _csrf_request_header_token: 'TRUE'
+  options:
+    no_cache: TRUE
+
+xedc_search.api.track:
+  path: '/api/xedc/search/track'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\ApiController::track'
+  methods: [POST]
+  requirements:
+    _permission: 'access content'
+    _csrf_request_header_token: 'TRUE'
+  options:
+    no_cache: TRUE
+
+xedc_search.admin:
+  path: '/admin/config/xedc-search'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\AdminController::overview'
+    _title: '搜索概览'
+  requirements:
+    _permission: 'administer xedc search'
+  options:
+    _admin_route: TRUE
+
+xedc_search.admin.hot:
+  path: '/admin/config/xedc-search/hot'
+  defaults:
+    _form: '\Drupal\xedc_search\Form\HotForm'
+    _title: '热门搜索'
+  requirements:
+    _permission: 'administer xedc search'
+  options:
+    _admin_route: TRUE
+
+xedc_search.admin.keywords:
+  path: '/admin/config/xedc-search/keywords'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\AdminController::keywords'
+    _title: '搜索词'
+  requirements:
+    _permission: 'administer xedc search'
+  options:
+    _admin_route: TRUE
+
+xedc_search.admin.keyword_add:
+  path: '/admin/config/xedc-search/keywords/add'
+  defaults:
+    _form: '\Drupal\xedc_search\Form\KeywordForm'
+    _title: '新增搜索词'
+  requirements:
+    _permission: 'administer xedc search'
+  options:
+    _admin_route: TRUE
+
+xedc_search.admin.keyword_edit:
+  path: '/admin/config/xedc-search/keywords/{id}/edit'
+  defaults:
+    _form: '\Drupal\xedc_search\Form\KeywordForm'
+    _title: '编辑搜索词'
+  requirements:
+    _permission: 'administer xedc search'
+    id: \d+
+  options:
+    _admin_route: TRUE
+
+xedc_search.admin.keyword_delete:
+  path: '/admin/config/xedc-search/keywords/{id}/delete'
+  defaults:
+    _form: '\Drupal\xedc_search\Form\KeywordDeleteForm'
+    _title: '删除搜索词'
+  requirements:
+    _permission: 'administer xedc search'
+    id: \d+
+  options:
+    _admin_route: TRUE
+
+xedc_search.admin.history:
+  path: '/admin/config/xedc-search/history'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\AdminController::history'
+    _title: '搜索历史分析'
+  requirements:
+    _permission: 'administer xedc search'
+  options:
+    _admin_route: TRUE
+
+xedc_search.admin.settings:
+  path: '/admin/config/xedc-search/settings'
+  defaults:
+    _form: '\Drupal\xedc_search\Form\SettingsForm'
+    _title: '搜索设置'
+  requirements:
+    _permission: 'administer xedc search'
+  options:
+    _admin_route: TRUE

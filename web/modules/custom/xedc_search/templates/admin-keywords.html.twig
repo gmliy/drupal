@@ -1,0 +1,53 @@
+<div class="xedc-search-admin">
+  <header class="xedc-search-admin__head">
+    <a class="button button--primary" href="{{ path('xedc_search.admin.keyword_add') }}">{{ '新增关键词'|t }}</a>
+  </header>
+  <form class="xedc-search-admin__filters" method="get" action="{{ path('xedc_search.admin.keywords') }}">
+    <label>{{ '关键词'|t }} <input type="search" name="q" value="{{ q }}" maxlength="100"></label>
+    <label>{{ '状态'|t }}
+      <select name="status">
+        <option value="all"{{ status == 'all' ? ' selected' }}>{{ '全部'|t }}</option>
+        <option value="1"{{ status == '1' ? ' selected' }}>{{ '启用'|t }}</option>
+        <option value="0"{{ status == '0' ? ' selected' }}>{{ '停用'|t }}</option>
+      </select>
+    </label>
+    <button class="button" type="submit">{{ '筛选'|t }}</button>
+  </form>
+  {% if empty %}
+    <p class="xedc-search-admin__empty">{{ '还没有搜索词。'|t }}</p>
+  {% else %}
+    <div class="xedc-search-admin__table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ '关键词'|t }}</th>
+            <th>{{ '显示名称'|t }}</th>
+            <th>{{ '权重'|t }}</th>
+            <th>{{ '状态'|t }}</th>
+            <th>{{ '标签'|t }}</th>
+            <th>{{ '分类'|t }}</th>
+            <th>{{ '操作'|t }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.keyword }}</td>
+              <td>{{ row.label }}</td>
+              <td>{{ row.weight }}</td>
+              <td><span class="xedc-search-admin__badge{{ row.status_on ? ' is-on' : '' }}">{{ row.status }}</span></td>
+              <td>{{ row.tags }}</td>
+              <td>{{ row.categories }}</td>
+              <td class="xedc-search-admin__ops">
+                <a href="{{ row.edit_url }}">{{ '编辑'|t }}</a>
+                <a class="use-ajax" href="{{ row.delete_url }}" data-dialog-type="modal" data-dialog-options='{"width":480}'>{{ '删除'|t }}</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ pager }}
+  {% endif %}
+  <p class="xedc-search-admin__note">{{ '共 @count 个'|t({'@count': total}) }}</p>
+</div>

@@ -1,0 +1,115 @@
+<?php
+
+/**
+ * @file
+ * Schema for XEDC search.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function xedc_search_schema(): array {
+  $schema['xedc_search_keyword'] = [
+    'description' => '管理员配置的搜索词。',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'keyword' => ['type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => ''],
+      'keyword_key' => ['type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => ''],
+      'label' => ['type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => ''],
+      'weight' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'status' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1],
+      'tags' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'categories' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'keyword_key' => ['keyword_key'],
+    ],
+    'indexes' => [
+      'status_weight' => ['status', 'weight'],
+    ],
+  ];
+
+  $schema['xedc_search_synonym'] = [
+    'description' => '搜索词同义词。',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'keyword_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'synonym' => ['type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => ''],
+      'synonym_key' => ['type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => ''],
+      'status' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'keyword_id' => ['keyword_id'],
+      'synonym_key' => ['synonym_key'],
+    ],
+  ];
+
+  $schema['xedc_search_log'] = [
+    'description' => '搜索日志。不保存用户 ID 或 IP。',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'keyword' => ['type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => ''],
+      'keyword_key' => ['type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => ''],
+      'bundle' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'all'],
+      'result_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'zero_result' => ['type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'day' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'day_key' => ['day', 'keyword_key'],
+      'created' => ['created'],
+      'zero_day' => ['zero_result', 'day'],
+    ],
+  ];
+
+  $schema['xedc_search_daily'] = [
+    'description' => '按天汇总的搜索次数。',
+    'fields' => [
+      'day' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'keyword_key' => ['type' => 'varchar', 'length' => 100, 'not null' => TRUE],
+      'keyword' => ['type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => ''],
+      'bundle' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'all'],
+      'searches' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'users' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'result_sum' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'zero_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['day', 'keyword_key', 'bundle'],
+    'indexes' => [
+      'keyword_key' => ['keyword_key'],
+    ],
+  ];
+
+  $schema['xedc_search_visitor'] = [
+    'description' => '同一天同一关键词的访客去重哈希。',
+    'fields' => [
+      'day' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'keyword_key' => ['type' => 'varchar', 'length' => 100, 'not null' => TRUE],
+      'visitor' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE],
+    ],
+    'primary key' => ['day', 'keyword_key', 'visitor'],
+  ];
+
+  $schema['xedc_search_history'] = [
+    'description' => '登录用户自己的搜索历史。',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'keyword' => ['type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => ''],
+      'bundle' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'all'],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'uid_created' => ['uid', 'created'],
+    ],
+  ];
+
+  return $schema;
+}

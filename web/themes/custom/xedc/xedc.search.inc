@@ -75,7 +75,7 @@ function _xedc_search_params(): array {
   }
 
   $sort = $request->query->get('sort');
-  $sort = $sort === 'latest' ? 'latest' : 'relevance';
+  $sort = is_string($sort) && in_array($sort, ['latest', 'hot', 'relevance'], TRUE) ? $sort : 'relevance';
 
   $page = $request->query->get('page');
   if (is_array($page)) {
@@ -91,9 +91,47 @@ function _xedc_search_params(): array {
 }
 
 /**
- * Builds a search URL while preserving q/type/sort.
+ * Sanitized category, tag, model and date filters.
+ *
+ * @return array{category: int, tag: int, model: int, from: string, to: string}
  */
-function _xedc_search_url(string $q, string $type = 'all', string $sort = 'relevance', int $page = 0): string {
+function _xedc_search_filters(): array {
+  static $filters = NULL;
+  if ($filters !== NULL) {
+    return $filters;
+  }
+  $request = \Drupal::request();
+  $integer = static function (string $key) use ($request): int {
+    $value = $request->query->get($key);
+    if (!is_scalar($value)) {
+      return 0;
+    }
+    $value = (int) $value;
+    return $value > 0 && $value < 100000000 ? $value : 0;
+  };
+  $day = static function (string $key) use ($request): string {
+    $value = $request->query->get($key, '');
+    if (!is_string($value) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+      return '';
+    }
+    $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+    return $date && $date->format('Y-m-d') === $value ? $value : '';
+  };
+  $filters = [
+    'category' => $integer('category'),
+    'tag' => $integer('tag'),
+    'model' => $integer('model'),
+    'from' => $day('from'),
+    'to' => $day('to'),
+  ];
+  return $filters;
+}
+
+/**
+ * Builds a search URL while preserving q/type/sort and active filters.
+ */
+function _xedc_search_url(string $q, string $type = 'all', string $sort = 'relevance', int $page = 0, ?array $filters = NULL): string {
+  $filters = $filters ?? _xedc_search_filters();
   $query = [];
   if ($q !== '') {
     $query['q'] = $q;
@@ -101,13 +139,36 @@ function _xedc_search_url(string $q, string $type = 'all', string $sort = 'relev
   if ($type !== 'all') {
     $query['type'] = $type;
   }
-  if ($sort === 'latest') {
+  if (in_array($sort, ['latest', 'hot'], TRUE)) {
     $query['sort'] = $sort;
+  }
+  foreach (['category', 'tag', 'model'] as $key) {
+    if (!empty($filters[$key])) {
+      $query[$key] = (int) $filters[$key];
+    }
+  }
+  foreach (['from', 'to'] as $key) {
+    if (!empty($filters[$key])) {
+      $query[$key] = $filters[$key];
+    }
   }
   if ($page > 0) {
     $query['page'] = $page;
   }
   return Url::fromUserInput('/search', ['query' => $query])->toString();
+}
+
+/**
+ * The search engine, when the module is enabled.
+ */
+function _xedc_search_engine(): ?\Drupal\xedc_search\Service\SearchEngine {
+  if (!\Drupal::moduleHandler()->moduleExists('xedc_search')) {
+    return NULL;
+  }
+  if (!\Drupal::config('xedc_search.settings')->get('enabled')) {
+    return NULL;
+  }
+  return \Drupal::service('xedc_search.engine');
 }
 
 /**
@@ -133,6 +194,15 @@ function _xedc_search_count(string $q, string $type = 'all'): int {
   if ($q === '') {
     return 0;
   }
+  $engine = _xedc_search_engine();
+  if ($engine && in_array($type, ['all', 'photo', 'video', 'article'], TRUE)) {
+    try {
+      return $engine->count($q, $type, _xedc_search_filters());
+    }
+    catch (\Throwable $exception) {
+      \Drupal::logger('xedc_search')->error($exception->getMessage());
+    }
+  }
   $query = _xedc_search_query($q, $type);
   if (!$query->prepareAndNormalize()) {
     return 0;
@@ -146,6 +216,18 @@ function _xedc_search_count(string $q, string $type = 'all'): int {
 function _xedc_search_result_nids(string $q, string $type, string $sort, int $limit = 12): array {
   if ($q === '' || !in_array($type, ['all', 'photo', 'video', 'article'], TRUE)) {
     return [];
+  }
+  $engine = _xedc_search_engine();
+  if ($engine) {
+    try {
+      [, , , $page] = _xedc_search_params();
+      $found = $engine->page($q, $type, $sort, $page, _xedc_search_filters());
+      \Drupal::service('pager.manager')->createPager($found['total'], $found['limit'] ?: $limit, 0);
+      return $found['nids'];
+    }
+    catch (\Throwable $exception) {
+      \Drupal::logger('xedc_search')->error($exception->getMessage());
+    }
   }
   $query = _xedc_search_query($q, $type);
   if (!$query->prepareAndNormalize()) {
@@ -701,6 +783,12 @@ function _xedc_search_build_page(): array {
       'active' => $sort === 'latest',
       'url' => _xedc_search_url($q, $type, 'latest', 0),
     ],
+    [
+      'key' => 'hot',
+      'label' => t('热门'),
+      'active' => $sort === 'hot',
+      'url' => _xedc_search_url($q, $type, 'hot', 0),
+    ],
   ];
 
   $explore = [
@@ -709,6 +797,31 @@ function _xedc_search_build_page(): array {
     ['label' => t('最新文章'), 'url' => Url::fromUserInput('/articles')->toString()],
     ['label' => t('全部模特'), 'url' => Url::fromUserInput('/models')->toString()],
   ];
+  $filters = _xedc_search_filters();
+  $chips = [];
+  foreach (['category' => t('分类'), 'tag' => t('标签'), 'model' => t('人物')] as $key => $label) {
+    if (empty($filters[$key])) {
+      continue;
+    }
+    $term = \Drupal\taxonomy\Entity\Term::load((int) $filters[$key]);
+    $clear = $filters;
+    $clear[$key] = 0;
+    $chips[] = [
+      'label' => $term ? $term->label() : (string) $label,
+      'url' => _xedc_search_url($q, $type, $sort, 0, $clear),
+    ];
+  }
+  foreach (['from' => t('从'), 'to' => t('至')] as $key => $label) {
+    if ($filters[$key] === '') {
+      continue;
+    }
+    $clear = $filters;
+    $clear[$key] = '';
+    $chips[] = [
+      'label' => $label . ' ' . $filters[$key],
+      'url' => _xedc_search_url($q, $type, $sort, 0, $clear),
+    ];
+  }
 
   return [
     '#theme' => 'xedc_search_page',
@@ -716,6 +829,12 @@ function _xedc_search_build_page(): array {
     '#type' => $type,
     '#sort' => $sort,
     '#page' => $page,
+    '#category' => $filters['category'],
+    '#tag' => $filters['tag'],
+    '#model' => $filters['model'],
+    '#from' => $filters['from'],
+    '#to' => $filters['to'],
+    '#chips' => $chips,
     '#form_action' => Url::fromUserInput('/search')->toString(),
     '#tabs' => $tabs,
     '#sorts' => $sorts,
@@ -727,7 +846,17 @@ function _xedc_search_build_page(): array {
     '#explore' => $explore,
     '#attached' => ['library' => ['xedc/search-page']],
     '#cache' => [
-      'contexts' => ['url.query_args:q', 'url.query_args:type', 'url.query_args:sort', 'url.query_args:page'],
+      'contexts' => [
+        'url.query_args:q',
+        'url.query_args:type',
+        'url.query_args:sort',
+        'url.query_args:page',
+        'url.query_args:category',
+        'url.query_args:tag',
+        'url.query_args:model',
+        'url.query_args:from',
+        'url.query_args:to',
+      ],
       'tags' => $tags,
     ],
   ];

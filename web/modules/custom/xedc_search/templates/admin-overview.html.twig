@@ -1,0 +1,69 @@
+<div class="xedc-search-admin">
+  <header class="xedc-search-admin__head">
+    <p>{{ '数字来自真实搜索记录。'|t }}</p>
+  </header>
+  {% if error %}
+    <div class="xedc-search-admin__error" role="alert">{{ error }}</div>
+  {% endif %}
+  <div class="xedc-search-admin__cards">
+    <article class="xedc-search-admin__card"><span>{{ '今日搜索'|t }}</span><strong>{{ stats.today }}</strong></article>
+    <article class="xedc-search-admin__card"><span>{{ '本周搜索'|t }}</span><strong>{{ stats.week }}</strong></article>
+    <article class="xedc-search-admin__card"><span>{{ '本月搜索'|t }}</span><strong>{{ stats.month }}</strong></article>
+    <article class="xedc-search-admin__card"><span>{{ '本月无结果'|t }}</span><strong>{{ stats.zero }}</strong></article>
+  </div>
+  <div class="xedc-search-admin__grid">
+    <section class="xedc-search-admin__panel">
+      <h3>{{ '近 14 天'|t }}</h3>
+      {% if stats.trend %}
+        <div class="xedc-search-admin__spark">
+          {% for point in stats.trend %}
+            <div class="xedc-search-admin__spark-col" title="{{ point.day }}：{{ point.count }}">
+              <span class="xedc-search-admin__spark-plot"><i style="height: {{ point.width }}%"></i></span>
+              <em>{{ point.day|slice(8, 2) }}</em>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="xedc-search-admin__empty">{{ '还没有趋势数据。'|t }}</p>
+      {% endif %}
+    </section>
+    <section class="xedc-search-admin__panel">
+      <h3>{{ '搜索类型'|t }}</h3>
+      {% if stats.types %}
+        <ul class="xedc-search-admin__bars">
+          {% for type in stats.types %}
+            <li>
+              <span>{{ type.label }}</span>
+              <i style="width: {{ type.width }}%"></i>
+              <em>{{ type.count }}</em>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="xedc-search-admin__empty">{{ '还没有类型分布。'|t }}</p>
+      {% endif %}
+    </section>
+  </div>
+  <section class="xedc-search-admin__panel">
+    <h3>{{ '本周热门'|t }}</h3>
+    {% if stats.hot %}
+      <div class="xedc-search-admin__table-wrap">
+        <table>
+          <thead><tr><th>{{ '关键词'|t }}</th><th>{{ '次数'|t }}</th><th>{{ '用户'|t }}</th><th>{{ '平均结果'|t }}</th></tr></thead>
+          <tbody>
+            {% for item in stats.hot %}
+              <tr>
+                <td>{{ item.keyword }}</td>
+                <td>{{ item.searches }}</td>
+                <td>{{ item.users }}</td>
+                <td>{{ item.results }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="xedc-search-admin__empty">{{ '还没有热门搜索。'|t }}</p>
+    {% endif %}
+  </section>
+</div>

@@ -1,0 +1,29 @@
+xedc_search.admin:
+  title: '概览'
+  route_name: xedc_search.admin
+  base_route: xedc_search.admin
+  weight: 0
+
+xedc_search.admin.hot:
+  title: '热门搜索'
+  route_name: xedc_search.admin.hot
+  base_route: xedc_search.admin
+  weight: 10
+
+xedc_search.admin.keywords:
+  title: '搜索词'
+  route_name: xedc_search.admin.keywords
+  base_route: xedc_search.admin
+  weight: 20
+
+xedc_search.admin.history:
+  title: '历史分析'
+  route_name: xedc_search.admin.history
+  base_route: xedc_search.admin
+  weight: 30
+
+xedc_search.admin.settings:
+  title: '设置'
+  route_name: xedc_search.admin.settings
+  base_route: xedc_search.admin
+  weight: 40

@@ -41,6 +41,12 @@ function xedc_theme($existing, $type, $theme, $path) {
         'xa_pager' => [],
         'hot_models' => [],
         'explore' => [],
+        'category' => 0,
+        'tag' => 0,
+        'model' => 0,
+        'from' => '',
+        'to' => '',
+        'chips' => [],
       ],
       'template' => 'search/search-page',
     ],
@@ -287,7 +293,7 @@ function xedc_preprocess_page(&$variables) {
     $variables['page']['content'] = _xedc_search_build_page();
     $variables['page']['#cache']['contexts'] = \Drupal\Core\Cache\Cache::mergeContexts(
       $variables['page']['#cache']['contexts'] ?? [],
-      ['url.query_args:q', 'url.query_args:type', 'url.query_args:sort', 'url.query_args:page']
+      ['url.query_args:q', 'url.query_args:type', 'url.query_args:sort', 'url.query_args:page', 'url.query_args:category', 'url.query_args:tag', 'url.query_args:model', 'url.query_args:from', 'url.query_args:to']
     );
     $variables['page']['#cache']['tags'] = \Drupal\Core\Cache\Cache::mergeTags(
       $variables['page']['#cache']['tags'] ?? [],

@@ -1,0 +1,49 @@
+xedc_search.settings:
+  type: config_object
+  label: 'XEDC search settings'
+  mapping:
+    enabled:
+      type: boolean
+      label: '搜索开关'
+    suggest_enabled:
+      type: boolean
+      label: '自动联想'
+    complete_enabled:
+      type: boolean
+      label: '自动补全'
+    hot_enabled:
+      type: boolean
+      label: '热门搜索'
+    history_enabled:
+      type: boolean
+      label: '搜索历史'
+    min_length:
+      type: integer
+      label: '最小搜索长度'
+    debounce_ms:
+      type: integer
+      label: '防抖毫秒'
+    group_limit:
+      type: integer
+      label: '每组建议数量'
+    cache_seconds:
+      type: integer
+      label: '缓存秒数'
+    log_retention_days:
+      type: integer
+      label: '日志保留天数'
+    hot_window:
+      type: string
+      label: '热门榜默认周期'
+    page_size:
+      type: integer
+      label: '每页条数'
+    flood_limit:
+      type: integer
+      label: '接口频率上限'
+    flood_window:
+      type: integer
+      label: '接口频率窗口秒数'
+    track_limit:
+      type: integer
+      label: '统计写入上限'

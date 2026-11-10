@@ -1,0 +1,9 @@
+name: 'XEDC Search'
+type: module
+description: '全站统一搜索、联想、补全、热门和搜索历史。'
+package: XEDC
+core_version_requirement: ^11
+dependencies:
+  - drupal:node
+  - drupal:taxonomy
+  - drupal:user

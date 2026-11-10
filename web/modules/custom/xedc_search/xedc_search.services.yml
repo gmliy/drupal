@@ -1,0 +1,81 @@
+services:
+  logger.channel.xedc_search:
+    parent: logger.channel_base
+    arguments: ['xedc_search']
+
+  cache.xedc_search:
+    class: Drupal\Core\Cache\CacheBackendInterface
+    tags:
+      - { name: cache.bin }
+    factory: ['@cache_factory', 'get']
+    arguments: [xedc_search]
+
+  xedc_search.normalizer:
+    class: Drupal\xedc_search\Query\QueryNormalizer
+
+  xedc_search.keywords:
+    class: Drupal\xedc_search\Repository\KeywordRepository
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@cache_tags.invalidator'
+      - '@xedc_search.normalizer'
+
+  xedc_search.stats:
+    class: Drupal\xedc_search\Repository\StatsRepository
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@xedc_search.normalizer'
+      - '@xedc_search.keywords'
+
+  xedc_search.history:
+    class: Drupal\xedc_search\Repository\HistoryRepository
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@xedc_search.normalizer'
+
+  xedc_search.engine:
+    class: Drupal\xedc_search\Service\SearchEngine
+    arguments:
+      - '@database'
+      - '@entity_type.manager'
+      - '@entity.repository'
+      - '@language_manager'
+      - '@config.factory'
+      - '@cache.xedc_search'
+      - '@module_handler'
+      - '@current_user'
+      - '@xedc_search.normalizer'
+      - '@xedc_search.keywords'
+      - '@logger.channel.xedc_search'
+
+  xedc_search.suggester:
+    class: Drupal\xedc_search\Service\Suggester
+    arguments:
+      - '@database'
+      - '@entity_type.manager'
+      - '@language_manager'
+      - '@config.factory'
+      - '@cache.xedc_search'
+      - '@module_handler'
+      - '@xedc_search.normalizer'
+      - '@xedc_search.keywords'
+      - '@xedc_search.stats'
+      - '@xedc_search.engine'
+      - '@file_url_generator'
+
+  xedc_search.tracker:
+    class: Drupal\xedc_search\Service\Tracker
+    arguments:
+      - '@flood'
+      - '@config.factory'
+      - '@datetime.time'
+      - '@current_user'
+      - '@xedc_search.normalizer'
+      - '@xedc_search.history'
+      - '@xedc_search.engine'
+      - '@xedc_search.stats'
+      - '@cache_tags.invalidator'
+      - '@logger.channel.xedc_search'

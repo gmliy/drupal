@@ -1,0 +1,42 @@
+<div class="xedc-search-admin">
+  <header class="xedc-search-admin__head">
+    <p>{{ '只显示关键词、时间和结果数量，不显示用户身份。'|t }}</p>
+  </header>
+  {% if error %}
+    <div class="xedc-search-admin__error" role="alert">{{ error }}</div>
+  {% endif %}
+  <form class="xedc-search-admin__filters" method="get" action="{{ path('xedc_search.admin.history') }}">
+    <label>{{ '关键词'|t }} <input type="search" name="q" value="{{ q }}" maxlength="100"></label>
+    <label class="xedc-search-admin__check"><input type="checkbox" name="zero" value="1"{{ zero ? ' checked' }}> {{ '只看无结果'|t }}</label>
+    <button class="button" type="submit">{{ '筛选'|t }}</button>
+  </form>
+  {% if empty %}
+    <p class="xedc-search-admin__empty">{{ '没有符合条件的搜索记录。'|t }}</p>
+  {% else %}
+    <div class="xedc-search-admin__table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ '关键词'|t }}</th>
+            <th>{{ '次数'|t }}</th>
+            <th>{{ '平均结果'|t }}</th>
+            <th>{{ '无结果次数'|t }}</th>
+            <th>{{ '最近时间'|t }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.keyword }}</td>
+              <td>{{ row.searches }}</td>
+              <td>{{ row.results }}</td>
+              <td>{{ row.zeros }}</td>
+              <td>{{ row.last }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ pager }}
+  {% endif %}
+</div>

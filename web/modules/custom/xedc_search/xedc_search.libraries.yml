@@ -1,0 +1,20 @@
+suggest:
+  version: 1.0.3
+  css:
+    theme:
+      css/suggest.css: {}
+  js:
+    js/suggest.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+    - core/drupalSettings
+
+admin:
+  version: 1.0.3
+  css:
+    theme:
+      css/admin.css: {}
+  dependencies:
+    - xedc_admin/global
+    - core/drupal.dialog.ajax

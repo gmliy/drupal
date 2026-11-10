@@ -11,9 +11,23 @@
       <button class="sr-clear" type="button" data-sr-clear aria-label="{{ '清除关键词'|t }}"{% if not q %} hidden{% endif %}>{{ i_close }}</button>
       <button class="sr-submit" type="submit">{{ '搜索'|t }}</button>
     </div>
+    <div class="xs-adv">
+      <label>{{ '从'|t }} <input type="date" name="from" value="{{ from }}"></label>
+      <label>{{ '至'|t }} <input type="date" name="to" value="{{ to }}"></label>
+    </div>
     {% if type != 'all' %}<input type="hidden" name="type" value="{{ type }}">{% endif %}
-    {% if sort == 'latest' %}<input type="hidden" name="sort" value="latest">{% endif %}
+    {% if sort != 'relevance' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+    {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+    {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
+    {% if model %}<input type="hidden" name="model" value="{{ model }}">{% endif %}
   </form>
+  {% if chips %}
+    <div class="xs-chips">
+      {% for chip in chips %}
+        <a class="sr-sort xedc-pill" href="{{ chip.url }}">{{ chip.label }} ×</a>
+      {% endfor %}
+    </div>
+  {% endif %}
 
   <div class="sr-tabs-wrap">
     <nav class="sr-tabs" aria-label="{{ '搜索类型'|t }}">

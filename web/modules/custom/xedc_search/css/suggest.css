@@ -1,0 +1,199 @@
+/* Search suggestions only. Do not restyle existing inputs or page layout. */
+
+.xs-panel {
+  position: fixed;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  max-height: min(70vh, 420px);
+  overflow: auto;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--xn-border, var(--bs-border-color, #e4e4e7));
+  border-radius: 10px;
+  background: var(--xn-bg, var(--bs-body-bg, #fff));
+  color: var(--xn-fg, var(--bs-body-color, #18181b));
+  box-shadow: var(--xn-shadow, 0 8px 24px rgba(0, 0, 0, .08));
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.xs-panel[hidden] {
+  display: none;
+}
+
+.xs-label {
+  margin: 6px 8px 2px;
+  color: var(--xn-muted, var(--bs-secondary-color, #71717a));
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.xs-item,
+.xs-complete,
+.xs-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.xs-item.is-active,
+.xs-item:hover,
+.xs-complete.is-active,
+.xs-complete:hover {
+  background: var(--xn-accent, var(--bs-tertiary-bg, #f4f4f5));
+}
+
+.xs-status {
+  color: var(--xn-muted, var(--bs-secondary-color, #71717a));
+  cursor: default;
+}
+
+.xs-status.is-error {
+  color: var(--bs-danger, #dc3545);
+}
+
+.xs-thumb {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--xn-accent, var(--bs-tertiary-bg, #f4f4f5));
+}
+
+.xs-item > span,
+.xs-item > button:not(.xs-del) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xs-item > button:not(.xs-del) {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.xs-del {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--xn-muted, var(--bs-secondary-color, #71717a));
+  cursor: pointer;
+}
+
+form.xa-search {
+  position: relative;
+}
+
+.xn-search input.xs-pad,
+.xn-msearch input.xs-pad,
+.xa-input.xs-pad,
+.xm-search input.xs-pad {
+  padding-right: 32px;
+}
+
+.xn-search input.xs-pad::-webkit-search-cancel-button,
+.xn-msearch input.xs-pad::-webkit-search-cancel-button,
+.xa-input.xs-pad::-webkit-search-cancel-button,
+.xm-search input.xs-pad::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
+.xs-clear {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--xn-muted, var(--bs-secondary-color, #71717a));
+  font-size: 16px;
+  line-height: 1;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.xs-clear.is-on {
+  display: inline-flex;
+}
+
+.sr-form .xs-adv {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 8px;
+  color: var(--bs-secondary-color);
+  font-size: 13px;
+}
+
+.sr-form .xs-adv label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sr-form .xs-adv input {
+  height: 32px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font: inherit;
+  font-size: 13px;
+}
+
+:is([data-bs-theme=dark], [data-theme=dark]) .sr-form .xs-adv input {
+  color-scheme: dark;
+}
+
+.sr-page .xs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+@media (max-width: 767px) {
+  .xs-panel {
+    max-height: 50vh;
+    font-size: 16px;
+  }
+
+  .sr-form .xs-adv input {
+    font-size: 16px;
+  }
+}

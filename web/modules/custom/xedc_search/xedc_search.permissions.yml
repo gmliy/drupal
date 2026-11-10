@@ -1,0 +1,4 @@
+administer xedc search:
+  title: '管理搜索'
+  description: '查看搜索统计，管理热门词、关键词和搜索设置。'
+  restrict access: true

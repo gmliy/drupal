@@ -1,0 +1,7 @@
+services:
+  xedc_search.commands:
+    class: Drupal\xedc_search\Drush\Commands\SearchCommands
+    arguments:
+      - '@xedc_search.tracker'
+    tags:
+      - { name: drush.command }

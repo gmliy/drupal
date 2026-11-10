@@ -1,0 +1,93 @@
+<?php
+
+/**
+ * @file
+ * Front-end attachment and housekeeping for XEDC search.
+ */
+
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_theme().
+ */
+function xedc_search_theme(): array {
+  return [
+    'xedc_search_admin_overview' => [
+      'variables' => [
+        'stats' => [],
+        'error' => '',
+      ],
+      'template' => 'admin-overview',
+    ],
+    'xedc_search_admin_keywords' => [
+      'variables' => [
+        'rows' => [],
+        'total' => 0,
+        'q' => '',
+        'status' => 'all',
+        'empty' => TRUE,
+        'pager' => [],
+      ],
+      'template' => 'admin-keywords',
+    ],
+    'xedc_search_admin_history' => [
+      'variables' => [
+        'rows' => [],
+        'total' => 0,
+        'q' => '',
+        'zero' => FALSE,
+        'error' => '',
+        'empty' => TRUE,
+        'pager' => [],
+      ],
+      'template' => 'admin-history',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_page_attachments().
+ */
+function xedc_search_page_attachments(array &$attachments): void {
+  if (\Drupal::theme()->getActiveTheme()->getName() !== 'xedc') {
+    return;
+  }
+  $config = \Drupal::config('xedc_search.settings');
+  $attachments['#cache']['tags'][] = 'config:xedc_search.settings';
+  $attachments['#cache']['contexts'][] = 'user.roles:authenticated';
+  $attachments['#cache']['contexts'][] = 'languages:language_interface';
+  if (!(bool) $config->get('enabled')) {
+    $attachments['#attached']['drupalSettings']['xedcSearch'] = ['enabled' => FALSE];
+    return;
+  }
+  $url = static function (string $route): string {
+    return Url::fromRoute($route)->toString();
+  };
+  $attachments['#attached']['library'][] = 'xedc_search/suggest';
+  $attachments['#attached']['drupalSettings']['xedcSearch'] = [
+    'enabled' => TRUE,
+    'suggest' => (bool) $config->get('suggest_enabled'),
+    'complete' => (bool) $config->get('complete_enabled'),
+    'hot' => (bool) $config->get('hot_enabled'),
+    'history' => (bool) $config->get('history_enabled'),
+    'minLength' => max(1, (int) $config->get('min_length')),
+    'debounce' => max(200, min(800, (int) $config->get('debounce_ms') ?: 250)),
+    'loggedIn' => \Drupal::currentUser()->isAuthenticated(),
+    'endpoints' => [
+      'suggest' => $url('xedc_search.api.suggest'),
+      'complete' => $url('xedc_search.api.complete'),
+      'hot' => $url('xedc_search.api.hot'),
+      'history' => $url('xedc_search.api.history'),
+      'track' => $url('xedc_search.api.track'),
+      'token' => $url('system.csrftoken'),
+      'search' => Url::fromUserInput('/search')->toString(),
+    ],
+  ];
+}
+
+/**
+ * Implements hook_cron().
+ */
+function xedc_search_cron(): void {
+  \Drupal::service('xedc_search.tracker')->purge();
+}
