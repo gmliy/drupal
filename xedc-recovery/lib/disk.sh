@@ -203,7 +203,11 @@ xedc_disk_enospc_diag() {
   df -i 2>&1 | while IFS= read -r line; do xedc_warn "$line"; done
   if [[ -d "$path" ]]; then
     xedc_warn "目录 ${path} 下占用最大的 10 项："
-    du -x -h "$path" 2>/dev/null | sort -hr | head -n 10 | while IFS= read -r line; do xedc_warn "$line"; done || true
+    local du_tmp
+    du_tmp=$(xedc_mktemp)
+    du -x -h "$path" 2>/dev/null | sort -hr >"$du_tmp" || true
+    awk 'NR<=10' "$du_tmp" | while IFS= read -r line; do xedc_warn "$line"; done
+    rm -f "$du_tmp"
   fi
 }
 

@@ -56,6 +56,9 @@ xedc_excluded() {
   [[ -n "$name" ]] || return 1
   while IFS= read -r rule; do
     [[ -n "$rule" ]] || continue
+    if [[ "$rule" == "docs" || "$rule" == "docs-archive" ]]; then
+      continue
+    fi
     if xedc_exclude_glob "$name" "$rule"; then
       return 0
     fi
@@ -65,7 +68,7 @@ xedc_excluded() {
 
 # 相对路径（如 code/docs-archive/foo）或绝对路径。
 xedc_excluded_path() {
-  local path=$1 rel base
+  local path=$1 rel base rule
   [[ -n "$path" ]] || return 1
   base=$(basename "$path")
   if xedc_excluded "$path" || xedc_excluded "$base"; then
@@ -74,6 +77,12 @@ xedc_excluded_path() {
   rel=${path#/}
   while IFS= read -r rule; do
     [[ -n "$rule" ]] || continue
+  if [[ "$rule" == "docs" || "$rule" == "docs-archive" ]]; then
+      if [[ "$rel" == "$rule" || "$rel" == "$rule"/* ]]; then
+        return 0
+      fi
+      continue
+    fi
     if xedc_exclude_glob "$rel" "$rule" || xedc_exclude_glob "$path" "$rule"; then
       return 0
     fi
@@ -85,13 +94,17 @@ xedc_excluded_path() {
 }
 
 xedc_backup_skip_logged() {
-  local what=$1 bytes=${2:-0}
+  local what=$1 bytes=${2:-0} reason=${3:-}
   mkdir -p "$XEDC_STATE_DIR"
-  printf '%s\t%s\n' "$what" "${bytes:-0}" >>"${XEDC_STATE_DIR}/backup-skipped.tsv"
-  if [[ "$bytes" =~ ^[0-9]+$ && "$bytes" -gt 0 ]]; then
-    xedc_log "备份已排除: ${what}（约 ${bytes} 字节）"
+  if [[ -n "$reason" ]]; then
+    printf '%s\t%s\t%s\n' "$what" "${bytes:-0}" "$reason" >>"${XEDC_STATE_DIR}/backup-skipped.tsv"
   else
-    xedc_log "备份已排除: ${what}"
+    printf '%s\t%s\n' "$what" "${bytes:-0}" >>"${XEDC_STATE_DIR}/backup-skipped.tsv"
+  fi
+  if [[ "$bytes" =~ ^[0-9]+$ && "$bytes" -gt 0 ]]; then
+    xedc_log_detail "备份已排除: ${what}（约 ${bytes} 字节${reason:+, ${reason}}）"
+  else
+    xedc_log_detail "备份已排除: ${what}${reason:+, ${reason}}"
   fi
 }
 
@@ -123,9 +136,9 @@ xedc_conf_excluded() {
 xedc_log_exclude_list() {
   local rule file
   file=$(xedc_exclude_file)
-  xedc_log "排除清单 ${file}"
+  xedc_log_detail "排除清单 ${file}"
   while IFS= read -r rule; do
-    [[ -n "$rule" ]] && xedc_log "排除: ${rule}"
+    [[ -n "$rule" ]] && xedc_log_detail "排除规则: ${rule}"
   done < <(xedc_exclude_rules)
 }
 
@@ -136,7 +149,7 @@ xedc_log_test_cache_volumes() {
   while IFS= read -r vol; do
     [[ -n "$vol" ]] || continue
     if xedc_excluded "$vol"; then
-      xedc_log "发现测试/缓存卷 ${vol}，备份时将排除"
+      xedc_log_detail "发现测试/缓存卷 ${vol}，备份时将排除"
     fi
   done < <(docker volume ls -q 2>/dev/null || true)
 }

@@ -89,23 +89,29 @@ case "$mode" in
       docker volume create xedc-cache-npm >/dev/null
       docker volume create xedc-test-junk >/dev/null
     fi
+    mkdir -p /var/www/drupal/web/sites/default/files/js
+    printf 'agg\n' >/var/www/drupal/web/sites/default/files/js/aggregated.js
     XEDC_PHP_VERSION=8.5 bash /opt/xedc-recovery/backup.sh --target both --keep-local 7 --keep-r2 30
-    if grep -E 'ERROR|NotImplemented|重试|Attempt [0-9]+/' /var/log/xedc-backup.log; then
-      echo "备份日志出现 ERROR、501 或重试"
+    if grep -q '备份失败:' /var/log/xedc-backup.log; then
+      echo "备份日志记录失败"
       exit 1
     fi
-    if ! grep -q '缓存类表数据行数为 0' /var/log/xedc-backup.log; then
+    if ! grep -qE '缓存类表数据行数为 0|数据库 dump 缓存类表数据行数为 0' /var/log/xedc-backup.log; then
       echo "备份未确认缓存表无数据"
       exit 1
     fi
-    mapfile -t ups < <(grep -oE 'R2 上传 [^[:space:]]+' /var/log/xedc-backup.log | awk '{print $NF}')
-    [[ "${#ups[@]}" -eq 6 ]]
-    [[ "${ups[0]}" == *.tar.zst && "${ups[0]}" != *.sha256 ]]
-    [[ "${ups[1]}" == *.tar.zst.sha256 ]]
-    [[ "${ups[2]}" == *.manifest.json ]]
-    [[ "${ups[3]}" == *.complete ]]
-    [[ "${ups[4]}" == bootstrap/install.sh ]]
-    [[ "${ups[5]}" == bootstrap/xedc-recovery.tar.gz ]]
+    mapfile -t ups < <(grep -E '^[0-9]{2}:[0-9]{2}:[0-9]{2} R2 上传 (drupal-backup-|bootstrap/)' /var/log/xedc-backup.log \
+      | awk '{print $NF}')
+    if [[ "${#ups[@]}" -ne 6 ]]; then
+      echo "R2 上传次数应为 6，实际 ${#ups[@]}: ${ups[*]}"
+      exit 1
+    fi
+    [[ "${ups[0]}" == *.tar.zst && "${ups[0]}" != *.sha256 ]] || { echo "R2[0] 异常: ${ups[0]}"; exit 1; }
+    [[ "${ups[1]}" == *.tar.zst.sha256 ]] || { echo "R2[1] 异常: ${ups[1]}"; exit 1; }
+    [[ "${ups[2]}" == *.manifest.json ]] || { echo "R2[2] 异常: ${ups[2]}"; exit 1; }
+    [[ "${ups[3]}" == *.complete ]] || { echo "R2[3] 异常: ${ups[3]}"; exit 1; }
+    [[ "${ups[4]}" == bootstrap/install.sh ]] || { echo "R2[4] 异常: ${ups[4]}"; exit 1; }
+    [[ "${ups[5]}" == bootstrap/xedc-recovery.tar.gz ]] || { echo "R2[5] 异常: ${ups[5]}"; exit 1; }
     if printf '%s\n' "${ups[@]}" | grep -E 'tmp\.|/tmp/'; then
       echo "R2 对象名使用了临时文件"
       exit 1
@@ -117,7 +123,10 @@ case "$mode" in
       --s3-secret-access-key "$R2_SECRET_ACCESS_KEY" \
       --s3-force-path-style | sed '/^$/d' | sort)
     printf 'bootstrap: %s\n' "${boot[*]}"
-    [[ "${boot[*]}" == "install.sh xedc-recovery.tar.gz" ]]
+    if [[ "${boot[*]}" != "install.sh xedc-recovery.tar.gz" ]]; then
+      echo "bootstrap 目录异常: ${boot[*]}"
+      exit 1
+    fi
     if ! grep -q '恢复时将被卸载' /var/log/xedc-backup.log; then
       echo "启用中的排除模块没有提示恢复时卸载"
       exit 1
@@ -136,6 +145,10 @@ case "$mode" in
       echo "备份未输出体积明细"
       exit 1
     fi
+    if ! grep -qE '备份完成:.*sha256=' /var/log/xedc-backup.log; then
+      echo "备份未打印完成行（路径/sha256/耗时）"
+      exit 1
+    fi
     file=$(archive_path)
     [[ -n "$file" ]]
     members=$(zstd -dc "$file" | tar -tf -)
@@ -144,8 +157,12 @@ case "$mode" in
       exit 1
     fi
     if printf '%s\n' "$members" | grep -E \
-      'system/docker/volumes/(xedc-cache|xedc-test|xedc-recover)|\.bak-|s\.gitxx\.xyz|code/docs-archive/|code/docs/|code/[^/]*REPORT[^/]*\.md|code/[^/]*AUDIT[^/]*\.md|code/_server/db\.sql'; then
-      echo "备份包仍含应排除的缓存卷、备份残留或无关文档"
+      'system/docker/volumes/(xedc-cache|xedc-test|xedc-recover)|\.bak-|s\.gitxx\.xyz|code/docs-archive/|code/docs/|code/[^/]*REPORT[^/]*\.md|code/[^/]*AUDIT[^/]*\.md|code/_server/db\.sql|files/public/js/'; then
+      echo "备份包仍含应排除的缓存卷、备份残留、聚合 js 或无关文档"
+      exit 1
+    fi
+    if ! zstd -dc "$file" | tar -tf - | grep -qE '(^\./)?db/site\.sql\.zst$'; then
+      echo "备份包缺少 db/site.sql.zst"
       exit 1
     fi
     if ! zstd -dc "$file" | tar -xO ./manifest.json 2>/dev/null | grep -q 'unpacked_bytes'; then

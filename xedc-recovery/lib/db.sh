@@ -107,20 +107,23 @@ db_dump_has_multiline_cache_insert() {
   local file=$1 prefix=$2 pat
   pat=$(db_cache_insert_ere "$prefix")
   # 压缩包：解压后找命中行且不以 ; 结尾（忽略结尾空白）
+  set +o pipefail
   if [[ "$file" == *.zst ]]; then
-    zstd -dc "$file" 2>/dev/null | LC_ALL=C grep -a -E "$pat" | LC_ALL=C grep -a -vE ';[[:space:]]*$' | head -n 1 | grep -q .
+    zstd -dc "$file" 2>/dev/null | LC_ALL=C grep -a -E "$pat" \
+      | LC_ALL=C grep -a -vE ';[[:space:]]*$' | xedc_head_lines 1 | grep -q .
   else
-    LC_ALL=C grep -a -E "$pat" "$file" | LC_ALL=C grep -a -vE ';[[:space:]]*$' | head -n 1 | grep -q .
+    LC_ALL=C grep -a -E "$pat" "$file" | LC_ALL=C grep -a -vE ';[[:space:]]*$' | xedc_head_lines 1 | grep -q .
   fi
+  set -o pipefail
 }
 
 xedc_mysql() {
-  if xedc_have mysql; then
-    mysql "$@"
-  elif xedc_have mariadb; then
+  if xedc_have mariadb; then
     mariadb "$@"
+  elif xedc_have mysql; then
+    mysql "$@"
   else
-    xedc_die "没有 mysql 或 mariadb 客户端"
+    xedc_die "没有 mariadb 或 mysql 客户端"
   fi
 }
 
@@ -585,4 +588,5 @@ db_rebuild_cache() {
   fi
   xedc_log "重建 Drupal 缓存"
   "$bin" -r "$SITE" cache:rebuild || "$bin" -r "$SITE" cr
+  xedc_log "已执行 drush cr。首次访问页面会重新生成 css/js 等聚合资源"
 }

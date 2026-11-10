@@ -51,7 +51,120 @@ xedc_largest_disk_mount() {
   df -PT -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | awk '
     NR > 1 && $2 != "tmpfs" && $2 != "ramfs" && $6 !~ /^\/(proc|sys|dev|run)(\/|$)/ {
       print $4+0, $6
-    }' | sort -rn | head -n 1 | awk '{print $2}'
+    }' | sort -rn | awk 'NR==1 {print $2}'
+}
+
+# 限制行数，避免 sort|head 在 pipefail 下因 SIGPIPE(141) 导致脚本静默退出。
+xedc_head_lines() {
+  local n=${1:-10}
+  awk -v max="$n" 'NR <= max { print }'
+}
+
+xedc_first_line() {
+  awk 'NR==1 { print; exit }'
+}
+
+xedc_safe_pipe() {
+  set +o pipefail
+  local rc=0
+  "$@" || rc=$?
+  set -o pipefail
+  if (( rc == 141 )); then
+    return 0
+  fi
+  return "$rc"
+}
+
+xedc_human_bytes() {
+  local b=${1:-0}
+  [[ "$b" =~ ^[0-9]+$ ]] || b=0
+  if (( b >= 1073741824 )); then
+    awk -v b="$b" 'BEGIN { printf "%.1f GB", b/1073741824 }'
+  elif (( b >= 1048576 )); then
+    awk -v b="$b" 'BEGIN { printf "%.0f MB", b/1048576 }'
+  elif (( b >= 1024 )); then
+    awk -v b="$b" 'BEGIN { printf "%.0f KB", b/1024 }'
+  else
+    printf '%s B' "$b"
+  fi
+}
+
+xedc_log_detail() {
+  local line
+  line="$(date -u '+%H:%M:%S') $*"
+  if [[ -n "${XEDC_LOG_FILE:-}" && -z "${XEDC_LOG_MIRROR:-}" ]]; then
+    printf '%s\n' "$line" >>"$XEDC_LOG_FILE"
+  elif [[ -z "${XEDC_LOG_FILE:-}" ]]; then
+    printf '%s\n' "$line" >&2
+  fi
+  if [[ "${XEDC_VERBOSE:-0}" == 1 ]]; then
+    printf '%s\n' "$line" >&2
+  fi
+}
+
+xedc_say() {
+  local line
+  line="$(date -u '+%H:%M:%S') $*"
+  printf '%s\n' "$line" >&2
+  if [[ -n "${XEDC_LOG_FILE:-}" && -z "${XEDC_LOG_MIRROR:-}" ]]; then
+    printf '%s\n' "$line" >>"$XEDC_LOG_FILE"
+  fi
+}
+
+xedc_du_top_bytes() {
+  local root=$1 limit=${2:-15} tmp
+  [[ -d "$root" ]] || return 0
+  tmp=$(xedc_mktemp)
+  du -ab "$root" 2>/dev/null | sort -nr >"$tmp" || true
+  awk -v n="$limit" 'NR <= n { print }' "$tmp"
+  rm -f "$tmp"
+}
+
+xedc_cleanup_stale_stages() {
+  local dir=${1:-$XEDC_BACKUP_DIR} pattern freed=0 bytes
+  [[ -d "$dir" ]] || return 0
+  shopt -s nullglob
+  local d
+  for d in "$dir"/stage.*; do
+    [[ -d "$d" ]] || continue
+    bytes=$(du -sb "$d" 2>/dev/null | awk '{print $1}')
+    [[ "$bytes" =~ ^[0-9]+$ ]] || bytes=0
+  freed=$((freed + bytes))
+    rm -rf "$d"
+  done
+  shopt -u nullglob
+  if (( freed > 0 )); then
+    xedc_say "已清理旧暂存目录，释放约 $(xedc_human_bytes "$freed")"
+    xedc_log_detail "清理 stage.* 释放 ${freed} 字节"
+  fi
+}
+
+xedc_volume_included() {
+  local vol=$1 line file
+  file="${XEDC_ROOT}/include.list"
+  [[ -f "$file" ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line=${line%%#*}
+    line=${line#"${line%%[![:space:]]*}"}
+    line=${line%"${line##*[![:space:]]}"}
+    [[ -n "$line" ]] || continue
+    [[ "$line" == "$vol" ]] && return 0
+  done <"$file"
+  return 1
+}
+
+xedc_volume_looks_like_data() {
+  local vol=$1
+  [[ "$vol" == *[Dd][Aa][Tt][Aa]* || "$vol" == *pgdata* || "$vol" == *db* ]] && return 0
+  return 1
+}
+
+xedc_zstd_quiet_flag() {
+  if [[ "${XEDC_VERBOSE:-0}" == 1 || -t 1 ]]; then
+    printf '%s' ''
+  else
+    printf '%s' '-q'
+  fi
 }
 
 xedc_resolve_workdir() {
@@ -154,12 +267,12 @@ xedc_have() {
 }
 
 xedc_mysqldump() {
-  if xedc_have mysqldump; then
-    mysqldump "$@"
-  elif xedc_have mariadb-dump; then
+  if xedc_have mariadb-dump; then
     mariadb-dump "$@"
+  elif xedc_have mysqldump; then
+    mysqldump "$@"
   else
-    xedc_die "没有 mysqldump 或 mariadb-dump"
+    xedc_die "没有 mariadb-dump 或 mysqldump"
   fi
 }
 

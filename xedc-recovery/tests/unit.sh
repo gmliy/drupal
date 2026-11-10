@@ -685,5 +685,27 @@ grep -q '"unpacked_bytes": 2' "$pack/stage/manifest.json"
 rm -rf "$pack"
 echo "exclude/disk unit ok"
 
+# SIGPIPE / du|sort|head 场景：pipefail 下不得静默失败
+sig=$(mktemp -d)
+for i in $(seq 1 40); do
+  printf '%01024d' "$i" >"$sig/f_${i}"
+done
+set -o pipefail
+if ! xedc_du_top_bytes "$sig" 5 >/dev/null; then
+  echo "xedc_du_top_bytes 失败" >&2
+  exit 1
+fi
+if ! du -ab "$sig" 2>/dev/null | sort -nr | xedc_head_lines 3 | grep -q .; then
+  echo "head_lines 管道失败" >&2
+  exit 1
+fi
+rm -rf "$sig"
+# docs 只匹配代码根目录
+if xedc_excluded_path 'modules/foo/docs/readme'; then
+  echo '子目录 docs 被误排除' >&2
+  exit 1
+fi
+xedc_excluded_path 'docs/readme' || { echo '根 docs 应排除' >&2; exit 1; }
+
 echo "unit ok"
 exit "$fail"

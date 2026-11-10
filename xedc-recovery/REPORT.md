@@ -1,38 +1,29 @@
-# fix/workdir-and-exclude 验收报告
+# fix/backup-silent-exit 验收报告
 
-更新时间：2026-11-09（UTC）
+更新时间：2026-11-10（UTC）
 
-## 问题一：工作目录与 /tmp（已实现，Docker 专项已通过）
+## 根因与修复
 
-- `XEDC_WORKDIR` 默认 `/var/lib/xedc-recovery/work`，小文件在 `/run/xedc`；`mktemp -p` / `xedc_mktemp` / `xedc_work_mktemp`
-- tmpfs 自动避让、`--workdir`、恢复前磁盘/inode 预检、tar 错误摘要、流式解压与 DB 导入（`tar -xO` 管道）
-- `restore.sh` tmux 显式传入 `XEDC_WORKDIR`/`TMPDIR`
-- 单元测试 + `guest.sh disk`（lite）+ 恢复容器 `--tmpfs /tmp:size=64m`
+- **静默退出**：`du | sort | head` 在 `pipefail` 下 SIGPIPE(141)。改为 `xedc_du_top_bytes`（先排序落盘再 `awk` 取行）、`xedc_head_lines`，并对其余风险管道做 `set +o pipefail` 或 `xedc_safe_pipe`。
+- **可观测性**：`backup.sh` 增加 `ERR`/`EXIT` trap，失败打印步骤、行号、退出码；成功以 `备份完成: 路径 大小 sha256=… 耗时` 收尾。
+- **输出**：终端按 `[n/8]` 阶段一行；排除项与 top15 明细仅写 `/var/log/xedc-backup.log`，`--verbose` 才上屏。
+- **体积**：默认不同步 `files/{js,css,php,styles,ctools,tmp}`（`--include-styles` 保留 styles）；`docs` 仅匹配代码根目录；`include.list` 强制包含 Docker 卷；未挂载大数据卷终端 `※` 提示。
+- **客户端**：优先 `mariadb` / `mariadb-dump`；非交互下 `zstd -q`、rclone `--stats-one-line`。
+- **清理**：启动清理 `stage.*` 残留；`EXIT` 删本次 stage；暂存须在磁盘分区且可用空间 ≥ 估算 1.5 倍。
 
-## 问题二：备份排除与 manifest 体积（已实现，备份源用例已通过）
-
-- exclude.list、Docker 卷按站点挂载筛选、备份日志体积明细、`backup_manifest.php`
-- **修复**：`backup_manifest.php` 须在打 tar **之前** 写入 `stage/manifest.json`，否则包内无 `unpacked_bytes`（此前导致五系统 backup 阶段全败）
-
-## 问题三：xedc-test-* 命名空间（已实现）
-
-- `run-all.sh` / `cleanup.sh` 使用 `xedc-test-*` 卷；`exclude.list` 已列入
-
-## 测试状态
+## 测试
 
 | 项目 | 状态 |
 |------|------|
-| `tests/unit.sh` | 通过 |
-| disk / workdir 专项 | 通过 |
-| `guest.sh source`（单容器验证） | 通过（含 manifest 体积字段） |
-| 五系统 `run-all.sh` | 见 `tests/logs/run-all-final5.log` 与 `status.tsv` |
+| `tests/unit.sh` | 通过（含 SIGPIPE/du top、docs 路径规则） |
+| 五系统 `backup` | **全部通过**（`tests/logs/run-all-backup-fix3.log`） |
+| 五系统 `restore` | **全部失败**（R2 下载包内缺少 `db/site.sql.zst`，待查 MinIO/latest 与并行前缀） |
+| 真机 `backup.sh --target local` | 通过（约 125MB 包，排除节省约 1.6GB，见日志 02:05） |
 
-## 需真实服务器验证（Docker 不能代替）
+## 真实服务器
 
-- 真机 `/tmp` 为 818M tmpfs 下完整恢复（与容器 `--tmpfs` 等价但建议再跑一遍）
-- 真人 tmux 交互与 R2 生产桶
-- 合并后在本机执行 `backup.sh --target both` 更新 bootstrap
+- 分支合并后执行：`bash xedc-recovery/backup.sh --target both`，更新 R2 bootstrap。
 
 ## 合并
 
-全部 `status.tsv` 无「失败」、工作区干净后合并 `main` 并推送；否则停留本分支。
+- 按 SPEC §14：restore 全败时**不合并**到 `main`，停留 `fix/backup-silent-exit` 直至 restore 根因排除；备份相关需求已满足并可单测验收。

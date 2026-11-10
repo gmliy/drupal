@@ -147,6 +147,9 @@ xedc_r2() {
   local conf=$1
   shift
   local -a args=(--config "$conf" --s3-chunk-size 64M --s3-upload-cutoff 512M --retries 1 --low-level-retries 1)
+  if [[ "${XEDC_VERBOSE:-0}" != 1 && ! -t 1 ]]; then
+    args+=(--stats-one-line --stats 5s)
+  fi
   if xedc_r2_cloudflare; then
     export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
     export AWS_RESPONSE_CHECKSUM_VALIDATION=when_required

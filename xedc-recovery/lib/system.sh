@@ -22,7 +22,7 @@ xedc_copy_filtered() {
   while IFS= read -r -d '' path; do
     rel=${path#"$src"/}
     if xedc_conf_excluded "$path" || xedc_excluded_path "$rel" || xedc_excluded "$(basename "$path")"; then
-      xedc_log "备份跳过 ${path}"
+      xedc_log_detail "备份跳过 ${path}"
       continue
     fi
     if [[ -d "$path" ]]; then
@@ -132,15 +132,27 @@ system_capture() {
     while IFS= read -r vol; do
       [[ -n "$vol" ]] && site_vols[$vol]=1
     done < <(xedc_docker_site_volumes)
+    local -a vol_excluded_summary=()
     while IFS= read -r vol; do
       [[ -z "$vol" ]] && continue
       mount_bytes=$(docker system df -v 2>/dev/null | awk -v v="$vol" '$1=="Local" && $2==v {gsub(/[^0-9.]/,"",$3); print $3; exit}')
+      if xedc_volume_included "$vol"; then
+        site_vols[$vol]=1
+        xedc_log_detail "include.list 强制包含卷 ${vol}"
+      fi
       if xedc_excluded "$vol"; then
-        xedc_backup_skip_logged "docker volume ${vol}" "${mount_bytes:-0}"
+        xedc_backup_skip_logged "docker volume ${vol}" "${mount_bytes:-0}" "匹配 exclude.list"
+        vol_excluded_summary+=("${vol}:exclude.list")
         continue
       fi
       if [[ -z "${site_vols[$vol]:-}" ]]; then
-        xedc_backup_skip_logged "未使用的卷 ${vol}" "${mount_bytes:-0}"
+        xedc_backup_skip_logged "未使用的卷 ${vol}" "${mount_bytes:-0}" "无运行中容器挂载"
+        vol_excluded_summary+=("${vol}:未挂载")
+        local vb=${mount_bytes:-0}
+        [[ "$vb" =~ ^[0-9]+$ ]] || vb=0
+        if (( vb > 104857600 )) && xedc_volume_looks_like_data "$vol"; then
+          xedc_say "※ 卷 ${vol} 未挂载但约 $(xedc_human_bytes "$vb")，名称似数据卷。确认备份请加 include.list"
+        fi
         continue
       fi
       if docker run --rm -v "${vol}:/volume:ro" alpine tar -C /volume -cf - . 2>/dev/null | zstd -3 -o "$dest/docker/volumes/${vol}.tar.zst"; then
@@ -154,6 +166,9 @@ system_capture() {
     done < <(docker volume ls -q)
     if (( saved > 2147483648 )); then
       xedc_warn "Docker 卷备份合计超过 2GB（${saved} 字节），请确认站点确实需要"
+    fi
+    if ((${#vol_excluded_summary[@]} > 0)); then
+      xedc_log_detail "Docker 卷排除: $(IFS=,; echo "${vol_excluded_summary[*]}")"
     fi
   fi
 }
