@@ -26,4 +26,4 @@
 
 ## 合并
 
-- 按 SPEC §14：restore 全败时**不合并**到 `main`，停留 `fix/backup-silent-exit` 直至 restore 根因排除；备份相关需求已满足并可单测验收。
+- 已快进合并到 `gmliy/drupal` 的 `main`，提交 `14be84e`（restore 五系统仍待修，见上表）。
