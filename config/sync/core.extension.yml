@@ -132,6 +132,7 @@ module:
   xedc_notify: 0
   xedc_quick: 0
   xedc_scheduler: 0
+  xedc_search: 0
   xedc_site_audit: 0
   xedc_tags: 0
   xedc_ui_locale: 0
