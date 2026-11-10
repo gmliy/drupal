@@ -7,6 +7,7 @@ dependencies:
     - field.field.node.article.field_author
     - field.field.node.article.field_body
     - field.field.node.article.field_categories
+    - field.field.node.article.field_comment
     - field.field.node.article.field_cover
     - field.field.node.article.field_published_at
     - field.field.node.article.field_show_cover
@@ -24,9 +25,11 @@ bundle: article
 mode: teaser
 content: {  }
 hidden:
+  content_moderation_control: true
   field_author: true
   field_body: true
   field_categories: true
+  field_comment: true
   field_cover: true
   field_published_at: true
   field_show_cover: true

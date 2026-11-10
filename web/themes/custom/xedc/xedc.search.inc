@@ -720,6 +720,41 @@ function _xedc_search_xa_pager(string $q, string $type, string $sort): array {
 }
 
 /**
+ * Hot keywords for the empty search page. Uses the existing pill list.
+ *
+ * @return list<array{label: string, count: int, url: string}>
+ */
+function _xedc_search_hot_terms(int $limit = 8): array {
+  if (!\Drupal::moduleHandler()->moduleExists('xedc_search')) {
+    return [];
+  }
+  $config = \Drupal::config('xedc_search.settings');
+  if (!$config->get('enabled') || !$config->get('hot_enabled')) {
+    return [];
+  }
+  try {
+    $rows = \Drupal::service('xedc_search.stats')->hot((string) ($config->get('hot_window') ?: 'week'), $limit);
+  }
+  catch (\Throwable $exception) {
+    \Drupal::logger('xedc_search')->error($exception->getMessage());
+    return [];
+  }
+  $terms = [];
+  foreach ($rows as $row) {
+    $label = trim((string) ($row['keyword'] ?? ''));
+    if ($label === '') {
+      continue;
+    }
+    $terms[] = [
+      'label' => $label,
+      'count' => (int) ($row['searches'] ?? 0),
+      'url' => _xedc_search_url($label),
+    ];
+  }
+  return $terms;
+}
+
+/**
  * Builds the full search page render array.
  */
 function _xedc_search_build_page(): array {
@@ -843,6 +878,7 @@ function _xedc_search_build_page(): array {
     '#models' => $model_cards,
     '#xa_pager' => $cards ? _xedc_search_xa_pager($q, $type, $sort) : [],
     '#hot_models' => _xedc_search_hot_models(6),
+    '#hot_terms' => $q === '' ? _xedc_search_hot_terms(8) : [],
     '#explore' => $explore,
     '#attached' => ['library' => ['xedc/search-page']],
     '#cache' => [
@@ -857,7 +893,7 @@ function _xedc_search_build_page(): array {
         'url.query_args:from',
         'url.query_args:to',
       ],
-      'tags' => $tags,
+      'tags' => Cache::mergeTags($tags, ['xedc_search', 'config:xedc_search.settings']),
     ],
   ];
 }

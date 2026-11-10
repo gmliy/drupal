@@ -11,10 +11,14 @@
       <button class="sr-clear" type="button" data-sr-clear aria-label="{{ '清除关键词'|t }}"{% if not q %} hidden{% endif %}>{{ i_close }}</button>
       <button class="sr-submit" type="submit">{{ '搜索'|t }}</button>
     </div>
-    <div class="xs-adv">
-      <label>{{ '从'|t }} <input type="date" name="from" value="{{ from }}"></label>
-      <label>{{ '至'|t }} <input type="date" name="to" value="{{ to }}"></label>
-    </div>
+    {% if q or from or to %}
+      <div class="xs-adv">
+        <span>{{ '时间'|t }}</span>
+        <input type="date" name="from" value="{{ from }}" aria-label="{{ '开始日期'|t }}">
+        <span aria-hidden="true">–</span>
+        <input type="date" name="to" value="{{ to }}" aria-label="{{ '结束日期'|t }}">
+      </div>
+    {% endif %}
     {% if type != 'all' %}<input type="hidden" name="type" value="{{ type }}">{% endif %}
     {% if sort != 'relevance' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
     {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
@@ -98,6 +102,14 @@
           <a class="sr-empty-link" href="{{ item.url }}">{{ item.label }}</a>
         {% endfor %}
       </div>
+      {% if hot_terms %}
+        <div class="sr-hot">
+          <span class="sr-hot-title">{{ '热门搜索'|t }}</span>
+          {% for term in hot_terms %}
+            <a class="sr-hot-link" href="{{ term.url }}">{{ term.label }}<span>{{ term.count }}</span></a>
+          {% endfor %}
+        </div>
+      {% endif %}
       {% if hot_models %}
         <div class="sr-hot">
           <span class="sr-hot-title">{{ '热门模特'|t }}</span>

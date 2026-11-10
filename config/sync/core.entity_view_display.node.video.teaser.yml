@@ -6,6 +6,7 @@ dependencies:
     - core.entity_view_mode.node.teaser
     - field.field.node.video.field_body
     - field.field.node.video.field_categories
+    - field.field.node.video.field_comment
     - field.field.node.video.field_duration
     - field.field.node.video.field_featured
     - field.field.node.video.field_slideshow
@@ -25,6 +26,7 @@ hidden:
   content_moderation_control: true
   field_body: true
   field_categories: true
+  field_comment: true
   field_duration: true
   field_featured: true
   field_slideshow: true

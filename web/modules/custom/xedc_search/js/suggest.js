@@ -128,6 +128,39 @@
     }
   }
 
+  function fillMatch(parent, label, query, suffixRest) {
+    var text = label || '';
+    var q = (query || '').trim();
+    if (!q) {
+      parent.textContent = text;
+      return;
+    }
+    var folded = text.toLowerCase();
+    var needle = q.toLowerCase();
+    var index = text.indexOf(q) === 0 ? 0 : folded.indexOf(needle);
+    if (index < 0) {
+      parent.textContent = text;
+      return;
+    }
+    if (index > 0) {
+      parent.appendChild(document.createTextNode(text.slice(0, index)));
+    }
+    var mark = document.createElement('mark');
+    mark.className = 'xs-mark';
+    mark.textContent = text.slice(index, index + q.length);
+    parent.appendChild(mark);
+    var rest = text.slice(index + q.length);
+    if (suffixRest && index === 0 && rest) {
+      var suffix = document.createElement('span');
+      suffix.className = 'xs-suffix';
+      suffix.textContent = rest;
+      parent.appendChild(suffix);
+    }
+    else if (rest) {
+      parent.appendChild(document.createTextNode(rest));
+    }
+  }
+
   function typedValue(input) {
     if (input.selectionStart !== null && input.selectionEnd !== null && input.selectionEnd > input.selectionStart) {
       return input.value.slice(0, input.selectionStart);
@@ -316,11 +349,18 @@
       clearNode(panel);
       items = [];
       active = -1;
+      var query = payload && payload.q ? payload.q : '';
       if (payload && payload.completion && payload.completion.text && cfg.complete) {
         var completion = document.createElement('button');
         completion.type = 'button';
         completion.className = 'xs-complete';
-        completion.textContent = Drupal.t('补全：@text', { '@text': payload.completion.text });
+        var completionText = document.createElement('span');
+        fillMatch(completionText, payload.completion.text, query, true);
+        completion.appendChild(completionText);
+        var hint = document.createElement('span');
+        hint.className = 'xs-kind';
+        hint.textContent = 'Tab';
+        completion.appendChild(hint);
         var entry = { label: payload.completion.text, kind: 'complete', url: endpoint('search') + '?q=' + encodeURIComponent(payload.completion.text) };
         completion.addEventListener('click', function () { activate(entry); });
         panel.appendChild(completion);
@@ -344,7 +384,7 @@
             button.appendChild(img);
           }
           var text = document.createElement('span');
-          text.textContent = item.label;
+          fillMatch(text, item.label, query, false);
           button.appendChild(text);
           button.addEventListener('click', function () { activate(item); });
           panel.appendChild(button);
@@ -395,7 +435,12 @@
         });
       }
       if (!items.length) {
-        status(panel, Drupal.t('没有匹配的建议'), false);
+        if (query) {
+          status(panel, Drupal.t('没有匹配的建议'), false);
+        }
+        else {
+          close();
+        }
         return;
       }
       panel.hidden = false;

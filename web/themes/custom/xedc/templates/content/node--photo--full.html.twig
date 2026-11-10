@@ -87,7 +87,7 @@
       {% if nav_prev %}<a class="img-nav__a" href="{{ path('entity.node.canonical', {'node': nav_prev.id}) }}"><small>{{ '上一篇'|t }}</small><span>{{ nav_prev.label }}</span></a>{% else %}<span></span>{% endif %}
       {% if nav_next %}<a class="img-nav__a img-nav__a--r" href="{{ path('entity.node.canonical', {'node': nav_next.id}) }}"><small>{{ '下一篇'|t }}</small><span>{{ nav_next.label }}</span></a>{% endif %}
     </nav>
-    <section class="img-detail__comments" aria-label="{{ '评论'|t }}">
+    <section class="img-detail__comments xedc-comments" aria-label="{{ '评论'|t }}">
       {{ content.field_comment }}
     </section>
   </div>

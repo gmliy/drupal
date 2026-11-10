@@ -103,6 +103,12 @@
           <button type="button" class="vd-prose-toggle vd-body__toggle" hidden>{{ '展开'|t }}</button>
         </section>
       {% endif %}
+
+      <section class="vd-comments xedc-comments" aria-label="{{ '评论'|t }}">
+        {{ attach_library('xedc/comment-form') }}
+        <h2 class="xedc-comments__title">{{ '评论'|t }}</h2>
+        {{ content.field_comment }}
+      </section>
     </div>
 
     {% if vd_related %}

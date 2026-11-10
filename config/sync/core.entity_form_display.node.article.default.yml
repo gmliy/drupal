@@ -6,6 +6,7 @@ dependencies:
     - field.field.node.article.field_author
     - field.field.node.article.field_body
     - field.field.node.article.field_categories
+    - field.field.node.article.field_comment
     - field.field.node.article.field_cover
     - field.field.node.article.field_published_at
     - field.field.node.article.field_show_cover
@@ -17,6 +18,7 @@ dependencies:
     - node.type.article
     - workflows.workflow.xedc_editorial
   module:
+    - comment
     - content_moderation
     - datetime
     - link
@@ -60,6 +62,12 @@ content:
       match_limit: 10
       size: 60
       placeholder: ''
+    third_party_settings: {  }
+  field_comment:
+    type: comment_default
+    weight: 13
+    region: content
+    settings: {  }
     third_party_settings: {  }
   field_cover:
     type: media_library_widget

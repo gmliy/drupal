@@ -131,6 +131,9 @@ function xedc_preprocess_html(array &$variables): void {
   elseif ($route_name === 'view.article_list.page_1') {
     _xedc_set_head_title($variables, (string) t('文章列表') . ' | DcLili');
   }
+  elseif ($route_name === 'entity.comment.edit_form') {
+    _xedc_set_head_title($variables, (string) t('编辑评论') . ' | DcLili');
+  }
   if (_xedc_auth_is_auth_route()) {
     $variables['attributes']['class'][] = 'xedc-auth-page';
   }

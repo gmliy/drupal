@@ -1,6 +1,6 @@
 xedc_search.admin:
-  title: '搜索'
+  title: '搜索管理'
   description: '搜索概览、热门词、关键词和设置。'
   route_name: xedc_search.admin
-  parent: system.admin_config
-  weight: 40
+  parent: system.admin_config_search
+  weight: -8

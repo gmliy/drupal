@@ -7,9 +7,15 @@ dependencies:
     - field.field.node.article.field_author
     - field.field.node.article.field_body
     - field.field.node.article.field_categories
+    - field.field.node.article.field_comment
+    - field.field.node.article.field_cover
+    - field.field.node.article.field_published_at
+    - field.field.node.article.field_show_cover
     - field.field.node.article.field_source
+    - field.field.node.article.field_source_url
     - field.field.node.article.field_summary
     - field.field.node.article.field_tags
+    - field.field.node.article.field_views
     - node.type.article
   module:
     - text
@@ -68,6 +74,8 @@ content:
     weight: 5
     region: content
 hidden:
+  content_moderation_control: true
+  field_comment: true
   field_cover: true
   field_published_at: true
   field_show_cover: true

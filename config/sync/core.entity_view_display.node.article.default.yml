@@ -3,9 +3,11 @@ langcode: zh-hans
 status: true
 dependencies:
   config:
+    - core.entity_view_display.comment.content.default
     - field.field.node.article.field_author
     - field.field.node.article.field_body
     - field.field.node.article.field_categories
+    - field.field.node.article.field_comment
     - field.field.node.article.field_cover
     - field.field.node.article.field_published_at
     - field.field.node.article.field_show_cover
@@ -16,16 +18,24 @@ dependencies:
     - field.field.node.article.field_views
     - node.type.article
   module:
-    - datetime
-    - link
-    - text
+    - comment
     - user
 id: node.article.default
 targetEntityType: node
 bundle: article
 mode: default
-content: {  }
+content:
+  field_comment:
+    type: comment_default
+    label: above
+    settings:
+      view_mode: default
+      pager_id: 0
+    third_party_settings: {  }
+    weight: 105
+    region: content
 hidden:
+  content_moderation_control: true
   field_author: true
   field_body: true
   field_categories: true

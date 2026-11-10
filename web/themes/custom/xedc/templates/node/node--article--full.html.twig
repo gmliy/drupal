@@ -54,6 +54,12 @@
           {% if xa_next %}<a class="xa-pn__item is-next" href="{{ xa_next.url }}" rel="next"><small>{{ '下一篇'|t }} →</small><span>{{ xa_next.title }}</span></a>{% endif %}
         </nav>
       {% endif %}
+
+      <section class="xa-comments xedc-comments" aria-label="{{ '评论'|t }}">
+        {{ attach_library('xedc/comment-form') }}
+        <h2 class="xedc-comments__title">{{ '评论'|t }}</h2>
+        {{ content.field_comment }}
+      </section>
     </div>
 
     <aside class="xa-art__side">

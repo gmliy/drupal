@@ -3,8 +3,10 @@ langcode: zh-hans
 status: true
 dependencies:
   config:
+    - core.entity_view_display.comment.content.default
     - field.field.node.video.field_body
     - field.field.node.video.field_categories
+    - field.field.node.video.field_comment
     - field.field.node.video.field_duration
     - field.field.node.video.field_featured
     - field.field.node.video.field_slideshow
@@ -14,6 +16,7 @@ dependencies:
     - field.field.node.video.field_video_url
     - node.type.video
   module:
+    - comment
     - text
     - user
 id: node.video.default
@@ -32,6 +35,15 @@ content:
     settings: {  }
     third_party_settings: {  }
     weight: 0
+    region: content
+  field_comment:
+    type: comment_default
+    label: above
+    settings:
+      view_mode: default
+      pager_id: 0
+    third_party_settings: {  }
+    weight: 105
     region: content
 hidden:
   field_categories: true

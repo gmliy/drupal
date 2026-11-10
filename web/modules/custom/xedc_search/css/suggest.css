@@ -66,6 +66,26 @@
   color: var(--bs-danger, #dc3545);
 }
 
+.xs-mark {
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+}
+
+.xs-suffix {
+  color: var(--xn-muted, var(--bs-secondary-color, #71717a));
+}
+
+.xs-kind {
+  margin-left: auto;
+  padding: 0 6px;
+  border: 1px solid var(--xn-border, var(--bs-border-color, #e4e4e7));
+  border-radius: 6px;
+  color: var(--xn-muted, var(--bs-secondary-color, #71717a));
+  font-size: 11px;
+  line-height: 18px;
+}
+
 .xs-thumb {
   width: 28px;
   height: 28px;
@@ -75,6 +95,7 @@
   background: var(--xn-accent, var(--bs-tertiary-bg, #f4f4f5));
 }
 
+.xs-complete > span:first-child,
 .xs-item > span,
 .xs-item > button:not(.xs-del) {
   min-width: 0;
@@ -152,25 +173,19 @@ form.xa-search {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 10px;
   color: var(--bs-secondary-color);
   font-size: 13px;
 }
 
-.sr-form .xs-adv label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .sr-form .xs-adv input {
-  height: 32px;
+  height: 34px;
   margin: 0;
-  padding: 0 8px;
-  border: 1px solid var(--bs-border-color);
-  border-radius: 8px;
-  background: var(--bs-body-bg);
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--bs-secondary-bg);
   color: var(--bs-body-color);
   font: inherit;
   font-size: 13px;

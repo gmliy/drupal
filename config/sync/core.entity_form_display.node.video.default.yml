@@ -5,6 +5,7 @@ dependencies:
   config:
     - field.field.node.video.field_body
     - field.field.node.video.field_categories
+    - field.field.node.video.field_comment
     - field.field.node.video.field_duration
     - field.field.node.video.field_featured
     - field.field.node.video.field_slideshow
@@ -15,6 +16,7 @@ dependencies:
     - node.type.video
     - workflows.workflow.xedc_editorial
   module:
+    - comment
     - content_moderation
     - link
     - media_library
@@ -49,6 +51,12 @@ content:
       match_limit: 10
       size: 60
       placeholder: ''
+    third_party_settings: {  }
+  field_comment:
+    type: comment_default
+    weight: 13
+    region: content
+    settings: {  }
     third_party_settings: {  }
   field_duration:
     type: number

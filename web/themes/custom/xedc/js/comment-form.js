@@ -31,7 +31,9 @@
     window.jQuery.fn.xedcCommentDone = function () {
       var form = this.get(0);
       var holder = form ? form.closest('.cm-reply-hold') : null;
-      var field = document.querySelector('.img-detail__comments .field--name-field-comment')
+      var field = document.querySelector('.xedc-comments .card-body')
+        || document.querySelector('.xedc-comments')
+        || document.querySelector('.img-detail__comments .card-body')
         || document.querySelector('.img-detail__comments');
       if (form && holder && field) {
         var parent = holder.parentElement;

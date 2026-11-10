@@ -6,6 +6,7 @@ dependencies:
     - core.entity_view_mode.node.search_index
     - field.field.node.video.field_body
     - field.field.node.video.field_categories
+    - field.field.node.video.field_comment
     - field.field.node.video.field_duration
     - field.field.node.video.field_featured
     - field.field.node.video.field_slideshow
@@ -51,6 +52,7 @@ content:
     weight: 2
     region: content
 hidden:
+  field_comment: true
   field_duration: true
   field_featured: true
   field_slideshow: true

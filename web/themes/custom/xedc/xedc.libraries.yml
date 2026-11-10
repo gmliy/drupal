@@ -151,7 +151,7 @@ photo-detail:
     - xedc/meitu-card
 
 comment-form:
-  version: 1.2
+  version: 1.4
   css:
     theme:
       css/comment-form.css: {}
