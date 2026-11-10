@@ -104,7 +104,7 @@
     }
     var nid = root.getAttribute('data-nid') || '';
     var knownDuration = parseInt(root.getAttribute('data-duration') || '0', 10);
-    var scope = root.parentElement || root;
+    var scope = root.closest('.vd-main') || root.parentElement || root;
     var state = scope.querySelector('.vd-state');
     var stateText = scope.querySelector('.vd-state__text');
     var retry = scope.querySelector('.vd-state__retry');
@@ -185,10 +185,6 @@
     }
     video.addEventListener('loadedmetadata', function () {
       applyPreferences();
-      if (video.videoWidth > 0 && video.videoHeight > video.videoWidth) {
-        root.classList.add('is-portrait');
-        player.ratio = video.videoWidth + ':' + video.videoHeight;
-      }
     });
 
     function whenReady() {
@@ -495,7 +491,7 @@
         return;
       }
       window.requestAnimationFrame(function () {
-        if (content.scrollHeight <= 160) {
+        if (content.scrollHeight <= 120) {
           return;
         }
         body.classList.add('is-collapsed');
@@ -504,7 +500,9 @@
           var open = body.classList.toggle('is-open');
           body.classList.toggle('is-collapsed', !open);
           button.textContent = open ? Drupal.t('收起') : Drupal.t('展开');
+          button.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
+        button.setAttribute('aria-expanded', 'false');
       });
     });
   }

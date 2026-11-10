@@ -75,14 +75,15 @@ html-sitemap:
       css/sitemap.css: {}
 
 video-detail:
-  version: 4.0.0
+  version: 6.0.1
   css:
     theme:
+      css/xedc-pill.css: {}
       css/video-detail.css: {}
       css/video-card.css: {}
 
 video-player:
-  version: 2.4
+  version: 2.6
   css:
     theme:
       css/plyr.css: {}

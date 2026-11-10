@@ -951,7 +951,7 @@ function _xedc_comment_fresh_form(\Drupal\comment\CommentInterface $comment): ar
 
 function xedc_preprocess_node(array &$variables) {
   $node = $variables['node'];
-  if (($variables['view_mode'] ?? '') === 'full' && $node->hasField('field_body')) {
+  if (($variables['view_mode'] ?? '') === 'full' && $node->hasField('field_body') && $node->bundle() !== 'video') {
     $variables['#attached']['library'][] = 'xedc/legal';
   }
   _xedc_vd_preprocess($variables);

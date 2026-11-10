@@ -3,7 +3,7 @@
 {{ attach_library('xedc/video-card') }}
 {{ attach_library('xedc/video-player') }}
 {{ vd_cache }}
-<div class="vd-wrap">
+<div class="vd-page">
   <nav class="vd-crumb" aria-label="{{ '面包屑'|t }}">
     <a href="{{ path('<front>') }}">{{ '首页'|t }}</a>
     <span aria-hidden="true">/</span>
@@ -12,13 +12,11 @@
       <span aria-hidden="true">/</span>
       <a href="{{ vd_categories.0.url }}">{{ vd_categories.0.name }}</a>
     {% endif %}
-    <span aria-hidden="true">/</span>
-    <span class="cur" aria-current="page">{{ label }}</span>
   </nav>
 
-  <div class="vd-layout">
-    <article{{ attributes.addClass('vd') }}>
-      <div class="vd-player{{ vd.cover_height > vd.cover_width and vd.cover_width > 0 ? ' is-portrait' : '' }}" data-xedc-player data-nid="{{ node.id }}" data-duration="{{ vd_seconds|default(0) }}" data-playback-state="{{ vd.playback_state|default('original') }}">
+  <article{{ attributes.addClass('vd', 'node--type-video', 'node--view-mode-full') }}>
+    <div class="vd-main">
+      <div class="vd-player is-landscape" data-xedc-player data-nid="{{ node.id }}" data-duration="{{ vd_seconds|default(0) }}" data-playback-state="{{ vd.playback_state|default('original') }}">
         {% if vd.type == 'video' or vd.type == 'hls' %}
           <video class="vd-video" playsinline preload="metadata"{% if vd.cover %} poster="{{ vd.cover }}"{% endif %}{% if vd.type == 'hls' %} data-hls="{{ vd.src }}"{% endif %}>
             {% if vd.type == 'video' %}<source src="{{ vd.src }}"{% if vd.mime %} type="{{ vd.mime }}"{% endif %}>{% endif %}
@@ -32,87 +30,92 @@
           </div>
         {% elseif vd.cover %}
           <img src="{{ vd.cover }}" alt="{{ node.label }}" width="{{ vd.cover_width|default(640) }}" height="{{ vd.cover_height|default(360) }}" loading="eager">
-          <div class="vd-state">
-            <p class="vd-state__text">{{ '视频文件不存在'|t }}</p>
+          <div class="vd-overlay">
+            <p>{{ '视频文件不存在'|t }}</p>
           </div>
         {% else %}
-          <div class="vd-state">
-            <p class="vd-state__text">{{ '视频文件不存在'|t }}</p>
+          <div class="vd-overlay">
+            <p>{{ '视频文件不存在'|t }}</p>
           </div>
         {% endif %}
       </div>
 
       {% if vd.type == 'video' or vd.type == 'hls' %}
-        <div class="vd-state" hidden>
+        <div class="vd-alert vd-state" hidden>
           <p class="vd-state__text"></p>
-          <button type="button" class="vd-state__retry">{{ '重试'|t }}</button>
+          <button type="button" class="vd-state__retry xedc-pill">{{ '重试'|t }}</button>
         </div>
-        <div class="vd-resume" hidden>
+        <div class="vd-alert vd-resume" hidden>
           <p></p>
-          <button type="button" class="vd-resume__go">{{ '继续播放'|t }}</button>
-          <button type="button" class="vd-resume__start">{{ '从头播放'|t }}</button>
+          <button type="button" class="vd-resume__go xedc-pill">{{ '继续播放'|t }}</button>
+          <button type="button" class="vd-resume__start xedc-pill">{{ '从头播放'|t }}</button>
         </div>
       {% endif %}
 
-      <div class="vd-card">
-        <h1 class="vd-title">{{ label }}</h1>
-
+      <header class="vd-head">
+        <h1 class="vd-title">{{ node.label }}</h1>
         <p class="vd-meta">
+          {% if vd_date %}<time>{{ vd_date }}</time>{% endif %}
+          {% if vd_views is not null %}<span>{{ '@count 次播放'|t({'@count': vd_views|default(0)}) }}</span>{% endif %}
           {% if vd_duration %}<span>{{ vd_duration }}</span>{% endif %}
-          <span>{{ '@count 次播放'|t({'@count': vd_views|default(0)}) }}</span>
-          {% if vd_date %}<span>{{ vd_date }}</span>{% endif %}
         </p>
+      </header>
 
-        {% include '@xedc/templates/video/video-member.html.twig' with {
-          name: vd_author.name,
-          url: vd_author.url,
-          avatar: vd_author.avatar,
-          extra: 'vd-by'
-        } only %}
-
-        <div class="vd-actions">{{ xedc_engagement }}</div>
-
-        {% if vd_categories or vd_tags %}
-          <div class="vd-tax">
-            {% if vd_categories %}
-              <div class="vd-classify">
-                <span>{{ '分类'|t }}</span>
-                {% for item in vd_categories %}
-                  <a href="{{ item.url }}">{{ item.name }}</a>
-                {% endfor %}
-              </div>
-            {% endif %}
-            {% if vd_tags %}
-              <div class="vd-tags">
-                <span>{{ '标签'|t }}</span>
-                {% for item in vd_tags %}
-                  <a href="{{ item.url }}">{{ item.name }}</a>
-                {% endfor %}
-              </div>
-            {% endif %}
+      <div class="vd-bar">
+        {% if vd_author.name %}
+          <div class="vd-publisher">
+            {% include '@xedc/templates/video/video-member.html.twig' with {
+              name: vd_author.name,
+              url: vd_author.url,
+              avatar: vd_author.avatar,
+              extra: 'vd-by'
+            } only %}
           </div>
         {% endif %}
-
-        {% if node.field_body.value %}
-          <div class="vd-body" data-vd-body>
-            <div class="vd-body__content">{{ content.field_body }}</div>
-            <button type="button" class="vd-body__toggle" hidden>{{ '展开'|t }}</button>
-          </div>
-        {% endif %}
+        <div class="vd-actions">
+          {{ xedc_engagement }}
+        </div>
       </div>
-    </article>
+
+      {% if vd_categories or vd_tags %}
+        <div class="vd-topics">
+          {% if vd_categories %}
+            <div class="vd-pills">
+              {% for item in vd_categories %}
+                <a class="xedc-pill" href="{{ item.url }}">{{ item.name }}</a>
+              {% endfor %}
+            </div>
+          {% endif %}
+          {% if vd_tags %}
+            <div class="vd-pills">
+              {% for item in vd_tags %}
+                <a class="xedc-pill vd-pill-tag" href="{{ item.url }}">{{ item.name }}</a>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if node.field_body.value %}
+        <section class="vd-about" data-vd-body>
+          <h2 class="vd-about__label">{{ '简介'|t }}</h2>
+          <div class="vd-prose vd-body__content">{{ content.field_body }}</div>
+          <button type="button" class="vd-prose-toggle vd-body__toggle" hidden>{{ '展开'|t }}</button>
+        </section>
+      {% endif %}
+    </div>
 
     {% if vd_related %}
-      <aside class="vd-side">
-        <h2>{{ '相关推荐'|t }}</h2>
-        <div class="vd-related">
+      <section class="vd-rec" aria-labelledby="vd-suggest-title">
+        <h2 id="vd-suggest-title" class="vd-rec__title">{{ '相关视频'|t }}</h2>
+        <div class="vd-rec__grid">
           {% for card in vd_related %}
             <article class="vcard">
               {% include directory ~ '/templates/video/video-card.html.twig' with { card: card } only %}
             </article>
           {% endfor %}
         </div>
-      </aside>
+      </section>
     {% endif %}
-  </div>
+  </article>
 </div>
