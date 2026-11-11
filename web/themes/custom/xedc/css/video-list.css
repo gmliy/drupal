@@ -190,9 +190,9 @@ a.vmember:focus-visible,
   font-size: 15px;
 }
 
-.xv-search input:focus {
-  outline: 0;
-  border-bottom-color: var(--xv-fg);
+.xv-search input:is(:focus, :focus-visible) {
+  outline: none;
+  box-shadow: none;
 }
 
 .xv-search button {

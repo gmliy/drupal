@@ -111,10 +111,10 @@ body:has(.field--name-field-body) form.contact-message-form,
 .contact-message-form .form-text,
 .contact-message-form .form-email{height:40px}
 .contact-message-form .form-textarea{min-height:140px;resize:vertical}
-.contact-message-form input:focus,
-.contact-message-form textarea:focus,
-.contact-message-form select:focus{
-  border-color:var(--bs-body-color,#18181b);
+.contact-message-form input:is(:focus,:focus-visible),
+.contact-message-form textarea:is(:focus,:focus-visible),
+.contact-message-form select:is(:focus,:focus-visible){
+  border-color:var(--bs-border-color,#e4e4e7);
   background:var(--bs-body-bg,#fff);
   background-color:var(--bs-body-bg,#fff);
   outline:none;

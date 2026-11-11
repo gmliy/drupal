@@ -3,7 +3,7 @@ style:
   css:
     theme:
       build/css/main.style.css: {}
-      css/inputs.css: { weight: 50 }
+      css/inputs.css: { weight: 200 }
       css/xedc-pill.css: {}
       css/xedc-layout.css: {}
   js:

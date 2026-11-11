@@ -4,12 +4,14 @@
 {% set i_arrow %}<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>{% endset %}
 
 <div class="sr-page{{ type == 'video' ? ' sr-page--video' }}">
+  <header class="sr-search-head">
   <form class="sr-form" action="{{ form_action }}" method="get" role="search">
+    <div class="sr-shell">
     <div class="sr-field">
-      <span class="sr-field-icon">{{ i_search }}</span>
-      <input class="sr-input" type="search" name="q" value="{{ q }}" placeholder="{{ '搜索美图、视频、文章、模特…'|t }}" autocomplete="off" aria-label="{{ '搜索关键词'|t }}">
+      <input class="sr-input" type="search" name="q" value="{{ q }}" autocomplete="off" enterkeyhint="search" aria-label="{{ '搜索'|t }}">
       <button class="sr-clear" type="button" data-sr-clear aria-label="{{ '清除关键词'|t }}"{% if not q %} hidden{% endif %}>{{ i_close }}</button>
       <button class="sr-submit" type="submit">{{ '搜索'|t }}</button>
+    </div>
     </div>
     {% if q or from or to %}
       <div class="xs-adv">
@@ -25,6 +27,7 @@
     {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
     {% if model %}<input type="hidden" name="model" value="{{ model }}">{% endif %}
   </form>
+  </header>
   {% if chips %}
     <div class="xs-chips">
       {% for chip in chips %}

@@ -14,36 +14,67 @@ html {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]):not([type="color"]),
   textarea,
   select
-):focus {
+):is(:focus, :focus-visible) {
   background-color: var(--bs-body-bg, #fff) !important;
   background-image: none !important;
-  outline: none;
-  box-shadow: none;
+  outline: none !important;
+  box-shadow: none !important;
   transform: none;
+  --bs-focus-ring-opacity: 0;
+  --bs-focus-ring-width: 0;
 }
 
-.form-control:focus,
-.form-select:focus {
+.form-control:is(:focus, :focus-visible),
+.form-select:is(:focus, :focus-visible),
+.form-text:is(:focus, :focus-visible),
+.form-email:is(:focus, :focus-visible),
+.form-tel:is(:focus, :focus-visible),
+.form-url:is(:focus, :focus-visible),
+.form-number:is(:focus, :focus-visible),
+.form-search:is(:focus, :focus-visible),
+.form-textarea:is(:focus, :focus-visible) {
   color: var(--bs-body-color);
   background-color: var(--bs-body-bg, #fff);
-  border-color: var(--bs-body-color, #18181b);
-  outline: none;
-  box-shadow: none;
+  border-color: var(--bs-border-color);
+  outline: none !important;
+  box-shadow: none !important;
 }
 
-.xn-search input:focus,
-.xn-msearch input:focus,
-.search-field input:focus,
-.navbar-search input:focus {
+.xn-search input:is(:focus, :focus-visible),
+.xn-msearch input:is(:focus, :focus-visible),
+.search-field input:is(:focus, :focus-visible),
+.navbar-search input:is(:focus, :focus-visible) {
+  border-color: var(--xn-border, var(--bs-border-color));
   background-color: var(--xn-bg, var(--bs-body-bg, #fff)) !important;
-  box-shadow: none;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
-.sr-input:focus,
-.comment-form .form-textarea:focus,
-.img-detail .comment-form .form-textarea:focus {
+.sr-input:is(:focus, :focus-visible),
+.comment-form .form-textarea:is(:focus, :focus-visible),
+.img-detail .comment-form .form-textarea:is(:focus, :focus-visible) {
   background-color: var(--bs-body-bg, #fff) !important;
-  box-shadow: none;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.xv-search input:is(:focus, :focus-visible),
+.xa-input:is(:focus, :focus-visible),
+.photo-drop__search input:is(:focus, :focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+form.xedc-auth :is(input, select, textarea):is(:focus, :focus-visible) {
+  border-color: var(--xa-border, var(--bs-border-color));
+  background-color: var(--xa-bg, var(--bs-body-bg)) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.contact-message-form :is(input, textarea, select):is(:focus, :focus-visible) {
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 /* Use max-width (not only pointer:coarse): coarse pointer can miss when a

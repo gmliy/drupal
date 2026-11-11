@@ -43,8 +43,8 @@
   }
 }
 .comment-form:focus-within {
-  border-color: #171717;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, .06);
+  border-color: #e5e5e5;
+  box-shadow: none;
 }
 
 .comment-form .filter-wrapper,

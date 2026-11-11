@@ -733,7 +733,7 @@ function _xedc_search_hot_terms(int $limit = 8): array {
     return [];
   }
   try {
-    $rows = \Drupal::service('xedc_search.stats')->hot((string) ($config->get('hot_window') ?: 'week'), $limit);
+    $rows = \Drupal::service('xedc_search.stats')->hot((string) ($config->get('hot_window') ?: 'week'), $limit, FALSE, 'all');
   }
   catch (\Throwable $exception) {
     \Drupal::logger('xedc_search')->error($exception->getMessage());

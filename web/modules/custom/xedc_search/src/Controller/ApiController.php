@@ -49,6 +49,21 @@ final class ApiController extends ControllerBase {
     );
   }
 
+  public function keywords(Request $request): JsonResponse {
+    $denied = $this->guard($request);
+    if ($denied) {
+      return $denied;
+    }
+    try {
+      $limit = max(1, min(12, (int) $request->query->get('limit', 8)));
+      $items = $this->suggester->dynamicKeywords($this->text($request, 'q'), $this->text($request, 'type'), $limit);
+      return $this->ok(['q' => $this->normalizer->clean($this->text($request, 'q')), 'items' => $items], 30);
+    }
+    catch (\Throwable $exception) {
+      return $this->failure($exception);
+    }
+  }
+
   public function suggest(Request $request): JsonResponse {
     $denied = $this->guard($request);
     if ($denied) {
@@ -135,8 +150,9 @@ final class ApiController extends ControllerBase {
     try {
       $window = $this->normalizer->window($this->text($request, 'window'), (string) $this->setting('hot_window'));
       $type = $this->normalizer->context($this->text($request, 'type') ?: $this->text($request, 'context'));
+      $limit = max(1, min(10, (int) $request->query->get('limit', 3)));
       $items = [];
-      foreach (\Drupal::service('xedc_search.stats')->hot($window, 10, FALSE, $type) as $row) {
+      foreach (\Drupal::service('xedc_search.stats')->hot($window, $limit, FALSE, $type) as $row) {
         $items[] = [
           'label' => $row['keyword'],
           'count' => (int) $row['searches'],
@@ -144,7 +160,10 @@ final class ApiController extends ControllerBase {
           'url' => $this->hotUrl((string) $row['keyword'], $type),
         ];
       }
-      return $this->ok(['window' => $window, 'type' => $type, 'items' => $items], 30);
+      $response = $this->ok(['window' => $window, 'type' => $type, 'items' => $items], 0);
+      $response->headers->set('Cache-Control', 'private, no-store, must-revalidate');
+      $response->headers->set('Pragma', 'no-cache');
+      return $response;
     }
     catch (\Throwable $exception) {
       return $this->failure($exception);
@@ -160,8 +179,9 @@ final class ApiController extends ControllerBase {
       return $this->ok(['storage' => 'local', 'items' => []], 0);
     }
     $type = $this->normalizer->context($this->text($request, 'type') ?: $this->text($request, 'context'));
+    $limit = max(1, min(20, (int) $request->query->get('limit', 5)));
     $items = [];
-    foreach ($this->history->list((int) $account->id(), $type) as $row) {
+    foreach ($this->history->list((int) $account->id(), $type, $limit) as $row) {
       $items[] = [
         'id' => (int) $row['id'],
         'q' => $row['keyword'],

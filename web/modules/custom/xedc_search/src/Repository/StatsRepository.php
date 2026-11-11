@@ -80,7 +80,7 @@ final class StatsRepository {
    * @return list<array<string, mixed>>
    */
   public function hot(string $window, int $limit, bool $includeDisabled = FALSE, ?string $bundle = NULL): array {
-    $bundle = $bundle === NULL ? NULL : $this->normalizer->context($bundle);
+    $bundle = $bundle === NULL ? 'all' : $this->normalizer->context($bundle);
     $rows = $this->rowsSince($this->startDay($window), $bundle);
     $keywords = $this->keywords->index();
     $bucket = [];
@@ -237,8 +237,8 @@ final class StatsRepository {
     $query = $this->database->select('xedc_search_daily', 'd')
       ->fields('d')
       ->condition('day', $start, '>=');
-    if ($bundle !== NULL && $bundle !== 'all') {
-      $query->condition('bundle', $bundle);
+    if ($bundle !== NULL) {
+      $query->condition('bundle', $this->normalizer->context($bundle));
     }
     return $query->execute()->fetchAll(\PDO::FETCH_ASSOC);
   }

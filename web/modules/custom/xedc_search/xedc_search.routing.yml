@@ -1,3 +1,13 @@
+xedc_search.api.keywords:
+  path: '/api/xedc/search/keywords'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\ApiController::keywords'
+  methods: [GET]
+  requirements:
+    _permission: 'access content'
+  options:
+    no_cache: TRUE
+
 xedc_search.api.suggest:
   path: '/api/xedc/search/suggest'
   defaults:

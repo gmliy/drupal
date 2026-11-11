@@ -11,6 +11,8 @@
   var HISTORY_LEGACY = 'xedc_search_history_v1';
   var VISITOR = 'xedc_search_vid';
   var SESSION_UID = 'xedc_search_uid';
+  var IDLE_HISTORY = 5;
+  var IDLE_HOT = 3;
 
   function endpoint(name) {
     return (cfg.endpoints && cfg.endpoints[name]) || '';
@@ -26,20 +28,6 @@
 
   function historyStorageKey(mode) {
     return 'xedc_search_history_' + storageContext(mode);
-  }
-
-  function hotLabel(mode) {
-    var labels = {
-      global: Drupal.t('热门搜索'),
-      all: Drupal.t('热门搜索'),
-      photo: Drupal.t('热门美图搜索'),
-      video: Drupal.t('热门视频搜索'),
-      article: Drupal.t('热门文章搜索'),
-      model: Drupal.t('热门模特'),
-      tag: Drupal.t('热门标签'),
-      category: Drupal.t('热门分类'),
-    };
-    return labels[storageContext(mode)] || labels.global;
   }
 
   function migrateLegacyHistory() {
@@ -270,62 +258,104 @@
     return { form: form, mode: mode, target: target };
   }
 
-  function panelHost(input) {
-    if (input.closest('.photo-drop')) {
-      return null;
+  function ensureWrap(input) {
+    var parent = input.parentElement;
+    if (parent && parent.classList.contains('xs-wrap')) {
+      return parent;
     }
-    return input.closest('form.xn-search, form.xn-msearch, form.sr-form, form.xv-search, form.xa-search, form.xt-toolbar, .xm-search') || input.parentElement;
+    var wrap = document.createElement('div');
+    wrap.className = 'xs-wrap';
+    if (parent) {
+      parent.insertBefore(wrap, input);
+    }
+    wrap.appendChild(input);
+    var navForm = input.closest('form.xn-search, form.xn-msearch');
+    if (navForm) {
+      var icon = navForm.querySelector(':scope > svg');
+      if (icon) {
+        icon.classList.add('xn-search-mark');
+        wrap.insertBefore(icon, input);
+      }
+    }
+    return wrap;
   }
 
-  function place(panel, input, fixed) {
-    if (!fixed) {
-      panel.classList.remove('xs-panel--fixed');
-      panel.style.left = '';
-      panel.style.width = '';
-      panel.style.top = '';
-      panel.style.bottom = '';
-      panel.style.maxHeight = '';
-      var hostRect = panel.parentElement.getBoundingClientRect();
-      var spaceBelow = window.innerHeight - hostRect.bottom - 12;
-      var spaceAbove = hostRect.top - 12;
-      if (spaceBelow < 160 && spaceAbove > spaceBelow) {
-        panel.classList.add('xs-panel--up');
-        panel.style.maxHeight = Math.max(120, Math.min(spaceAbove - 8, window.innerHeight * 0.5)) + 'px';
-      }
-      else {
-        panel.classList.remove('xs-panel--up');
-        panel.style.maxHeight = Math.max(120, Math.min(window.innerHeight * 0.7, spaceBelow)) + 'px';
-      }
-      return;
+  function resolveMount(input, wrap) {
+    var shell = input.closest('.sr-shell');
+    if (shell) {
+      shell.classList.add('xs-mount');
+      return shell;
     }
-    panel.classList.add('xs-panel--fixed');
-    var anchor = input.closest('.photo-drop') || input;
-    var rect = anchor.getBoundingClientRect();
+    var field = input.closest('.sr-field');
+    if (field) {
+      field.classList.add('xs-mount');
+      return field;
+    }
+    if (!wrap.classList.contains('xs-wrap')) {
+      wrap.classList.add('xs-wrap');
+    }
+    return wrap;
+  }
+
+  function panelNeedsFixed(mount) {
+    var el = mount.parentElement;
+    while (el && el !== document.body) {
+      var style = window.getComputedStyle(el);
+      var clip = function (value) {
+        return value === 'hidden' || value === 'clip' || value === 'auto' || value === 'scroll';
+      };
+      if (clip(style.overflow) || clip(style.overflowX) || clip(style.overflowY)) {
+        if (el.closest('.photo-drop') || style.overflow === 'hidden' || style.overflowY === 'hidden') {
+          return true;
+        }
+      }
+      el = el.parentElement;
+    }
+    return false;
+  }
+
+  function place(panel, input, mount, useFixed) {
+    var rect = mount.getBoundingClientRect();
     if (!rect.width && !rect.height) {
       panel.hidden = true;
       return;
     }
-    var gap = 8;
-    var maxWidth = window.innerWidth - 16;
-    var width = Math.min(Math.max(rect.width, 260), maxWidth);
-    var left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
-    panel.style.left = left + 'px';
-    panel.style.width = width + 'px';
+    var spaceBelow = window.innerHeight - rect.bottom;
+    var spaceAbove = rect.top;
+    var openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+    panel.style.boxSizing = 'border-box';
+    if (useFixed) {
+      panel.classList.add('xs-panel--fixed');
+      panel.style.left = rect.left + 'px';
+      panel.style.width = rect.width + 'px';
+      panel.style.right = 'auto';
+      if (openUp) {
+        panel.classList.add('xs-panel--up');
+        panel.style.top = 'auto';
+        panel.style.bottom = (window.innerHeight - rect.top) + 'px';
+        panel.style.maxHeight = Math.max(120, Math.min(spaceAbove, window.innerHeight * 0.5)) + 'px';
+      }
+      else {
+        panel.classList.remove('xs-panel--up');
+        panel.style.top = rect.bottom + 'px';
+        panel.style.bottom = 'auto';
+        panel.style.maxHeight = Math.max(120, Math.min(spaceBelow, window.innerHeight * 0.7)) + 'px';
+      }
+      return;
+    }
+    panel.classList.remove('xs-panel--fixed');
+    panel.style.left = '';
+    panel.style.right = '';
+    panel.style.width = '';
+    panel.style.top = '';
     panel.style.bottom = '';
-    var panelHeight = panel.offsetHeight || 240;
-    var below = window.innerHeight - rect.bottom - gap;
-    var above = rect.top - gap;
-    if (below < 180 && above > below) {
-      var room = Math.max(120, above - gap);
-      panel.style.maxHeight = Math.min(room, window.innerHeight * 0.5) + 'px';
-      var height = Math.min(panel.offsetHeight || panelHeight, room);
-      panel.style.top = Math.max(gap, rect.top - height - gap) + 'px';
+    if (openUp) {
       panel.classList.add('xs-panel--up');
+      panel.style.maxHeight = Math.max(120, Math.min(spaceAbove, window.innerHeight * 0.5)) + 'px';
     }
     else {
-      panel.style.maxHeight = Math.max(120, Math.min(window.innerHeight * 0.7, below)) + 'px';
-      panel.style.top = (rect.bottom + gap) + 'px';
       panel.classList.remove('xs-panel--up');
+      panel.style.maxHeight = Math.max(120, Math.min(spaceBelow, window.innerHeight * 0.7)) + 'px';
     }
   }
 
@@ -368,32 +398,39 @@
 
   function bind(input) {
     var meta = fieldMeta(input);
-    var host = panelHost(input);
-    var useFixed = !host;
-    if (host) {
-      host.classList.add('xs-host');
-    }
+    var wrap = ensureWrap(input);
+    var mount = resolveMount(input, wrap);
+    var useFixed = panelNeedsFixed(mount);
     var panel = document.createElement('div');
     panel.className = 'xs-panel';
     panel.hidden = true;
     panel.setAttribute('role', 'listbox');
-    (host || document.body).appendChild(panel);
+    mount.appendChild(panel);
     var items = [];
     var active = -1;
-    var timer = 0;
-    var requestId = 0;
     var composing = false;
-    var controller = null;
     var syncClear = function () {};
+
+    function setPanelOpen(on) {
+      mount.classList.toggle('is-open', on);
+    }
 
     function close() {
       panel.hidden = true;
       active = -1;
+      setPanelOpen(false);
       input.setAttribute('aria-expanded', 'false');
     }
 
+    function openPanel() {
+      panel.hidden = false;
+      setPanelOpen(true);
+      input.setAttribute('aria-expanded', 'true');
+      place(panel, input, mount, useFixed);
+    }
+
     function markActive() {
-      Array.prototype.forEach.call(panel.querySelectorAll('.xs-item, .xs-complete'), function (el, index) {
+      Array.prototype.forEach.call(panel.querySelectorAll('.xs-item, .xs-hot-tag'), function (el, index) {
         var on = index === active;
         el.classList.toggle('is-active', on);
         if (on) {
@@ -449,84 +486,35 @@
       window.location.href = search;
     }
 
-    function render(payload, historyItems, hotItems, idleMode) {
+    function render(historyItems, hotItems) {
       clearNode(panel);
       items = [];
       active = -1;
-      var query = payload && payload.q ? payload.q : '';
-      if (payload && payload.completion && payload.completion.text && cfg.complete) {
-        var completion = document.createElement('button');
-        completion.type = 'button';
-        completion.className = 'xs-complete';
-        var completionText = document.createElement('span');
-        fillMatch(completionText, payload.completion.text, query, true);
-        completion.appendChild(completionText);
-        var hint = document.createElement('span');
-        hint.className = 'xs-kind';
-        hint.textContent = 'Tab';
-        completion.appendChild(hint);
-        var entry = { label: payload.completion.text, kind: 'complete', url: endpoint('search') + '?q=' + encodeURIComponent(payload.completion.text) };
-        completion.addEventListener('click', function () { activate(entry); });
-        panel.appendChild(completion);
-        items.push(entry);
-      }
-      (payload && payload.groups || []).forEach(function (group) {
-        var title = document.createElement('div');
-        title.className = 'xs-label';
-        title.textContent = group.label;
-        panel.appendChild(title);
-        (group.items || []).forEach(function (item) {
-          var button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'xs-item';
-          var image = item.image ? safeImage(item.image) : '';
-          if (image) {
-            var img = document.createElement('img');
-            img.className = 'xs-thumb';
-            img.alt = '';
-            img.src = image;
-            button.appendChild(img);
-          }
-          var text = document.createElement('span');
-          fillMatch(text, item.label, query, false);
-          button.appendChild(text);
-          button.addEventListener('click', function () { activate(item); });
-          panel.appendChild(button);
-          items.push(item);
-        });
-      });
-      function appendHot() {
-        if (!hotItems || !hotItems.length) {
-          return;
-        }
-        var hotTitle = document.createElement('div');
-        hotTitle.className = 'xs-label';
-        hotTitle.textContent = hotLabel(meta.mode);
-        panel.appendChild(hotTitle);
-        hotItems.forEach(function (item) {
-          var button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'xs-item';
-          button.textContent = item.label;
-          button.addEventListener('click', function () { activate(item); });
-          panel.appendChild(button);
-          items.push(item);
-        });
-      }
 
-      function appendHistory() {
-        var historyTitle = document.createElement('div');
-        historyTitle.className = 'xs-label';
-        historyTitle.textContent = Drupal.t('最近搜索');
-        panel.appendChild(historyTitle);
-        if (!historyItems || !historyItems.length) {
-          var empty = document.createElement('div');
-          empty.className = 'xs-status';
-          empty.textContent = Drupal.t('暂无搜索记录');
-          panel.appendChild(empty);
-          return;
+      function appendHistory(afterPrev) {
+        var rows = (historyItems || []).slice(0, IDLE_HISTORY);
+        if (!rows.length) {
+          return false;
         }
-        historyItems.forEach(function (item) {
+        var section = document.createElement('div');
+        section.className = 'xs-section xs-section--history' + (afterPrev ? ' xs-section--sep' : '');
+        section.setAttribute('role', 'group');
+        var bar = document.createElement('div');
+        bar.className = 'xs-section-bar';
+        var clearAll = document.createElement('button');
+        clearAll.type = 'button';
+        clearAll.className = 'xs-clear-all';
+        clearAll.textContent = Drupal.t('清空');
+        clearAll.setAttribute('aria-label', Drupal.t('清空当前场景搜索历史'));
+        clearAll.addEventListener('click', function (event) {
+          event.preventDefault();
+          clearAllHistory();
+        });
+        bar.appendChild(clearAll);
+        section.appendChild(bar);
+        var list = document.createElement('div');
+        list.className = 'xs-history';
+        rows.forEach(function (item) {
           var row = document.createElement('div');
           row.className = 'xs-item';
           var button = document.createElement('button');
@@ -545,34 +533,61 @@
           });
           row.appendChild(button);
           row.appendChild(remove);
-          panel.appendChild(row);
+          list.appendChild(row);
           items.push(item);
         });
+        section.appendChild(list);
+        panel.appendChild(section);
+        return true;
       }
 
-      if (idleMode) {
-        appendHot();
-        appendHistory();
-        panel.hidden = false;
-        input.setAttribute('aria-expanded', 'true');
-        place(panel, input, useFixed);
+      function appendHot(afterHistory) {
+        var tags = (hotItems || []).slice(0, IDLE_HOT);
+        if (!tags.length) {
+          return false;
+        }
+        var section = document.createElement('div');
+        section.className = 'xs-section xs-section--hot' + (afterHistory ? ' xs-section--sep' : '');
+        section.setAttribute('role', 'group');
+        var wrap = document.createElement('div');
+        wrap.className = 'xs-hot';
+        tags.forEach(function (item) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'xs-hot-tag';
+          button.textContent = item.label;
+          button.addEventListener('click', function () { activate(item); });
+          wrap.appendChild(button);
+          items.push(item);
+        });
+        section.appendChild(wrap);
+        panel.appendChild(section);
+        return true;
+      }
+
+      var hasHistory = appendHistory(false);
+      var hasHot = appendHot(hasHistory);
+      if (!hasHistory && !hasHot) {
+        close();
         return;
       }
-      if (!items.length) {
-        if (query) {
-          status(panel, Drupal.t('没有匹配的建议'), false);
-          panel.hidden = false;
-          input.setAttribute('aria-expanded', 'true');
-          place(panel, input, useFixed);
-        }
-        else {
-          close();
-        }
+      openPanel();
+    }
+
+    function clearAllHistory() {
+      if (cfg.loggedIn && cfg.history) {
+        var clearUrl = endpoint('history') + '?type=' + encodeURIComponent(apiType(meta.mode));
+        csrf().then(function (token) {
+          fetch(clearUrl, {
+            method: 'DELETE',
+            credentials: 'same-origin',
+            headers: token ? { 'X-CSRF-Token': token } : {},
+          }).finally(function () { openIdle(); });
+        });
         return;
       }
-      panel.hidden = false;
-      input.setAttribute('aria-expanded', 'true');
-      place(panel, input, useFixed);
+      writeHistory(meta.mode, []);
+      openIdle();
     }
 
     function forget(item) {
@@ -599,15 +614,15 @@
 
     function openIdle() {
       var q = typedValue(input).trim();
-      if (q.length >= (cfg.minLength || 1)) {
-        schedule();
+      if (q.length > 0) {
+        close();
         return;
       }
-      var local = cfg.history && !cfg.loggedIn ? readHistory(meta.mode).map(function (item) {
+      var local = cfg.history && !cfg.loggedIn ? readHistory(meta.mode).slice(0, IDLE_HISTORY).map(function (item) {
         return { q: item.q, label: item.q, type: item.type, kind: 'history', url: historyUrl(item) };
       }) : [];
       if (cfg.loggedIn && cfg.history) {
-        var historyUrlApi = endpoint('history') + '?type=' + encodeURIComponent(apiType(meta.mode));
+        var historyUrlApi = endpoint('history') + '?type=' + encodeURIComponent(apiType(meta.mode)) + '&limit=' + IDLE_HISTORY;
         fetch(historyUrlApi, { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store' })
           .then(function (response) { return response.json(); })
           .then(function (json) {
@@ -630,83 +645,29 @@
 
     function loadHot(historyItems) {
       if (!cfg.hot) {
-        render(null, historyItems, [], true);
+        render(historyItems, []);
         return;
       }
-      var hotUrl = endpoint('hot') + '?type=' + encodeURIComponent(apiType(meta.mode));
-      fetch(hotUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-        .then(function (response) { return response.json(); })
+      var hotUrl = endpoint('hot') + '?type=' + encodeURIComponent(apiType(meta.mode)) + '&limit=' + IDLE_HOT;
+      fetch(hotUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store' })
+        .then(function (response) { return response.ok ? response.json() : null; })
         .then(function (json) {
-          render(null, historyItems, json && json.ok ? json.data.items : [], true);
+          render(historyItems, json && json.ok ? json.data.items : []);
         })
-        .catch(function () { render(null, historyItems, [], true); });
+        .catch(function () { render(historyItems, []); });
     }
 
     function schedule() {
-      window.clearTimeout(timer);
       var q = typedValue(input).trim();
-      if (!cfg.suggest || q.length < (cfg.minLength || 1)) {
-        if (document.activeElement === input) {
-          openIdle();
-        }
-        else {
-          close();
-        }
+      if (q.length > 0) {
+        close();
         return;
       }
-      timer = window.setTimeout(function () { fetchSuggest(q); }, cfg.debounce || 250);
-    }
-
-    function fetchSuggest(q) {
-      if (controller) {
-        controller.abort();
+      if (document.activeElement === input) {
+        openIdle();
       }
-      controller = typeof AbortController === 'function' ? new AbortController() : null;
-      var id = ++requestId;
-      status(panel, Drupal.t('正在查找…'), false);
-      place(panel, input, useFixed);
-      var url = endpoint('suggest') + '?q=' + encodeURIComponent(q) + '&type=' + encodeURIComponent(meta.mode);
-      fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: controller ? controller.signal : undefined })
-        .then(function (response) {
-          if (!response.ok) {
-            throw new Error('http');
-          }
-          return response.json();
-        })
-        .then(function (json) {
-          if (id !== requestId || typedValue(input).trim() !== q) {
-            return;
-          }
-          if (!json || !json.ok) {
-            status(panel, Drupal.t('无法获取建议，请直接搜索'), true);
-            return;
-          }
-          render(json.data, [], []);
-          applyCompletion(q, json.data && json.data.completion);
-        })
-        .catch(function (error) {
-          if (error && error.name === 'AbortError') {
-            return;
-          }
-          if (id === requestId) {
-            status(panel, Drupal.t('网络异常，请直接搜索'), true);
-          }
-        });
-    }
-
-    function applyCompletion(q, completion) {
-      if (!cfg.complete || !completion || !completion.text || meta.target === 'local') {
-        return;
-      }
-      if (!completion.suffix || completion.text.indexOf(q) !== 0) {
-        return;
-      }
-      if (typedValue(input).trim() !== q || input.value !== q) {
-        return;
-      }
-      input.value = completion.text;
-      if (input.setSelectionRange) {
-        input.setSelectionRange(q.length, completion.text.length);
+      else {
+        close();
       }
     }
 
@@ -756,15 +717,6 @@
             window.location.href = endpoint('search') + '?q=' + encodeURIComponent(pending) + '&type=' + encodeURIComponent(meta.mode === 'model' ? 'model' : 'photo');
           }
         }
-        else {
-          dropCompletion();
-        }
-      }
-      else if ((event.key === 'Tab' || event.key === 'ArrowRight') && cfg.complete) {
-        if (input.selectionEnd > input.selectionStart) {
-          event.preventDefault();
-          input.setSelectionRange(input.value.length, input.value.length);
-        }
       }
       else if (event.key === 'Escape') {
         dropCompletion();
@@ -776,15 +728,13 @@
 
     if (meta.form) {
       meta.form.addEventListener('submit', function () {
-        dropCompletion();
         var q = input.value.trim();
         remember(q, meta.mode);
         track(q, meta.mode);
       });
     }
 
-    var clearHost = input.closest('form.xn-search, form.xn-msearch, form.xa-search, .xm-search');
-      if (clearHost && !input.classList.contains('sr-input') && !clearHost.querySelector('.xs-clear')) {
+    if (!input.classList.contains('sr-input') && !wrap.querySelector('.xs-clear')) {
       var clear = document.createElement('button');
       clear.type = 'button';
       clear.className = 'xs-clear';
@@ -796,7 +746,7 @@
         input.focus();
         openIdle();
       });
-      clearHost.appendChild(clear);
+      wrap.appendChild(clear);
       syncClear = function () {
         var on = input.value.length > 0;
         clear.classList.toggle('is-on', on);
@@ -818,8 +768,8 @@
       }
     }
 
-    window.addEventListener('resize', function () { if (!panel.hidden) { place(panel, input, useFixed); } });
-    window.addEventListener('scroll', function () { if (!panel.hidden && useFixed) { place(panel, input, useFixed); } }, true);
+    window.addEventListener('resize', function () { if (!panel.hidden) { place(panel, input, mount, useFixed); } });
+    window.addEventListener('scroll', function () { if (!panel.hidden) { place(panel, input, mount, useFixed); } }, true);
     document.addEventListener('pointerdown', function (event) {
       if (event.target === input || panel.contains(event.target)) {
         return;

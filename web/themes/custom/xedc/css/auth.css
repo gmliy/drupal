@@ -33,7 +33,7 @@ form.xedc-auth :is(input[type=text],input[type=password],input[type=email],input
 form.xedc-auth textarea{height:auto;min-height:88px;padding:8px 12px}
 form.xedc-auth select{padding-right:32px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
 form.xedc-auth :is(input,select,textarea)::placeholder{color:var(--xa-muted)}
-form.xedc-auth :is(input,select,textarea):focus{outline:none;border-color:var(--xa-fg);background-color:var(--xa-bg)!important;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+form.xedc-auth :is(input,select,textarea):is(:focus,:focus-visible){outline:none;border-color:var(--xa-border);background-color:var(--xa-bg)!important;box-shadow:none}
 form.xedc-auth input:-webkit-autofill,
 form.xedc-auth input:-webkit-autofill:hover,
 form.xedc-auth input:-webkit-autofill:focus,

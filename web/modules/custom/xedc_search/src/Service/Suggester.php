@@ -194,7 +194,8 @@ final class Suggester {
     $window = $this->normalizer->window((string) $config->get('hot_window'));
     $needle = $this->normalizer->key($q);
     $items = [];
-    foreach ($this->stats->hot($window, 30) as $row) {
+    $bundle = $this->normalizer->type($type);
+    foreach ($this->stats->hot($window, 30, FALSE, $bundle) as $row) {
       $label = (string) $row['keyword'];
       if (!str_contains($this->normalizer->key($label), $needle)) {
         continue;
@@ -210,6 +211,176 @@ final class Suggester {
         break;
       }
     }
+    return $items;
+  }
+
+  /**
+   * Flat site keywords from published content and taxonomies (no group titles).
+   *
+   * @return list<array<string, mixed>>
+   */
+  public function dynamicKeywords(string $q, string $type, int $limit = 8): array {
+    $config = $this->configFactory->get('xedc_search.settings');
+    if (!(bool) $config->get('enabled') || !(bool) $config->get('suggest_enabled')) {
+      return [];
+    }
+    $q = $this->normalizer->clean($q);
+    $type = $this->normalizer->type($type);
+    $limit = max(1, min(12, $limit));
+    if ($q !== '' && mb_strlen($q) < max(1, (int) $config->get('min_length'))) {
+      return [];
+    }
+    $needle = $this->normalizer->key($q);
+    $items = [];
+    $seen = [];
+    $push = function (array $item) use (&$items, &$seen, $needle, $limit): void {
+      if (count($items) >= $limit) {
+        return;
+      }
+      $label = $this->normalizer->clean((string) ($item['label'] ?? ''));
+      $key = $this->normalizer->key($label);
+      if ($key === '' || isset($seen[$key])) {
+        return;
+      }
+      if ($needle !== '' && $key === $needle) {
+        return;
+      }
+      if ($needle !== '' && !str_contains($key, $needle)) {
+        return;
+      }
+      $seen[$key] = TRUE;
+      $item['label'] = $label;
+      $items[] = $item;
+    };
+
+    $slice = max(2, (int) ceil($limit / 2));
+    match ($type) {
+      'model' => (function () use ($push, $q, $limit): void {
+        $source = $q === '' ? $this->termBrowse(['models'], $limit, 'model') : $this->termItems($q, ['models'], $limit, 'model');
+        foreach ($source as $item) {
+          $push($item);
+        }
+      })(),
+      'tag' => (function () use ($push, $q, $limit): void {
+        $source = $q === '' ? $this->termBrowse(['tags'], $limit, 'tag') : $this->termItems($q, ['tags'], $limit, 'tag');
+        foreach ($source as $item) {
+          $push($item);
+        }
+      })(),
+      'category' => (function () use ($push, $q, $limit): void {
+        $vids = $this->categoryVocabularies('all');
+        $source = $q === '' ? $this->termBrowse($vids, $limit, 'category') : $this->termItems($q, $vids, $limit, 'category');
+        foreach ($source as $item) {
+          $push($item);
+        }
+      })(),
+      'photo' => (function () use ($push, $q, $slice, $limit): void {
+        foreach ($this->keywordItems($q, 'photo', $slice) as $item) {
+          $push($item);
+        }
+        foreach ($this->termItems($q, ['photo_category'], min(4, $limit), 'category') as $item) {
+          $push($item);
+        }
+        foreach ($this->termItems($q, ['tags'], min(3, $limit), 'tag') as $item) {
+          $push($item);
+        }
+        foreach ($this->termItems($q, ['models'], min(3, $limit), 'model') as $item) {
+          $push($item);
+        }
+      })(),
+      'video' => (function () use ($push, $q, $slice, $limit): void {
+        foreach ($this->keywordItems($q, 'video', $slice) as $item) {
+          $push($item);
+        }
+        foreach ($this->termItems($q, ['video_category'], min(4, $limit), 'category') as $item) {
+          $push($item);
+        }
+        foreach ($this->termItems($q, ['tags'], min(3, $limit), 'tag') as $item) {
+          $push($item);
+        }
+        foreach ($this->termItems($q, ['models'], min(3, $limit), 'model') as $item) {
+          $push($item);
+        }
+      })(),
+      'article' => (function () use ($push, $q, $slice, $limit): void {
+        foreach ($this->keywordItems($q, 'article', $slice) as $item) {
+          $push($item);
+        }
+        foreach ($this->termItems($q, ['article_category'], min(4, $limit), 'category') as $item) {
+          $push($item);
+        }
+        foreach ($this->termItems($q, ['tags'], min(3, $limit), 'tag') as $item) {
+          $push($item);
+        }
+      })(),
+      default => (function () use ($push, $q, $slice, $limit): void {
+        foreach ($this->keywordItems($q, 'all', $slice) as $item) {
+          $push($item);
+        }
+        foreach ($this->termItems($q, ['tags'], min(4, $limit), 'tag') as $item) {
+          $push($item);
+        }
+        foreach ($this->termItems($q, ['models'], min(4, $limit), 'model') as $item) {
+          $push($item);
+        }
+        foreach ($this->termItems($q, $this->categoryVocabularies('all'), min(4, $limit), 'category') as $item) {
+          $push($item);
+        }
+      })(),
+    };
+
+    return array_slice($items, 0, $limit);
+  }
+
+  /**
+   * @param list<string> $vids
+   * @return list<array<string, mixed>>
+   */
+  private function termBrowse(array $vids, int $limit, string $kind): array {
+    if (!$vids) {
+      return [];
+    }
+    $query = $this->database->select('taxonomy_term_field_data', 't');
+    $query->addTag('taxonomy_term_access');
+    $query->condition('t.status', 1);
+    $query->condition('t.vid', $vids, 'IN');
+    $query->condition('t.langcode', $this->languages(), 'IN');
+    $query->addField('t', 'tid');
+    $query->addExpression('MAX(t.name)', 'name');
+    $query->addExpression('MAX(t.vid)', 'vid');
+    $query->groupBy('t.tid');
+    $query->orderBy('name', 'ASC');
+    $query->range(0, max(1, $limit));
+    $items = [];
+    foreach ($query->execute() as $row) {
+      $items[] = [
+        'id' => (int) $row->tid,
+        'label' => (string) $row->name,
+        'vid' => (string) $row->vid,
+      ];
+    }
+    if ($kind === 'model') {
+      $items = $this->attachModelImages($items);
+    }
+    foreach ($items as &$item) {
+      $item['kind'] = $kind;
+      $item['image'] = $item['image'] ?? '';
+      if ($kind === 'category') {
+        $bundle = match ($item['vid'] ?? '') {
+          'video_category' => 'video',
+          'article_category' => 'article',
+          default => 'photo',
+        };
+        $item['url'] = $this->searchUrl((string) $item['label'], $bundle, ['category' => (int) $item['id']]);
+      }
+      elseif ($kind === 'tag') {
+        $item['url'] = $this->searchUrl((string) $item['label'], '', ['tag' => (int) $item['id']]);
+      }
+      elseif ($kind === 'model') {
+        $item['url'] = $this->searchUrl((string) $item['label'], 'model');
+      }
+    }
+    unset($item);
     return $items;
   }
 

@@ -91,7 +91,7 @@ $tracked = $tracker->record('验收统计', 'photo', 'acceptancetoken', FALSE);
 $again = $tracker->record('验收统计', 'photo', 'acceptancetoken', FALSE);
 $check('搜索会被统计', $tracked['counted'] === TRUE, 'total=' . $tracked['total']);
 $check('同一关键词 60 秒内不重复计次', $again['counted'] === FALSE);
-$hot = \Drupal::service('xedc_search.stats')->hot('today', 20, TRUE);
+$hot = \Drupal::service('xedc_search.stats')->hot('today', 20, TRUE, 'photo');
 $foundHot = FALSE;
 foreach ($hot as $row) {
   if ($row['keyword_key'] === '验收统计') {
@@ -99,6 +99,11 @@ foreach ($hot as $row) {
   }
 }
 $check('热门榜来自统计', $foundHot);
+$check('全站热门不混入其他场景', !in_array('场景乙', array_column($stats->hot('week', 10, TRUE, 'all'), 'keyword'), TRUE) || in_array('场景乙', array_column($stats->hot('week', 10, TRUE, 'video'), 'keyword'), TRUE));
+$uniqueHot = '验收热词' . random_int(100000, 999999);
+$tracker->record($uniqueHot, 'all', 'accept' . random_int(1000, 9999), FALSE);
+$check('新关键词进入全站热门', in_array($uniqueHot, array_column($stats->hot('today', 30, FALSE, 'all'), 'keyword'), TRUE), $uniqueHot);
+$check('新词不出现在美图热门', !in_array($uniqueHot, array_column($stats->hot('today', 30, FALSE, 'photo'), 'keyword'), TRUE));
 \Drupal::database()->delete('xedc_search_log')->condition('keyword_key', '验收统计')->execute();
 \Drupal::database()->delete('xedc_search_daily')->condition('keyword_key', '验收统计')->execute();
 \Drupal::database()->delete('xedc_search_visitor')->condition('keyword_key', '验收统计')->execute();
