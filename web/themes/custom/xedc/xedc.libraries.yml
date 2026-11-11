@@ -204,6 +204,16 @@ home:
     - core/drupal
     - core/once
 
+status:
+  version: 1.4.0
+  css:
+    theme:
+      css/status.css: { weight: 200 }
+  js:
+    js/status.js: {}
+  dependencies:
+    - core/drupal
+
 public_profile:
   version: 2.0
   css:

@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="zh-Hans" class="xs-doc">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>网站维护中</title>
+<script>(function(){try{var t=localStorage.getItem('theme');if(t!=='dark'&&t!=='light'){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var h=document.documentElement;h.setAttribute('data-bs-theme',t);h.setAttribute('data-theme',t);}catch(e){}})();</script>
+<style>
+:root{--xn-bg:#fff;--xn-fg:#09090b;--xn-muted:#71717a;--xn-border:#e4e4e7;--xn-accent:#f4f4f5;--xn-pri:#18181b;--xn-pri-fg:#fafafa;--xn-bgrgb:255,255,255;--xn-shadow:0 1px 2px rgba(0,0,0,.05),0 8px 20px -8px rgba(0,0,0,.14)}
+[data-bs-theme=dark],[data-theme=dark]{--xn-bg:#09090b;--xn-fg:#fafafa;--xn-muted:#a1a1aa;--xn-border:#27272a;--xn-accent:#18181b;--xn-pri:#fafafa;--xn-pri-fg:#18181b;--xn-bgrgb:9,9,11;--xn-shadow:0 1px 2px rgba(0,0,0,.4),0 8px 20px -8px rgba(0,0,0,.6)}
+.xn,.xn-sheet,.xn-overlay{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","PingFang SC","Microsoft YaHei",sans-serif;-webkit-tap-highlight-color:transparent}
+.xn svg,.xn-sheet svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* header */
+.xn{position:sticky;top:0;z-index:1030;background:rgba(var(--xn-bgrgb),.92);-webkit-backdrop-filter:saturate(180%) blur(12px);backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--xn-border);box-shadow:var(--xn-shadow);color:var(--xn-fg)}
+.xn-bar{display:flex;align-items:center;gap:32px;height:60px;max-width:1920px;margin:0 auto;padding:0 20px}
+.xn-left{display:flex;align-items:center;gap:20px;flex:none}
+
+/* logo */
+.xn-logo{display:inline-flex;align-items:baseline;font-size:1.25rem;font-weight:600;letter-spacing:-.02em;line-height:1;color:#111827;text-decoration:none;flex:none;white-space:nowrap}
+.xn-logo:hover{color:#111827}
+.xn-dot{display:inline-block;width:.28em;height:.28em;margin-left:.08em;border-radius:50%;background:#f472b6;transform:translateY(-.04em)}
+@media(min-width:992px){.xn-logo{font-size:1.375rem}}
+
+/* links（禁止换行） */
+.xn-links{display:flex;align-items:center;gap:2px;flex:none}
+.xn-link,.xn-dd{white-space:nowrap;flex:none}
+.xn-link{padding:6px 12px;border-radius:6px;font-size:.9375rem;font-weight:500;color:var(--xn-muted);text-decoration:none;transition:background .15s,color .15s}
+.xn-link:hover{background:var(--xn-accent);color:var(--xn-fg)}
+.xn-link[aria-current]{color:var(--xn-fg)}
+
+/* 下拉 */
+.xn-dd{position:relative;display:flex;align-items:center;border-radius:6px;transition:background .15s}
+.xn-dd:hover,.xn-dd.open{background:var(--xn-accent)}
+.xn-dd>.xn-link{padding-right:2px;background:none}
+.xn-dd:hover>.xn-link,.xn-dd.open>.xn-link{color:var(--xn-fg)}
+.xn .xn-dd-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:30px;margin-right:6px;padding:0;border:0;background:none;color:var(--xn-muted);cursor:pointer}
+.xn .xn-dd-btn svg{width:14px;height:14px;transition:transform .2s}
+.xn-dd:hover .xn-dd-btn svg,.xn-dd.open .xn-dd-btn svg{transform:rotate(180deg)}
+.xn-dd-panel{position:absolute;top:100%;left:0;padding-top:10px;opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .15s,transform .15s,visibility 0s .15s;z-index:5}
+.xn-dd:hover .xn-dd-panel,.xn-dd.open .xn-dd-panel{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+.xn-dd-card{min-width:240px;padding:12px;background:var(--xn-bg);border:1px solid var(--xn-border);border-radius:10px;box-shadow:0 12px 32px -8px rgba(0,0,0,.2)}
+.xn-dd-grid{display:grid;grid-template-columns:repeat(var(--cols,3),minmax(130px,1fr));gap:6px 12px}
+.xn-dd-col{display:flex;flex-direction:column}
+.xn-dd-h,.xn-dd-i{display:block;padding:6px 8px;border-radius:6px;text-decoration:none;white-space:nowrap;transition:background .15s,color .15s}
+.xn-dd-h{font-size:14px;font-weight:600;color:var(--xn-fg)}
+.xn-dd-i{font-size:13px;color:var(--xn-muted)}
+.xn-dd-h:hover,.xn-dd-i:hover{background:var(--xn-accent);color:var(--xn-fg)}
+.xn-dd-all{display:block;margin-top:10px;padding:10px 8px 2px;border-top:1px solid var(--xn-border);font-size:13px;color:var(--xn-muted);text-decoration:none}
+.xn-dd-all:hover{color:var(--xn-fg)}
+
+/* search */
+.xn-search,.xn-msearch{position:relative;display:flex;align-items:center}
+.xn-search svg,.xn-msearch svg{position:absolute;left:10px;width:16px;height:16px;color:var(--xn-muted);pointer-events:none}
+.xn-search input,.xn-msearch input{width:100%;height:38px;padding:0 12px 0 34px;border:1px solid var(--xn-border);border-radius:8px;background:transparent;color:var(--xn-fg);font-size:14px;outline:0;-webkit-appearance:none;appearance:none;transition:box-shadow .15s,border-color .15s}
+.xn-search input::placeholder,.xn-msearch input::placeholder{color:var(--xn-muted)}
+.xn-search input:focus,.xn-msearch input:focus{border-color:var(--xn-fg);background:var(--xn-bg);background-color:var(--xn-bg)!important;box-shadow:none;outline:none}
+@media (max-width:767px){.xn-search input,.xn-msearch input{font-size:16px}}
+.xn-msearch{display:none;padding:0 20px 12px}
+.xn-msearch svg{left:30px;top:11px}
+.xn-msearch input{font-size:16px}
+.xn-search-open .xn-msearch{display:flex}
+
+/* actions（图标放大） */
+.xn-actions{display:flex;align-items:center;gap:2px}
+.xn-lang{position:relative;display:inline-flex;align-items:center}
+.xn .xn-lang-btn,.xn-sheet .xn-lang-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:40px;margin:0;padding:0 12px;border:0;border-radius:8px;background:transparent;box-shadow:none;color:var(--xn-muted);font:inherit;font-size:13px;font-weight:500;line-height:1;cursor:pointer;white-space:nowrap;-webkit-appearance:none;appearance:none}
+.xn .xn-lang-btn svg,.xn-sheet .xn-lang-btn svg{width:14px;height:14px;transition:transform .2s}
+.xn .xn-lang-btn:hover,.xn .xn-lang.open .xn-lang-btn,.xn-sheet .xn-lang-btn:hover,.xn-sheet .xn-lang.open .xn-lang-btn{color:var(--xn-fg);background:var(--xn-accent)}
+.xn .xn-lang.open .xn-lang-btn svg,.xn-sheet .xn-lang.open .xn-lang-btn svg{transform:rotate(180deg)}
+.xn .xn-lang-btn:focus-visible,.xn-sheet .xn-lang-btn:focus-visible{outline:2px solid var(--xn-border);outline-offset:2px}
+.xn-lang-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:148px;padding:6px;background:var(--xn-bg);border:1px solid var(--xn-border);border-radius:10px;box-shadow:0 12px 32px -8px rgba(0,0,0,.2);z-index:6}
+.xn-lang-menu a{display:flex;align-items:center;min-height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:var(--xn-fg);text-decoration:none;white-space:nowrap}
+.xn-lang-menu a:hover{background:var(--xn-accent);color:var(--xn-fg)}
+.xn-lang--sheet{position:relative;display:flex;flex-direction:column;align-items:stretch;flex:none;width:auto;max-width:100%;margin:0 10px 8px}
+.xn-sheet .xn-lang--sheet .xn-lang-btn{justify-content:space-between;width:100%;min-height:48px;padding:0 12px;border:0;border-radius:8px;background:transparent;box-shadow:none;color:var(--xn-fg);font-size:15px;font-weight:500}
+.xn-sheet .xn-lang--sheet .xn-lang-current{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.xn-sheet .xn-lang--sheet .xn-lang-current span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.xn-sheet .xn-lang--sheet .xn-lang-btn svg{width:16px;height:16px;margin:0;color:var(--xn-muted);flex:none}
+.xn-sheet .xn-lang--sheet .xn-lang-btn .xn-lang-globe{width:18px;height:18px}
+.xn-sheet .xn-lang.open .xn-lang-btn .xn-lang-globe{transform:none}
+.xn-sheet .xn-lang--sheet .xn-lang-btn:active,.xn-sheet .xn-lang--sheet.open .xn-lang-btn{background:var(--xn-accent)}
+.xn-lang--sheet .xn-lang-menu{position:static;top:auto;right:auto;bottom:auto;left:auto;display:flex;flex-direction:column;width:100%;min-width:0;max-height:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:transparent;box-shadow:none;opacity:0;visibility:hidden;pointer-events:none;transition:max-height .2s ease,opacity .2s ease}
+.xn-lang--sheet.open .xn-lang-menu{max-height:11rem;margin-top:2px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;opacity:1;visibility:visible;pointer-events:auto}
+.xn-lang--sheet .xn-lang-menu a{min-height:44px;max-width:100%;padding:0 12px 0 38px;border-radius:8px;font-size:15px;font-weight:500;overflow:hidden;text-overflow:ellipsis}
+.xn-lang--sheet .xn-lang-menu a:active{background:var(--xn-accent)}
+.xn-icon{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--xn-fg);cursor:pointer;text-decoration:none;transition:background .15s}
+.xn .xn-icon svg,.xn-sheet .xn-icon svg{width:22px;height:22px}
+.xn-icon:hover{background:var(--xn-accent);color:var(--xn-fg)}
+.xn-account{overflow:visible;transform-origin:center;transition:transform .12s ease,opacity .12s ease;-webkit-tap-highlight-color:transparent}
+a.xn-icon.xn-account,
+a.xn-icon.xn-account:hover,
+a.xn-icon.xn-account:focus,
+a.xn-icon.xn-account:active,
+a.xn-icon.xn-account:focus-visible,
+a.xn-icon.xn-account.is-pressed{background:transparent!important;background-color:transparent!important;box-shadow:none!important}
+a.xn-icon.xn-account:active,
+a.xn-icon.xn-account.is-pressed{transform:scale(.95);opacity:.72}
+a.xn-icon.xn-account:active .xn-avatar,
+a.xn-icon.xn-account.is-pressed .xn-avatar{box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.xn-account:focus-visible{outline:none}
+.xn-account:focus-visible .xn-avatar,
+.xn-account:focus-visible svg{outline:2px solid var(--xn-border);outline-offset:2px}
+.xn-avatar{display:block;width:32px;height:32px;border-radius:50%;object-fit:cover;object-position:center;background:#f7f7f8;flex:none}
+.xn-text{display:inline-flex;align-items:center;padding:6px 10px;border-radius:6px;font-size:14px;font-weight:500;color:var(--xn-muted);text-decoration:none;white-space:nowrap;transition:color .15s,background .15s}
+.xn-text:hover{color:var(--xn-fg);background:var(--xn-accent)}
+.xn-btn{display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 14px;border-radius:6px;font-size:14px;font-weight:500;text-decoration:none;border:1px solid transparent;transition:background .15s,opacity .15s}
+.xn-btn-ghost{color:var(--xn-fg)}
+.xn-btn-ghost:hover{background:var(--xn-accent);color:var(--xn-fg)}
+.xn-btn-primary{background:var(--xn-pri);color:var(--xn-pri-fg)}
+.xn-btn-primary:hover{opacity:.9;color:var(--xn-pri-fg)}
+.xn-sun{display:none}
+[data-bs-theme=dark] .xn-sun,[data-theme=dark] .xn-sun{display:block}
+[data-bs-theme=dark] .xn-moon,[data-theme=dark] .xn-moon{display:none}
+
+.xn-only-m{display:none}
+
+/* 桌面：搜索框居中，与栏目保持距离 */
+@media (min-width:992px){
+  .xn-search{flex:1 1 auto;min-width:160px;max-width:360px;margin:0 auto}
+  .xn-bar{padding-right:20px}
+  .xn-actions .xn-theme{order:8}
+  .xn-actions .xn-lang{order:9;margin-left:2px}
+  .xn-sheet,.xn-overlay{display:none}
+}
+@media (min-width:1400px){
+  .xn-bar{display:grid;grid-template-columns:1fr clamp(260px,24vw,360px) 1fr;column-gap:48px;padding-right:24px}
+  .xn-search{max-width:none;margin:0}
+  .xn-actions{justify-self:end}
+}
+
+/* 手机 */
+@media (max-width:991.98px){
+  .xn-links,.xn-search,.xn-only-d,.xn-actions .xn-lang{display:none}
+  .xn-only-m{display:inline-flex}
+  .xn-actions{margin-left:auto}
+  .xn-bar{gap:4px;padding:0 8px 0 16px}
+}
+
+/* 左侧抽屉（更窄） */
+.xn-overlay{position:fixed;inset:0;z-index:1040;background:rgba(0,0,0,.45);opacity:0;visibility:hidden;transition:opacity .25s,visibility 0s .25s}
+.xn-sheet{position:fixed;top:0;left:0;right:auto;bottom:0;z-index:1050;display:flex;flex-direction:column;width:min(62vw,240px);background:var(--xn-bg);color:var(--xn-fg);border-right:1px solid var(--xn-border);box-shadow:8px 0 30px rgba(0,0,0,.1);transform:translate3d(-100%,0,0);visibility:hidden;transition:transform .3s cubic-bezier(.32,.72,0,1),visibility 0s .3s}
+html.xn-open{overflow:hidden}
+html.xn-open .xn-overlay{opacity:1;visibility:visible;transition-delay:0s}
+html.xn-open .xn-sheet{transform:none;visibility:visible;transition-delay:0s}
+.xn-sheet-head{display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 6px 0 18px;border-bottom:1px solid var(--xn-border);flex:none}
+.xn-sheet-nav{flex:1;min-height:0;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch}
+.xn-row{display:flex;align-items:center}
+.xn-row>a{flex:1}
+.xn-m-link,.xn-m-sub{display:block;padding:11px 12px;border-radius:6px;font-size:15px;font-weight:500;color:var(--xn-fg);text-decoration:none}
+.xn-m-link:active,.xn-m-sub:active,.xn-m-link:hover,.xn-m-sub:hover{background:var(--xn-accent);color:var(--xn-fg)}
+.xn-m-link[aria-current]{background:var(--xn-accent)}
+.xn-m-sub{font-size:14px;font-weight:400;color:var(--xn-muted)}
+.xn-m-sub[aria-current]{color:var(--xn-fg);font-weight:500}
+.xn-m-sub2{padding-left:14px}
+.xn-chev{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border:0;border-radius:6px;background:transparent;color:var(--xn-muted);cursor:pointer}
+.xn-chev svg{transition:transform .2s}
+.xn-acc.open>.xn-row>.xn-chev svg{transform:rotate(180deg)}
+.xn-panel{display:grid;grid-template-rows:0fr;transition:grid-template-rows .25s ease}
+.xn-panel>div{overflow:hidden;visibility:hidden;min-height:0;margin-left:12px;padding-left:8px;border-left:1px solid var(--xn-border);transition:visibility 0s .25s}
+.xn-acc.open>.xn-panel{grid-template-rows:1fr}
+.xn-acc.open>.xn-panel>div{visibility:visible;transition-delay:0s}
+.xn-sheet-foot{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:12px 12px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--xn-border);flex:none}
+.xn-sheet-actions{display:flex;gap:8px}
+.xn-sheet-actions .xn-btn{flex:1;padding:0 8px;border-color:var(--xn-border)}
+.xn-sheet-actions .xn-btn-primary{border-color:transparent}
+
+/* 首页卡片标题：最多两行，内边距改外边距，避免第三行从 padding 里露出来 */
+.xedc-card__title:not([style]){display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:0;margin:10px 12px;line-height:1.4}
+
+body[class*="toolbar"] header.xn{z-index:200;top:var(--drupal-displace-offset-top,0px)}
+
+.xedc-footer{margin:0;padding:12px 20px;border-top:0;background:transparent;color:#6b7280;font-size:.875rem;line-height:1.5;text-align:center}.xedc-footer a{color:#6b7280;text-decoration:none}.xedc-footer a:hover{color:#111827;text-decoration:underline;text-underline-offset:.22em}
+/* Status pages. Scoped to html.xs-doc so normal pages stay unchanged. */
+
+html.xs-doc,
+.xs {
+  --xs-bg: #fff;
+  --xs-fg: #09090b;
+  --xs-muted: #52525b;
+  --xs-faint: #71717a;
+  --xs-border: #e4e4e7;
+  --xs-pri: #18181b;
+  --xs-pri-fg: #fafafa;
+  --xs-soft: rgba(9, 9, 11, .06);
+  color-scheme: light;
+  background: var(--xs-bg);
+  color: var(--xs-fg);
+}
+
+html.xs-doc[data-bs-theme="dark"],
+html.xs-doc[data-theme="dark"],
+html[data-bs-theme="dark"] .xs,
+html[data-theme="dark"] .xs {
+  --xs-bg: #09090b;
+  --xs-fg: #fafafa;
+  --xs-muted: #a1a1aa;
+  --xs-faint: #a1a1aa;
+  --xs-border: #3f3f46;
+  --xs-pri: #fafafa;
+  --xs-pri-fg: #18181b;
+  --xs-soft: rgba(250, 250, 250, .08);
+  color-scheme: dark;
+}
+
+html:has(.xs) {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: #fff;
+}
+
+html.xs-doc body,
+body:has(.xs) {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  background: #fff;
+  color: var(--xs-fg, #09090b);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+body:has(.xs) .dialog-off-canvas-main-canvas,
+body:has(.xs) .page {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body:has(.xs) .xn,
+body:has(.xs) .xedc-footer {
+  flex: none;
+}
+
+body:has(.xs) .xedc-footer {
+  margin: 0;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  border-top: 0;
+  background: transparent;
+}
+
+body:has(.xs) .xedc-footer a {
+  white-space: nowrap;
+}
+
+html[data-bs-theme="dark"]:has(.xs),
+html[data-theme="dark"]:has(.xs),
+html[data-bs-theme="dark"] body:has(.xs),
+html[data-theme="dark"] body:has(.xs),
+html.xs-doc[data-bs-theme="dark"] body,
+html.xs-doc[data-theme="dark"] body {
+  background: #09090b;
+  color: #fafafa;
+}
+
+.xs {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 32px 12px;
+  overflow: hidden;
+  background: transparent;
+  color: var(--xs-fg);
+}
+
+.xs *,
+.xs *::before,
+.xs *::after {
+  box-sizing: border-box;
+}
+
+.xs-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(18px + env(safe-area-inset-top)) 24px 0;
+}
+
+.xs-logo {
+  display: inline-flex;
+  align-items: baseline;
+  color: var(--xs-fg);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.xs-logo i {
+  width: .28em;
+  height: .28em;
+  margin-left: .08em;
+  border-radius: 50%;
+  background: #f472b6;
+  transform: translateY(-.04em);
+}
+
+.xs-theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--xs-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--xs-fg);
+  cursor: pointer;
+}
+
+.xs-theme svg {
+  width: 18px;
+  height: 18px;
+}
+
+.xs-theme .xs-sun { display: none; }
+html[data-bs-theme="dark"] .xs-theme .xs-moon,
+html[data-theme="dark"] .xs-theme .xs-moon { display: none; }
+html[data-bs-theme="dark"] .xs-theme .xs-sun,
+html[data-theme="dark"] .xs-theme .xs-sun { display: block; }
+
+.xs svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.xs-group {
+  position: static;
+  z-index: auto;
+  width: min(100%, 46rem);
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: xs-in .7s ease both;
+}
+
+.xs-stage {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 168px;
+  margin-bottom: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.xs .xs-code {
+  margin: 8px 0 0;
+  font-size: clamp(5.5rem, 16vw, 8.75rem);
+  font-weight: 700;
+  letter-spacing: -.06em;
+  line-height: .86;
+  color: var(--xs-fg);
+}
+
+.xs h1.xs-title {
+  margin: .9rem 0 0;
+  color: var(--xs-fg);
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1.25;
+}
+
+.xs-lead,
+.xs-eta,
+.xs-wait {
+  margin: .55rem 0 0;
+  max-width: 36rem;
+  color: var(--xs-muted);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+}
+
+.xs-eta,
+.xs-wait {
+  color: var(--xs-faint);
+  font-size: .9375rem;
+}
+
+.xs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 1.35rem;
+}
+
+.xs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font: inherit;
+  font-size: .9375rem;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform .18s ease, background-color .18s ease, border-color .18s ease, color .18s ease, opacity .18s ease;
+}
+
+.xs-btn-primary {
+  background: var(--xs-pri);
+  color: var(--xs-pri-fg);
+}
+
+.xs-btn-secondary {
+  background: var(--xs-bg);
+  color: var(--xs-fg);
+  border-color: var(--xs-border);
+}
+
+.xs-btn:hover { transform: translateY(-1px); }
+.xs-btn:active { transform: scale(.98); }
+
+.xs-btn.is-disabled,
+.xs-btn[aria-disabled="true"] {
+  opacity: .45;
+  pointer-events: none;
+  transform: none;
+}
+
+.xs-search {
+  display: flex;
+  gap: 8px;
+  width: min(100%, 26rem);
+  margin-top: 1.15rem;
+}
+
+.xs-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--xs-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--xs-fg);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.xs-search input::placeholder { color: var(--xs-faint); }
+
+.xs-btn:focus-visible,
+.xs-theme:focus-visible,
+.xs-search input:focus-visible,
+.xs-logo:focus-visible {
+  outline: 2px solid var(--xs-fg);
+  outline-offset: 3px;
+}
+
+.xs-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.xs-fallback {
+  max-width: 36rem;
+  margin: 12vh auto;
+  padding: 0 24px 48px;
+  line-height: 1.6;
+}
+
+.xs-fallback a { color: inherit; }
+
+/* Shared geometric motion. Stroke 1.5, radius 6–16, transform and opacity only. */
+
+.xs-fit {
+  position: relative;
+  width: 340px;
+  max-width: 100%;
+  aspect-ratio: 2 / 1;
+}
+
+.xs-fit-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 320px;
+  height: 160px;
+  transform-origin: top left;
+  transform: scale(1.0625);
+  color: var(--xs-fg);
+}
+
+.xs-fit svg {
+  display: block;
+  overflow: visible;
+  stroke-width: 1.5;
+}
+
+.xs-fit .xs-ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-opacity: .42;
+}
+
+.xs-fit .xs-core {
+  fill: currentColor;
+  stroke: none;
+}
+
+.xs-fit .xs-plate {
+  fill: var(--xs-soft);
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.xs-mover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  offset-anchor: center;
+  offset-rotate: 0deg;
+}
+
+.xs-mover::before,
+.xs-mover::after {
+  content: "";
+  position: absolute;
+}
+
+.xs-mover::before {
+  inset: -5.5px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  opacity: .42;
+}
+
+.xs-mover::after {
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* 404: the node takes the wrong branch, then returns. */
+.xs-404-route,
+.xs-404-alt {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-dasharray: 2.2 6;
+}
+
+.xs-404-route { stroke-opacity: .5; }
+
+.xs-404-alt {
+  stroke-opacity: .32;
+  animation: xs-404-alt 9.4s linear infinite;
+}
+
+.xs-404-mover {
+  offset-path: path("M32 96 C74 96, 92 52, 138 50 C176 48, 186 72, 196 78 C226 90, 250 122, 294 120");
+  offset-distance: 100%;
+  animation: xs-404-run 9.4s linear infinite;
+}
+
+.xs-404-mover::before { animation: xs-404-halo 9.4s linear infinite; }
+
+.xs-pin {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.xs-pin-start { animation: xs-pin-start 9.4s linear infinite; }
+.xs-pin-fork { animation: xs-pin-fork 9.4s linear infinite; }
+.xs-pin-end { animation: xs-pin-end 9.4s linear infinite; }
+.xs-pin-alt { animation: xs-pin-alt 9.4s linear infinite; }
+
+@keyframes xs-404-run {
+  0% { offset-distance: 0%; animation-timing-function: cubic-bezier(.45, .05, .25, 1); }
+  30% { offset-distance: 58%; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  42% { offset-distance: 63%; animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+  50% { offset-distance: 56%; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  66% { offset-distance: 100%; animation-timing-function: cubic-bezier(.33, 0, .2, 1); }
+  73% { offset-distance: 92%; animation-timing-function: cubic-bezier(.22, 1.25, .36, 1); }
+  81% { offset-distance: 100%; }
+  100% { offset-distance: 0%; }
+}
+
+@keyframes xs-404-alt {
+  0%, 28% { opacity: 0; }
+  40%, 52% { opacity: 1; }
+  64%, 100% { opacity: 0; }
+}
+
+@keyframes xs-404-halo {
+  0%, 34% { transform: scale(1); opacity: .42; }
+  43% { transform: scale(1.5); opacity: 0; }
+  50% { transform: scale(1); opacity: .42; }
+  64% { transform: scale(1); opacity: .42; }
+  73% { transform: scale(1.6); opacity: 0; }
+  84%, 100% { transform: scale(1); opacity: .42; }
+}
+
+@keyframes xs-pin-start {
+  0%, 4% { transform: scale(1); }
+  10% { transform: scale(1.16); }
+  18%, 86% { transform: scale(1); }
+  93% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes xs-pin-fork {
+  0%, 28% { transform: scale(1); }
+  38% { transform: scale(1.18); }
+  48% { transform: scale(1); }
+  54% { transform: scale(1.08); }
+  62%, 100% { transform: scale(1); }
+}
+
+@keyframes xs-pin-end {
+  0%, 62% { transform: scale(1); }
+  70% { transform: scale(1.18); }
+  78% { transform: scale(.97); }
+  86%, 100% { transform: scale(1); }
+}
+
+@keyframes xs-pin-alt {
+  0%, 30% { transform: scale(1); opacity: .4; }
+  42% { transform: scale(1.14); opacity: .85; }
+  56%, 100% { transform: scale(1); opacity: .4; }
+}
+
+/* 403: the node is turned away, then the entrance locks. */
+.xs-403 svg {
+  perspective: 720px;
+}
+
+.xs-403-track {
+  fill: none;
+  stroke: currentColor;
+  stroke-opacity: .35;
+  stroke-dasharray: 2.2 6;
+}
+
+.xs-fit .xs-403-frame {
+  fill: var(--xs-soft);
+  stroke: currentColor;
+}
+
+.xs-fit .xs-403-door rect {
+  fill: var(--xs-bg);
+  stroke: currentColor;
+}
+
+.xs-403-knob {
+  fill: none;
+  stroke: currentColor;
+}
+
+.xs-403-door {
+  transform-box: view-box;
+  transform-origin: 132px 84px;
+  animation: xs-door 9s linear infinite;
+}
+
+.xs-403-lock {
+  opacity: 1;
+  animation: xs-lock 9s linear infinite;
+}
+
+.xs-403-shackle {
+  fill: none;
+  stroke: currentColor;
+  stroke-dasharray: 64;
+  stroke-dashoffset: 0;
+  animation: xs-shackle 9s linear infinite;
+}
+
+.xs-fit .xs-403-body {
+  fill: var(--xs-bg);
+  stroke: currentColor;
+}
+
+.xs-fit .xs-403-key {
+  fill: currentColor;
+  stroke: none;
+  opacity: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: xs-key 9s linear infinite;
+}
+
+.xs-403-node {
+  offset-path: path("M28 108 H116");
+  offset-distance: 100%;
+  animation: xs-403-node 9s linear infinite;
+}
+
+@keyframes xs-403-node {
+  0% { offset-distance: 0%; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  18% { offset-distance: 100%; }
+  34% { offset-distance: 100%; animation-timing-function: cubic-bezier(.4, 0, .2, 1); }
+  46% { offset-distance: 76%; }
+  82% { offset-distance: 76%; animation-timing-function: cubic-bezier(.45, .05, .25, 1); }
+  100% { offset-distance: 0%; }
+}
+
+@keyframes xs-door {
+  0%, 16% { transform: perspective(360px) rotateY(0deg); animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  30% { transform: perspective(360px) rotateY(-48deg); }
+  42% { transform: perspective(360px) rotateY(-48deg); animation-timing-function: cubic-bezier(.55, .08, .25, 1); }
+  56%, 100% { transform: perspective(360px) rotateY(0deg); }
+}
+
+@keyframes xs-lock {
+  0%, 52% { opacity: 0; }
+  64%, 84% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes xs-shackle {
+  0%, 54% { stroke-dashoffset: 64; }
+  70%, 84% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 64; }
+}
+
+@keyframes xs-key {
+  0%, 66% { transform: scale(.45); opacity: 0; }
+  74% { transform: scale(1.2); opacity: 1; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  82%, 86% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(.55); opacity: 0; }
+}
+
+/* 500: modules slip, fall, then spring back onto the ghost. */
+.xs-500-ghost {
+  fill: none;
+  stroke: currentColor;
+  stroke-opacity: .2;
+  stroke-width: 1.5;
+}
+
+.xs-500-a,
+.xs-500-b,
+.xs-500-c,
+.xs-500-d,
+.xs-500-e {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.xs-500-a { animation: xs-500-a 9s linear infinite; }
+.xs-500-b { animation: xs-500-b 9s linear infinite; }
+.xs-500-c { animation: xs-500-c 9s linear infinite; }
+.xs-500-d { animation: xs-500-d 9s linear infinite; }
+.xs-500-e { animation: xs-500-e 9s linear infinite; }
+
+@keyframes xs-500-a {
+  0%, 12% { transform: none; }
+  24% { transform: translate(-16px, -12px) rotate(-7deg); animation-timing-function: cubic-bezier(.2, .8, .25, 1); }
+  38% { transform: translate(-7px, 16px) rotate(-3deg); animation-timing-function: cubic-bezier(.3, 1.2, .35, 1); }
+  46% { transform: translate(-9px, 9px) rotate(-4deg); }
+  54% { transform: translate(-6px, 14px) rotate(-2deg); animation-timing-function: cubic-bezier(.22, 1.2, .36, 1); }
+  68% { transform: translate(0, -3px) rotate(1deg); }
+  76%, 100% { transform: none; }
+}
+
+@keyframes xs-500-b {
+  0%, 16% { transform: none; }
+  28% { transform: translate(16px, -12px) rotate(7deg); animation-timing-function: cubic-bezier(.2, .8, .25, 1); }
+  42% { transform: translate(7px, 15px) rotate(3deg); animation-timing-function: cubic-bezier(.3, 1.2, .35, 1); }
+  50% { transform: translate(9px, 8px) rotate(4deg); }
+  58% { transform: translate(6px, 13px) rotate(2deg); animation-timing-function: cubic-bezier(.22, 1.2, .36, 1); }
+  72% { transform: translate(0, -3px) rotate(-1deg); }
+  80%, 100% { transform: none; }
+}
+
+@keyframes xs-500-c {
+  0%, 18% { transform: none; }
+  30% { transform: translate(-14px, 4px) rotate(-6deg); animation-timing-function: cubic-bezier(.2, .8, .25, 1); }
+  44% { transform: translate(-5px, 18px) rotate(-2deg); animation-timing-function: cubic-bezier(.3, 1.2, .35, 1); }
+  52% { transform: translate(-7px, 11px) rotate(-3deg); }
+  60% { transform: translate(-4px, 16px) rotate(-1deg); animation-timing-function: cubic-bezier(.22, 1.2, .36, 1); }
+  74% { transform: translate(0, -2px); }
+  82%, 100% { transform: none; }
+}
+
+@keyframes xs-500-d {
+  0%, 14% { transform: none; }
+  26% { transform: translate(6px, -10px) rotate(4deg); animation-timing-function: cubic-bezier(.2, .8, .25, 1); }
+  40% { transform: translate(3px, 14px) rotate(1deg); animation-timing-function: cubic-bezier(.3, 1.2, .35, 1); }
+  48% { transform: translate(4px, 7px); }
+  56% { transform: translate(2px, 12px); animation-timing-function: cubic-bezier(.22, 1.2, .36, 1); }
+  70% { transform: translate(0, -2px); }
+  78%, 100% { transform: none; }
+}
+
+@keyframes xs-500-e {
+  0%, 20% { transform: none; }
+  32% { transform: translate(12px, 6px) rotate(5deg); animation-timing-function: cubic-bezier(.2, .8, .25, 1); }
+  46% { transform: translate(5px, 16px) rotate(2deg); animation-timing-function: cubic-bezier(.3, 1.2, .35, 1); }
+  54% { transform: translate(7px, 9px) rotate(3deg); }
+  62% { transform: translate(4px, 14px) rotate(1deg); animation-timing-function: cubic-bezier(.22, 1.2, .36, 1); }
+  76% { transform: translate(0, -2px); }
+  84%, 100% { transform: none; }
+}
+
+/* 502: the link draws, breaks, and fails a second attempt. */
+.xs-502-arm {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-dasharray: 2.2 5;
+  transform-box: view-box;
+  transform: scaleX(.58);
+}
+
+.xs-502-arm-l {
+  transform-origin: 78px 80px;
+  animation: xs-arm 9.2s linear infinite;
+}
+
+.xs-502-arm-r {
+  transform-origin: 242px 80px;
+  animation: xs-arm 9.2s linear infinite;
+  animation-delay: -.12s;
+}
+
+.xs-502-pulse,
+.xs-502-pulse-b {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: xs-502-pulse 9.2s linear infinite;
+}
+
+.xs-502-pulse-b { animation-delay: .08s; }
+
+.xs-502-sig {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: currentColor;
+  offset-path: path("M78 80 H242");
+  offset-anchor: center;
+  offset-rotate: 0deg;
+  opacity: 0;
+  animation: xs-502-sig 9.2s linear infinite;
+}
+
+@keyframes xs-arm {
+  0%, 5% { transform: scaleX(0); opacity: 0; }
+  9% { opacity: .75; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  22%, 36% { transform: scaleX(1); opacity: .82; }
+  46%, 60% { transform: scaleX(.58); opacity: .9; }
+  70% { transform: scaleX(0); opacity: 0; }
+  78% { opacity: .7; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  86% { transform: scaleX(.66); opacity: .75; }
+  94%, 100% { transform: scaleX(0); opacity: 0; }
+}
+
+@keyframes xs-502-sig {
+  0%, 20% { offset-distance: 0%; opacity: 0; }
+  26% { opacity: 1; animation-timing-function: linear; }
+  38% { offset-distance: 46%; opacity: 1; }
+  45% { offset-distance: 50%; opacity: 0; }
+  76% { offset-distance: 0%; opacity: 0; }
+  82% { opacity: 1; }
+  90% { offset-distance: 30%; opacity: 1; }
+  96%, 100% { offset-distance: 30%; opacity: 0; }
+}
+
+@keyframes xs-502-pulse {
+  0%, 40% { transform: scale(1); }
+  47% { transform: scale(.94); }
+  55% { transform: scale(1.06); }
+  66%, 82% { transform: scale(1); }
+  89% { transform: scale(1.04); }
+  96%, 100% { transform: scale(1); }
+}
+
+/* 503: parts arrive in order, settle, then breathe. */
+.xs-503-guide {
+  fill: none;
+  stroke: currentColor;
+  stroke-opacity: .24;
+  stroke-dasharray: 2.4 5.5;
+}
+
+.xs-503-set {
+  transform-box: view-box;
+  transform-origin: 160px 80px;
+  animation: xs-503-breathe 9.6s linear infinite;
+}
+
+.xs-503-a,
+.xs-503-b,
+.xs-503-c,
+.xs-503-d,
+.xs-503-core {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.xs-503-a { animation: xs-503-a 9.6s linear infinite; }
+.xs-503-b { animation: xs-503-b 9.6s linear infinite; }
+.xs-503-c { animation: xs-503-c 9.6s linear infinite; }
+.xs-503-d { animation: xs-503-d 9.6s linear infinite; }
+
+.xs-fit .xs-503-core {
+  fill: currentColor;
+  stroke: none;
+  animation: xs-503-core 9.6s linear infinite;
+}
+
+@keyframes xs-503-breathe {
+  0%, 48% { transform: scale(1); }
+  58% { transform: scale(1.028); }
+  70%, 100% { transform: scale(1); }
+}
+
+@keyframes xs-503-a {
+  0%, 6% { transform: translateY(-22px); opacity: 0; }
+  14% { opacity: 1; animation-timing-function: cubic-bezier(.22, 1.2, .36, 1); }
+  26% { transform: translateY(2px); opacity: 1; }
+  34%, 76% { transform: none; opacity: 1; }
+  88% { transform: translateY(-8px); opacity: .25; }
+  100% { transform: translateY(-22px); opacity: 0; }
+}
+
+@keyframes xs-503-b {
+  0%, 12% { transform: translateX(22px); opacity: 0; }
+  20% { opacity: 1; animation-timing-function: cubic-bezier(.22, 1.2, .36, 1); }
+  32% { transform: translateX(-2px); opacity: 1; }
+  40%, 76% { transform: none; opacity: 1; }
+  90% { transform: translateX(8px); opacity: .25; }
+  100% { transform: translateX(22px); opacity: 0; }
+}
+
+@keyframes xs-503-c {
+  0%, 18% { transform: translateY(22px); opacity: 0; }
+  26% { opacity: 1; animation-timing-function: cubic-bezier(.22, 1.2, .36, 1); }
+  38% { transform: translateY(-2px); opacity: 1; }
+  46%, 76% { transform: none; opacity: 1; }
+  90% { transform: translateY(8px); opacity: .25; }
+  100% { transform: translateY(22px); opacity: 0; }
+}
+
+@keyframes xs-503-d {
+  0%, 24% { transform: translateX(-22px); opacity: 0; }
+  32% { opacity: 1; animation-timing-function: cubic-bezier(.22, 1.2, .36, 1); }
+  44% { transform: translateX(2px); opacity: 1; }
+  52%, 76% { transform: none; opacity: 1; }
+  90% { transform: translateX(-8px); opacity: .25; }
+  100% { transform: translateX(-22px); opacity: 0; }
+}
+
+@keyframes xs-503-core {
+  0%, 32% { transform: scale(.35); opacity: 0; }
+  44% { transform: scale(1.18); opacity: 1; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  52%, 76% { transform: scale(1); opacity: 1; }
+  90% { transform: scale(.7); opacity: .2; }
+  100% { transform: scale(.35); opacity: 0; }
+}
+
+/* 429: nodes travel a rail and wait at a gate. */
+.xs-429-rail {
+  fill: none;
+  stroke: currentColor;
+  stroke-opacity: .3;
+  stroke-dasharray: 1.5 7;
+}
+
+.xs-fit .xs-429-gate {
+  fill: var(--xs-soft);
+  stroke: currentColor;
+  stroke-opacity: .5;
+}
+
+.xs-429-n {
+  offset-path: path("M28 88 H290");
+  animation-duration: 8.8s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.xs-429-n::before { animation: xs-beat 2.8s ease-in-out infinite; }
+
+.xs-429-n:nth-of-type(1) { width: 6.5px; height: 6.5px; offset-distance: 80.2%; animation-name: xs-q1; }
+.xs-429-n:nth-of-type(2) { width: 5px; height: 5px; offset-distance: 67.9%; animation-name: xs-q2; animation-delay: -1.8s; }
+.xs-429-n:nth-of-type(2)::before { animation-delay: .25s; }
+.xs-429-n:nth-of-type(3) { width: 6px; height: 6px; offset-distance: 55.7%; animation-name: xs-q3; animation-delay: -3.6s; }
+.xs-429-n:nth-of-type(3)::before { animation-delay: .45s; }
+.xs-429-n:nth-of-type(4) { width: 4.5px; height: 4.5px; offset-distance: 43.5%; animation-name: xs-q4; animation-delay: -5.4s; }
+.xs-429-n:nth-of-type(4)::before { animation-delay: .15s; }
+.xs-429-n:nth-of-type(5) { width: 5.5px; height: 5.5px; offset-distance: 31.3%; animation-name: xs-q5; animation-delay: -7.2s; }
+.xs-429-n:nth-of-type(5)::before { animation-delay: .6s; }
+
+.xs-429.is-holding .xs-429-n {
+  animation-duration: 1.15s;
+  animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+  animation-delay: 0s;
+}
+
+.xs-429.is-holding .xs-429-n:nth-of-type(1) { animation-name: xs-form1; }
+.xs-429.is-holding .xs-429-n:nth-of-type(2) { animation-name: xs-form2; animation-delay: .08s; }
+.xs-429.is-holding .xs-429-n:nth-of-type(3) { animation-name: xs-form3; animation-delay: .16s; }
+.xs-429.is-holding .xs-429-n:nth-of-type(4) { animation-name: xs-form4; animation-delay: .24s; }
+.xs-429.is-holding .xs-429-n:nth-of-type(5) { animation-name: xs-form5; animation-delay: .32s; }
+.xs-429.is-holding .xs-429-n::before { animation-duration: 1s; }
+.xs-429.is-holding .xs-429-gate { animation: xs-gate 1s ease-in-out infinite; }
+
+.xs-429.is-ready .xs-429-n {
+  animation-duration: 1.45s;
+  animation-timing-function: cubic-bezier(.4, 0, .2, 1);
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+
+.xs-429.is-ready .xs-429-n:nth-of-type(1) { animation-name: xs-go1; animation-delay: 0s; }
+.xs-429.is-ready .xs-429-n:nth-of-type(2) { animation-name: xs-go2; animation-delay: .14s; }
+.xs-429.is-ready .xs-429-n:nth-of-type(3) { animation-name: xs-go3; animation-delay: .28s; }
+.xs-429.is-ready .xs-429-n:nth-of-type(4) { animation-name: xs-go4; animation-delay: .42s; }
+.xs-429.is-ready .xs-429-n:nth-of-type(5) { animation-name: xs-go5; animation-delay: .56s; }
+
+@keyframes xs-beat {
+  0%, 100% { transform: scale(1); opacity: .38; }
+  50% { transform: scale(1.16); opacity: .7; }
+}
+
+@keyframes xs-gate {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
+}
+
+@keyframes xs-q1 {
+  0% { offset-distance: 0%; opacity: 0; }
+  12% { opacity: 1; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  40%, 68% { offset-distance: 80.2%; opacity: 1; }
+  86% { offset-distance: 98%; opacity: 0; }
+  100% { offset-distance: 0%; opacity: 0; }
+}
+
+@keyframes xs-q2 {
+  0% { offset-distance: 0%; opacity: 0; }
+  12% { opacity: 1; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  40%, 68% { offset-distance: 67.9%; opacity: 1; }
+  86% { offset-distance: 98%; opacity: 0; }
+  100% { offset-distance: 0%; opacity: 0; }
+}
+
+@keyframes xs-q3 {
+  0% { offset-distance: 0%; opacity: 0; }
+  12% { opacity: 1; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  40%, 68% { offset-distance: 55.7%; opacity: 1; }
+  86% { offset-distance: 98%; opacity: 0; }
+  100% { offset-distance: 0%; opacity: 0; }
+}
+
+@keyframes xs-q4 {
+  0% { offset-distance: 0%; opacity: 0; }
+  12% { opacity: 1; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  40%, 68% { offset-distance: 43.5%; opacity: 1; }
+  86% { offset-distance: 98%; opacity: 0; }
+  100% { offset-distance: 0%; opacity: 0; }
+}
+
+@keyframes xs-q5 {
+  0% { offset-distance: 0%; opacity: 0; }
+  12% { opacity: 1; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  40%, 68% { offset-distance: 31.3%; opacity: 1; }
+  86% { offset-distance: 98%; opacity: 0; }
+  100% { offset-distance: 0%; opacity: 0; }
+}
+
+@keyframes xs-form1 { 0% { offset-distance: 0%; opacity: 0; } 22% { opacity: 1; } 100% { offset-distance: 80.2%; opacity: 1; } }
+@keyframes xs-form2 { 0% { offset-distance: 0%; opacity: 0; } 22% { opacity: 1; } 100% { offset-distance: 67.9%; opacity: 1; } }
+@keyframes xs-form3 { 0% { offset-distance: 0%; opacity: 0; } 22% { opacity: 1; } 100% { offset-distance: 55.7%; opacity: 1; } }
+@keyframes xs-form4 { 0% { offset-distance: 0%; opacity: 0; } 22% { opacity: 1; } 100% { offset-distance: 43.5%; opacity: 1; } }
+@keyframes xs-form5 { 0% { offset-distance: 0%; opacity: 0; } 22% { opacity: 1; } 100% { offset-distance: 31.3%; opacity: 1; } }
+
+@keyframes xs-go1 { 0% { offset-distance: 80.2%; opacity: 1; } 100% { offset-distance: 98%; opacity: 0; } }
+@keyframes xs-go2 { 0% { offset-distance: 67.9%; opacity: 1; } 42% { offset-distance: 80%; opacity: 1; } 100% { offset-distance: 98%; opacity: 0; } }
+@keyframes xs-go3 { 0% { offset-distance: 55.7%; opacity: 1; } 42% { offset-distance: 70%; opacity: 1; } 100% { offset-distance: 98%; opacity: 0; } }
+@keyframes xs-go4 { 0% { offset-distance: 43.5%; opacity: 1; } 42% { offset-distance: 60%; opacity: 1; } 100% { offset-distance: 98%; opacity: 0; } }
+@keyframes xs-go5 { 0% { offset-distance: 31.3%; opacity: 1; } 42% { offset-distance: 50%; opacity: 1; } 100% { offset-distance: 98%; opacity: 0; } }
+
+html.xs-paused .xs-anim,
+html.xs-paused .xs-anim *,
+html.xs-paused .xs-anim::before,
+html.xs-paused .xs-anim::after,
+html.xs-paused .xs-anim *::before,
+html.xs-paused .xs-anim *::after {
+  animation-play-state: paused !important;
+}
+
+@media (min-width: 992px) {
+  .xs-stage { min-height: 200px; }
+}
+
+@media (max-width: 991.98px) {
+  .xs { padding: 4px 20px 8px; }
+  .xs-stage { min-height: 148px; }
+  .xs .xs-code { font-size: clamp(5.25rem, 26vw, 6.75rem); }
+  .xs h1.xs-title { margin-top: .55rem; font-size: 1.5rem; }
+  .xs-lead,
+  .xs-eta,
+  .xs-wait { margin-top: .4rem; font-size: 1rem; line-height: 1.45; }
+  .xs-actions { margin-top: .9rem; gap: 8px; }
+  .xs-btn { min-height: 44px; padding: 0 14px; }
+  body:has(.xs) .xedc-footer { padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+  .xs-fit { width: 270px; }
+  .xs-fit-inner { transform: scale(.84375); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xs-group,
+  .xs-anim,
+  .xs-anim *,
+  .xs-anim::before,
+  .xs-anim::after,
+  .xs-anim *::before,
+  .xs-anim *::after { animation: none !important; }
+}
+
+@supports not (offset-path: path("M 0 0")) {
+  .xs-404-mover { transform: translate(291px, 117px); }
+  .xs-403-node { transform: translate(113px, 105px); }
+  .xs-502-sig { opacity: 0; }
+  .xs-429-n:nth-of-type(1) { transform: translate(235px, 85px); }
+  .xs-429-n:nth-of-type(2) { transform: translate(203px, 85px); }
+  .xs-429-n:nth-of-type(3) { transform: translate(171px, 85px); }
+  .xs-429-n:nth-of-type(4) { transform: translate(139px, 86px); }
+  .xs-429-n:nth-of-type(5) { transform: translate(107px, 86px); }
+}
+
+</style>
+</head>
+<body>
+<header class="xn" data-xn>
+  <div class="xn-bar">
+    <div class="xn-left">
+      <a class="xn-logo" href="/" aria-label="DcLili">dclili<i class="xn-dot"></i></a>
+      <nav class="xn-links" aria-label="主导航">
+                              <a class="xn-link" href="/">首页</a>
+                                        <div class="xn-dd">
+              <a class="xn-link" href="/meitu">美图</a>
+              <button type="button" class="xn-dd-btn" aria-expanded="false" aria-label="展开 美图 分类"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+              <div class="xn-dd-panel"><div class="xn-dd-card">
+                <div class="xn-dd-grid" style="--cols: 4">
+                                      <div class="xn-dd-col">
+                      <a class="xn-dd-h" href="/cosplay">cosplay</a>
+                      <a class="xn-dd-i" href="/cosplay/cos">cos</a>                    </div>
+                                      <div class="xn-dd-col">
+                      <a class="xn-dd-h" href="/xiuren">秀人网</a>
+                                          </div>
+                                      <div class="xn-dd-col">
+                      <a class="xn-dd-h" href="/moji">墨迹</a>
+                                          </div>
+                                      <div class="xn-dd-col">
+                      <a class="xn-dd-h" href="/meinv">美女</a>
+                                          </div>
+                                      <div class="xn-dd-col">
+                      <a class="xn-dd-h" href="/diguo">帝国</a>
+                                          </div>
+                                      <div class="xn-dd-col">
+                      <a class="xn-dd-h" href="/shouji">手机</a>
+                                          </div>
+                                      <div class="xn-dd-col">
+                      <a class="xn-dd-h" href="/bizhi">壁纸</a>
+                                          </div>
+                                      <div class="xn-dd-col">
+                      <a class="xn-dd-h" href="/taxonomy/term/53">cospaly</a>
+                                          </div>
+                                      <div class="xn-dd-col">
+                      <a class="xn-dd-h" href="/disan">第三世界</a>
+                                          </div>
+                                  </div>
+                <a class="xn-dd-all" href="/meitu">查看全部 美图 →</a>
+              </div></div>
+            </div>
+                                        <a class="xn-link" href="/meitu2">美图2</a>
+                                        <a class="xn-link" href="/video">视频</a>
+                                        <a class="xn-link" href="/articles">文章</a>
+                                        <a class="xn-link" href="/models">模特</a>
+                        </nav>
+    </div>
+
+    <form class="xn-search" action="/search" method="get" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" name="q" placeholder="搜索美图、视频、文章…" autocomplete="off">
+    </form>
+
+    <div class="xn-actions">
+      <button type="button" class="xn-icon xn-only-m" data-xn-search aria-label="搜索"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+      <button type="button" class="xn-icon xn-theme" data-xn-theme aria-label="切换主题">
+        <svg class="xn-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        <svg class="xn-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-2.93 1.41-1.41m11.32-11.32 1.41-1.41M2 12h2m16 0h2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41"/></svg>
+      </button>
+              <nav class="xn-lang xn-only-d" aria-label="语言">
+          <button type="button" class="xn-lang-btn" aria-expanded="false" aria-haspopup="true" aria-controls="xn-lang-menu">
+            <span>中文</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="xn-lang-menu" id="xn-lang-menu" hidden>
+                          <a href="/en" hreflang="en">English</a>
+                          <a href="/ru" hreflang="ru">Русский</a>
+                          <a href="/ja" hreflang="ja">日本語</a>
+                      </div>
+        </nav>
+                    <a class="xn-icon xn-only-m" href="/user/login" aria-label="登录"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></a>
+        <a class="xn-text xn-only-d" href="/user/login">登录</a>
+        <a class="xn-text xn-only-d" href="/user/register">注册</a>
+            <button type="button" class="xn-icon xn-only-m" data-xn-open aria-label="打开菜单" aria-controls="xn-sheet">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <form class="xn-msearch" action="/search" method="get" role="search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input type="search" name="q" placeholder="搜索美图、视频、文章…" autocomplete="off">
+  </form>
+</header>
+
+<div class="xn-overlay" data-xn-close></div>
+<aside class="xn-sheet" id="xn-sheet" aria-hidden="true" aria-label="菜单">
+  <div class="xn-sheet-head">
+    <a class="xn-logo" href="/" aria-label="DcLili">dclili<i class="xn-dot"></i></a>
+    <button type="button" class="xn-icon" data-xn-close aria-label="关闭菜单"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <nav class="xn-sheet-nav">
+                  <div class="xn-row"><a class="xn-m-link" href="/">首页</a></div>
+                        <div class="xn-acc">
+          <div class="xn-row">
+            <a class="xn-m-link" href="/meitu">美图</a>
+            <button type="button" class="xn-chev" aria-expanded="false" aria-label="展开分类"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+          </div>
+          <div class="xn-panel"><div>
+            <a class="xn-m-sub" href="/meitu">全部 美图</a>
+                                          <div class="xn-acc">
+                  <div class="xn-row">
+                    <a class="xn-m-sub" href="/cosplay">cosplay</a>
+                    <button type="button" class="xn-chev" aria-expanded="false" aria-label="展开二级分类"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+                  </div>
+                  <div class="xn-panel"><div>
+                    <a class="xn-m-sub xn-m-sub2" href="/cosplay/cos">cos</a>                  </div></div>
+                </div>
+                                                        <a class="xn-m-sub" href="/xiuren">秀人网</a>
+                                                        <a class="xn-m-sub" href="/moji">墨迹</a>
+                                                        <a class="xn-m-sub" href="/meinv">美女</a>
+                                                        <a class="xn-m-sub" href="/diguo">帝国</a>
+                                                        <a class="xn-m-sub" href="/shouji">手机</a>
+                                                        <a class="xn-m-sub" href="/bizhi">壁纸</a>
+                                                        <a class="xn-m-sub" href="/taxonomy/term/53">cospaly</a>
+                                                        <a class="xn-m-sub" href="/disan">第三世界</a>
+                                    </div></div>
+        </div>
+                        <div class="xn-row"><a class="xn-m-link" href="/meitu2">美图2</a></div>
+                        <div class="xn-row"><a class="xn-m-link" href="/video">视频</a></div>
+                        <div class="xn-row"><a class="xn-m-link" href="/articles">文章</a></div>
+                        <div class="xn-row"><a class="xn-m-link" href="/models">模特</a></div>
+            </nav>
+      <nav class="xn-lang xn-lang--sheet" aria-label="语言">
+      <button type="button" class="xn-lang-btn" aria-expanded="false" aria-haspopup="true" aria-controls="xn-lang-menu-m">
+        <span class="xn-lang-current"><svg class="xn-lang-globe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.2 2.6 3.4 5.6 3.4 9s-1.2 6.4-3.4 9c-2.2-2.6-3.4-5.6-3.4-9s1.2-6.4 3.4-9"/></svg><span>中文</span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="xn-lang-menu" id="xn-lang-menu-m" aria-hidden="true">
+                  <a href="/en" hreflang="en">English</a>
+                  <a href="/ru" hreflang="ru">Русский</a>
+                  <a href="/ja" hreflang="ja">日本語</a>
+              </div>
+    </nav>
+    <div class="xn-sheet-foot">
+    <div class="xn-sheet-actions">
+              <a class="xn-btn xn-btn-ghost" href="/user/login">登录</a>
+        <a class="xn-btn xn-btn-primary" href="/user/register">注册</a>
+          </div>
+  </div>
+</aside>
+<main id="main-content" class="xs" data-xs-code="503">
+  <div class="xs-group">
+    <div class="xs-stage"><div class="xs-fit"><div class="xs-fit-inner xs-503 xs-anim" aria-hidden="true"><svg viewBox="0 0 320 160" width="320" height="160"><rect class="xs-503-guide" x="118" y="30" width="84" height="100" rx="18"/><g class="xs-503-set"><rect class="xs-plate xs-503-a" x="142" y="24" width="36" height="12" rx="6"/><rect class="xs-plate xs-503-b" x="196" y="58" width="12" height="36" rx="6"/><rect class="xs-plate xs-503-c" x="142" y="124" width="36" height="12" rx="6"/><rect class="xs-plate xs-503-d" x="112" y="62" width="12" height="32" rx="6"/><circle class="xs-503-core" cx="160" cy="80" r="5"/></g></svg></div></div></div>
+    <p class="xs-code">503</p>
+    <h1 class="xs-title">网站维护中</h1>
+    <p class="xs-lead">我们正在进行网站维护和优化，请稍后再来。</p>
+    
+  </div>
+</main>
+<footer class="xedc-footer">
+  <div>© 2026 DcLili · <a href="/about">关于我们</a> · <a href="/privacy-policy">隐私政策</a> · <a href="/terms">用户协议</a> · <a href="/sitemap">站点地图</a></div>
+</footer>
+<script>
+(function () {
+  var d = document, h = d.documentElement;
+  function qa(s, r) { return Array.prototype.slice.call((r || d).querySelectorAll(s)); }
+
+  // 主题
+  function setTheme(t, persist) {
+    h.setAttribute('data-bs-theme', t); h.setAttribute('data-theme', t);
+    if (persist) {
+      try { localStorage.setItem('theme', t); } catch (e) {}
+    }
+  }
+  try {
+    var s = localStorage.getItem('theme');
+    if (s !== 'dark' && s !== 'light') {
+      s = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    setTheme(s, false);
+  } catch (e) {}
+  qa('[data-xn-theme]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      setTheme(h.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark', true);
+    });
+  });
+
+  // 抽屉与遮罩挂到 body，避免被父级 transform 影响 fixed 定位
+  var sheet = d.getElementById('xn-sheet');
+  var overlay = d.querySelector('.xn-overlay');
+  if (overlay) d.body.appendChild(overlay);
+  if (sheet) d.body.appendChild(sheet);
+
+  function openSheet() { h.classList.add('xn-open'); if (sheet) sheet.setAttribute('aria-hidden', 'false'); }
+  function closeSheet() { h.classList.remove('xn-open'); if (sheet) sheet.setAttribute('aria-hidden', 'true'); }
+  qa('[data-xn-open]').forEach(function (b) { b.addEventListener('click', openSheet); });
+  qa('[data-xn-close]').forEach(function (b) { b.addEventListener('click', closeSheet); });
+
+  // 抽屉手风琴（默认收起）
+  qa('.xn-chev').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var acc = b.closest('.xn-acc');
+      var on = acc.classList.toggle('open');
+      b.setAttribute('aria-expanded', on ? 'true' : 'false');
+    });
+  });
+
+  // PC 下拉：悬停（CSS）或点击箭头
+  var dds = qa('.xn-dd');
+  function closeDD() {
+    dds.forEach(function (x) {
+      x.classList.remove('open');
+      x.querySelector('.xn-dd-btn').setAttribute('aria-expanded', 'false');
+    });
+  }
+  dds.forEach(function (dd) {
+    var b = dd.querySelector('.xn-dd-btn');
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var on = !dd.classList.contains('open');
+      closeDD();
+      closeLang();
+      if (on) { dd.classList.add('open'); b.setAttribute('aria-expanded', 'true'); }
+    });
+  });
+
+  var langs = qa('.xn-lang');
+  function closeLang() {
+    langs.forEach(function (el) { setLangOpen(el, false); });
+  }
+  function setLangOpen(el, on) {
+    var langBtn = el.querySelector('.xn-lang-btn');
+    var langMenu = el.querySelector('.xn-lang-menu');
+    var sheetLang = el.classList.contains('xn-lang--sheet');
+    el.classList.toggle('open', on);
+    if (langBtn) langBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+    if (!langMenu) return;
+    langMenu.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (!sheetLang) langMenu.hidden = !on;
+  }
+  langs.forEach(function (el) {
+    var langBtn = el.querySelector('.xn-lang-btn');
+    if (!langBtn) return;
+    langBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var on = !el.classList.contains('open');
+      closeLang();
+      closeDD();
+      if (on) setLangOpen(el, true);
+    });
+  });
+  d.addEventListener('click', function (e) {
+    if (!e.target.closest('.xn-dd')) closeDD();
+    if (!e.target.closest('.xn-lang')) closeLang();
+  });
+  d.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeSheet(); closeDD(); closeLang(); } });
+  window.addEventListener('resize', function () { if (window.innerWidth >= 992) closeSheet(); });
+
+  // 手机搜索
+  var hd = d.querySelector('[data-xn]');
+  qa('[data-xn-search]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var on = hd.classList.toggle('xn-search-open');
+      if (on) { var i = hd.querySelector('.xn-msearch input'); if (i) i.focus(); }
+    });
+  });
+
+  // 会员头像：按下时保持一小段缩放，避免点按过快看不出反馈
+  qa('.xn-account').forEach(function (a) {
+    var timer;
+    a.addEventListener('pointerdown', function () {
+      a.classList.add('is-pressed');
+      clearTimeout(timer);
+      timer = setTimeout(function () { a.classList.remove('is-pressed'); }, 180);
+    });
+  });
+
+  // 当前页高亮
+  var cur = location.pathname.replace(/\/$/, '') || '/';
+  qa('.xn-link,.xn-m-link,.xn-m-sub').forEach(function (a) {
+    var p = a.pathname.replace(/\/$/, '') || '/';
+    if (p === cur || (p !== '/' && cur.indexOf(p + '/') === 0)) a.setAttribute('aria-current', 'page');
+  });
+})();
+
+/**
+ * @file
+ * Small interactions for XEDC status pages.
+ *
+ * Theme, back navigation, a Retry-After countdown, and pausing looped
+ * motion while the tab is hidden. No animation library.
+ */
+(function (Drupal) {
+  'use strict';
+
+  var motionBound = false;
+
+  function readyPages(root) {
+    var found = [];
+    if (!root || root === document || root === document.documentElement || root === document.body) {
+      return Array.prototype.slice.call(document.querySelectorAll('.xs:not([data-xs-ready])'));
+    }
+    if (root.nodeType === 1 && root.classList && root.classList.contains('xs') && !root.hasAttribute('data-xs-ready')) {
+      found.push(root);
+    }
+    if (root.querySelectorAll) {
+      found = found.concat(Array.prototype.slice.call(root.querySelectorAll('.xs:not([data-xs-ready])')));
+    }
+    return found;
+  }
+
+  function setTheme(mode, persist) {
+    var root = document.documentElement;
+    root.setAttribute('data-bs-theme', mode);
+    root.setAttribute('data-theme', mode);
+    if (persist) {
+      try {
+        localStorage.setItem('theme', mode);
+      }
+      catch (e) {}
+    }
+  }
+
+  function currentTheme() {
+    var mode = document.documentElement.getAttribute('data-bs-theme');
+    return mode === 'dark' ? 'dark' : 'light';
+  }
+
+  function bindMotion() {
+    if (motionBound) {
+      return;
+    }
+    motionBound = true;
+    var reduce = false;
+    try {
+      reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+    catch (e) {}
+    if (reduce) {
+      return;
+    }
+    function sync() {
+      document.documentElement.classList.toggle('xs-paused', document.hidden);
+    }
+    document.addEventListener('visibilitychange', sync);
+    sync();
+  }
+
+  function formatWait(seconds) {
+    if (seconds >= 60) {
+      var minutes = Math.floor(seconds / 60);
+      var rest = seconds % 60;
+      return minutes + ' 分 ' + rest + ' 秒';
+    }
+    return seconds + ' 秒';
+  }
+
+  function bindWait(page) {
+    var hold = page.querySelector('[data-xs-wait]');
+    if (!hold) {
+      return;
+    }
+    var total = parseInt(hold.getAttribute('data-xs-wait'), 10);
+    if (!total || total < 1) {
+      return;
+    }
+    var link = page.querySelector('[data-xs-retry]');
+    var queue = page.querySelector('.xs-429');
+    var template = hold.getAttribute('data-xs-wait-tpl') || '请等待 @count';
+    var done = hold.getAttribute('data-xs-wait-done') || '可以重新尝试了';
+    var ends = Date.now() + (total * 1000);
+    if (queue) {
+      queue.classList.add('is-holding');
+    }
+    if (link) {
+      link.classList.add('is-disabled');
+      link.setAttribute('aria-disabled', 'true');
+    }
+    function paint(left) {
+      hold.textContent = left > 0 ? template.replace('@count', formatWait(left)) : done;
+    }
+    function tick() {
+      var left = Math.max(0, Math.ceil((ends - Date.now()) / 1000));
+      paint(left);
+      if (left <= 0) {
+        if (link) {
+          link.classList.remove('is-disabled');
+          link.removeAttribute('aria-disabled');
+        }
+        if (queue) {
+          queue.classList.remove('is-holding');
+          queue.classList.add('is-ready');
+        }
+        return;
+      }
+      window.setTimeout(tick, 250);
+    }
+    tick();
+  }
+
+  function init(root) {
+    var pages = readyPages(root);
+    if (!pages.length) {
+      return;
+    }
+    bindMotion();
+    pages.forEach(function (page) {
+      page.setAttribute('data-xs-ready', '1');
+      page.querySelectorAll('[data-xs-theme]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          setTheme(currentTheme() === 'dark' ? 'light' : 'dark', true);
+        });
+      });
+      page.querySelectorAll('[data-xs-back]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          var home = button.getAttribute('data-xs-home') || '/';
+          if (window.history.length > 1) {
+            window.history.back();
+            return;
+          }
+          window.location.href = home;
+        });
+      });
+      page.addEventListener('click', function (event) {
+        var link = event.target.closest('[aria-disabled="true"]');
+        if (link) {
+          event.preventDefault();
+        }
+      });
+      bindWait(page);
+    });
+  }
+
+  if (Drupal && Drupal.behaviors) {
+    Drupal.behaviors.xedcStatus = {
+      attach: function (context) {
+        init(context);
+      }
+    };
+  }
+  else if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      init(document);
+    });
+  }
+  else {
+    init(document);
+  }
+})(typeof Drupal === 'undefined' ? null : Drupal);
+
+</script>
+</body>
+</html>

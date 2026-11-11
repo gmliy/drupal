@@ -10,6 +10,7 @@ $includes_path = __DIR__ . '/includes/*.theme';
 foreach (glob($includes_path) as $file) {
   require_once __DIR__ . '/includes/' . basename($file);
 }
+require_once __DIR__ . '/includes/status.inc';
 
 /**
  * Database connection from the container.
@@ -253,6 +254,9 @@ function _xedc_node_meta_description(\Drupal\node\NodeInterface $node): string {
 }
 
 function xedc_preprocess_page(&$variables) {
+  if (_xedc_status_prepare_page($variables)) {
+    return;
+  }
   xedc_nav_build($variables);
   // Login, register and password forms must not be stored in the anonymous
   // page cache. A cached form_build_id expires before the page does, and the

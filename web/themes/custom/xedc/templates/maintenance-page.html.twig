@@ -1,0 +1,20 @@
+{#
+/**
+ * @file
+ * Maintenance page.
+ *
+ * Site maintenance and an offline database use the status layout.
+ * Login flood keeps its own message and password link.
+ */
+#}
+{% if xedc_status.code|default(0) == 503 %}
+  {% include '@xedc/templates/status/xedc-status-page.html.twig' %}
+{% else %}
+  <main id="main-content" class="xs-fallback">
+    {% if title %}
+      <h1>{{ title }}</h1>
+    {% endif %}
+    {{ page.highlighted }}
+    {{ page.content }}
+  </main>
+{% endif %}

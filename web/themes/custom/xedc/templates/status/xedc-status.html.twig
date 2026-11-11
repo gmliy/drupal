@@ -1,0 +1,134 @@
+{#
+/**
+ * @file
+ * Shared layout for XEDC status pages. Each code keeps its own animation.
+ */
+#}
+{% set code = code|default(0) %}
+<main id="main-content" class="xs" data-xs-code="{{ code }}">
+  <div class="xs-group">
+    <div class="xs-stage">
+      {% if code == 404 %}
+        <div class="xs-fit">
+          <div class="xs-fit-inner xs-404 xs-anim" aria-hidden="true">
+            <svg viewBox="0 0 320 160" width="320" height="160">
+              <path class="xs-404-alt" d="M196 78 C228 64, 258 38, 300 34"/>
+              <path class="xs-404-route" d="M32 96 C74 96, 92 52, 138 50 C176 48, 186 72, 196 78 C226 90, 250 122, 294 120"/>
+              <g class="xs-pin xs-pin-start"><circle class="xs-ring" cx="32" cy="96" r="8"/><circle class="xs-core" cx="32" cy="96" r="2.5"/></g>
+              <g class="xs-pin xs-pin-fork"><circle class="xs-ring" cx="196" cy="78" r="8"/><circle class="xs-core" cx="196" cy="78" r="2.5"/></g>
+              <g class="xs-pin xs-pin-end"><circle class="xs-ring" cx="294" cy="120" r="8"/><circle class="xs-core" cx="294" cy="120" r="2.5"/></g>
+              <g class="xs-pin xs-pin-alt"><circle class="xs-ring" cx="300" cy="34" r="6"/><circle class="xs-core" cx="300" cy="34" r="2"/></g>
+            </svg>
+            <span class="xs-mover xs-404-mover"></span>
+          </div>
+        </div>
+      {% elseif code == 403 %}
+        <div class="xs-fit">
+          <div class="xs-fit-inner xs-403 xs-anim" aria-hidden="true">
+            <svg viewBox="0 0 320 160" width="320" height="160">
+              <path class="xs-403-track" d="M28 108 H118"/>
+              <rect class="xs-403-frame" x="124" y="28" width="84" height="112" rx="16"/>
+              <g class="xs-403-door">
+                <rect x="132" y="36" width="68" height="96" rx="10"/>
+                <circle class="xs-403-knob" cx="184" cy="86" r="3"/>
+              </g>
+              <g class="xs-403-lock">
+                <path class="xs-403-shackle" d="M154 88 V76 a12 12 0 0 1 24 0 V88"/>
+                <rect class="xs-403-body" x="148" y="88" width="36" height="26" rx="6"/>
+                <circle class="xs-403-key" cx="166" cy="101" r="2.2"/>
+              </g>
+            </svg>
+            <span class="xs-mover xs-403-node"></span>
+          </div>
+        </div>
+      {% elseif code == 500 %}
+        <div class="xs-fit">
+          <div class="xs-fit-inner xs-500 xs-anim" aria-hidden="true">
+            <svg viewBox="0 0 320 160" width="320" height="160">
+              <g class="xs-500-ghost">
+                <rect x="108" y="34" width="50" height="36" rx="8"/><rect x="166" y="34" width="48" height="36" rx="8"/>
+                <rect x="108" y="78" width="30" height="52" rx="8"/><rect x="146" y="78" width="68" height="24" rx="8"/><rect x="146" y="110" width="68" height="20" rx="8"/>
+              </g>
+              <g class="xs-500-live">
+                <rect class="xs-plate xs-500-a" x="108" y="34" width="50" height="36" rx="8"/>
+                <rect class="xs-plate xs-500-b" x="166" y="34" width="48" height="36" rx="8"/>
+                <rect class="xs-plate xs-500-c" x="108" y="78" width="30" height="52" rx="8"/>
+                <rect class="xs-plate xs-500-d" x="146" y="78" width="68" height="24" rx="8"/>
+                <rect class="xs-plate xs-500-e" x="146" y="110" width="68" height="20" rx="8"/>
+              </g>
+            </svg>
+          </div>
+        </div>
+      {% elseif code == 502 %}
+        <div class="xs-fit">
+          <div class="xs-fit-inner xs-502 xs-anim" aria-hidden="true">
+            <svg viewBox="0 0 320 160" width="320" height="160">
+              <path class="xs-502-arm xs-502-arm-l" d="M78 80 H160"/>
+              <path class="xs-502-arm xs-502-arm-r" d="M242 80 H160"/>
+              <g transform="translate(54 80)"><g class="xs-502-pulse"><rect class="xs-plate" x="-16" y="-16" width="32" height="32" rx="10"/><circle class="xs-core" r="2.6"/></g></g>
+              <g transform="translate(266 80)"><g class="xs-502-pulse xs-502-pulse-b"><rect class="xs-plate" x="-16" y="-16" width="32" height="32" rx="10"/><circle class="xs-core" r="2.6"/></g></g>
+            </svg>
+            <span class="xs-502-sig"></span>
+          </div>
+        </div>
+      {% elseif code == 503 %}
+        <div class="xs-fit">
+          <div class="xs-fit-inner xs-503 xs-anim" aria-hidden="true">
+            <svg viewBox="0 0 320 160" width="320" height="160">
+              <rect class="xs-503-guide" x="118" y="30" width="84" height="100" rx="18"/>
+              <g class="xs-503-set">
+                <rect class="xs-plate xs-503-a" x="142" y="24" width="36" height="12" rx="6"/>
+                <rect class="xs-plate xs-503-b" x="196" y="58" width="12" height="36" rx="6"/>
+                <rect class="xs-plate xs-503-c" x="142" y="124" width="36" height="12" rx="6"/>
+                <rect class="xs-plate xs-503-d" x="112" y="62" width="12" height="32" rx="6"/>
+                <circle class="xs-503-core" cx="160" cy="80" r="5"/>
+              </g>
+            </svg>
+          </div>
+        </div>
+      {% elseif code == 429 %}
+        <div class="xs-fit">
+          <div class="xs-fit-inner xs-429 xs-anim" aria-hidden="true">
+            <svg viewBox="0 0 320 160" width="320" height="160">
+              <path class="xs-429-rail" d="M28 88 H246"/>
+              <rect class="xs-429-gate" x="256" y="70" width="22" height="36" rx="8"/>
+            </svg>
+            <span class="xs-mover xs-429-n"></span>
+            <span class="xs-mover xs-429-n"></span>
+            <span class="xs-mover xs-429-n"></span>
+            <span class="xs-mover xs-429-n"></span>
+            <span class="xs-mover xs-429-n"></span>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <p class="xs-code">{{ code }}</p>
+    <h1 class="xs-title">{{ title }}</h1>
+    <p class="xs-lead">{{ message }}</p>
+    {% if eta %}
+      <p class="xs-eta">{{ eta }}</p>
+    {% endif %}
+    {% if code == 429 and retry_after|default(0) > 0 %}
+      <p class="xs-wait" data-xs-wait="{{ retry_after }}" data-xs-wait-tpl="{{ '请等待 @count'|t }}" data-xs-wait-done="{{ '可以重新尝试了'|t }}" aria-live="polite">{{ '请等待 @count'|t({'@count': retry_after ~ ' 秒'}) }}</p>
+    {% endif %}
+
+    {% if show_home or show_login or show_back or show_retry %}
+      <div class="xs-actions">
+        {% if show_retry %}
+          <a class="xs-btn xs-btn-primary" href="{{ retry_url|default(front|default('/')) }}" {% if code == 429 and retry_after|default(0) > 0 %}data-xs-retry{% endif %}>{{ retry_label|default('重新尝试'|t) }}</a>
+        {% endif %}
+        {% if show_home %}
+          <a class="xs-btn {{ show_retry ? 'xs-btn-secondary' : 'xs-btn-primary' }}" href="{{ front|default('/') }}">{{ '返回首页'|t }}</a>
+        {% endif %}
+        {% if show_login %}
+          <a class="xs-btn xs-btn-secondary" href="{{ login }}">{{ '登录'|t }}</a>
+        {% endif %}
+        {% if show_back %}
+          <button type="button" class="xs-btn xs-btn-secondary" data-xs-back data-xs-home="{{ front|default('/') }}">{{ '返回上一页'|t }}</button>
+        {% endif %}
+      </div>
+    {% endif %}
+
+  </div>
+</main>

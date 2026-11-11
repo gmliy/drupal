@@ -124,5 +124,10 @@
                 "      composer remove drupal/core-project-message"
             ]
         }
+    },
+    "autoload": {
+        "psr-4": {
+            "Drupal\\xedc_status\\": "web/themes/custom/xedc/src/"
+        }
     }
 }

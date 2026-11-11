@@ -1,0 +1,19 @@
+{#
+/**
+ * @file
+ * Status page inside the existing XEDC page shell.
+ *
+ * The header and footer includes are the same templates used by the front page.
+ */
+#}
+{% embed 'radix:page' %}
+  {% block page_navigation %}
+    {% include '@xedc/templates/includes/xedc-header.html.twig' %}
+  {% endblock %}
+  {% block page_content %}
+    {% include '@xedc/templates/status/xedc-status.html.twig' with xedc_status|default({}) %}
+  {% endblock %}
+  {% block page_footer %}
+    {% include '@xedc/templates/includes/home-footer.html.twig' %}
+  {% endblock %}
+{% endembed %}

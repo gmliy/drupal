@@ -85,6 +85,9 @@ function _xedc_set_head_title(array &$variables, string $title): void {
  * Implements hook_preprocess_html().
  */
 function xedc_preprocess_html(array &$variables): void {
+  if (_xedc_status_prepare_html($variables)) {
+    return;
+  }
   if (_xedc_search_is_route()) {
     [$q] = _xedc_search_params();
     $variables['head_title'] = [
@@ -330,6 +333,9 @@ function _xedc_auth_login_email_to_name(array &$element, FormStateInterface $for
 function xedc_theme_suggestions_page_alter(array &$suggestions, array $variables): void {
   if (_xedc_auth_route() === 'user.login' && \Drupal::request()->query->get('xedc_embed')) {
     $suggestions[] = 'page__xedc_embed';
+  }
+  if (_xedc_status_code_from_request() === 429) {
+    $suggestions[] = 'page__429';
   }
 }
 

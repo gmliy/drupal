@@ -6,3 +6,13 @@ services:
     arguments: ['@redis.factory']
     tags:
       - { name: cache_tags_invalidator }
+  # HTML 5xx status pages. The class lives in the theme and is autoloaded
+  # from composer.json so config import cannot uninstall it.
+  xedc_status.exception_subscriber:
+    class: Drupal\xedc_status\EventSubscriber\StatusExceptionSubscriber
+    tags:
+      - { name: event_subscriber }
+  xedc_status.maintenance_request_policy:
+    class: Drupal\xedc_status\PageCache\MaintenanceRequestPolicy
+    tags:
+      - { name: page_cache_request_policy }
