@@ -106,6 +106,16 @@ xedc_search.admin:
   options:
     _admin_route: TRUE
 
+xedc_search.admin.contexts:
+  path: '/admin/config/xedc-search/contexts'
+  defaults:
+    _controller: '\Drupal\xedc_search\Controller\AdminController::contexts'
+    _title: '搜索场景'
+  requirements:
+    _permission: 'administer xedc search'
+  options:
+    _admin_route: TRUE
+
 xedc_search.admin.hot:
   path: '/admin/config/xedc-search/hot'
   defaults:

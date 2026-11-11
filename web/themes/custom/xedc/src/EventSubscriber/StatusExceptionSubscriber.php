@@ -109,10 +109,10 @@ final class StatusExceptionSubscriber implements EventSubscriberInterface {
       }
     }
     $copy = [
-      502 => ['服务暂时不可用', '当前服务器连接出现问题，请稍后再试。'],
-      503 => ['网站维护中', '我们正在进行网站维护和优化，请稍后再来。'],
+      502 => ['连接暂时中断', '服务器暂时无法建立正常连接，请稍后重试。'],
+      503 => ['网站正在维护中', '我们正在进行必要的维护工作，请稍后再来访问。'],
     ];
-    $item = $copy[$status] ?? ['服务器内部错误', '服务器遇到意外问题，请稍后重试。'];
+    $item = $copy[$status] ?? ['服务器出现了一点问题', '服务器暂时无法完成请求，请稍后再试。'];
     return '<!DOCTYPE html><html lang="zh-Hans"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>' . $item[0] . '</title><p>' . $item[1] . '</p></html>';
   }
 

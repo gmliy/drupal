@@ -103,6 +103,60 @@ final class AdminController extends ControllerBase {
   /**
    * @return array<string, mixed>
    */
+  public function contexts(): array {
+    $labels = [
+      'all' => '全站搜索',
+      'photo' => '美图搜索',
+      'video' => '视频搜索',
+      'article' => '文章搜索',
+      'model' => '模特搜索',
+      'tag' => '标签搜索',
+      'category' => '分类搜索',
+    ];
+    try {
+      $dashboard = $this->stats->dashboard();
+      $counts = [];
+      foreach ($dashboard['types'] as $row) {
+        $counts[$row['type']] = (int) $row['count'];
+      }
+      $error = '';
+    }
+    catch (\Throwable $exception) {
+      $this->getLogger('xedc_search')->error($exception->getMessage());
+      $counts = [];
+      $error = '场景统计暂时不可用。';
+    }
+    $rows = [];
+    foreach ($this->normalizer->contexts() as $id) {
+      $hot = [];
+      try {
+        foreach ($this->stats->hot('week', 5, FALSE, $id) as $item) {
+          $hot[] = $item['keyword'];
+        }
+      }
+      catch (\Throwable) {
+        $hot = [];
+      }
+      $rows[] = [
+        'id' => $id,
+        'label' => $labels[$id] ?? $id,
+        'searches' => $counts[$id] ?? 0,
+        'hot' => $hot,
+        'hot_url' => Url::fromRoute('xedc_search.admin.hot', [], ['query' => ['type' => $id]])->toString(),
+      ];
+    }
+    return [
+      '#theme' => 'xedc_search_admin_contexts',
+      '#rows' => $rows,
+      '#error' => $error,
+      '#attached' => ['library' => ['xedc_search/admin']],
+      '#cache' => ['max-age' => 60, 'tags' => ['xedc_search']],
+    ];
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
   public function keywords(Request $request): array {
     $q = $this->normalizer->clean((string) $request->query->get('q', ''));
     $status = (string) $request->query->get('status', 'all');

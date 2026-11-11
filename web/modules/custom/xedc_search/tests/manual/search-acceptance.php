@@ -65,9 +65,16 @@ $keywords->delete($id);
 $check('删除后不再补全', ($suggester->complete('验收', 'all')['text'] ?? '') === '');
 
 $mine = $history->add(88001, '只属于甲', 'photo');
+$history->add(88001, '甲全站', 'all');
 $history->add(88002, '只属于乙', 'video');
-$check('历史按用户隔离', array_column($history->list(88001), 'keyword') === ['只属于甲']);
+$check('历史按用户隔离', count(array_intersect(['只属于甲', '甲全站'], array_column($history->list(88001), 'keyword'))) === 2);
+$check('历史按场景隔离', array_column($history->list(88001, 'photo'), 'keyword') === ['只属于甲']);
 $check('不能删除别人的历史', $history->delete(88001, (int) \Drupal::database()->select('xedc_search_history', 'h')->fields('h', ['id'])->condition('uid', 88002)->execute()->fetchField()) === FALSE);
+$stats = \Drupal::service('xedc_search.stats');
+$stats->record('场景甲', '场景甲', 'photo', 3, FALSE);
+$stats->record('场景乙', '场景乙', 'video', 2, FALSE);
+$photoHot = array_column($stats->hot('week', 5, TRUE, 'photo'), 'keyword');
+$check('热门按场景隔离', in_array('场景甲', $photoHot, TRUE) && !in_array('场景乙', $photoHot, TRUE));
 $history->clear(88001);
 $history->clear(88002);
 

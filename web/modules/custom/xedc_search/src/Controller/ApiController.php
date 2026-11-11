@@ -130,27 +130,28 @@ final class ApiController extends ControllerBase {
       return $denied;
     }
     if (!(bool) $this->setting('hot_enabled')) {
-      return $this->ok(['window' => 'week', 'items' => []], 30);
+      return $this->ok(['window' => 'week', 'type' => 'all', 'items' => []], 30);
     }
     try {
       $window = $this->normalizer->window($this->text($request, 'window'), (string) $this->setting('hot_window'));
+      $type = $this->normalizer->context($this->text($request, 'type') ?: $this->text($request, 'context'));
       $items = [];
-      foreach (\Drupal::service('xedc_search.stats')->hot($window, 10) as $row) {
+      foreach (\Drupal::service('xedc_search.stats')->hot($window, 10, FALSE, $type) as $row) {
         $items[] = [
           'label' => $row['keyword'],
           'count' => (int) $row['searches'],
           'users' => (int) $row['users'],
-          'url' => \Drupal\Core\Url::fromUserInput('/search', ['query' => ['q' => $row['keyword']]])->toString(),
+          'url' => $this->hotUrl((string) $row['keyword'], $type),
         ];
       }
-      return $this->ok(['window' => $window, 'items' => $items], 30);
+      return $this->ok(['window' => $window, 'type' => $type, 'items' => $items], 30);
     }
     catch (\Throwable $exception) {
       return $this->failure($exception);
     }
   }
 
-  public function history(): JsonResponse {
+  public function history(Request $request): JsonResponse {
     if (!(bool) $this->setting('history_enabled')) {
       return $this->ok(['storage' => 'off', 'items' => []], 0);
     }
@@ -158,22 +159,20 @@ final class ApiController extends ControllerBase {
     if (!$account->isAuthenticated()) {
       return $this->ok(['storage' => 'local', 'items' => []], 0);
     }
+    $type = $this->normalizer->context($this->text($request, 'type') ?: $this->text($request, 'context'));
     $items = [];
-    foreach ($this->history->list((int) $account->id()) as $row) {
+    foreach ($this->history->list((int) $account->id(), $type) as $row) {
       $items[] = [
         'id' => (int) $row['id'],
         'q' => $row['keyword'],
         'type' => $row['bundle'],
         'created' => (int) $row['created'],
-        'url' => \Drupal\Core\Url::fromUserInput('/search', [
-          'query' => array_filter([
-            'q' => $row['keyword'],
-            'type' => $row['bundle'] !== 'all' ? $row['bundle'] : NULL,
-          ]),
-        ])->toString(),
+        'url' => $this->hotUrl((string) $row['keyword'], (string) $row['bundle']),
       ];
     }
-    return $this->ok(['storage' => 'account', 'items' => $items], 0);
+    $response = $this->ok(['storage' => 'account', 'type' => $type, 'items' => $items], 0);
+    $response->headers->set('Vary', 'Cookie');
+    return $response;
   }
 
   public function historySave(Request $request): JsonResponse {
@@ -185,7 +184,7 @@ final class ApiController extends ControllerBase {
     if (mb_strlen($q) < max(1, (int) $this->setting('min_length'))) {
       return $this->fail('invalid', '关键词太短', 400);
     }
-    $type = $this->normalizer->type((string) ($payload['type'] ?? 'all'));
+    $type = $this->normalizer->context((string) ($payload['type'] ?? 'all'));
     $id = $this->history->add((int) $this->currentUser()->id(), $q, $type);
     return $this->ok(['id' => $id, 'q' => $q, 'type' => $type], 0);
   }
@@ -198,9 +197,14 @@ final class ApiController extends ControllerBase {
     return $this->ok(['id' => $id], 0);
   }
 
-  public function historyClear(): JsonResponse {
+  public function historyClear(Request $request): JsonResponse {
+    $type = $this->text($request, 'type') ?: $this->text($request, 'context');
+    if ($type !== '') {
+      $this->history->clear((int) $this->currentUser()->id(), $type);
+      return $this->ok(['cleared' => TRUE, 'type' => $this->normalizer->context($type)], 0);
+    }
     $this->history->clear((int) $this->currentUser()->id());
-    return $this->ok(['cleared' => TRUE], 0);
+    return $this->ok(['cleared' => TRUE, 'type' => 'all'], 0);
   }
 
   public function track(Request $request): JsonResponse {
@@ -317,6 +321,15 @@ final class ApiController extends ControllerBase {
 
   private function setting(string $key): mixed {
     return $this->searchConfig->get('xedc_search.settings')->get($key);
+  }
+
+  private function hotUrl(string $keyword, string $type): string {
+    $type = $this->normalizer->context($type);
+    $query = ['q' => $keyword];
+    if ($type !== 'all') {
+      $query['type'] = $type;
+    }
+    return \Drupal\Core\Url::fromUserInput('/search', ['query' => $query])->toString();
   }
 
 }

@@ -4,6 +4,12 @@ xedc_search.admin:
   base_route: xedc_search.admin
   weight: 0
 
+xedc_search.admin.contexts:
+  title: '搜索场景'
+  route_name: xedc_search.admin.contexts
+  base_route: xedc_search.admin
+  weight: 8
+
 xedc_search.admin.hot:
   title: '热门搜索'
   route_name: xedc_search.admin.hot

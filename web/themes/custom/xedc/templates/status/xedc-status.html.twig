@@ -1,44 +1,53 @@
 {#
 /**
  * @file
- * Shared layout for XEDC status pages. One pixel traveler, six scenes.
+ * Shared layout for the six XEDC HTTP status pages.
  */
 #}
 {% set code = code|default(0) %}
 <main id="main-content" class="xs{{ code == 429 ? ' xs-429' : '' }}" data-xs-code="{{ code }}">
   <div class="xs-group">
-    <p class="xs-kicker">SYSTEM / {{ code }}</p>
-    <p class="xp-code">{{ code }}</p>
-    <div class="xs-stage" data-xi="{{ code }}">
-      <div class="xp" data-xp="{{ code }}">
-        <div class="xp-viewport">
-          <div class="xp-scale">
-            <div class="xp-world">
-              <i class="xp-ground"></i>
-              {% if code == 404 %}
-                <i class="xp-curb"></i>
-                <b class="xp-icon xp-ask"></b>
-              {% elseif code == 403 %}
-                <span class="xp-wall" data-xp-wall><i class="xp-post"></i><i class="xp-post"></i><i class="xp-post"></i></span>
-                <b class="xp-icon xp-stop"></b>
-              {% elseif code == 500 %}
-                <i class="xp-bit"></i><i class="xp-bit"></i><i class="xp-bit"></i><i class="xp-bit"></i>
-                <button type="button" class="xp-replay" data-xp-replay aria-label="{{ '再看一次故障'|t }}"></button>
-              {% elseif code == 502 %}
-                <span class="xp-line"><i class="xp-sig"></i><i class="xp-sig"></i><i class="xp-sig"></i><i class="xp-gap"></i><i class="xp-sig"></i><i class="xp-sig"></i></span>
-              {% elseif code == 503 %}
-                <span class="xp-device"><i class="xp-screen"></i><i class="xp-screen"></i><i class="xp-screen"></i></span>
-                <b class="xp-icon xp-spark"></b>
-              {% elseif code == 429 %}
-                <span class="xp-bag"><i class="xp-crate"></i><i class="xp-crate"></i><i class="xp-crate"></i><i class="xp-crate"></i></span>
-              {% endif %}
-              <i class="xp-actor" data-xp-actor><i></i></i>
-            </div>
-          </div>
-        </div>
+    <div class="xs-stage">
+      <div class="xs-icon-box" data-xs-icon="{{ code }}" role="img" aria-label="{{ title }}">
+        {% if code == 404 %}
+          <svg class="xs-icon xs-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <path d="M9 13a2.5 2.5 0 0 1 4.2-1.8"/>
+            <circle cx="12" cy="17" r=".5" fill="currentColor" stroke="none"/>
+          </svg>
+        {% elseif code == 403 %}
+          <svg class="xs-icon xs-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+            <circle class="xs-lock-ring" cx="12" cy="16" r="4"/>
+            <path class="xs-lock-shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/>
+          </svg>
+        {% elseif code == 500 %}
+          <svg class="xs-icon xs-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" x2="12" y1="8" y2="12"/>
+            <line x1="12" x2="12.01" y1="16" y2="16"/>
+          </svg>
+        {% elseif code == 502 %}
+          <svg class="xs-icon xs-icon-svg xs-net" viewBox="0 0 24 24" aria-hidden="true">
+            <circle class="xs-node xs-node-l" cx="7" cy="12" r="2.5"/>
+            <circle class="xs-node xs-node-r" cx="17" cy="12" r="2.5"/>
+            <line class="xs-link" x1="9.5" y1="12" x2="14.5" y2="12"/>
+          </svg>
+        {% elseif code == 503 %}
+          <svg class="xs-icon xs-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+        {% elseif code == 429 %}
+          <svg class="xs-icon xs-icon-svg xs-gauge" viewBox="0 0 24 24" aria-hidden="true">
+            <circle class="xs-gauge-ring" cx="12" cy="14" r="7"/>
+            <path d="M12 14V8"/>
+            <circle cx="12" cy="14" r="1" fill="currentColor" stroke="none"/>
+          </svg>
+        {% endif %}
       </div>
     </div>
 
+    <p class="xs-code">{{ code }}</p>
     <h1 class="xs-title">{{ title }}</h1>
     <p class="xs-lead">{{ message }}</p>
     {% if eta %}
@@ -51,13 +60,13 @@
     {% if show_home or show_login or show_back or show_retry %}
       <div class="xs-actions">
         {% if show_retry %}
-          <a class="xs-btn xs-btn-primary" href="{{ retry_url|default(front|default('/')) }}" {% if code == 429 and retry_after|default(0) > 0 %}data-xs-retry{% endif %}{% if code == 502 %}data-xp-retry{% endif %}>{{ retry_label|default('重新尝试'|t) }}</a>
+          <a class="xs-btn xs-btn-primary" href="{{ retry_url|default(front|default('/')) }}"{% if code == 429 and retry_after|default(0) > 0 %} data-xs-retry{% endif %}{% if code in [500, 502, 503] %} data-xs-reload{% endif %}>{{ retry_label|default('重新尝试'|t) }}</a>
         {% endif %}
         {% if show_home %}
-          <a class="xs-btn {{ show_retry ? 'xs-btn-secondary' : 'xs-btn-primary' }}" href="{{ front|default('/') }}" {% if code == 404 %}data-xp-leave{% endif %}>{{ '返回首页'|t }}</a>
+          <a class="xs-btn {{ show_retry ? 'xs-btn-secondary' : 'xs-btn-primary' }}" href="{{ front|default('/') }}">{{ '返回首页'|t }}</a>
         {% endif %}
         {% if show_login %}
-          <a class="xs-btn xs-btn-secondary" href="{{ login }}">{{ '登录'|t }}</a>
+          <a class="xs-btn xs-btn-secondary" href="{{ login }}">{{ '登录账号'|t }}</a>
         {% endif %}
         {% if show_back %}
           <button type="button" class="xs-btn xs-btn-secondary" data-xs-back data-xs-home="{{ front|default('/') }}">{{ '返回上一页'|t }}</button>

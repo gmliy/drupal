@@ -79,8 +79,9 @@ final class StatsRepository {
   /**
    * @return list<array<string, mixed>>
    */
-  public function hot(string $window, int $limit, bool $includeDisabled = FALSE): array {
-    $rows = $this->rowsSince($this->startDay($window));
+  public function hot(string $window, int $limit, bool $includeDisabled = FALSE, ?string $bundle = NULL): array {
+    $bundle = $bundle === NULL ? NULL : $this->normalizer->context($bundle);
+    $rows = $this->rowsSince($this->startDay($window), $bundle);
     $keywords = $this->keywords->index();
     $bucket = [];
     $today = $this->dayStamp($this->time->getRequestTime());
@@ -232,12 +233,14 @@ final class StatsRepository {
   /**
    * @return list<array<string, mixed>>
    */
-  private function rowsSince(int $start): array {
-    return $this->database->select('xedc_search_daily', 'd')
+  private function rowsSince(int $start, ?string $bundle = NULL): array {
+    $query = $this->database->select('xedc_search_daily', 'd')
       ->fields('d')
-      ->condition('day', $start, '>=')
-      ->execute()
-      ->fetchAll(\PDO::FETCH_ASSOC);
+      ->condition('day', $start, '>=');
+    if ($bundle !== NULL && $bundle !== 'all') {
+      $query->condition('bundle', $bundle);
+    }
+    return $query->execute()->fetchAll(\PDO::FETCH_ASSOC);
   }
 
   private function startDay(string $window): int {

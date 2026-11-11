@@ -1,5 +1,23 @@
 /* Search suggestions only. Do not restyle existing inputs or page layout. */
 
+.xs-host {
+  position: relative;
+  overflow: visible;
+}
+
+.xs-host > .xs-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  width: auto;
+}
+
+.xs-host > .xs-panel.xs-panel--up {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
 .xs-panel {
   position: fixed;
   z-index: 1200;

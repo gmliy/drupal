@@ -1,0 +1,30 @@
+<div class="xedc-search-admin">
+  <header class="xedc-search-admin__head">
+    <p>{{ '各搜索场景独立统计热门词与搜索量，互不混用。'|t }}</p>
+  </header>
+  {% if error %}
+    <div class="xedc-search-admin__error" role="alert">{{ error }}</div>
+  {% endif %}
+  <div class="xedc-search-admin__table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ '场景'|t }}</th>
+          <th>{{ '近 30 天搜索量'|t }}</th>
+          <th>{{ '本周热门词'|t }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.searches }}</td>
+            <td>{{ row.hot|join('、') ?: '—' }}</td>
+            <td><a href="{{ row.hot_url }}">{{ '管理热门'|t }}</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

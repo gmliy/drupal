@@ -46,9 +46,34 @@ final class HotForm extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $window = $this->normalizer->window((string) $this->getRequest()->query->get('window', 'week'));
+    $request = $this->getRequest();
+    $window = $this->normalizer->window((string) $request->query->get('window', 'week'));
+    $type = $this->normalizer->context((string) $request->query->get('type', 'all'));
     $form['#attributes']['class'][] = 'xedc-search-admin';
     $form['#attached']['library'][] = 'xedc_search/admin';
+    $sceneLabels = [
+      'all' => '全站',
+      'photo' => '美图',
+      'video' => '视频',
+      'article' => '文章',
+      'model' => '模特',
+      'tag' => '标签',
+      'category' => '分类',
+    ];
+    $queryBase = ['window' => $window];
+    $form['scenes'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['xedc-search-admin__filters']],
+    ];
+    foreach ($sceneLabels as $id => $label) {
+      $query = $queryBase + ['type' => $id];
+      $form['scenes'][$id] = [
+        '#type' => 'link',
+        '#title' => $label,
+        '#url' => Url::fromRoute('xedc_search.admin.hot', [], ['query' => $query]),
+        '#attributes' => ['class' => ['button', $type === $id ? 'button--primary' : '']],
+      ];
+    }
     $form['windows'] = [
       '#type' => 'container',
       '#attributes' => ['class' => ['xedc-search-admin__filters']],
@@ -57,12 +82,12 @@ final class HotForm extends FormBase {
       $form['windows'][$id] = [
         '#type' => 'link',
         '#title' => $label,
-        '#url' => Url::fromRoute('xedc_search.admin.hot', [], ['query' => ['window' => $id]]),
+        '#url' => Url::fromRoute('xedc_search.admin.hot', [], ['query' => ['window' => $id, 'type' => $type]]),
         '#attributes' => ['class' => ['button', $window === $id ? 'button--primary' : '']],
       ];
     }
     try {
-      $rows = $this->stats->hot($window, 50, TRUE);
+      $rows = $this->stats->hot($window, 50, TRUE, $type);
       $error = FALSE;
     }
     catch (\Throwable $exception) {

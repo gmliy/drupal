@@ -108,8 +108,25 @@ function xedc_search_schema(): array {
     'primary key' => ['id'],
     'indexes' => [
       'uid_created' => ['uid', 'created'],
+      'uid_bundle_created' => ['uid', 'bundle', 'created'],
     ],
   ];
 
   return $schema;
+}
+
+/**
+ * Adds per-scene history index for faster scoped queries.
+ */
+function xedc_search_update_11001(): void {
+  $schema = \Drupal::database()->schema();
+  if ($schema->tableExists('xedc_search_history') && !$schema->indexExists('xedc_search_history', 'uid_bundle_created')) {
+    $schema->addIndex('xedc_search_history', 'uid_bundle_created', ['uid', 'bundle', 'created'], [
+      'fields' => [
+        'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+        'bundle' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'all'],
+        'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      ],
+    ]);
+  }
 }

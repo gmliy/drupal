@@ -42,6 +42,13 @@ function xedc_search_theme(): array {
       ],
       'template' => 'admin-history',
     ],
+    'xedc_search_admin_contexts' => [
+      'variables' => [
+        'rows' => [],
+        'error' => '',
+      ],
+      'template' => 'admin-contexts',
+    ],
   ];
 }
 
@@ -54,8 +61,10 @@ function xedc_search_page_attachments(array &$attachments): void {
   }
   $config = \Drupal::config('xedc_search.settings');
   $attachments['#cache']['tags'][] = 'config:xedc_search.settings';
+  $attachments['#cache']['contexts'][] = 'user';
   $attachments['#cache']['contexts'][] = 'user.roles:authenticated';
   $attachments['#cache']['contexts'][] = 'languages:language_interface';
+  $attachments['#cache']['max-age'] = 0;
   if (!(bool) $config->get('enabled')) {
     $attachments['#attached']['drupalSettings']['xedcSearch'] = ['enabled' => FALSE];
     return;
@@ -73,6 +82,7 @@ function xedc_search_page_attachments(array &$attachments): void {
     'minLength' => max(1, (int) $config->get('min_length')),
     'debounce' => max(200, min(800, (int) $config->get('debounce_ms') ?: 250)),
     'loggedIn' => \Drupal::currentUser()->isAuthenticated(),
+    'uid' => (int) \Drupal::currentUser()->id(),
     'endpoints' => [
       'suggest' => $url('xedc_search.api.suggest'),
       'complete' => $url('xedc_search.api.complete'),

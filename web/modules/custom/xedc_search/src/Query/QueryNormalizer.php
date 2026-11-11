@@ -32,10 +32,35 @@ final class QueryNormalizer {
   }
 
   /**
-   * Allowed public search types.
+   * Allowed public search types (stored bundle keys).
    */
   public function type(string $value): string {
+    return $this->bundle($value);
+  }
+
+  /**
+   * Normalizes a search context from the request (global maps to all).
+   */
+  public function context(string $value): string {
     $value = strtolower(trim($value));
+    if ($value === 'global' || $value === '') {
+      return 'all';
+    }
+    return $this->bundle($value);
+  }
+
+  /**
+   * @return list<string>
+   */
+  public function contexts(): array {
+    return ['all', 'photo', 'video', 'article', 'model', 'tag', 'category'];
+  }
+
+  private function bundle(string $value): string {
+    $value = strtolower(trim($value));
+    if ($value === 'global') {
+      return 'all';
+    }
     $allowed = ['all', 'photo', 'video', 'article', 'model', 'category', 'tag'];
     return in_array($value, $allowed, TRUE) ? $value : 'all';
   }

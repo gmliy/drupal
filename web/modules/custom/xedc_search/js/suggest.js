@@ -8,11 +8,74 @@
   var cfg = drupalSettings.xedcSearch || {};
   var seq = 0;
   var tokenPromise = null;
-  var HISTORY = 'xedc_search_history_v1';
+  var HISTORY_LEGACY = 'xedc_search_history_v1';
   var VISITOR = 'xedc_search_vid';
+  var SESSION_UID = 'xedc_search_uid';
 
   function endpoint(name) {
     return (cfg.endpoints && cfg.endpoints[name]) || '';
+  }
+
+  function storageContext(mode) {
+    return !mode || mode === 'all' ? 'global' : mode;
+  }
+
+  function apiType(mode) {
+    return !mode || mode === 'global' ? 'all' : mode;
+  }
+
+  function historyStorageKey(mode) {
+    return 'xedc_search_history_' + storageContext(mode);
+  }
+
+  function hotLabel(mode) {
+    var labels = {
+      global: Drupal.t('热门搜索'),
+      all: Drupal.t('热门搜索'),
+      photo: Drupal.t('热门美图搜索'),
+      video: Drupal.t('热门视频搜索'),
+      article: Drupal.t('热门文章搜索'),
+      model: Drupal.t('热门模特'),
+      tag: Drupal.t('热门标签'),
+      category: Drupal.t('热门分类'),
+    };
+    return labels[storageContext(mode)] || labels.global;
+  }
+
+  function migrateLegacyHistory() {
+    try {
+      var legacy = localStorage.getItem(HISTORY_LEGACY);
+      if (!legacy) {
+        return;
+      }
+      var items = JSON.parse(legacy);
+      if (!Array.isArray(items)) {
+        localStorage.removeItem(HISTORY_LEGACY);
+        return;
+      }
+      items.forEach(function (item) {
+        var mode = item.type || 'all';
+        var bucket = readHistory(mode);
+        if (!bucket.some(function (row) { return row.q === item.q; })) {
+          bucket.unshift({ q: item.q, type: apiType(mode), t: item.t || Date.now() });
+        }
+        writeHistory(mode, bucket);
+      });
+      localStorage.removeItem(HISTORY_LEGACY);
+    }
+    catch (e) {}
+  }
+
+  function watchAccount() {
+    try {
+      var last = sessionStorage.getItem(SESSION_UID);
+      var now = String(cfg.uid || 0);
+      sessionStorage.setItem(SESSION_UID, now);
+      if (last !== null && last !== now) {
+        tokenPromise = null;
+      }
+    }
+    catch (e) {}
   }
 
   function visitor() {
@@ -29,9 +92,9 @@
     }
   }
 
-  function readHistory() {
+  function readHistory(mode) {
     try {
-      var data = JSON.parse(localStorage.getItem(HISTORY) || '[]');
+      var data = JSON.parse(localStorage.getItem(historyStorageKey(mode)) || '[]');
       return Array.isArray(data) ? data : [];
     }
     catch (e) {
@@ -39,23 +102,24 @@
     }
   }
 
-  function writeHistory(items) {
+  function writeHistory(mode, items) {
     try {
-      localStorage.setItem(HISTORY, JSON.stringify(items.slice(0, 10)));
+      localStorage.setItem(historyStorageKey(mode), JSON.stringify(items.slice(0, 20)));
     }
     catch (e) {}
   }
 
   function remember(q, type) {
     q = (q || '').trim();
-    if (!q) {
+    if (!q || cfg.loggedIn) {
       return;
     }
-    var items = readHistory().filter(function (item) {
+    var mode = type || 'all';
+    var items = readHistory(mode).filter(function (item) {
       return item.q !== q;
     });
-    items.unshift({ q: q, type: type || 'all', t: Date.now() });
-    writeHistory(items);
+    items.unshift({ q: q, type: apiType(mode), t: Date.now() });
+    writeHistory(mode, items);
   }
 
   function csrf() {
@@ -206,29 +270,62 @@
     return { form: form, mode: mode, target: target };
   }
 
-  function place(panel, input) {
+  function panelHost(input) {
+    if (input.closest('.photo-drop')) {
+      return null;
+    }
+    return input.closest('form.xn-search, form.xn-msearch, form.sr-form, form.xv-search, form.xa-search, form.xt-toolbar, .xm-search') || input.parentElement;
+  }
+
+  function place(panel, input, fixed) {
+    if (!fixed) {
+      panel.classList.remove('xs-panel--fixed');
+      panel.style.left = '';
+      panel.style.width = '';
+      panel.style.top = '';
+      panel.style.bottom = '';
+      panel.style.maxHeight = '';
+      var hostRect = panel.parentElement.getBoundingClientRect();
+      var spaceBelow = window.innerHeight - hostRect.bottom - 12;
+      var spaceAbove = hostRect.top - 12;
+      if (spaceBelow < 160 && spaceAbove > spaceBelow) {
+        panel.classList.add('xs-panel--up');
+        panel.style.maxHeight = Math.max(120, Math.min(spaceAbove - 8, window.innerHeight * 0.5)) + 'px';
+      }
+      else {
+        panel.classList.remove('xs-panel--up');
+        panel.style.maxHeight = Math.max(120, Math.min(window.innerHeight * 0.7, spaceBelow)) + 'px';
+      }
+      return;
+    }
+    panel.classList.add('xs-panel--fixed');
     var anchor = input.closest('.photo-drop') || input;
     var rect = anchor.getBoundingClientRect();
     if (!rect.width && !rect.height) {
       panel.hidden = true;
       return;
     }
+    var gap = 8;
     var maxWidth = window.innerWidth - 16;
     var width = Math.min(Math.max(rect.width, 260), maxWidth);
     var left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
     panel.style.left = left + 'px';
     panel.style.width = width + 'px';
+    panel.style.bottom = '';
     var panelHeight = panel.offsetHeight || 240;
-    var below = window.innerHeight - rect.bottom - 12;
-    var above = rect.top - 12;
+    var below = window.innerHeight - rect.bottom - gap;
+    var above = rect.top - gap;
     if (below < 180 && above > below) {
-      var room = Math.max(120, above - 8);
+      var room = Math.max(120, above - gap);
       panel.style.maxHeight = Math.min(room, window.innerHeight * 0.5) + 'px';
-      panel.style.top = Math.max(8, rect.top - Math.min(panel.offsetHeight || panelHeight, room) - 6) + 'px';
+      var height = Math.min(panel.offsetHeight || panelHeight, room);
+      panel.style.top = Math.max(gap, rect.top - height - gap) + 'px';
+      panel.classList.add('xs-panel--up');
     }
     else {
       panel.style.maxHeight = Math.max(120, Math.min(window.innerHeight * 0.7, below)) + 'px';
-      panel.style.top = (rect.bottom + 6) + 'px';
+      panel.style.top = (rect.bottom + gap) + 'px';
+      panel.classList.remove('xs-panel--up');
     }
   }
 
@@ -252,6 +349,8 @@
       if (!cfg.enabled) {
         return;
       }
+      migrateLegacyHistory();
+      watchAccount();
       var selector = [
         'form.xn-search input[type="search"]',
         'form.xn-msearch input[type="search"]',
@@ -269,11 +368,16 @@
 
   function bind(input) {
     var meta = fieldMeta(input);
+    var host = panelHost(input);
+    var useFixed = !host;
+    if (host) {
+      host.classList.add('xs-host');
+    }
     var panel = document.createElement('div');
     panel.className = 'xs-panel';
     panel.hidden = true;
     panel.setAttribute('role', 'listbox');
-    document.body.appendChild(panel);
+    (host || document.body).appendChild(panel);
     var items = [];
     var active = -1;
     var timer = 0;
@@ -345,7 +449,7 @@
       window.location.href = search;
     }
 
-    function render(payload, historyItems, hotItems) {
+    function render(payload, historyItems, hotItems, idleMode) {
       clearNode(panel);
       items = [];
       active = -1;
@@ -391,11 +495,37 @@
           items.push(item);
         });
       });
-      if (historyItems && historyItems.length) {
+      function appendHot() {
+        if (!hotItems || !hotItems.length) {
+          return;
+        }
+        var hotTitle = document.createElement('div');
+        hotTitle.className = 'xs-label';
+        hotTitle.textContent = hotLabel(meta.mode);
+        panel.appendChild(hotTitle);
+        hotItems.forEach(function (item) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'xs-item';
+          button.textContent = item.label;
+          button.addEventListener('click', function () { activate(item); });
+          panel.appendChild(button);
+          items.push(item);
+        });
+      }
+
+      function appendHistory() {
         var historyTitle = document.createElement('div');
         historyTitle.className = 'xs-label';
         historyTitle.textContent = Drupal.t('最近搜索');
         panel.appendChild(historyTitle);
+        if (!historyItems || !historyItems.length) {
+          var empty = document.createElement('div');
+          empty.className = 'xs-status';
+          empty.textContent = Drupal.t('暂无搜索记录');
+          panel.appendChild(empty);
+          return;
+        }
         historyItems.forEach(function (item) {
           var row = document.createElement('div');
           row.className = 'xs-item';
@@ -419,24 +549,21 @@
           items.push(item);
         });
       }
-      if (hotItems && hotItems.length) {
-        var hotTitle = document.createElement('div');
-        hotTitle.className = 'xs-label';
-        hotTitle.textContent = Drupal.t('热门搜索');
-        panel.appendChild(hotTitle);
-        hotItems.forEach(function (item) {
-          var button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'xs-item';
-          button.textContent = item.label;
-          button.addEventListener('click', function () { activate(item); });
-          panel.appendChild(button);
-          items.push(item);
-        });
+
+      if (idleMode) {
+        appendHot();
+        appendHistory();
+        panel.hidden = false;
+        input.setAttribute('aria-expanded', 'true');
+        place(panel, input, useFixed);
+        return;
       }
       if (!items.length) {
         if (query) {
           status(panel, Drupal.t('没有匹配的建议'), false);
+          panel.hidden = false;
+          input.setAttribute('aria-expanded', 'true');
+          place(panel, input, useFixed);
         }
         else {
           close();
@@ -445,7 +572,7 @@
       }
       panel.hidden = false;
       input.setAttribute('aria-expanded', 'true');
-      place(panel, input);
+      place(panel, input, useFixed);
     }
 
     function forget(item) {
@@ -458,7 +585,16 @@
           }).catch(function () {});
         });
       }
-      writeHistory(readHistory().filter(function (row) { return row.q !== (item.q || item.label); }));
+      writeHistory(meta.mode, readHistory(meta.mode).filter(function (row) { return row.q !== (item.q || item.label); }));
+    }
+
+    function historyUrl(item) {
+      var type = item.type || apiType(meta.mode);
+      var query = '?q=' + encodeURIComponent(item.q || item.label);
+      if (type && type !== 'all') {
+        query += '&type=' + encodeURIComponent(type);
+      }
+      return endpoint('search') + query;
     }
 
     function openIdle() {
@@ -467,18 +603,25 @@
         schedule();
         return;
       }
-      var local = cfg.history ? readHistory().map(function (item) {
-        return { q: item.q, label: item.q, type: item.type, kind: 'history', url: endpoint('search') + '?q=' + encodeURIComponent(item.q) };
+      var local = cfg.history && !cfg.loggedIn ? readHistory(meta.mode).map(function (item) {
+        return { q: item.q, label: item.q, type: item.type, kind: 'history', url: historyUrl(item) };
       }) : [];
       if (cfg.loggedIn && cfg.history) {
-        fetch(endpoint('history'), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        var historyUrlApi = endpoint('history') + '?type=' + encodeURIComponent(apiType(meta.mode));
+        fetch(historyUrlApi, { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store' })
           .then(function (response) { return response.json(); })
           .then(function (json) {
             var remote = json && json.ok && json.data && json.data.storage === 'account' ? json.data.items : [];
-            remote.forEach(function (item) { item.kind = 'history'; item.label = item.q; });
-            loadHot(remote.length ? remote : local);
+            remote.forEach(function (item) {
+              item.kind = 'history';
+              item.label = item.q;
+              if (!item.url) {
+                item.url = historyUrl(item);
+              }
+            });
+            loadHot(remote);
           })
-          .catch(function () { loadHot(local); });
+          .catch(function () { loadHot([]); });
       }
       else {
         loadHot(local);
@@ -487,15 +630,16 @@
 
     function loadHot(historyItems) {
       if (!cfg.hot) {
-        render(null, historyItems, []);
+        render(null, historyItems, [], true);
         return;
       }
-      fetch(endpoint('hot'), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+      var hotUrl = endpoint('hot') + '?type=' + encodeURIComponent(apiType(meta.mode));
+      fetch(hotUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
         .then(function (response) { return response.json(); })
         .then(function (json) {
-          render(null, historyItems, json && json.ok ? json.data.items : []);
+          render(null, historyItems, json && json.ok ? json.data.items : [], true);
         })
-        .catch(function () { render(null, historyItems, []); });
+        .catch(function () { render(null, historyItems, [], true); });
     }
 
     function schedule() {
@@ -520,7 +664,7 @@
       controller = typeof AbortController === 'function' ? new AbortController() : null;
       var id = ++requestId;
       status(panel, Drupal.t('正在查找…'), false);
-      place(panel, input);
+      place(panel, input, useFixed);
       var url = endpoint('suggest') + '?q=' + encodeURIComponent(q) + '&type=' + encodeURIComponent(meta.mode);
       fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: controller ? controller.signal : undefined })
         .then(function (response) {
@@ -674,8 +818,8 @@
       }
     }
 
-    window.addEventListener('resize', function () { if (!panel.hidden) { place(panel, input); } });
-    window.addEventListener('scroll', function () { if (!panel.hidden) { place(panel, input); } }, true);
+    window.addEventListener('resize', function () { if (!panel.hidden) { place(panel, input, useFixed); } });
+    window.addEventListener('scroll', function () { if (!panel.hidden && useFixed) { place(panel, input, useFixed); } }, true);
     document.addEventListener('pointerdown', function (event) {
       if (event.target === input || panel.contains(event.target)) {
         return;

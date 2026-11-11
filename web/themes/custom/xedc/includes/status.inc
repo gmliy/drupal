@@ -17,28 +17,28 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 function _xedc_status_copy(int $code): array {
   $pages = [
     403 => [
-      'title' => '暂无访问权限',
-      'message' => '抱歉，你目前没有权限访问此页面。',
+      'title' => '暂时无法访问此页面',
+      'message' => '你可能没有访问该页面的权限，请确认账号权限后重试。',
     ],
     404 => [
-      'title' => '页面不存在',
-      'message' => '抱歉，你访问的页面可能已被删除、移动或不存在。',
+      'title' => '这个页面不存在',
+      'message' => '你访问的页面可能已被移动、删除，或者地址输入有误。',
     ],
     429 => [
-      'title' => '请求过于频繁',
-      'message' => '你的请求过于频繁，请稍后再试。',
+      'title' => '请求有点频繁',
+      'message' => '你的操作速度过快，请稍等片刻后再试。',
     ],
     500 => [
-      'title' => '服务器内部错误',
-      'message' => '服务器遇到意外问题，请稍后重试。',
+      'title' => '服务器出现了一点问题',
+      'message' => '服务器暂时无法完成请求，请稍后再试。',
     ],
     502 => [
-      'title' => '服务暂时不可用',
-      'message' => '当前服务器连接出现问题，请稍后再试。',
+      'title' => '连接暂时中断',
+      'message' => '服务器暂时无法建立正常连接，请稍后重试。',
     ],
     503 => [
-      'title' => '网站维护中',
-      'message' => '我们正在进行网站维护和优化，请稍后再来。',
+      'title' => '网站正在维护中',
+      'message' => '我们正在进行必要的维护工作，请稍后再来访问。',
     ],
   ];
   return $pages[$code] ?? $pages[500];
@@ -137,8 +137,9 @@ function _xedc_status_payload(int $code, ?HttpExceptionInterface $exception = NU
   $retry = $code === 429 ? _xedc_status_retry_after($exception) : 0;
   $labels = [
     429 => '重新尝试',
-    500 => '重新尝试',
-    502 => '重新加载页面',
+    500 => '重新加载',
+    502 => '重新尝试',
+    503 => '重新检查',
   ];
   return [
     'code' => $code,
@@ -150,10 +151,10 @@ function _xedc_status_payload(int $code, ?HttpExceptionInterface $exception = NU
     'retry_url' => _xedc_status_local_url(\Drupal::request()->getRequestUri()),
     'retry_after' => $retry,
     'retry_label' => $labels[$code] ?? '重新尝试',
-    'show_home' => !in_array($code, [429, 503], TRUE),
+    'show_home' => $code !== 503,
     'show_login' => $code === 403 && !\Drupal::currentUser()->isAuthenticated(),
     'show_back' => in_array($code, [403, 404], TRUE),
-    'show_retry' => in_array($code, [429, 500, 502], TRUE),
+    'show_retry' => in_array($code, [429, 500, 502, 503], TRUE),
     'show_search' => FALSE,
     'eta' => '',
   ];
@@ -341,7 +342,8 @@ function xedc_preprocess_maintenance_page(array &$variables): void {
   }
   $payload = _xedc_status_payload(503);
   $payload['show_home'] = FALSE;
-  $payload['show_retry'] = FALSE;
+  $payload['show_retry'] = TRUE;
+  $payload['retry_label'] = '重新检查';
   $payload['show_back'] = FALSE;
   $payload['show_login'] = FALSE;
   $payload['show_search'] = FALSE;
