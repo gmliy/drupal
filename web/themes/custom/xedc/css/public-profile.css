@@ -1,15 +1,15 @@
 /* Public creator profile — Modern Creator Profile for XEDC front. */
 
 body.xp-page {
-  --xp-bg: #fff;
-  --xp-fg: #18181b;
-  --xp-muted: #71717a;
-  --xp-border: #e4e4e7;
-  --xp-soft: #f4f4f5;
-  --xp-surface: #fff;
+  --xp-bg: var(--xedc-bg, #fff);
+  --xp-fg: var(--xedc-text, #242424);
+  --xp-muted: var(--xedc-text-secondary, #737373);
+  --xp-border: var(--xedc-border, #eaeaea);
+  --xp-soft: var(--xedc-surface-muted, #f7f7f7);
+  --xp-surface: var(--xedc-surface, #fff);
   --xp-radius: 8px;
-  --xp-accent: #18181b;
-  --xp-accent-fg: #fafafa;
+  --xp-accent: var(--xedc-primary, #242424);
+  --xp-accent-fg: var(--xedc-primary-text, #fff);
   background: var(--xp-bg);
   color: var(--xp-fg);
 }
@@ -20,15 +20,15 @@ body.xp-page h1.page-title {
 }
 
 .xp {
-  --xp-bg: #fff;
-  --xp-fg: #18181b;
-  --xp-muted: #71717a;
-  --xp-border: #e4e4e7;
-  --xp-soft: #f4f4f5;
-  --xp-surface: #fff;
+  --xp-bg: var(--xedc-bg, #fff);
+  --xp-fg: var(--xedc-text, #242424);
+  --xp-muted: var(--xedc-text-secondary, #737373);
+  --xp-border: var(--xedc-border, #eaeaea);
+  --xp-soft: var(--xedc-surface-muted, #f7f7f7);
+  --xp-surface: var(--xedc-surface, #fff);
   --xp-radius: 8px;
-  --xp-accent: #18181b;
-  --xp-accent-fg: #fafafa;
+  --xp-accent: var(--xedc-primary, #242424);
+  --xp-accent-fg: var(--xedc-primary-text, #fff);
   width: 100%;
   max-width: none;
   margin: 0;
@@ -784,22 +784,22 @@ body.xp-page h1.page-title {
 
 :is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xp,
 :is(html[data-bs-theme="dark"], html[data-theme="dark"]) body.xp-page {
-  --xp-bg: #09090b;
-  --xp-fg: #fafafa;
-  --xp-muted: #a1a1aa;
-  --xp-border: #27272a;
-  --xp-soft: #18181b;
-  --xp-surface: #09090b;
-  --xp-accent: #fafafa;
-  --xp-accent-fg: #18181b;
+  --xp-bg: var(--xedc-bg);
+  --xp-fg: var(--xedc-text);
+  --xp-muted: var(--xedc-text-secondary);
+  --xp-border: var(--xedc-border);
+  --xp-soft: var(--xedc-surface-muted);
+  --xp-surface: var(--xedc-surface);
+  --xp-accent: var(--xedc-primary);
+  --xp-accent-fg: var(--xedc-primary-text);
   background: var(--xp-bg) !important;
   color: var(--xp-fg);
 }
 
 :is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xp a.xp-action--primary:hover,
 :is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xp .xp-action--primary:hover {
-  background: #e4e4e7;
-  border-color: #e4e4e7;
+  background: var(--xedc-hover);
+  border-color: var(--xedc-border-strong);
   color: var(--xp-accent-fg);
 }
 

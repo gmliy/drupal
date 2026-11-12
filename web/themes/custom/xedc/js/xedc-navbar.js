@@ -2,23 +2,52 @@
   var d = document, h = d.documentElement;
   function qa(s, r) { return Array.prototype.slice.call((r || d).querySelectorAll(s)); }
 
-  // 主题
-  function setTheme(t, persist) {
-    h.setAttribute('data-bs-theme', t); h.setAttribute('data-theme', t);
+  // 主题：light → dark → system（跟随系统）
+  function resolveTheme(pref) {
+    if (pref === 'dark' || pref === 'light') {
+      return pref;
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function applyTheme(pref, persist) {
+    var resolved = resolveTheme(pref);
+    h.setAttribute('data-bs-theme', resolved);
+    h.setAttribute('data-theme', resolved);
+    h.setAttribute('data-theme-pref', pref === 'dark' || pref === 'light' ? pref : 'system');
     if (persist) {
-      try { localStorage.setItem('theme', t); } catch (e) {}
+      try { localStorage.setItem('theme', pref); } catch (e) {}
     }
   }
-  try {
-    var s = localStorage.getItem('theme');
-    if (s !== 'dark' && s !== 'light') {
-      s = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  var themeOrder = ['light', 'dark', 'system'];
+  function nextPref(cur) {
+    var i = themeOrder.indexOf(cur);
+    if (i < 0) {
+      return 'system';
     }
-    setTheme(s, false);
+    return themeOrder[(i + 1) % themeOrder.length];
+  }
+  try {
+    var pref = localStorage.getItem('theme');
+    if (pref !== 'dark' && pref !== 'light' && pref !== 'system') {
+      pref = 'system';
+    }
+    applyTheme(pref, false);
+  } catch (e) {}
+  try {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+      var p = localStorage.getItem('theme');
+      if (p !== 'dark' && p !== 'light') {
+        applyTheme('system', false);
+      }
+    });
   } catch (e) {}
   qa('[data-xn-theme]').forEach(function (b) {
     b.addEventListener('click', function () {
-      setTheme(h.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark', true);
+      var cur = h.getAttribute('data-theme-pref') || localStorage.getItem('theme') || 'system';
+      if (cur !== 'dark' && cur !== 'light' && cur !== 'system') {
+        cur = 'system';
+      }
+      applyTheme(nextPref(cur), true);
     });
   });
 

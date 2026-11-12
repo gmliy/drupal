@@ -10,19 +10,19 @@ body.xm-submission-page,
 .xm-submission-form,
 .xm-confirm-form,
 .xm-submit {
-  --xm-canvas: #fff;
-  --xm-surface: #fff;
-  --xm-soft: #f5f5f4;
-  --xm-fg: #1c1917;
-  --xm-mut: #78716c;
-  --xm-faint: #a8a29e;
-  --xm-bd: #e7e5e4;
-  --xm-bd-strong: #d6d3d1;
-  --xm-hover: #f5f5f4;
-  --xm-active: #f5f5f4;
-  --xm-primary: #1c1917;
-  --xm-primary-fg: #fafaf9;
-  --xm-danger: #b91c1c;
+  --xm-canvas: var(--xedc-bg, #fff);
+  --xm-surface: var(--xedc-surface, #fff);
+  --xm-soft: var(--xedc-surface-muted, #f7f7f7);
+  --xm-fg: var(--xedc-text, #242424);
+  --xm-mut: var(--xedc-text-secondary, #737373);
+  --xm-faint: var(--xedc-text-muted, #999);
+  --xm-bd: var(--xedc-border, #eaeaea);
+  --xm-bd-strong: var(--xedc-border-strong, #d8d8d8);
+  --xm-hover: var(--xedc-hover, #f2f2f2);
+  --xm-active: var(--xedc-hover, #f2f2f2);
+  --xm-primary: var(--xedc-primary, #242424);
+  --xm-primary-fg: var(--xedc-primary-text, #fff);
+  --xm-danger: var(--xedc-danger, #dc4545);
   --xm-danger-fg: #fff;
   --xm-danger-bg: #fef2f2;
   --xm-danger-border: #fecaca;
@@ -48,20 +48,19 @@ body.xm-submission-page,
 }
 
 :is(html[data-bs-theme=dark], html[data-theme=dark]) :is(body.xm-page, body.xm-submission-page, .xm, .xm-submission-form, .xm-confirm-form, .xm-submit) {
-  /* Match site Bootstrap dark body (zinc), not a separate stone palette. */
-  --xm-canvas: #18181b;
-  --xm-surface: #18181b;
-  --xm-soft: #27272a;
-  --xm-fg: #fafafa;
-  --xm-mut: #a1a1aa;
-  --xm-faint: #71717a;
-  --xm-bd: #3f3f46;
-  --xm-bd-strong: #52525b;
-  --xm-hover: #27272a;
-  --xm-active: #27272a;
-  --xm-primary: #fafafa;
-  --xm-primary-fg: #18181b;
-  --xm-danger: #f87171;
+  --xm-canvas: var(--xedc-bg, #121212);
+  --xm-surface: var(--xedc-surface, #181818);
+  --xm-soft: var(--xedc-surface-muted, #202020);
+  --xm-fg: var(--xedc-text, #f2f2f2);
+  --xm-mut: var(--xedc-text-secondary, #b0b0b0);
+  --xm-faint: var(--xedc-text-muted, #858585);
+  --xm-bd: var(--xedc-border, #303030);
+  --xm-bd-strong: var(--xedc-border-strong, #404040);
+  --xm-hover: var(--xedc-hover, #292929);
+  --xm-active: var(--xedc-hover, #292929);
+  --xm-primary: var(--xedc-primary, #f2f2f2);
+  --xm-primary-fg: var(--xedc-primary-text, #181818);
+  --xm-danger: var(--xedc-danger, #ff6464);
   --xm-danger-fg: #fff;
   --xm-danger-bg: rgb(248 113 113 / 14%);
   --xm-danger-border: rgb(248 113 113 / 40%);
@@ -466,10 +465,45 @@ body.xm-submission-page .block-page-title-block h1 {
 }
 .xm-icon-btn:hover { background: var(--xm-hover); }
 .xm-icon-btn:focus-visible,
-.xm :is(a, button, .xm-nav__item, .xm-tab, .xm-card, .xm-stat):focus-visible,
-.xm-side :is(a, button):focus-visible {
+.xm :is(a, button, .xm-tab, .xm-card, .xm-stat):focus-visible {
   outline: 2px solid var(--xm-ring);
   outline-offset: 2px;
+}
+
+/* Topbar hamburger + drawer nav: no gray border/ring on tap or selection */
+.xm-topbar,
+.xm-side .xm-nav,
+.xm-side .xm-side-foot {
+  -webkit-tap-highlight-color: transparent;
+}
+.xm-topbar .xm-icon-btn {
+  border-color: transparent;
+  background: transparent;
+}
+.xm-topbar .xm-icon-btn:hover { background: var(--xm-hover); }
+.xm-topbar .xm-icon-btn:is(:focus, :focus-visible, :active),
+.xm-topbar .xm-icon-btn[aria-expanded="true"] {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+.xm-side .xm-drawer-close.xm-icon-btn {
+  border-color: transparent;
+  background: transparent;
+}
+.xm-side .xm-drawer-close.xm-icon-btn:is(:focus, :focus-visible, :active) {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+.xm-side .xm-nav__item:is(:focus, :focus-visible, :active),
+.xm-side .xm-nav__item.is-active:is(:focus, :focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.xm-side .xm-side-foot__link:is(:focus, :focus-visible, :active) {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .xm :is(.btn.js-hide, .button.js-hide, input[type=submit].js-hide),

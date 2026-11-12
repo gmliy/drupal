@@ -16,12 +16,13 @@ media_library_modal:
     - core/once
 
 member:
-  version: 3.5
+  version: 3.6.0
   css:
     theme:
       css/member.css: { weight: 200 }
   js:
     js/member.js: {}
   dependencies:
+    - xedc/style
     - core/drupal
     - core/drupal.ajax

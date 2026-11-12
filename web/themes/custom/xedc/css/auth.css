@@ -1,15 +1,15 @@
 /* XEDC auth — shadcn/ui 风格 */
 :root{
-  --xa-bg:#fff;--xa-fg:#09090b;--xa-muted:#71717a;--xa-muted-bg:#f4f4f5;
-  --xa-border:#e4e4e7;--xa-primary:#18181b;--xa-primary-fg:#fafafa;--xa-ring:#a1a1aa;
-  --xa-danger:#dc2626;--xa-danger-bg:#fef2f2;--xa-ok:#15803d;--xa-ok-bg:#f0fdf4;
-  --xa-warn:#b45309;--xa-warn-bg:#fffbeb;--xa-radius:8px;
+  --xa-bg:var(--xedc-surface,#fff);--xa-fg:var(--xedc-text,#242424);--xa-muted:var(--xedc-text-secondary,#737373);--xa-muted-bg:var(--xedc-surface-muted,#f7f7f7);
+  --xa-border:var(--xedc-border,#eaeaea);--xa-primary:var(--xedc-primary,#242424);--xa-primary-fg:var(--xedc-primary-text,#fff);--xa-ring:var(--xedc-border-strong,#d8d8d8);
+  --xa-danger:var(--xedc-danger,#dc4545);--xa-danger-bg:#fef2f2;--xa-ok:var(--xedc-success,#27865b);--xa-ok-bg:#f0fdf4;
+  --xa-warn:var(--xedc-warning,#b7791f);--xa-warn-bg:#fffbeb;--xa-radius:8px;
 }
 .dark,[data-theme="dark"],[data-theme="midnight"],[data-bs-theme="dark"]{
-  --xa-bg:#09090b;--xa-fg:#fafafa;--xa-muted:#a1a1aa;--xa-muted-bg:#18181b;
-  --xa-border:#27272a;--xa-primary:#fafafa;--xa-primary-fg:#18181b;--xa-ring:#52525b;
-  --xa-danger:#f87171;--xa-danger-bg:#2a1215;--xa-ok:#4ade80;--xa-ok-bg:#0f2417;
-  --xa-warn:#fbbf24;--xa-warn-bg:#271c08;
+  --xa-bg:var(--xedc-surface,#181818);--xa-fg:var(--xedc-text,#f2f2f2);--xa-muted:var(--xedc-text-secondary,#b0b0b0);--xa-muted-bg:var(--xedc-surface-muted,#202020);
+  --xa-border:var(--xedc-border,#303030);--xa-primary:var(--xedc-primary,#f2f2f2);--xa-primary-fg:var(--xedc-primary-text,#181818);--xa-ring:var(--xedc-border-strong,#404040);
+  --xa-danger:var(--xedc-danger,#ff6464);--xa-danger-bg:rgb(255 100 100 / 12%);--xa-ok:var(--xedc-success,#53b987);--xa-ok-bg:rgb(83 185 135 / 12%);
+  --xa-warn:var(--xedc-warning,#e5ad55);--xa-warn-bg:rgb(229 173 85 / 12%);
 }
 
 /* 页面杂项 */

@@ -67,7 +67,6 @@ h1.page-title,.block-page-title-block h1,.region-content h1:first-of-type{font-s
 .breadcrumb{margin-bottom:.5rem}
 nav[aria-label="breadcrumb"]:has(.breadcrumb-item:only-child){display:none}
 .xedc-view-photos .view-empty{padding:4rem 1rem;text-align:center;font-size:.875rem;color:var(--bs-secondary-color)}
-html[data-bs-theme="dark"] .xedc-view-photos .views-field-field-cover-image img{filter:brightness(.92)}
 .xedc-view-photos > :has(.photo-bar){position:static;padding:.5rem 0;margin-bottom:.75rem;background:color-mix(in srgb,var(--bs-body-bg) 88%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .xedc-view-photos > :has(.photo-bar) .photo-bar{margin:0}
 .xedc-view-photos .views-row .views-field-field-categories{position:absolute;top:.5rem;left:.5rem;z-index:2;margin:0;padding:0;pointer-events:none}

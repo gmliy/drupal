@@ -113,21 +113,21 @@ h1.page-title,
 .xa-prose a,
 .field--name-body a,
 .field--name-field-body a {
-  color: #2563eb;
+  color: var(--xedc-text, #242424);
 }
 
 .xa-prose a:hover,
 .field--name-body a:hover,
 .field--name-field-body a:hover {
-  color: #1d4ed8;
+  color: var(--xedc-text-secondary, #737373);
 }
 
 .xedc-footer {
   margin-top: auto;
   padding: 3.5rem 1rem;
-  border-top: 1px solid #e7e5e4;
-  background: #fff;
-  color: #6b7280;
+  border-top: 1px solid var(--xedc-border, #eaeaea);
+  background: var(--xedc-surface, #fff);
+  color: var(--xedc-text-secondary, #737373);
   font-size: 0.875rem;
   line-height: 1.7;
   text-align: center;
@@ -137,7 +137,7 @@ h1.page-title,
 .page-footer a,
 .page__footer a,
 footer.xedc-footer a {
-  color: #6b7280;
+  color: var(--xedc-text-secondary, #737373);
   text-decoration: none !important;
 }
 
@@ -145,7 +145,7 @@ footer.xedc-footer a {
 .page-footer a:hover,
 .page__footer a:hover,
 footer.xedc-footer a:hover {
-  color: #111827;
+  color: var(--xedc-text, #242424);
   text-decoration: underline !important;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.22em;

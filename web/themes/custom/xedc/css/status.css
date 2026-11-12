@@ -2,16 +2,16 @@
 
 html.xs-doc,
 .xs {
-  --xs-bg: #fff;
-  --xs-fg: #171717;
-  --xs-muted: #71717a;
-  --xs-faint: #a1a1aa;
-  --xs-border: #e4e4e7;
-  --xs-pri: #18181b;
-  --xs-pri-fg: #fafafa;
-  --xs-soft: #f4f4f5;
-  --xs-wash: #fafafa;
-  --xs-blue: #477bff;
+  --xs-bg: var(--xedc-surface, #fff);
+  --xs-fg: var(--xedc-text, #242424);
+  --xs-muted: var(--xedc-text-secondary, #737373);
+  --xs-faint: var(--xedc-text-muted, #999);
+  --xs-border: var(--xedc-border, #eaeaea);
+  --xs-pri: var(--xedc-primary, #242424);
+  --xs-pri-fg: var(--xedc-primary-text, #fff);
+  --xs-soft: var(--xedc-surface-muted, #f7f7f7);
+  --xs-wash: var(--xedc-bg, #fff);
+  --xs-blue: var(--xedc-text, #242424);
   color-scheme: light;
   background: var(--xs-bg);
   color: var(--xs-fg);
@@ -21,16 +21,16 @@ html.xs-doc[data-bs-theme="dark"],
 html.xs-doc[data-theme="dark"],
 html[data-bs-theme="dark"] .xs,
 html[data-theme="dark"] .xs {
-  --xs-bg: #09090b;
-  --xs-fg: #fafafa;
-  --xs-muted: #a1a1aa;
-  --xs-faint: #71717a;
-  --xs-border: #3f3f46;
-  --xs-pri: #fafafa;
-  --xs-pri-fg: #18181b;
-  --xs-soft: #18181b;
-  --xs-wash: #141418;
-  --xs-blue: #8eafff;
+  --xs-bg: var(--xedc-surface, #181818);
+  --xs-fg: var(--xedc-text, #f2f2f2);
+  --xs-muted: var(--xedc-text-secondary, #b0b0b0);
+  --xs-faint: var(--xedc-text-muted, #858585);
+  --xs-border: var(--xedc-border, #303030);
+  --xs-pri: var(--xedc-primary, #f2f2f2);
+  --xs-pri-fg: var(--xedc-primary-text, #181818);
+  --xs-soft: var(--xedc-surface-muted, #202020);
+  --xs-wash: var(--xedc-bg, #121212);
+  --xs-blue: var(--xedc-text, #f2f2f2);
   color-scheme: dark;
 }
 

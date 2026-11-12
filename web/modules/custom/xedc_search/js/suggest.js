@@ -13,6 +13,7 @@
   var SESSION_UID = 'xedc_search_uid';
   var IDLE_HISTORY = 5;
   var IDLE_HOT = 3;
+  var SUGGEST_LIMIT = 5;
 
   function endpoint(name) {
     return (cfg.endpoints && cfg.endpoints[name]) || '';
@@ -408,6 +409,9 @@
     mount.appendChild(panel);
     var items = [];
     var active = -1;
+    var timer = 0;
+    var requestId = 0;
+    var controller = null;
     var composing = false;
     var syncClear = function () {};
 
@@ -486,7 +490,49 @@
       window.location.href = search;
     }
 
-    function render(historyItems, hotItems) {
+    function suggestRow(item, query) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'xs-item';
+      button.setAttribute('role', 'option');
+      var image = item.image ? safeImage(item.image) : '';
+      if (image) {
+        var img = document.createElement('img');
+        img.className = 'xs-thumb';
+        img.alt = '';
+        img.src = image;
+        button.appendChild(img);
+      }
+      var text = document.createElement('span');
+      fillMatch(text, item.label, query, false);
+      button.appendChild(text);
+      button.addEventListener('click', function () { activate(item); });
+      items.push(item);
+      return button;
+    }
+
+    function renderSuggest(keywordItems, query) {
+      clearNode(panel);
+      items = [];
+      active = -1;
+      var rows = (keywordItems || []).slice(0, SUGGEST_LIMIT);
+      if (!rows.length) {
+        close();
+        return;
+      }
+      var section = document.createElement('div');
+      section.className = 'xs-section xs-section--suggest';
+      var list = document.createElement('div');
+      list.className = 'xs-suggest';
+      rows.forEach(function (item) {
+        list.appendChild(suggestRow(item, query));
+      });
+      section.appendChild(list);
+      panel.appendChild(section);
+      openPanel();
+    }
+
+    function renderIdle(historyItems, hotItems) {
       clearNode(panel);
       items = [];
       active = -1;
@@ -615,7 +661,7 @@
     function openIdle() {
       var q = typedValue(input).trim();
       if (q.length > 0) {
-        close();
+        schedule();
         return;
       }
       var local = cfg.history && !cfg.loggedIn ? readHistory(meta.mode).slice(0, IDLE_HISTORY).map(function (item) {
@@ -645,22 +691,74 @@
 
     function loadHot(historyItems) {
       if (!cfg.hot) {
-        render(historyItems, []);
+        renderIdle(historyItems, []);
         return;
       }
       var hotUrl = endpoint('hot') + '?type=' + encodeURIComponent(apiType(meta.mode)) + '&limit=' + IDLE_HOT;
       fetch(hotUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store' })
         .then(function (response) { return response.ok ? response.json() : null; })
         .then(function (json) {
-          render(historyItems, json && json.ok ? json.data.items : []);
+          renderIdle(historyItems, json && json.ok ? json.data.items : []);
         })
-        .catch(function () { render(historyItems, []); });
+        .catch(function () { renderIdle(historyItems, []); });
+    }
+
+    function suggestEnabled() {
+      return cfg.suggest && endpoint('keywords');
+    }
+
+    function fetchSuggest(q) {
+      if (!suggestEnabled()) {
+        close();
+        return;
+      }
+      if (controller) {
+        controller.abort();
+      }
+      controller = typeof AbortController === 'function' ? new AbortController() : null;
+      var id = ++requestId;
+      var url = endpoint('keywords') + '?type=' + encodeURIComponent(apiType(meta.mode)) + '&limit=' + SUGGEST_LIMIT + '&q=' + encodeURIComponent(q);
+      fetch(url, {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+        signal: controller ? controller.signal : undefined,
+      })
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error('http');
+          }
+          return response.json();
+        })
+        .then(function (json) {
+          if (id !== requestId || typedValue(input).trim() !== q) {
+            return;
+          }
+          if (!json || !json.ok) {
+            close();
+            return;
+          }
+          renderSuggest(json.data.items || [], q);
+        })
+        .catch(function (error) {
+          if (error && error.name === 'AbortError') {
+            return;
+          }
+          if (id === requestId) {
+            close();
+          }
+        });
     }
 
     function schedule() {
+      window.clearTimeout(timer);
       var q = typedValue(input).trim();
       if (q.length > 0) {
-        close();
+        if (!suggestEnabled()) {
+          close();
+          return;
+        }
+        timer = window.setTimeout(function () { fetchSuggest(q); }, cfg.debounce || 250);
         return;
       }
       if (document.activeElement === input) {

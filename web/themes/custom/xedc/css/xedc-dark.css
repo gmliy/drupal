@@ -1,0 +1,250 @@
+/* Dark mode completion layer — pages with legacy hard-coded light surfaces. */
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) {
+  --bs-secondary-bg: var(--xedc-surface-muted);
+  --bs-tertiary-bg: var(--xedc-hover);
+  --bs-tertiary-color: var(--xedc-text-secondary);
+  --bs-emphasis-color: var(--xedc-text);
+  --bs-border-color-translucent: color-mix(in srgb, var(--xedc-border) 85%, transparent);
+}
+
+/* Engagement */
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-act__btn,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-act .xedc-favorite-btn,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-act a.xedc-favorite-login,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-dl__go {
+  background: var(--xedc-surface);
+  border-color: var(--xedc-border);
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-act__btn:hover,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-act .xedc-favorite-btn:hover,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-dl__go:hover {
+  background: var(--xedc-hover);
+  border-color: var(--xedc-border-strong);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-sheet {
+  background: var(--xedc-surface);
+  border-color: var(--xedc-border);
+  color: var(--xedc-text);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-sheet__head {
+  border-bottom-color: var(--xedc-border);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-dl {
+  border-bottom-color: var(--xedc-border);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-dl__tag,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-share__url {
+  background: var(--xedc-surface-muted);
+  color: var(--xedc-tag-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xm-membership__card,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xm-table-wrap {
+  background: var(--xedc-surface);
+  border-color: var(--xedc-border);
+}
+
+/* Comments */
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .comment-form {
+  background: var(--xedc-surface);
+  border-color: var(--xedc-border);
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .comment-form .form-textarea {
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .comment-form .xm-notice {
+  background: var(--xedc-surface-muted);
+  border-color: var(--xedc-border);
+  color: var(--xedc-text-secondary);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .comment-form .comment-form__cancel {
+  background: var(--xedc-surface);
+  border-color: var(--xedc-border);
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .comment-form .comment-form__cancel:hover {
+  background: var(--xedc-hover);
+  border-color: var(--xedc-border-strong);
+}
+
+/* Search results (stone palette overrides at file end) */
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) body:has(.sr-page) {
+  background: var(--xedc-bg);
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .sr-page {
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .sr-card.search-card {
+  background: var(--xedc-surface);
+  color: var(--xedc-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .sr-page .xa-pager__btn,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .sr-page .xa-pager__num {
+  background: var(--xedc-surface);
+  border-color: var(--xedc-border);
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .sr-page .xa-pager a:hover {
+  background: var(--xedc-hover);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .sr-page .xa-pager__num.is-active {
+  background: var(--xedc-selected);
+  border-color: var(--xedc-selected);
+  color: var(--xedc-selected-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .highlight,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .sr-mark {
+  background: color-mix(in srgb, var(--xedc-warning) 28%, var(--xedc-surface-muted));
+}
+
+/* Video list / detail */
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xv-page {
+  --xv-fg: var(--xedc-text);
+  --xv-muted: var(--xedc-text-secondary);
+  --xv-line: var(--xedc-border);
+  --xv-card: var(--xedc-surface);
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) body:has(.xv-page) .xedc-footer {
+  background: var(--xedc-surface);
+  color: var(--xedc-text-secondary);
+  border-top-color: var(--xedc-border);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xv-lead {
+  background: var(--xedc-surface-muted);
+  border-color: var(--xedc-border);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .vd-page {
+  --vd-bg: var(--xedc-bg);
+  --vd-fg: var(--xedc-text);
+  --vd-muted: var(--xedc-text-secondary);
+  --vd-faint: var(--xedc-text-muted);
+  --vd-line: var(--xedc-border);
+  --vd-hover: var(--xedc-hover);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .vd-prose {
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .vd-page .vd-actions .xedc-act__btn,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .vd-page .vd-actions .xedc-favorite-btn,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .vd-page .vd-actions a.xedc-favorite-login {
+  background: var(--xedc-surface);
+  border-color: var(--xedc-border);
+  color: var(--xedc-text);
+}
+
+/* Public profile */
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xp,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) body.xp-page {
+  --xp-bg: var(--xedc-bg);
+  --xp-fg: var(--xedc-text);
+  --xp-muted: var(--xedc-text-secondary);
+  --xp-border: var(--xedc-border);
+  --xp-soft: var(--xedc-surface-muted);
+  --xp-surface: var(--xedc-surface);
+  --xp-accent: var(--xedc-primary);
+  --xp-accent-fg: var(--xedc-primary-text);
+  background: var(--xedc-bg) !important;
+  color: var(--xedc-text);
+}
+
+/* Meta + article */
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xedc-meta {
+  --m-fg: var(--xedc-text);
+  --m-muted: var(--xedc-text-secondary);
+  --m-border: var(--xedc-border);
+  --m-bg: var(--xedc-tag-bg);
+  --m-accent: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .xa-top {
+  background: var(--xedc-surface);
+  border-color: var(--xedc-border);
+  color: var(--xedc-text);
+}
+
+/* Image detail — panels still using literal white */
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .img-detail header.img-detail__head,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .img-detail .img-detail__panel {
+  background: var(--xedc-surface);
+  border-color: var(--xedc-border);
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .img-detail .img-detail__desc-toggle:hover {
+  color: var(--xedc-text);
+}
+
+/* jQuery UI dialog */
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .ui-dialog,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .ui-widget-content {
+  background: var(--xedc-surface);
+  border-color: var(--xedc-border);
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .ui-dialog .ui-dialog-titlebar {
+  background: var(--xedc-surface);
+  border-color: var(--xedc-border);
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .ui-dialog .ui-dialog-titlebar-close::before {
+  color: var(--xedc-text);
+}
+
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .ui-dialog .ui-dialog-titlebar-close:hover,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .ui-dialog .ui-dialog-titlebar-close:focus-visible {
+  background: var(--xedc-hover) !important;
+}
+
+/* Plyr on video detail — neutral chrome, no blue accent */
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .vd-page .plyr {
+  --plyr-color-main: var(--xedc-text-secondary);
+  --plyr-focus-visible-color: var(--xedc-border-strong);
+  --plyr-video-control-background-hover: var(--xedc-text-muted);
+  --plyr-audio-control-background-hover: var(--xedc-text-muted);
+  --plyr-menu-background: color-mix(in srgb, var(--xedc-surface) 92%, transparent);
+  --plyr-menu-color: var(--xedc-text);
+  --plyr-tooltip-background: var(--xedc-surface);
+  --plyr-tooltip-color: var(--xedc-text);
+}
+
+/* Drupal messages / status */
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .messages,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) [data-drupal-messages] {
+  color: var(--xedc-text);
+}
+
+/* Member center canvas */
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) body.xm-page,
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) body.xm-submission-page {
+  background: var(--xedc-bg);
+  color: var(--xedc-text);
+}

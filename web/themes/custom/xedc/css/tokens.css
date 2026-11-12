@@ -1,13 +1,13 @@
 .xa{
-  --background:#fff;
-  --foreground:#09090b;
-  --muted:#f4f4f5;
-  --muted-foreground:#71717a;
-  --border:#e4e4e7;
-  --primary:#18181b;
-  --primary-foreground:#fafafa;
+  --background:var(--xedc-surface,#fff);
+  --foreground:var(--xedc-text,#242424);
+  --muted:var(--xedc-surface-muted,#f7f7f7);
+  --muted-foreground:var(--xedc-text-secondary,#737373);
+  --border:var(--xedc-border,#eaeaea);
+  --primary:var(--xedc-primary,#242424);
+  --primary-foreground:var(--xedc-primary-text,#fff);
   --radius:.5rem;
-  --ring:#a1a1aa;
+  --ring:var(--xedc-border-strong,#d8d8d8);
   background:var(--background);
   color:var(--foreground);
   font-family:ui-sans-serif,system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;

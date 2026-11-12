@@ -1,0 +1,202 @@
+/* XEDC shared UI — buttons, tags, footer, prose, engagement, pills bridge. */
+
+/* Primary / secondary buttons (Bootstrap + custom) */
+.btn-primary {
+  --bs-btn-bg: var(--xedc-primary);
+  --bs-btn-border-color: var(--xedc-primary);
+  --bs-btn-color: var(--xedc-primary-text);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--xedc-primary) 88%, var(--xedc-text-muted));
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--xedc-primary) 88%, var(--xedc-text-muted));
+  --bs-btn-hover-color: var(--xedc-primary-text);
+  --bs-btn-active-bg: color-mix(in srgb, var(--xedc-primary) 82%, #000);
+  --bs-btn-active-border-color: color-mix(in srgb, var(--xedc-primary) 82%, #000);
+  --bs-btn-disabled-bg: var(--xedc-surface-muted);
+  --bs-btn-disabled-border-color: var(--xedc-border);
+  --bs-btn-disabled-color: var(--xedc-text-muted);
+}
+
+.btn-secondary,
+.btn-outline-secondary {
+  --bs-btn-bg: var(--xedc-surface-muted);
+  --bs-btn-border-color: var(--xedc-border);
+  --bs-btn-color: var(--xedc-text);
+  --bs-btn-hover-bg: var(--xedc-hover);
+  --bs-btn-hover-border-color: var(--xedc-border-strong);
+  --bs-btn-hover-color: var(--xedc-text);
+}
+
+.btn-danger {
+  --bs-btn-bg: var(--xedc-danger);
+  --bs-btn-border-color: var(--xedc-danger);
+}
+
+.btn-link {
+  --bs-btn-color: var(--xedc-text-secondary);
+  --bs-btn-hover-color: var(--xedc-text);
+}
+
+/* Pills / category selection */
+a.xedc-pill.is-active,
+button.xedc-pill.is-active,
+a.xedc-pill.is-active:hover,
+button.xedc-pill.is-active:hover,
+.photo-tabs a.xedc-pill.is-active,
+.photo-sorts a.xedc-pill.is-active,
+.xa a.xa-chip.xedc-pill.is-active,
+a.sr-tab.xedc-pill.is-active,
+a.sr-sort.xedc-pill.is-active {
+  background: var(--xedc-selected);
+  border-color: var(--xedc-selected);
+  color: var(--xedc-selected-text);
+}
+
+:is([data-bs-theme="dark"], [data-theme="dark"]) a.xedc-pill.is-active,
+:is([data-bs-theme="dark"], [data-theme="dark"]) a.xedc-pill.is-active:hover,
+:is([data-bs-theme="dark"], [data-theme="dark"]) button.xedc-pill.is-active {
+  background: var(--xedc-selected);
+  border-color: var(--xedc-selected);
+  color: var(--xedc-selected-text);
+}
+
+/* Tags */
+.xedc-dl__tag,
+.xm-tier,
+.xedc-member-mark {
+  background: var(--xedc-tag-bg);
+  color: var(--xedc-tag-text);
+}
+
+.xedc-vip-mark,
+.xm-tier--vip,
+.xedc-dl__tag--vip {
+  background: var(--xedc-primary);
+  color: var(--xedc-primary-text);
+}
+
+/* Footer */
+.xedc-footer {
+  border-top: 1px solid var(--xedc-border);
+  background: var(--xedc-surface);
+  color: var(--xedc-text-secondary);
+}
+
+.xedc-footer a,
+.page-footer a,
+.page__footer a,
+footer.xedc-footer a {
+  color: var(--xedc-text-secondary);
+}
+
+.xedc-footer a:hover,
+.page-footer a:hover,
+.page__footer a:hover,
+footer.xedc-footer a:hover {
+  color: var(--xedc-text);
+}
+
+/* Body links — no blue */
+.xa-prose a,
+.field--name-body a,
+.field--name-field-body a,
+.xa .xa-prose a {
+  color: var(--xedc-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--xedc-text) 28%, transparent);
+}
+
+.xa-prose a:hover,
+.field--name-body a:hover,
+.field--name-field-body a:hover {
+  color: var(--xedc-text-secondary);
+}
+
+.legal-page a,
+.xedc-meta a {
+  color: var(--xedc-text);
+}
+
+/* Engagement: like / favorite */
+.xedc-act__btn,
+.xedc-act .xedc-favorite-btn,
+.xedc-act a.xedc-favorite-login,
+.xedc-dl__go {
+  border-color: var(--xedc-border);
+  background: var(--xedc-surface);
+  color: var(--xedc-text);
+}
+
+.xedc-act__btn:hover,
+.xedc-act .xedc-favorite-btn:hover,
+.xedc-act a.xedc-favorite-login:hover,
+.xedc-dl__go:hover {
+  background: var(--xedc-hover);
+  border-color: var(--xedc-border-strong);
+}
+
+.xedc-act__count {
+  color: var(--xedc-text-secondary);
+}
+
+.xedc-act__btn.is-on,
+.xedc-act__btn[data-xedc-like].is-on {
+  color: var(--xedc-like);
+  background: color-mix(in srgb, var(--xedc-like) 8%, var(--xedc-surface));
+  border-color: color-mix(in srgb, var(--xedc-like) 35%, var(--xedc-border));
+}
+
+.xedc-act__btn.is-on svg {
+  fill: var(--xedc-like);
+  stroke: var(--xedc-like);
+}
+
+.xedc-act .xedc-favorite-btn.is-favorite {
+  color: var(--xedc-primary);
+  background: var(--xedc-surface-muted);
+  border-color: var(--xedc-border-strong);
+}
+
+:is([data-bs-theme="dark"], [data-theme="dark"]) .xedc-act .xedc-favorite-btn.is-favorite {
+  color: var(--xedc-primary);
+}
+
+.xedc-sheet {
+  border-color: var(--xedc-border);
+  background: var(--xedc-surface);
+  color: var(--xedc-text);
+}
+
+.xedc-sheet__head {
+  border-bottom-color: var(--xedc-border);
+}
+
+.xedc-sheet__close {
+  color: var(--xedc-text-secondary);
+}
+
+/* Forms: neutral focus */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--xedc-border-strong);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--xedc-text) 8%, transparent);
+}
+
+/* Pagination active */
+.page-item.active .page-link,
+.xa-pager__num.is-active {
+  background: var(--xedc-selected);
+  border-color: var(--xedc-selected);
+  color: var(--xedc-selected-text);
+}
+
+/* Do not alter media content in dark mode */
+.xedc-view-photos img,
+.sr-img,
+.img-detail__media img,
+.img-detail .gallery img,
+.vcard__thumb img,
+.meitu-card img,
+video,
+.plyr video {
+  filter: none !important;
+}

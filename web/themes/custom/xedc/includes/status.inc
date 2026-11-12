@@ -164,7 +164,7 @@ function _xedc_status_payload(int $code, ?HttpExceptionInterface $exception = NU
  * Inline theme script. Runs before CSS so the first paint matches.
  */
 function _xedc_status_theme_js(): string {
-  return "(function(){try{var t=localStorage.getItem('theme');if(t!=='dark'&&t!=='light'){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var h=document.documentElement;h.setAttribute('data-bs-theme',t);h.setAttribute('data-theme',t);}catch(e){}})();";
+  return function_exists('_xedc_theme_boot_script') ? _xedc_theme_boot_script() : "(function(){try{var p=localStorage.getItem('theme');var t;if(p==='dark'||p==='light'){t=p;}else{t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var h=document.documentElement;h.setAttribute('data-bs-theme',t);h.setAttribute('data-theme',t);}catch(e){}})();";
 }
 
 /**

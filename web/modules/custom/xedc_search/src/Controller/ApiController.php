@@ -55,9 +55,11 @@ final class ApiController extends ControllerBase {
       return $denied;
     }
     try {
-      $limit = max(1, min(12, (int) $request->query->get('limit', 8)));
-      $items = $this->suggester->dynamicKeywords($this->text($request, 'q'), $this->text($request, 'type'), $limit);
-      return $this->ok(['q' => $this->normalizer->clean($this->text($request, 'q')), 'items' => $items], 30);
+      $q = $this->normalizer->clean($this->text($request, 'q'));
+      $limit = max(1, min(8, (int) $request->query->get('limit', 5)));
+      $items = $this->suggester->dynamicKeywords($q, $this->text($request, 'type'), $limit);
+      $cache = $q === '' ? 30 : 0;
+      return $this->ok(['q' => $q, 'items' => $items], $cache);
     }
     catch (\Throwable $exception) {
       return $this->failure($exception);

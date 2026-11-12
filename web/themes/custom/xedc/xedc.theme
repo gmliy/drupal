@@ -10,6 +10,7 @@ $includes_path = __DIR__ . '/includes/*.theme';
 foreach (glob($includes_path) as $file) {
   require_once __DIR__ . '/includes/' . basename($file);
 }
+require_once __DIR__ . '/includes/theme.inc';
 require_once __DIR__ . '/includes/status.inc';
 
 /**
@@ -442,6 +443,14 @@ function xedc_library_info_alter(array &$libraries, $extension) {
 }
 
 function xedc_page_attachments_alter(array &$attachments) {
+  $attachments['#attached']['html_head'][] = [
+    [
+      '#tag' => 'script',
+      '#value' => _xedc_theme_boot_script(),
+      '#attributes' => ['type' => 'text/javascript'],
+    ],
+    'xedc_theme_boot',
+  ];
   $attachments['#cache']['contexts'] = \Drupal\Core\Cache\Cache::mergeContexts(
     $attachments['#cache']['contexts'] ?? [],
     ['route', 'url.path', 'languages:language_interface']

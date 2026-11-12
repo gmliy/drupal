@@ -211,7 +211,7 @@ body:has(.img-detail) .block-page-title-block { display: none; }
 .img-detail .indented .indented { margin-left: 0 !important; }
 .img-detail .indented > article.cm { margin-left: 2.75rem; padding: .6rem .75rem; background: #f7f7f7; border-radius: 10px; margin-bottom: .4rem; }
 .img-detail .indented .indented > article.cm { margin-left: 2.75rem; }
-.img-detail .cm__to { font-style: normal; font-size: .8125rem; color: #2563eb; }
+.img-detail .cm__to { font-style: normal; font-size: .8125rem; color: var(--xedc-text, #242424); }
 .img-detail .cm__main .field--name-field-comment-image img { cursor: zoom-in; }
 .cm-lightbox { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center; padding: 1rem; cursor: zoom-out; }
 .cm-lightbox[hidden] { display: none; }
@@ -219,7 +219,7 @@ body:has(.img-detail) .block-page-title-block { display: none; }
 .img-detail .indented { margin-left: 1.1rem !important; padding-left: .9rem !important; border-left: 2px solid #e5e5e5 !important; }
 .img-detail .indented .indented { margin-left: 0 !important; padding-left: 0 !important; border-left: 0 !important; }
 .img-detail .indented > article.cm, .img-detail .indented .indented > article.cm { margin-left: 0 !important; padding: .6rem 0 !important; background: transparent !important; border-radius: 0 !important; }
-.img-detail .cm__to { display: inline-block; font-style: normal; font-size: .75rem; color: #2563eb; background: #eff6ff; padding: 0 .45rem; border-radius: 9999px; line-height: 1.5; }
+.img-detail .cm__to { display: inline-block; font-style: normal; font-size: .75rem; color: var(--xedc-text, #242424); background: var(--xedc-surface-muted, #f7f7f7); padding: 0 .45rem; border-radius: 9999px; line-height: 1.5; }
 .img-detail .indented { margin-left: .9rem !important; padding-left: .75rem !important; border-left: 2px solid #e5e5e5 !important; }
 .img-detail .indented .indented { margin-left: .9rem !important; padding-left: .75rem !important; border-left: 2px solid #e5e5e5 !important; }
 .img-detail .indented .indented .indented { margin-left: .9rem !important; padding-left: .75rem !important; border-left: 2px solid #e5e5e5 !important; }

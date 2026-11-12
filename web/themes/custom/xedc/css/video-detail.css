@@ -602,23 +602,15 @@ article.vd {
   }
 }
 
-[data-bs-theme="dark"] .vd-page {
-  --vd-bg: #0a0a0a;
-  --vd-fg: #fafafa;
-  --vd-muted: #a3a3a3;
-  --vd-faint: #737373;
-  --vd-line: #262626;
-  --vd-hover: #171717;
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .vd-page {
+  --vd-bg: var(--xedc-bg, #121212);
+  --vd-fg: var(--xedc-text, #f2f2f2);
+  --vd-muted: var(--xedc-text-secondary, #b0b0b0);
+  --vd-faint: var(--xedc-text-muted, #858585);
+  --vd-line: var(--xedc-border, #303030);
+  --vd-hover: var(--xedc-hover, #292929);
 }
 
-[data-bs-theme="dark"] .vd-prose {
-  color: #d4d4d4;
-}
-
-[data-bs-theme="dark"] .vd-page .vd-actions .xedc-act__btn,
-[data-bs-theme="dark"] .vd-page .vd-actions .xedc-favorite-btn,
-[data-bs-theme="dark"] .vd-page .vd-actions a.xedc-favorite-login,
-[data-bs-theme="dark"] .vd-page .vd-topics a.xedc-pill {
-  background: transparent;
-  color: #e5e5e5;
+:is(html[data-bs-theme="dark"], html[data-theme="dark"]) .vd-prose {
+  color: var(--xedc-text, #f2f2f2);
 }

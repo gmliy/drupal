@@ -1,8 +1,11 @@
 style:
-  version: 1.5
+  version: 1.7
   css:
     theme:
       build/css/main.style.css: {}
+      css/xedc-tokens.css: { weight: 5 }
+      css/xedc-components.css: { weight: 6 }
+      css/xedc-dark.css: { weight: 7 }
       css/inputs.css: { weight: 200 }
       css/xedc-pill.css: {}
       css/xedc-layout.css: {}
@@ -43,7 +46,7 @@ meta:
       css/xedc-meta.css: {}
 
 engagement:
-  version: 1.7
+  version: 1.8
   css:
     theme:
       css/engagement.css: {}
@@ -55,12 +58,14 @@ engagement:
     - core/drupalSettings
 
 navbar:
-  version: 1.9
+  version: 2.0
   css:
     theme:
       css/xedc-navbar.css: {}
   js:
     js/xedc-navbar.js: {}
+  dependencies:
+    - xedc/style
 
 legal:
   version: 1.1
@@ -138,7 +143,7 @@ article-detail:
     - core/drupal
 
 photo-detail:
-  version: 1.22
+  version: 1.28
   css:
     theme:
       css/photo-detail.css: {}

@@ -1,10 +1,10 @@
 /* 评论表单基础样式：详情页与 /comment/{id}/edit 共用 */
 .comment-form {
   padding: 1rem 1.25rem;
-  border: 1px solid #e5e5e5;
+  border: 1px solid var(--xedc-border, #eaeaea);
   border-radius: 14px;
-  background: #fff;
-  color: #171717;
+  background: var(--xedc-surface, #fff);
+  color: var(--xedc-text, #242424);
 }
 
 .comment-form .form-item { margin-bottom: .75rem; }
@@ -506,7 +506,7 @@
   padding: 0 .45rem;
   border-radius: 999px;
   background: #eff6ff;
-  color: #2563eb;
+  color: var(--xedc-text, #242424);
   font-size: .75rem;
   font-style: normal;
   line-height: 1.5;

@@ -227,7 +227,7 @@ final class Suggester {
     $q = $this->normalizer->clean($q);
     $type = $this->normalizer->type($type);
     $limit = max(1, min(12, $limit));
-    if ($q !== '' && mb_strlen($q) < max(1, (int) $config->get('min_length'))) {
+    if ($q !== '' && mb_strlen($q) < 1) {
       return [];
     }
     $needle = $this->normalizer->key($q);
@@ -278,13 +278,13 @@ final class Suggester {
         foreach ($this->keywordItems($q, 'photo', $slice) as $item) {
           $push($item);
         }
-        foreach ($this->termItems($q, ['photo_category'], min(4, $limit), 'category') as $item) {
+        foreach ($this->termItems($q, ['models'], min(3, $limit), 'model') as $item) {
           $push($item);
         }
         foreach ($this->termItems($q, ['tags'], min(3, $limit), 'tag') as $item) {
           $push($item);
         }
-        foreach ($this->termItems($q, ['models'], min(3, $limit), 'model') as $item) {
+        foreach ($this->termItems($q, ['photo_category'], min(3, $limit), 'category') as $item) {
           $push($item);
         }
       })(),
@@ -292,13 +292,13 @@ final class Suggester {
         foreach ($this->keywordItems($q, 'video', $slice) as $item) {
           $push($item);
         }
-        foreach ($this->termItems($q, ['video_category'], min(4, $limit), 'category') as $item) {
+        foreach ($this->termItems($q, ['models'], min(3, $limit), 'model') as $item) {
           $push($item);
         }
         foreach ($this->termItems($q, ['tags'], min(3, $limit), 'tag') as $item) {
           $push($item);
         }
-        foreach ($this->termItems($q, ['models'], min(3, $limit), 'model') as $item) {
+        foreach ($this->termItems($q, ['video_category'], min(3, $limit), 'category') as $item) {
           $push($item);
         }
       })(),
@@ -306,10 +306,10 @@ final class Suggester {
         foreach ($this->keywordItems($q, 'article', $slice) as $item) {
           $push($item);
         }
-        foreach ($this->termItems($q, ['article_category'], min(4, $limit), 'category') as $item) {
+        foreach ($this->termItems($q, ['tags'], min(3, $limit), 'tag') as $item) {
           $push($item);
         }
-        foreach ($this->termItems($q, ['tags'], min(3, $limit), 'tag') as $item) {
+        foreach ($this->termItems($q, ['article_category'], min(3, $limit), 'category') as $item) {
           $push($item);
         }
       })(),
@@ -317,10 +317,10 @@ final class Suggester {
         foreach ($this->keywordItems($q, 'all', $slice) as $item) {
           $push($item);
         }
-        foreach ($this->termItems($q, ['tags'], min(4, $limit), 'tag') as $item) {
+        foreach ($this->termItems($q, ['models'], min(4, $limit), 'model') as $item) {
           $push($item);
         }
-        foreach ($this->termItems($q, ['models'], min(4, $limit), 'model') as $item) {
+        foreach ($this->termItems($q, ['tags'], min(4, $limit), 'tag') as $item) {
           $push($item);
         }
         foreach ($this->termItems($q, $this->categoryVocabularies('all'), min(4, $limit), 'category') as $item) {

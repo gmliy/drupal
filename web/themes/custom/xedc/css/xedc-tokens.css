@@ -1,0 +1,126 @@
+/* XEDC Minimal Monochrome — global design tokens (light + dark). */
+
+:root,
+[data-bs-theme="light"] {
+  --xedc-bg: #ffffff;
+  --xedc-surface: #ffffff;
+  --xedc-surface-muted: #f7f7f7;
+  --xedc-hover: #f2f2f2;
+  --xedc-text: #242424;
+  --xedc-text-secondary: #737373;
+  --xedc-text-muted: #999999;
+  --xedc-border: #eaeaea;
+  --xedc-border-strong: #d8d8d8;
+  --xedc-primary: #242424;
+  --xedc-primary-text: #ffffff;
+  --xedc-selected: #242424;
+  --xedc-selected-text: #ffffff;
+  --xedc-tag-bg: #f3f3f3;
+  --xedc-tag-text: #555555;
+  --xedc-like: #fe2c55;
+  --xedc-danger: #dc4545;
+  --xedc-success: #27865b;
+  --xedc-warning: #b7791f;
+  --xedc-radius: 8px;
+  --xedc-radius-lg: 12px;
+  --xedc-transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+
+  /* Navbar / search dropdown aliases */
+  --xn-bg: var(--xedc-surface);
+  --xn-fg: var(--xedc-text);
+  --xn-muted: var(--xedc-text-secondary);
+  --xn-border: var(--xedc-border);
+  --xn-accent: var(--xedc-hover);
+  --xn-pri: var(--xedc-primary);
+  --xn-pri-fg: var(--xedc-primary-text);
+  --xn-bgrgb: 255, 255, 255;
+  --xn-shadow: 0 1px 2px rgba(36, 36, 36, 0.05), 0 8px 20px -8px rgba(36, 36, 36, 0.12);
+
+  /* Bootstrap bridge */
+  --bs-body-bg: var(--xedc-bg);
+  --bs-body-color: var(--xedc-text);
+  --bs-secondary-color: var(--xedc-text-secondary);
+  --bs-tertiary-bg: var(--xedc-surface-muted);
+  --bs-border-color: var(--xedc-border);
+  --bs-primary: var(--xedc-primary);
+  --bs-primary-rgb: 36, 36, 36;
+  --bs-secondary: var(--xedc-surface-muted);
+  --bs-secondary-rgb: 247, 247, 247;
+  --bs-success: var(--xedc-success);
+  --bs-danger: var(--xedc-danger);
+  --bs-warning: var(--xedc-warning);
+  --bs-link-color: var(--xedc-text);
+  --bs-link-hover-color: var(--xedc-text-secondary);
+  --bs-emphasis-color: var(--xedc-text);
+  --bs-light: var(--xedc-surface-muted);
+  --bs-dark: var(--xedc-text);
+  --bs-secondary-bg: var(--xedc-surface-muted);
+  --bs-tertiary-bg: var(--xedc-hover);
+  --bs-tertiary-color: var(--xedc-text-secondary);
+}
+
+[data-bs-theme="dark"],
+[data-theme="dark"] {
+  --xedc-bg: #121212;
+  --xedc-surface: #181818;
+  --xedc-surface-muted: #202020;
+  --xedc-hover: #292929;
+  --xedc-text: #f2f2f2;
+  --xedc-text-secondary: #b0b0b0;
+  --xedc-text-muted: #858585;
+  --xedc-border: #303030;
+  --xedc-border-strong: #404040;
+  --xedc-primary: #f2f2f2;
+  --xedc-primary-text: #181818;
+  --xedc-selected: #f2f2f2;
+  --xedc-selected-text: #181818;
+  --xedc-tag-bg: #292929;
+  --xedc-tag-text: #c7c7c7;
+  --xedc-like: #fe2c55;
+  --xedc-danger: #ff6464;
+  --xedc-success: #53b987;
+  --xedc-warning: #e5ad55;
+
+  --xn-bg: var(--xedc-surface);
+  --xn-fg: var(--xedc-text);
+  --xn-muted: var(--xedc-text-secondary);
+  --xn-border: var(--xedc-border);
+  --xn-accent: var(--xedc-hover);
+  --xn-pri: var(--xedc-primary);
+  --xn-pri-fg: var(--xedc-primary-text);
+  --xn-bgrgb: 24, 24, 24;
+  --xn-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 8px 20px -8px rgba(0, 0, 0, 0.55);
+
+  --bs-body-bg: var(--xedc-bg);
+  --bs-body-color: var(--xedc-text);
+  --bs-secondary-color: var(--xedc-text-secondary);
+  --bs-tertiary-bg: var(--xedc-surface-muted);
+  --bs-border-color: var(--xedc-border);
+  --bs-primary: var(--xedc-primary);
+  --bs-primary-rgb: 242, 242, 242;
+  --bs-secondary: var(--xedc-surface-muted);
+  --bs-secondary-rgb: 32, 32, 32;
+  --bs-link-color: var(--xedc-text);
+  --bs-link-hover-color: var(--xedc-text-secondary);
+  --bs-emphasis-color: var(--xedc-text);
+}
+
+html {
+  color-scheme: light dark;
+}
+
+html[data-theme="dark"],
+html[data-bs-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="light"],
+html[data-bs-theme="light"] {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--xedc-bg);
+  color: var(--xedc-text);
+  transition: var(--xedc-transition);
+}

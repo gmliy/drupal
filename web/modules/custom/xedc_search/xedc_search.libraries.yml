@@ -1,5 +1,5 @@
 suggest:
-  version: 1.0.4
+  version: 1.0.5
   css:
     theme:
       css/suggest.css: {}
@@ -9,6 +9,7 @@ suggest:
     - core/drupal
     - core/once
     - core/drupalSettings
+    - xedc/style
 
 admin:
   version: 1.0.3

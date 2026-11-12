@@ -84,6 +84,7 @@ function xedc_search_page_attachments(array &$attachments): void {
     'loggedIn' => \Drupal::currentUser()->isAuthenticated(),
     'uid' => (int) \Drupal::currentUser()->id(),
     'endpoints' => [
+      'keywords' => $url('xedc_search.api.keywords'),
       'suggest' => $url('xedc_search.api.suggest'),
       'complete' => $url('xedc_search.api.complete'),
       'hot' => $url('xedc_search.api.hot'),

@@ -2,17 +2,17 @@
 // html[data-bs-theme="dark"] / html[data-theme="dark"] switch.
 
 @mixin xm-tokens-light {
-  --xm-canvas: #f4f5f7;
-  --xm-surface: #fff;
-  --xm-surface-muted: #f4f4f5;
-  --xm-fg: #18181b;
-  --xm-mut: #71717a;
-  --xm-bd: #e4e4e7;
-  --xm-bd-strong: #d4d4d8;
-  --xm-hover: #f4f4f5;
-  --xm-primary: #18181b;
-  --xm-primary-fg: #fafafa;
-  --xm-danger: #dc2626;
+  --xm-canvas: var(--xedc-bg, #fff);
+  --xm-surface: var(--xedc-surface, #fff);
+  --xm-surface-muted: var(--xedc-surface-muted, #f7f7f7);
+  --xm-fg: var(--xedc-text, #242424);
+  --xm-mut: var(--xedc-text-secondary, #737373);
+  --xm-bd: var(--xedc-border, #eaeaea);
+  --xm-bd-strong: var(--xedc-border-strong, #d8d8d8);
+  --xm-hover: var(--xedc-hover, #f2f2f2);
+  --xm-primary: var(--xedc-primary, #242424);
+  --xm-primary-fg: var(--xedc-primary-text, #fff);
+  --xm-danger: var(--xedc-danger, #dc4545);
   --xm-danger-fg: #fff;
   --xm-danger-bg: #fef2f2;
   --xm-danger-border: #fecaca;
@@ -47,17 +47,17 @@
 }
 
 @mixin xm-tokens-dark {
-  --xm-canvas: #09090b;
-  --xm-surface: #18181b;
-  --xm-surface-muted: #27272a;
-  --xm-fg: #fafafa;
-  --xm-mut: #a1a1aa;
-  --xm-bd: #3f3f46;
-  --xm-bd-strong: #52525b;
-  --xm-hover: #27272a;
-  --xm-primary: #fafafa;
-  --xm-primary-fg: #18181b;
-  --xm-danger: #f87171;
+  --xm-canvas: var(--xedc-bg, #121212);
+  --xm-surface: var(--xedc-surface, #181818);
+  --xm-surface-muted: var(--xedc-surface-muted, #202020);
+  --xm-fg: var(--xedc-text, #f2f2f2);
+  --xm-mut: var(--xedc-text-secondary, #b0b0b0);
+  --xm-bd: var(--xedc-border, #303030);
+  --xm-bd-strong: var(--xedc-border-strong, #404040);
+  --xm-hover: var(--xedc-hover, #292929);
+  --xm-primary: var(--xedc-primary, #f2f2f2);
+  --xm-primary-fg: var(--xedc-primary-text, #181818);
+  --xm-danger: var(--xedc-danger, #ff6464);
   --xm-danger-fg: #fff;
   --xm-danger-bg: rgb(248 113 113 / 14%);
   --xm-danger-border: rgb(248 113 113 / 45%);

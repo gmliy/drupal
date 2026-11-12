@@ -1,10 +1,10 @@
 /* Video list / tag / category pages. */
 
 .xv-page {
-  --xv-fg: var(--xn-fg, #18181b);
-  --xv-muted: var(--xn-muted, #71717a);
-  --xv-line: var(--xn-border, #e4e4e7);
-  --xv-card: #fff;
+  --xv-fg: var(--xedc-text, #242424);
+  --xv-muted: var(--xedc-text-secondary, #737373);
+  --xv-line: var(--xedc-border, #eaeaea);
+  --xv-card: var(--xedc-surface, #fff);
   --xv-radius: 10px;
   width: 100%;
   max-width: none;
@@ -430,40 +430,10 @@ a.vmember:focus-visible,
   }
 }
 
-:is([data-bs-theme=dark], [data-theme=dark]) .xv-page {
-  --xv-fg: #e4e4e7;
-  --xv-muted: #a1a1aa;
-  --xv-line: #3f3f46;
-  --xv-card: #18181b;
-  color: #e4e4e7;
-}
-
-:is([data-bs-theme=dark], [data-theme=dark]) body:has(.xv-page) .xedc-footer {
-  background: #18181b;
-  color: #a1a1aa;
-  border-top-color: #27272a;
-}
-
-:is([data-bs-theme=dark], [data-theme=dark]) body:has(.xv-page) .xedc-footer a {
-  color: #a1a1aa;
-}
-
-:is([data-bs-theme=dark], [data-theme=dark]) .xv-page h1,
-:is([data-bs-theme=dark], [data-theme=dark]) .xv-page h2,
-:is([data-bs-theme=dark], [data-theme=dark]) .xv-page .vcard__title,
-:is([data-bs-theme=dark], [data-theme=dark]) .xv-page .vmember__name,
-:is([data-bs-theme=dark], [data-theme=dark]) .xv-page .xv-lead__title a {
-  color: #e4e4e7;
-}
-
-:is([data-bs-theme=dark], [data-theme=dark]) .xv-lead {
-  background: #27272a;
-  border-color: #3f3f46;
-}
-
-:is([data-bs-theme=dark], [data-theme=dark]) .xv-search input::placeholder,
-:is([data-bs-theme=dark], [data-theme=dark]) .xv-empty,
-:is([data-bs-theme=dark], [data-theme=dark]) .xv-count,
-:is([data-bs-theme=dark], [data-theme=dark]) .xv-pager .pager__item a {
-  color: #a1a1aa;
+:is(html[data-bs-theme=dark], html[data-theme=dark]) .xv-page {
+  --xv-fg: var(--xedc-text);
+  --xv-muted: var(--xedc-text-secondary);
+  --xv-line: var(--xedc-border);
+  --xv-card: var(--xedc-surface);
+  color: var(--xedc-text);
 }

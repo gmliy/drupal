@@ -30,11 +30,11 @@ body:has(.field--name-field-body) .field--name-field-body h3{
 }
 body:has(.field--name-field-body) .field--name-field-body p{margin:0 0 1.1em}
 body:has(.field--name-field-body) .field--name-field-body a{
-  color:#2563eb;font-weight:500;
+  color:var(--xedc-text,#242424);font-weight:500;
   text-decoration:underline;text-underline-offset:4px;
   text-decoration-color:rgba(37,99,235,.35);transition:text-decoration-color .15s,color .15s;
 }
-body:has(.field--name-field-body) .field--name-field-body a:hover{color:#1d4ed8;text-decoration-color:#1d4ed8}
+body:has(.field--name-field-body) .field--name-field-body a:hover{color:var(--xedc-text-secondary,#737373);text-decoration-color:var(--xedc-text-secondary,#737373)}
 body:has(.field--name-field-body) .field--name-field-body ul,
 body:has(.field--name-field-body) .field--name-field-body ol{margin:0 0 1.2em;padding-left:1.5em}
 body:has(.field--name-field-body) .field--name-field-body li{margin:.4em 0}

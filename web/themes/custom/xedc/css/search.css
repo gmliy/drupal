@@ -520,7 +520,6 @@ body:has(.sr-page) h1.page-title { margin-top: .125rem; }
 [data-bs-theme="dark"] .sr-mark,
 [data-theme="dark"] .sr-mark { background: rgba(var(--bs-warning-rgb), .22); }
 [data-bs-theme="dark"] .sr-img,
-[data-theme="dark"] .sr-img { filter: brightness(.94); }
 
 /* Motion preferences */
 @media (prefers-reduced-motion: reduce) {
@@ -548,10 +547,10 @@ body:has(.sr-page) h1.page-title { margin-top: .125rem; }
 
 /* 搜索结果：2 / 3 / 4 列、3:4 卡片、xa-pager。写在文件末尾，盖过旧网格。 */
 body:has(.sr-page) {
-  background: #FAFAF8;
-  color: #1C1917;
+  background: var(--xedc-bg, #fff);
+  color: var(--xedc-text, #242424);
 }
-.sr-page { color: #1C1917; }
+.sr-page { color: var(--xedc-text, #242424); }
 
 .sr-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -566,9 +565,9 @@ body:has(.sr-page) {
 
 .sr-card.search-card {
   border-radius: 14px;
-  background: #fff;
-  color: #1C1917;
-  box-shadow: 0 1px 3px rgba(28, 25, 23, .06);
+  background: var(--xedc-surface, #fff);
+  color: var(--xedc-text, #242424);
+  box-shadow: 0 1px 3px rgba(36, 36, 36, .06);
 }
 .sr-cover,
 .sr-page--video .sr-cover,

@@ -569,17 +569,24 @@ html.img-overlay-open body { overflow: hidden; }
 }
 
 .img-sheet__close:focus-visible,
-.img-lb__close:focus-visible,
-.img-sheet__item:focus-visible {
+.img-lb__close:focus-visible {
   outline: 2px solid #18181b;
   outline-offset: 2px;
 }
 
+.img-sheet__item:focus-visible {
+  outline: 2px solid #d4d4d8;
+  outline-offset: 2px;
+}
+
 .img-sheet__grid {
-  /* Mobile-first: prefer 2 clear tiles; widen to 3 below 1200px when space allows. */
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: row;
+  /* <button> 作为 grid 子项时 auto 行高会塌成约 30px，导致格子叠压。 */
+  grid-auto-rows: min-content;
   align-content: start;
+  align-items: start;
   gap: 10px;
   flex: 1 1 auto;
   min-width: 0;
@@ -591,7 +598,7 @@ html.img-overlay-open body { overflow: hidden; }
   -webkit-overflow-scrolling: touch;
 }
 
-.img-sheet__item {
+.img-sheet__grid > .img-sheet__item {
   position: relative;
   display: block;
   width: 100%;
@@ -602,22 +609,27 @@ html.img-overlay-open body { overflow: hidden; }
   border: 0;
   border-radius: 10px;
   overflow: hidden;
-  background: #f4f4f5;
-  aspect-ratio: 3 / 4;
+  background: #e4e4e7;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  font-size: 0;
-  line-height: 0;
+  font: inherit;
+  line-height: normal;
+  text-align: center;
+  vertical-align: top;
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
 }
 
 .img-sheet__thumb {
-  position: absolute;
-  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 6px;
+  margin: 0;
 }
 
 .img-sheet__item img {
@@ -625,12 +637,16 @@ html.img-overlay-open body { overflow: hidden; }
   width: auto;
   height: auto;
   max-width: 100%;
-  max-height: 100%;
+  max-height: min(36vw, 148px);
+  margin: 0 auto;
   object-fit: contain;
   object-position: center;
   background: transparent;
   pointer-events: none;
-  flex: 0 0 auto;
+}
+
+.img-sheet__item.is-active {
+  box-shadow: 0 2px 8px rgba(24, 24, 27, .08);
 }
 
 .img-sheet__item.is-active::after {
@@ -639,15 +655,29 @@ html.img-overlay-open body { overflow: hidden; }
   inset: 0;
   z-index: 1;
   border-radius: inherit;
-  box-shadow: inset 0 0 0 2px #18181b;
+  box-shadow: inset 0 0 0 2px #d4d4d8;
   pointer-events: none;
 }
 
-/* ≥520px and <1200px: allow 3 columns when each tile stays readable. */
-@media (min-width: 520px) and (max-width: 1199.98px) {
+@media (min-width: 520px) and (max-width: 991.98px) {
   .img-sheet__grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .img-sheet__item img {
+    max-height: min(28vw, 172px);
+  }
+}
+
+@media (min-width: 992px) {
+  .img-sheet__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .img-sheet__item img {
+    max-height: 168px;
   }
 }
 
@@ -676,14 +706,12 @@ html.img-overlay-open body { overflow: hidden; }
   }
 }
 
-/* Desktop ≥1200px: hard-lock to two columns. */
 @media (min-width: 1200px) {
   .img-sheet__panel {
     width: min(960px, calc(100vw - 64px));
   }
 
   .img-sheet__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
   }
 }
@@ -705,9 +733,19 @@ html.img-overlay-open body { overflow: hidden; }
 
 [data-bs-theme="dark"] .img-sheet__title { color: #fafafa; }
 
-[data-bs-theme="dark"] .img-sheet__item { background: #27272a; }
+[data-bs-theme="dark"] .img-sheet__item { background: #3f3f46; }
 
-[data-bs-theme="dark"] .img-sheet__item.is-active::after { box-shadow: inset 0 0 0 2px #fafafa; }
+[data-bs-theme="dark"] .img-sheet__item.is-active {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .35);
+}
+
+[data-bs-theme="dark"] .img-sheet__item.is-active::after {
+  box-shadow: inset 0 0 0 2px #71717a;
+}
+
+[data-bs-theme="dark"] .img-sheet__item:focus-visible {
+  outline-color: #71717a;
+}
 
 [data-bs-theme="dark"] .img-sheet__close:focus-visible { outline-color: #fafafa; }
 
