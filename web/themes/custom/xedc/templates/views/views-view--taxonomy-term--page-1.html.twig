@@ -9,11 +9,11 @@
     action: video_action
   } only %}
 
-  {% if video_category_recommended %}
-    <section class="xv-block" aria-label="{{ '分类推荐视频'|t }}">
-      <h2 class="xv-section">{{ '分类推荐视频'|t }}</h2>
+  {% if video_category_hot %}
+    <section class="xv-block" aria-label="{{ '热门视频'|t }}">
+      <h2 class="xv-section">{{ '热门视频'|t }}</h2>
       <div class="xv-grid xv-grid--cards">
-        {% for card in video_category_recommended %}
+        {% for card in video_category_hot %}
           <article class="vcard">
             {% include '@xedc/templates/video/video-card.html.twig' with { card: card } only %}
           </article>
@@ -24,7 +24,7 @@
 
   {% if rows or empty or pager %}
     <section class="xv-block" aria-label="{{ '全部视频'|t }}">
-      {% if video_category_recommended %}
+      {% if video_category_hot %}
         <h2 class="xv-section">{{ '全部视频'|t }}</h2>
       {% endif %}
       {% if rows %}

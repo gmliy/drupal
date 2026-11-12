@@ -28,6 +28,11 @@ final class VideoRecommend {
 
   public const LATEST_TAG = 'xedc_video_latest';
 
+  /**
+   * Cache tag prefix for per-category hot lists ({@see categoryHotTag()}).
+   */
+  private const CATEGORY_HOT_PREFIX = 'xedc_video_category_hot:';
+
   public function __construct(
     private readonly EntityTypeManagerInterface $entities,
     private readonly Connection $database,
@@ -69,6 +74,57 @@ final class VideoRecommend {
    *
    * @return int[]
    */
+  /**
+   * Hot videos in one category (view counts), scoped to the term only.
+   *
+   * @param int[] $exclude
+   *
+   * @return int[]
+   */
+  public function categoryHotNids(int $tid, int $limit = 12, array $exclude = []): array {
+    $tid = max(0, $tid);
+    $limit = max(1, min(48, $limit));
+    if ($tid < 1) {
+      return [];
+    }
+    $exclude = array_values(array_unique(array_filter(array_map('intval', $exclude))));
+    sort($exclude);
+    $cid = 'xedc_video:category_hot:' . $tid . ':' . $limit . ':' . implode(',', $exclude);
+    if ($cached = $this->cache->get($cid)) {
+      return is_array($cached->data) ? array_map('intval', $cached->data) : [];
+    }
+    if (!$this->database->schema()->tableExists('node__field_categories')) {
+      return [];
+    }
+    $fetch = $limit + count($exclude) + 8;
+    $query = $this->database->select('node_field_data', 'n');
+    $query->fields('n', ['nid']);
+    $query->condition('n.type', 'video');
+    $query->condition('n.status', NodeInterface::PUBLISHED);
+    $query->condition('n.default_langcode', 1);
+    $query->join('node__field_categories', 'cat', 'cat.entity_id = n.nid AND cat.deleted = 0 AND cat.langcode = n.langcode');
+    $query->condition('cat.field_categories_target_id', $tid);
+    if ($exclude) {
+      $query->condition('n.nid', $exclude, 'NOT IN');
+    }
+    if ($this->database->schema()->tableExists('node_counter')) {
+      $query->leftJoin('node_counter', 'c', 'c.nid = n.nid');
+      $query->addExpression('COALESCE(c.totalcount, 0)', 'xedc_views');
+      $query->orderBy('xedc_views', 'DESC');
+    }
+    $query->orderBy('n.created', 'DESC');
+    $query->range(0, $fetch);
+    $nids = array_map('intval', $query->execute()->fetchCol());
+    $ordered = $this->filterViewable($nids, $limit);
+    $expire = \Drupal::time()->getRequestTime() + 900;
+    $this->cache->set($cid, $ordered, $expire, [
+      $this->categoryHotTag($tid),
+      'node_list:video',
+      'taxonomy_term:' . $tid,
+    ]);
+    return $ordered;
+  }
+
   public function categoryNids(int $tid, int $limit = 12): array {
     $tid = max(0, $tid);
     $limit = max(1, min(48, $limit));
@@ -177,6 +233,13 @@ final class VideoRecommend {
   }
 
   /**
+   * Cache tag for one category hot list.
+   */
+  public function categoryHotTag(int $tid): string {
+    return self::CATEGORY_HOT_PREFIX . max(0, $tid);
+  }
+
+  /**
    * Invalidates recommendation caches after a video save or delete.
    */
   public function invalidateNode(NodeInterface $node, ?NodeInterface $original = NULL): void {
@@ -198,6 +261,7 @@ final class VideoRecommend {
     if ($cat_now || $cat_was || $this->publishChanged($node, $original) || ($original && $this->categoryIds($node) !== $this->categoryIds($original))) {
       foreach ($tids as $tid) {
         $tags[] = $this->categoryTag($tid);
+        $tags[] = $this->categoryHotTag($tid);
       }
     }
     // Status / delete always clears every related region the node could touch.
@@ -205,7 +269,12 @@ final class VideoRecommend {
       $tags[] = self::HOME_TAG;
       foreach ($tids as $tid) {
         $tags[] = $this->categoryTag($tid);
+        $tags[] = $this->categoryHotTag($tid);
       }
+    }
+    // View-count shifts affect hot rankings for every category the node is in.
+    foreach ($this->categoryIds($node) as $tid) {
+      $tags[] = $this->categoryHotTag($tid);
     }
     Cache::invalidateTags(array_values(array_unique($tags)));
   }

@@ -31,22 +31,9 @@
     </section>
   {% endif %}
 
-  {% if video_hot %}
-    <section class="xv-block" aria-label="{{ '热门视频'|t }}">
-      <h2 class="xv-section">{{ '热门视频'|t }}</h2>
-      <div class="xv-grid xv-grid--cards">
-        {% for card in video_hot %}
-          <article class="vcard">
-            {% include '@xedc/templates/video/video-card.html.twig' with { card: card } only %}
-          </article>
-        {% endfor %}
-      </div>
-    </section>
-  {% endif %}
-
   {% if rows or empty or pager %}
     <section class="xv-block" aria-label="{{ '最新视频'|t }}">
-      {% if video_recommended or video_hot %}
+      {% if video_recommended %}
         <h2 class="xv-section">{{ video_sort == 'hot' ? '热门排序'|t : '最新视频'|t }}</h2>
       {% endif %}
       {% if rows %}

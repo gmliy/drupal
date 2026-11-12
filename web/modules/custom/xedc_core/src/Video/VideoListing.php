@@ -39,12 +39,18 @@ final class VideoListing {
     }
     // Keep recommendation regions and the ordinary list from repeating the
     // same card. Exclusion is done in SQL so pager page size stays stable.
-    if ($keys === '') {
+    if ($keys === '' && $request->query->get('sort') !== 'hot' && $this->isFirstPage($view)) {
       if ($view->id() === 'video_list') {
         $this->excludeFlagged($query, 'node__field_slideshow', 'field_slideshow_value');
       }
-      elseif ($view->id() === 'taxonomy_term') {
-        $this->excludeFlagged($query, 'node__field_featured', 'field_featured_value');
+      elseif ($view->id() === 'taxonomy_term' && $this->isVideoCategoryView($view)) {
+        $term = \Drupal::routeMatch()->getParameter('taxonomy_term');
+        if ($term instanceof \Drupal\taxonomy\TermInterface && $term->bundle() === 'video_category' && \Drupal::hasService('xedc_core.video_recommend')) {
+          $nids = \Drupal::service('xedc_core.video_recommend')->categoryHotNids((int) $term->id(), 12);
+          if ($nids) {
+            $query->addWhere(0, 'node_field_data.nid', $nids, 'NOT IN');
+          }
+        }
       }
     }
     if ($request->query->get('sort') !== 'hot' || !$this->database->schema()->tableExists('node_counter')) {
@@ -129,6 +135,13 @@ final class VideoListing {
       ];
     }
     return $out;
+  }
+
+  private function isFirstPage(ViewExecutable $view): bool {
+    if (!isset($view->pager) || !method_exists($view->pager, 'getCurrentPage')) {
+      return TRUE;
+    }
+    return (int) $view->pager->getCurrentPage() === 0;
   }
 
   private function isVideoCategoryView(ViewExecutable $view): bool {

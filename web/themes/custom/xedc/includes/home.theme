@@ -26,6 +26,29 @@ function _xedc_image_style_dimensions($style): array {
   return [0, 0];
 }
 
+/**
+ * Homepage hot videos when xedc_home is unavailable.
+ */
+function _xedc_home_hot_videos(int $limit = 8): array {
+  if (!\Drupal::hasService('xedc_core.video_recommend') || !\Drupal::hasService('xedc_core.video_cards')) {
+    return _xedc_home_items('video', 'field_video_cover', $limit);
+  }
+  $nids = \Drupal::service('xedc_core.video_recommend')->hotNids($limit);
+  $built = \Drupal::service('xedc_core.video_cards')->build($nids);
+  $items = [];
+  foreach ($built['items'] as $item) {
+    $items[] = [
+      'title' => $item['title'],
+      'url' => $item['url'],
+      'img' => $item['cover'],
+      'width' => $item['width'],
+      'height' => $item['height'],
+      'duration' => $item['duration'],
+    ];
+  }
+  return $items;
+}
+
 function _xedc_home_items($type, $field, $limit) {
   $nids = \Drupal::entityQuery('node')->accessCheck(TRUE)
     ->condition('type', $type)->condition('status', 1)
