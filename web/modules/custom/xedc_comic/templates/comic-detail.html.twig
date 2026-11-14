@@ -1,32 +1,23 @@
 {% set status_key = comic.status|default('') %}
 <div class="xedc-comic comic-detail" data-comic-id="{{ comic.id }}" data-chapter-total="{{ chapter_total }}">
   <div class="comic-detail-wrap">
-    <nav class="comic-detail-breadcrumb" aria-label="{{ '面包屑'|t }}">
-      <a href="{{ path('xedc_comic.home') }}">{{ '漫画'|t }}</a>
-      <span class="comic-detail-breadcrumb__sep" aria-hidden="true">/</span>
-      <span class="comic-detail-breadcrumb__current">{{ comic.title }}</span>
-    </nav>
-
-    {% if comic.cover %}
-      <div class="comic-detail-banner-desk" aria-hidden="true">
-        <img class="comic-detail-banner-desk__media" src="{{ comic.cover }}" alt="" width="1000" height="520" loading="eager" decoding="async">
-        <div class="comic-detail-banner-desk__veil"></div>
-      </div>
-    {% endif %}
-
     <div class="comic-detail-layout">
       <div class="comic-detail-col comic-detail-col--side">
         <section class="comic-detail-hero">
-          <div class="comic-detail-hero__atmosphere" aria-hidden="true">
+          <div class="comic-detail-hero__bg" aria-hidden="true">
             {% if comic.cover %}
-              <img class="comic-detail-hero__blur" src="{{ comic.cover }}" alt="" width="750" height="440" loading="eager" decoding="async">
+              <img src="{{ comic.cover }}" alt="" width="750" height="440" loading="eager" decoding="async">
             {% endif %}
-            <div class="comic-detail-hero__veil"></div>
           </div>
-          <div class="comic-detail-hero__content">
+          <nav class="comic-detail-breadcrumb" aria-label="{{ '面包屑'|t }}">
+            <a href="{{ path('xedc_comic.home') }}">{{ '漫画'|t }}</a>
+            <span class="comic-detail-breadcrumb__sep" aria-hidden="true">/</span>
+            <span class="comic-detail-breadcrumb__current">{{ comic.title }}</span>
+          </nav>
+          <div class="comic-detail-hero__inner">
             <div class="comic-detail-hero__cover">
               {% if comic.cover %}
-                <img class="comic-detail-hero__cover-img" src="{{ comic.cover }}" alt="" width="312" height="416" loading="eager" decoding="async">
+                <img class="comic-detail-hero__cover-img" src="{{ comic.cover }}" alt="" width="336" height="448" loading="eager" decoding="async">
               {% else %}
                 <div class="comic-detail-hero__cover-img comic-detail-hero__cover-img--empty" aria-hidden="true"></div>
               {% endif %}
@@ -35,17 +26,21 @@
             <div class="comic-detail-hero__meta">
               <h1 class="comic-detail-hero__title">{{ comic.title }}</h1>
               {% if comic.author %}<p class="comic-detail-hero__author">{{ comic.author }}</p>{% endif %}
-              <p class="comic-detail-hero__serial comic-detail-hero__serial--{{ status_key|clean_class }}">
-                {% if comic.status_label %}{{ comic.status_label }}{% endif %}
-                <span aria-hidden="true"> · </span>
-                {{ '共 @n 话'|t({'@n': chapter_total}) }}
-                <span aria-hidden="true"> · </span>
-                {{ '更新'|t }} {{ updated_label }}
-              </p>
+              <div class="comic-detail-hero__status-row">
+                {% if comic.status_label %}
+                  <span class="comic-detail-hero__pill comic-detail-hero__pill--{{ status_key|clean_class }}">{{ comic.status_label }}</span>
+                {% endif %}
+                <span class="comic-detail-hero__chapter-count">{{ '共 @n 话'|t({'@n': chapter_total}) }}</span>
+              </div>
+              <p class="comic-detail-hero__updated">{{ '更新'|t }} {{ updated_label }}</p>
               <p class="comic-detail-hero__metrics">
                 {{ comic.views }} {{ '阅读'|t }}
                 <span aria-hidden="true"> · </span>
                 {{ comic.favorites|default(0) }} {{ '收藏'|t }}
+                {% if page_total > 0 %}
+                  <span aria-hidden="true"> · </span>
+                  {{ page_total }} {{ '页'|t }}
+                {% endif %}
               </p>
             </div>
           </div>
@@ -106,7 +101,7 @@
                 <a href="{{ chapter.url }}" class="comic-detail-chapter{% if chapter.locked %} is-locked{% endif %}">
                   <span class="comic-detail-chapter-list__num" hidden>{{ chapter.number }}</span>
                   {% if comic.cover %}
-                    <img class="comic-detail-chapter__thumb" src="{{ comic.cover }}" alt="" width="64" height="86" loading="lazy" decoding="async">
+                    <img class="comic-detail-chapter__thumb" src="{{ comic.cover }}" alt="" width="64" loading="lazy" decoding="async">
                   {% else %}
                     <span class="comic-detail-chapter__thumb comic-detail-chapter__thumb--empty" aria-hidden="true"></span>
                   {% endif %}
@@ -132,15 +127,6 @@
             <button type="button" class="comic-detail-chapters__more" data-chapter-more>{{ '查看全部'|t }}</button>
           {% endif %}
         </section>
-
-        {% if page_total > 0 %}
-          <dl class="comic-detail-kv">
-            <div class="comic-detail-kv__row">
-              <dt>{{ '页数'|t }}</dt>
-              <dd>{{ page_total }}</dd>
-            </div>
-          </dl>
-        {% endif %}
 
         {% if related is not empty %}
           <section class="comic-detail-related">
