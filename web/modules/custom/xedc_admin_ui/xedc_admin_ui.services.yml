@@ -7,3 +7,11 @@ services:
       - '@cache.default'
       - '@language_manager'
       - '@file_url_generator'
+
+  xedc_admin_ui.dashboard_shortcuts:
+    class: Drupal\xedc_admin_ui\DashboardShortcutLinks
+    arguments:
+      - '@entity_type.manager'
+
+  xedc_admin_ui.dashboard_hubs:
+    class: Drupal\xedc_admin_ui\DashboardHubCards

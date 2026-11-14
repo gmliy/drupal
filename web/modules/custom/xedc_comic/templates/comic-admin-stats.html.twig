@@ -1,0 +1,31 @@
+<div class="xedc-comic-dashboard">
+  <section class="xedc-comic-dashboard__stats">
+    {% for card in summary_cards %}
+      <article class="xedc-admin-card xedc-comic-stat">
+        <p class="xedc-comic-stat__label">{{ card.label }}</p>
+        <p class="xedc-comic-stat__value">{{ card.value }}</p>
+        {% if card.hint %}<p class="xedc-comic-stat__hint">{{ card.hint }}</p>{% endif %}
+      </article>
+    {% endfor %}
+  </section>
+  <section class="xedc-admin-card xedc-comic-dashboard__panel xedc-comic-dashboard__panel--wide">
+    <h2>{{ '热门漫画'|t }}</h2>
+    <table class="xedc-comic-table">
+      <thead>
+        <tr>
+          {% for h in header %}<th>{{ h }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            {% for cell in row %}<td>{{ cell }}</td>{% endfor %}
+          </tr>
+        {% else %}
+          <tr><td colspan="{{ header|length }}" class="xedc-comic-muted">{{ '暂无数据'|t }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="xedc-comic-muted xedc-comic-stat-note">{{ trend_note }}</p>
+  </section>
+</div>

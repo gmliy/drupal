@@ -1,0 +1,30 @@
+administer comics:
+  title: '管理漫画中心'
+  restrict access: true
+
+create comics:
+  title: '创建漫画'
+
+edit own comics:
+  title: '编辑自己的漫画'
+
+edit any comics:
+  title: '编辑任意漫画'
+
+delete comics:
+  title: '删除漫画'
+
+manage comic chapters:
+  title: '管理漫画章节'
+
+manage comic pages:
+  title: '管理漫画页图片'
+
+import comic archives:
+  title: '导入漫画章节（ZIP / 图片）'
+
+view comic statistics:
+  title: '查看漫画阅读统计'
+
+view published comics:
+  title: '阅读已发布漫画'

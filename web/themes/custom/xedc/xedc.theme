@@ -2224,20 +2224,42 @@ function xedc_nav_build(array &$variables) {
     }
   }
 
+  $comicCats = [];
+  $comicTerms = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadTree('comic_category', 0, 1, TRUE);
+  foreach ($comicTerms as $term) {
+    if ($term instanceof \Drupal\taxonomy\TermInterface && (int) $term->depth === 0) {
+      $comicCats[] = [
+        'name' => $term->label(),
+        'url' => \Drupal\Core\Url::fromRoute('xedc_comic.category', ['taxonomy_term' => $term->id()])->toString(),
+        'children' => [],
+      ];
+      if (count($comicCats) >= 8) {
+        break;
+      }
+    }
+  }
+
+  $currentPath = \Drupal::service('path.current')->getPath();
   $items = [];
   foreach ($tree as $el) {
     $title = (string) $el->link->getTitle();
-    $path = parse_url($el->link->getUrlObject()->toString(), PHP_URL_PATH) ?? '';
+    $linkPath = parse_url($el->link->getUrlObject()->toString(), PHP_URL_PATH) ?? '';
+    $active = $linkPath === '/comic'
+      ? str_starts_with($currentPath, '/comic')
+      : ($currentPath === $linkPath || str_starts_with($currentPath, rtrim($linkPath, '/') . '/'));
     $items[] = [
       'title' => $title,
       'url' => $el->link->getUrlObject()->toString(),
-      'cats' => (bool) preg_match('#/meitu$#', $path) ? array_values($cats) : [],
+      'active' => $active,
+      'cats' => (bool) preg_match('#/meitu$#', $linkPath) ? array_values($cats) : [],
+      'comic_cats' => (bool) preg_match('#/comic$#', $linkPath) ? $comicCats : [],
     ];
   }
 
   $variables['xn'] = ['items' => $items];
   $variables['#cache']['tags'][] = 'config:system.menu.main';
   $variables['#cache']['tags'][] = 'taxonomy_term_list:photo_category';
+  $variables['#cache']['tags'][] = 'taxonomy_term_list:comic_category';
   $variables['#cache']['contexts'][] = 'user.roles:authenticated';
   $variables['#cache']['contexts'][] = 'languages:language_interface';
   $variables['#cache']['contexts'][] = 'languages:language_content';

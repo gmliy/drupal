@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="../../../core/tests/bootstrap.php">
+  <testsuites>
+    <testsuite name="xedc_comic">
+      <directory>src</directory>
+    </testsuite>
+  </testsuites>
+</phpunit>

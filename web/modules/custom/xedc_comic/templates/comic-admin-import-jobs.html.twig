@@ -1,0 +1,54 @@
+<div class="xedc-comic-panel">
+  {% if job_detail %}
+    <article class="xedc-admin-card xedc-comic-job-detail">
+      <header class="xedc-comic-job-detail__head">
+        <h2>{{ '任务'|t }} #{{ job_detail.id }}</h2>
+        <span class="xedc-comic-badge xedc-comic-badge--{{ job_detail.status_key }}">{{ job_detail.status }}</span>
+      </header>
+      <div class="xedc-comic-job-detail__progress">
+        <div class="xedc-comic-progress" style="--pct: {{ job_detail.progress }}%;" aria-hidden="true"></div>
+        <p>{{ job_detail.progress }}% — {{ job_detail.summary }}</p>
+      </div>
+      {% if job_detail.pdf_note %}<p class="xedc-comic-muted">{{ job_detail.pdf_note }}</p>{% endif %}
+      {% if job_detail.message %}<p>{{ job_detail.message }}</p>{% endif %}
+      {% if job_detail.error %}<p class="xedc-comic-error">{{ job_detail.error }}</p>{% endif %}
+      <div class="xedc-comic-job-detail__actions">
+        {% for action in job_detail.actions %}
+          <a class="xedc-admin-button{% if action.danger %} xedc-comic-btn-danger{% endif %}" href="{{ action.url }}">{{ action.label }}</a>
+        {% endfor %}
+      </div>
+      {% if failed_rows is not empty %}
+        <h3>{{ '失败明细'|t }}</h3>
+        <table class="xedc-comic-table xedc-comic-table--compact">
+          <thead><tr><th>{{ '权重'|t }}</th><th>{{ '文件'|t }}</th><th>{{ '错误'|t }}</th></tr></thead>
+          <tbody>
+            {% for fr in failed_rows %}
+              <tr><td>{{ fr.weight }}</td><td>{{ fr.file }}</td><td>{{ fr.error }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+    </article>
+  {% endif %}
+
+  <div class="xedc-admin-card xedc-comic-table-wrap">
+    <table class="xedc-comic-table xedc-comic-table--jobs">
+      <thead>
+        <tr>
+          {% for h in header %}<th>{{ h }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            {% for cell in row %}
+              <td data-label="{{ header[loop.index0] }}">{% if cell.html is defined %}{{ cell.html|raw }}{% else %}{{ cell }}{% endif %}</td>
+            {% endfor %}
+          </tr>
+        {% else %}
+          <tr><td colspan="{{ header|length }}" class="xedc-comic-muted">{{ '暂无导入任务。'|t }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

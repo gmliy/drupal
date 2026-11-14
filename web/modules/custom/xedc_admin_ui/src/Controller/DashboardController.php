@@ -10,6 +10,8 @@ use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Url;
+use Drupal\xedc_admin_ui\DashboardHubCards;
+use Drupal\xedc_admin_ui\DashboardShortcutLinks;
 use Drupal\xedc_admin_ui\DashboardStats;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -23,6 +25,8 @@ final class DashboardController extends ControllerBase {
     private readonly DateFormatterInterface $dateFormatter,
     private readonly TimeInterface $time,
     private readonly LoggerChannelInterface $logger,
+    private readonly DashboardShortcutLinks $shortcutLinks,
+    private readonly DashboardHubCards $hubCards,
   ) {}
 
   /**
@@ -34,6 +38,8 @@ final class DashboardController extends ControllerBase {
       $container->get('date.formatter'),
       $container->get('datetime.time'),
       $container->get('logger.factory')->get('xedc_admin_ui'),
+      $container->get('xedc_admin_ui.dashboard_shortcuts'),
+      $container->get('xedc_admin_ui.dashboard_hubs'),
     );
   }
 
@@ -88,6 +94,9 @@ final class DashboardController extends ControllerBase {
       '#queue' => $payload['queue'],
       '#recent' => $recent,
       '#operations' => $this->operations($account),
+      '#shortcut_manage_url' => $this->shortcutLinks->shortcutsManageUrl($account),
+      '#shortcut_settings_url' => $this->shortcutLinks->shortcutsSettingsUrl($account),
+      '#hubs' => $this->hubCards->cards($account),
       '#health' => $this->healthLinks($account),
       '#error' => $error,
       '#attached' => [
@@ -114,14 +123,32 @@ final class DashboardController extends ControllerBase {
    */
   private function operations(AccountInterface $account): array {
     $links = [];
-    $this->addLink($links, $account->hasPermission('create photo content'), 'node.add', ['node_type' => 'photo'], '新建美图');
-    $this->addLink($links, $account->hasPermission('create video content'), 'node.add', ['node_type' => 'video'], '新建视频');
-    $this->addLink($links, $account->hasPermission('create article content'), 'node.add', ['node_type' => 'article'], '新建文章');
-    $this->addLink($links, $account->hasPermission('administer nodes'), 'xedc_quick.page', [], '快速发布');
+    foreach ($this->shortcutLinks->shortcutLinks($account) as $item) {
+      $links[] = [
+        'label' => $item['label'],
+        'url' => $item['url'],
+      ];
+    }
+    $legacy = [];
+    $this->addLink($legacy, $account->hasPermission('create photo content'), 'node.add', ['node_type' => 'photo'], '新建美图');
+    $this->addLink($legacy, $account->hasPermission('create video content'), 'node.add', ['node_type' => 'video'], '新建视频');
+    $this->addLink($legacy, $account->hasPermission('create article content'), 'node.add', ['node_type' => 'article'], '新建文章');
+    $this->addLink($legacy, $account->hasPermission('administer nodes'), 'xedc_quick.page', [], '快速发布');
     $import = $account->hasPermission('import photo archives') || $account->hasPermission('administer xedc image imports');
-    $this->addLink($links, $import, 'xedc_core.import_list', [], '图片导入');
-    $this->addLink($links, $account->hasPermission('access content overview'), 'system.admin_content', [], '内容列表');
-    $this->addLink($links, $account->hasPermission('view any unpublished content'), 'view.moderated_content.moderated_content', [], '审核队列');
+    $this->addLink($legacy, $import, 'xedc_core.import_list', [], '图片导入');
+    $this->addLink($legacy, $account->hasPermission('access content overview'), 'system.admin_content', [], '内容列表');
+    $this->addLink($legacy, $account->hasPermission('view any unpublished content'), 'view.moderated_content.moderated_content', [], '审核队列');
+    $seen = [];
+    foreach ($links as $link) {
+      $seen[$link['url']] = TRUE;
+    }
+    foreach ($legacy as $link) {
+      if (isset($seen[$link['url']])) {
+        continue;
+      }
+      $links[] = $link;
+      $seen[$link['url']] = TRUE;
+    }
     return $links;
   }
 

@@ -1,0 +1,101 @@
+<div class="xedc-comic-dashboard">
+  <section class="xedc-comic-dashboard__stats" aria-label="{{ '统计概览'|t }}">
+    {% for card in stat_cards %}
+      <article class="xedc-admin-card xedc-comic-stat">
+        <p class="xedc-comic-stat__label">{{ card.label }}</p>
+        <p class="xedc-comic-stat__value">{{ card.value }}</p>
+        {% if card.hint %}<p class="xedc-comic-stat__hint">{{ card.hint }}</p>{% endif %}
+      </article>
+    {% endfor %}
+  </section>
+
+  <section class="xedc-comic-dashboard__section xedc-admin-card">
+    <header class="xedc-comic-dashboard__section-head">
+      <h2>{{ '快捷操作'|t }}</h2>
+    </header>
+    <div class="xedc-comic-dashboard__ops">
+      {% for op in quick_ops %}
+        <a class="xedc-admin-button{% if op.primary %} xedc-admin-button--primary{% endif %}" href="{{ op.url }}">{{ op.label }}</a>
+      {% else %}
+        <p class="xedc-comic-muted">{{ '当前账号没有可用操作。'|t }}</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="xedc-comic-dashboard__grid">
+    <section class="xedc-admin-card xedc-comic-dashboard__panel">
+      <h2>{{ '最近新增漫画'|t }}</h2>
+      <ul class="xedc-comic-dash-rows">
+        {% for row in recent_comics %}
+          <li class="xedc-comic-dash-row">
+            {% if row.cover %}
+              <img class="xedc-comic-thumb" src="{{ row.cover }}" alt="" width="40" height="54" loading="lazy">
+            {% endif %}
+            <div class="xedc-comic-dash-row__body">
+              <a href="{{ row.url }}">{{ row.title }}</a>
+              <p class="xedc-comic-muted">{{ row.author }}{% if row.status_label %} · {{ row.status_label }}{% endif %} · {{ row.changed }}</p>
+            </div>
+          </li>
+        {% else %}
+          <li class="xedc-comic-muted">{{ '暂无漫画'|t }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="xedc-admin-card xedc-comic-dashboard__panel">
+      <h2>{{ '最近更新章节'|t }}</h2>
+      <ul class="xedc-comic-dash-rows">
+        {% for row in recent_chapters %}
+          <li class="xedc-comic-dash-row">
+            <div class="xedc-comic-dash-row__body">
+              <a href="{{ row.url }}">{{ row.title }}</a>
+              <p class="xedc-comic-muted">{{ row.parent }} · #{{ row.number }} · {{ row.pages }} {{ '页'|t }} · {{ row.changed }}</p>
+            </div>
+          </li>
+        {% else %}
+          <li class="xedc-comic-muted">{{ '暂无章节'|t }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="xedc-admin-card xedc-comic-dashboard__panel">
+      <h2>{{ '导入任务概览'|t }}</h2>
+      <dl class="xedc-comic-import-summary">
+        <div><dt>{{ '任务总数'|t }}</dt><dd>{{ import_summary.total|default(0) }}</dd></div>
+        <div><dt>{{ '排队/处理'|t }}</dt><dd>{{ (import_summary.queued|default(0)) + (import_summary.processing|default(0)) }}</dd></div>
+        <div><dt>{{ '已完成'|t }}</dt><dd>{{ import_summary.completed|default(0) }}</dd></div>
+        <div><dt>{{ '失败'|t }}</dt><dd>{{ import_summary.failed|default(0) }}</dd></div>
+      </dl>
+      <h3 class="xedc-comic-dashboard__sub">{{ '最近任务'|t }}</h3>
+      <ul class="xedc-comic-list-lines">
+        {% for row in recent_jobs %}
+          <li><a href="{{ row.url }}">#{{ row.id }} {{ row.mode }}</a><span>{{ row.status }}</span></li>
+        {% else %}
+          <li class="xedc-comic-muted">{{ '暂无'|t }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="xedc-admin-card xedc-comic-dashboard__panel">
+      <h2>{{ '最近失败'|t }}</h2>
+      <ul class="xedc-comic-list-lines">
+        {% for row in failed_jobs %}
+          <li><a href="{{ row.url }}">#{{ row.id }}</a><span>{{ row.status }} ({{ row.failures }})</span></li>
+        {% else %}
+          <li class="xedc-comic-muted">{{ '无失败任务'|t }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="xedc-admin-card xedc-comic-dashboard__panel xedc-comic-dashboard__panel--wide">
+      <h2>{{ '热门漫画（近 30 天）'|t }}</h2>
+      <ul class="xedc-comic-list-lines">
+        {% for row in popular %}
+          <li><a href="{{ row.url }}">{{ row.title }}</a><span>{{ row.views }} {{ '阅读'|t }}</span></li>
+        {% else %}
+          <li class="xedc-comic-muted">{{ '暂无阅读数据'|t }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+</div>

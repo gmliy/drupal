@@ -1,0 +1,14 @@
+name: 'XEDC Comic'
+type: module
+description: '漫画内容管理、章节阅读、ZIP 导入与阅读记录。'
+package: XEDC
+core_version_requirement: ^11
+dependencies:
+  - drupal:node
+  - drupal:file
+  - drupal:image
+  - drupal:taxonomy
+  - drupal:user
+  - drupal:options
+  - drupal:datetime
+  - xedc_core:xedc_core

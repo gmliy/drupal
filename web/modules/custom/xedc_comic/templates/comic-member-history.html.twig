@@ -1,0 +1,34 @@
+<header class="xm-head xedc-comic-member__head">
+  <div>
+    <h1 class="xm-title">{{ '漫画阅读记录'|t }}</h1>
+    <p class="xm-sub">{{ '共 @count 条'|t({'@count': total}) }}</p>
+  </div>
+</header>
+
+{% if entries %}
+  <ul class="xedc-comic-member-history">
+    {% for entry in entries %}
+      <li class="xedc-comic-member-history__row" data-comic-id="{{ entry.comic_id }}">
+        <a class="xedc-comic-member-history__cover" href="{{ entry.continue_url }}">
+          {% if entry.card.cover %}<img src="{{ entry.card.cover }}" alt="" loading="lazy" decoding="async">{% endif %}
+        </a>
+        <div class="xedc-comic-member-history__body">
+          <h2 class="xedc-comic-member-history__title"><a href="{{ entry.card.url }}">{{ entry.card.title }}</a></h2>
+          <p class="xedc-comic-member-history__chapter">{{ entry.chapter_title }} · {{ '第 @p 页'|t({'@p': entry.page}) }} · {{ entry.progress }}%</p>
+          <p class="xedc-comic-member-history__time">{{ '最近阅读 @t'|t({'@t': entry.last_read}) }}</p>
+          <div class="xedc-comic-member-history__actions">
+            <a class="btn btn-sm btn-primary" href="{{ entry.continue_url }}">{{ '继续阅读'|t }}</a>
+            <button type="button" class="btn btn-sm btn-outline-secondary xedc-comic-member-history-delete" data-comic-id="{{ entry.comic_id }}">{{ '删除'|t }}</button>
+          </div>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+  {% if pager %}<div class="xedc-comic-member__pager">{{ pager }}</div>{% endif %}
+{% else %}
+  <div class="xm-empty xedc-comic-member__empty">
+    <strong>{{ '暂无阅读记录'|t }}</strong>
+    <p>{{ '登录后阅读漫画会自动记录；游客仅在当前设备本地保存进度。'|t }}</p>
+    <a href="{{ path('xedc_comic.home') }}">{{ '去看漫画'|t }}</a>
+  </div>
+{% endif %}

@@ -1,0 +1,5 @@
+<div class="xedc-comic-grid xedc-comic-view-grid" style="--cols: {{ options.columns|default('auto') }}">
+  {% for row in rows %}
+    {{- row -}}
+  {% endfor %}
+</div>

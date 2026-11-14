@@ -11,9 +11,24 @@
       <a class="xn-logo" href="{{ path('<front>') }}" aria-label="DcLili">dclili<i class="xn-dot"></i></a>
       <nav class="xn-links" aria-label="{{ '主导航'|t }}">
         {% for item in xn.items|default([]) %}
-          {% if item.cats %}
+          {% if item.comic_cats %}
             <div class="xn-dd">
-              <a class="xn-link" href="{{ item.url }}">{{ item.title }}</a>
+              <a class="xn-link" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.title }}</a>
+              <button type="button" class="xn-dd-btn" aria-expanded="false" aria-label="{{ '展开 @title 分类'|t({'@title': item.title}) }}">{{ i_chev }}</button>
+              <div class="xn-dd-panel"><div class="xn-dd-card">
+                <div class="xn-dd-grid" style="--cols: {{ min(item.comic_cats|length, 4) }}">
+                  {% for c in item.comic_cats %}
+                    <div class="xn-dd-col">
+                      <a class="xn-dd-h" href="{{ c.url }}">{{ c.name }}</a>
+                    </div>
+                  {% endfor %}
+                </div>
+                <a class="xn-dd-all" href="{{ item.url }}">{{ '漫画首页'|t }} →</a>
+              </div></div>
+            </div>
+          {% elseif item.cats %}
+            <div class="xn-dd">
+              <a class="xn-link" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.title }}</a>
               <button type="button" class="xn-dd-btn" aria-expanded="false" aria-label="{{ '展开 @title 分类'|t({'@title': item.title}) }}">{{ i_chev }}</button>
               <div class="xn-dd-panel"><div class="xn-dd-card">
                 <div class="xn-dd-grid" style="--cols: {{ min(item.cats|length, 4) }}">
@@ -28,7 +43,7 @@
               </div></div>
             </div>
           {% else %}
-            <a class="xn-link" href="{{ item.url }}">{{ item.title }}</a>
+            <a class="xn-link" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.title }}</a>
           {% endif %}
         {% endfor %}
       </nav>
@@ -84,10 +99,23 @@
   </div>
   <nav class="xn-sheet-nav">
     {% for item in xn.items|default([]) %}
-      {% if item.cats %}
+      {% if item.comic_cats %}
         <div class="xn-acc">
           <div class="xn-row">
-            <a class="xn-m-link" href="{{ item.url }}">{{ item.title }}</a>
+            <a class="xn-m-link" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.title }}</a>
+            <button type="button" class="xn-chev" aria-expanded="false" aria-label="{{ '展开子菜单'|t }}">{{ i_chev }}</button>
+          </div>
+          <div class="xn-panel"><div>
+            <a class="xn-m-sub" href="{{ item.url }}">{{ '漫画首页'|t }}</a>
+            {% for c in item.comic_cats %}
+              <a class="xn-m-sub" href="{{ c.url }}">{{ c.name }}</a>
+            {% endfor %}
+          </div></div>
+        </div>
+      {% elseif item.cats %}
+        <div class="xn-acc">
+          <div class="xn-row">
+            <a class="xn-m-link" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.title }}</a>
             <button type="button" class="xn-chev" aria-expanded="false" aria-label="{{ '展开分类'|t }}">{{ i_chev }}</button>
           </div>
           <div class="xn-panel"><div>
@@ -110,7 +138,7 @@
           </div></div>
         </div>
       {% else %}
-        <div class="xn-row"><a class="xn-m-link" href="{{ item.url }}">{{ item.title }}</a></div>
+        <div class="xn-row"><a class="xn-m-link" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.title }}</a></div>
       {% endif %}
     {% endfor %}
   </nav>

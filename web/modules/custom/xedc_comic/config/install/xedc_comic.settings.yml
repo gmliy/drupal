@@ -1,0 +1,20 @@
+import:
+  max_archive_bytes: 524288000
+  max_extracted_bytes: 2147483648
+  max_file_bytes: 52428800
+  max_files: 2000
+  batch_size: 5
+reading:
+  progress_save_interval: 3
+  view_flood_threshold: 30
+  view_flood_window: 3600
+paths:
+  file_prefix: 'comics'
+pdf:
+  max_bytes: 104857600
+  max_pages: 500
+  max_page_pixels: 25000000
+  max_concurrent: 2
+  convert_batch: 2
+  page_timeout: 120
+  keep_source_default: 1

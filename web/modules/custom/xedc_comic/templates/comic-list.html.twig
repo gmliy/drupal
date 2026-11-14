@@ -1,0 +1,84 @@
+<div class="xedc-comic xedc-comic-list" data-comic-list>
+  <header class="xedc-comic-list__hero">
+    <div class="xedc-comic-list__head">
+      <h1 class="xedc-comic-list__title">{{ title }}</h1>
+      <p class="xedc-comic-list__count">{{ '共 @n 部漫画'|t({'@n': total}) }}</p>
+    </div>
+    {% if intro %}
+      <p class="xedc-comic-list__intro">{{ intro }}</p>
+    {% endif %}
+    {% if member_links %}
+      <p class="xedc-comic-list__member">
+        {% for link in member_links %}
+          <a class="xedc-pill" href="{{ link.url }}">{{ link.label }}</a>
+        {% endfor %}
+      </p>
+    {% endif %}
+    <form class="xedc-comic-filters" method="get" action="{{ path(base_route, base_route_params) }}">
+      <div class="xedc-comic-filters__search">
+        <input type="search" name="q" value="{{ filters.q|default('') }}" placeholder="{{ '搜索漫画'|t }}" autocomplete="off" aria-label="{{ '搜索'|t }}">
+      </div>
+      <div class="xedc-comic-filters__pills" role="toolbar" aria-label="{{ '筛选'|t }}">
+        <select name="status" aria-label="{{ '连载'|t }}">
+          <option value="">{{ '全部漫画'|t }}</option>
+          <option value="ongoing"{% if filters.status == 'ongoing' %} selected{% endif %}>{{ '连载中'|t }}</option>
+          <option value="completed"{% if filters.status == 'completed' %} selected{% endif %}>{{ '已完结'|t }}</option>
+          <option value="paused"{% if filters.status == 'paused' %} selected{% endif %}>{{ '暂停'|t }}</option>
+        </select>
+        <select name="access" aria-label="{{ '权限'|t }}">
+          <option value="">{{ '全部'|t }}</option>
+          <option value="vip"{% if filters.access == 'vip' %} selected{% endif %}>VIP</option>
+          <option value="free"{% if filters.access == 'free' %} selected{% endif %}>{{ '免费'|t }}</option>
+        </select>
+        {% if categories is not empty and base_route == 'xedc_comic.home' %}
+          <select name="category" aria-label="{{ '分类'|t }}">
+            <option value="">{{ '全部分类'|t }}</option>
+            {% for cat in categories %}
+              <option value="{{ cat.id }}"{% if filters.category == cat.id %} selected{% endif %}>{{ cat.label }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
+        {% if tags is not empty and base_route == 'xedc_comic.home' %}
+          <select name="tag" aria-label="{{ '标签'|t }}">
+            <option value="">{{ '全部标签'|t }}</option>
+            {% for tag in tags %}
+              <option value="{{ tag.id }}"{% if filters.tag == tag.id %} selected{% endif %}>{{ tag.label }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
+        <select name="sort" aria-label="{{ '排序'|t }}">
+          <option value="update"{% if filters.sort == 'update' %} selected{% endif %}>{{ '最新更新'|t }}</option>
+          <option value="created"{% if filters.sort == 'created' %} selected{% endif %}>{{ '最新发布'|t }}</option>
+          <option value="views"{% if filters.sort == 'views' %} selected{% endif %}>{{ '最多阅读'|t }}</option>
+          <option value="favorites"{% if filters.sort == 'favorites' %} selected{% endif %}>{{ '最多收藏'|t }}</option>
+          <option value="title"{% if filters.sort == 'title' %} selected{% endif %}>{{ '名称'|t }}</option>
+        </select>
+        <button type="submit" class="btn btn-dark btn-sm">{{ '应用'|t }}</button>
+      </div>
+    </form>
+  </header>
+
+  {% if recent is not empty %}
+    <section class="xedc-comic-section">
+      <h2 class="xedc-comic-section__title">{{ '最近阅读'|t }}</h2>
+      <div class="xedc-comic-grid">
+        {% for item in recent %}
+          {% include '@xedc_comic/comic-card.html.twig' with { item: item } only %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="xedc-comic-section xedc-comic-section--main">
+    <div class="xedc-comic-grid">
+      {% for item in items %}
+        {% include '@xedc_comic/comic-card.html.twig' with { item: item } only %}
+      {% else %}
+        <p class="xedc-comic-empty">{{ empty_message }}</p>
+      {% endfor %}
+    </div>
+    {% if pager %}
+      <nav class="xedc-comic-pager" aria-label="{{ '分页'|t }}">{{ pager }}</nav>
+    {% endif %}
+  </section>
+</div>

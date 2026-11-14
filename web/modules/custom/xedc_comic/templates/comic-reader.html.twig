@@ -1,0 +1,27 @@
+<div class="xedc-comic-reader{% if context.chapter.vip %} is-vip{% endif %}" data-chapter-id="{{ context.chapter.id }}">
+  <div class="xedc-comic-reader__toolbar" id="xedc-comic-toolbar">
+    <a class="xedc-comic-reader__back" href="{{ context.comic.url }}">{{ '返回详情'|t }}</a>
+    <div class="xedc-comic-reader__titles">
+      <span class="xedc-comic-reader__comic">{{ context.comic.title }}</span>
+      <span class="xedc-comic-reader__chapter">
+        {% if context.chapter.index %}#{{ context.chapter.index }}/{{ context.chapter.total_chapters }} · {% endif %}{{ context.chapter.title }}
+      </span>
+    </div>
+    <span class="xedc-comic-reader__pager" id="xedc-comic-pager" aria-live="polite">- / {{ context.chapter.pages }}</span>
+    <nav class="xedc-comic-reader__modes" aria-label="{{ '阅读模式'|t }}">
+      <button type="button" data-mode="scroll" class="active">{{ '滚动'|t }}</button>
+      <button type="button" data-mode="single">{{ '单页'|t }}</button>
+      <button type="button" data-mode="spread">{{ '双页'|t }}</button>
+    </nav>
+    <button type="button" class="xedc-comic-reader__fullscreen" id="xedc-comic-fullscreen" aria-label="{{ '全屏'|t }}">⛶</button>
+  </div>
+  <div class="xedc-comic-reader__stage" id="xedc-comic-stage" aria-live="polite"></div>
+  <div class="xedc-comic-reader__nav">
+    {% if context.nav.prev %}
+      <a class="btn btn-sm btn-secondary" href="/comic/{{ context.comic.id }}/{{ context.nav.prev }}">上一章</a>
+    {% endif %}
+    {% if context.nav.next %}
+      <a class="btn btn-sm btn-primary" href="/comic/{{ context.comic.id }}/{{ context.nav.next }}">下一章</a>
+    {% endif %}
+  </div>
+</div>

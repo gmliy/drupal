@@ -1,0 +1,154 @@
+services:
+  logger.channel.xedc_comic:
+    parent: logger.channel_base
+    arguments: ['xedc_comic']
+
+  xedc_comic.content_installer:
+    class: Drupal\xedc_comic\Install\ContentInstaller
+
+  xedc_comic.manager:
+    class: Drupal\xedc_comic\Service\ComicManager
+    arguments:
+      - '@entity_type.manager'
+      - '@database'
+      - '@datetime.time'
+      - '@cache.data'
+
+  xedc_comic.storage:
+    class: Drupal\xedc_comic\Service\ComicStorageManager
+    arguments:
+      - '@file_system'
+      - '@entity_type.manager'
+      - '@file.usage'
+      - '@xedc_core.images'
+      - '@xedc_core.image_optimizer'
+      - '@xedc_core.image_optimize_repository'
+      - '@xedc_core.file_fingerprint'
+      - '@xedc_core.storage_delivery'
+      - '@current_user'
+      - '@logger.channel.xedc_comic'
+
+  xedc_comic.pdf_converter:
+    class: Drupal\xedc_comic\Service\ComicPdfConverter
+    arguments:
+      - '@file_system'
+
+  xedc_comic.pdf_import:
+    class: Drupal\xedc_comic\Service\ComicPdfImportManager
+    arguments:
+      - '@database'
+      - '@file_system'
+      - '@datetime.time'
+      - '@lock'
+      - '@queue'
+      - '@xedc_comic.pdf_converter'
+      - '@logger.channel.xedc_comic'
+
+  xedc_comic.import_runner:
+    class: Drupal\xedc_comic\Service\ComicImportRunner
+    arguments:
+      - '@xedc_comic.import'
+      - '@xedc_comic.pdf_import'
+
+  xedc_comic.import:
+    class: Drupal\xedc_comic\Service\ComicImportManager
+    arguments:
+      - '@database'
+      - '@file_system'
+      - '@datetime.time'
+      - '@lock'
+      - '@queue'
+      - '@xedc_core.archive'
+      - '@xedc_comic.storage'
+      - '@xedc_comic.page_manager'
+      - '@entity_type.manager'
+      - '@logger.channel.xedc_comic'
+
+  xedc_comic.reader:
+    class: Drupal\xedc_comic\Service\ComicReaderManager
+    arguments:
+      - '@entity_type.manager'
+      - '@database'
+      - '@datetime.time'
+      - '@xedc_comic.access'
+      - '@xedc_comic.storage'
+      - '@xedc_core.storage_delivery'
+
+  xedc_comic.access:
+    class: Drupal\xedc_comic\Service\ComicAccessManager
+    arguments:
+      - '@current_user'
+      - '@entity_type.manager'
+      - '@xedc_core.membership'
+
+  xedc_comic.reading:
+    class: Drupal\xedc_comic\Service\ComicReadingStore
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@current_user'
+
+  xedc_comic.favorites:
+    class: Drupal\xedc_comic\Service\ComicFavoriteStore
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@current_user'
+
+  xedc_comic.stats:
+    class: Drupal\xedc_comic\Service\ComicStatsManager
+    arguments:
+      - '@database'
+      - '@datetime.time'
+      - '@cache.data'
+      - '@flood'
+      - '@request_stack'
+
+  xedc_comic.page_repository:
+    class: Drupal\xedc_comic\Repository\ComicPageRepository
+    arguments:
+      - '@database'
+      - '@entity_type.manager'
+
+  xedc_comic.page_manager:
+    class: Drupal\xedc_comic\Service\ComicPageManager
+    arguments:
+      - '@database'
+      - '@entity_type.manager'
+      - '@xedc_comic.storage'
+      - '@file.usage'
+      - '@xedc_comic.page_repository'
+
+  xedc_comic.route_subscriber:
+    class: Drupal\xedc_comic\Routing\ComicRouteSubscriber
+    tags:
+      - { name: event_subscriber }
+
+  access_check.xedc_comic.hub:
+    class: Drupal\xedc_comic\Access\ComicHubAccess
+    tags:
+      - { name: access_check, applies_to: _custom_access }
+
+  xedc_comic.admin_shell:
+    class: Drupal\xedc_comic\Service\ComicAdminShell
+    arguments:
+      - '@current_user'
+
+  xedc_comic.views_installer:
+    class: Drupal\xedc_comic\Install\ComicViewsInstaller
+    arguments:
+      - '@extension.list.module'
+
+  xedc_comic.admin_metrics:
+    class: Drupal\xedc_comic\Service\ComicAdminMetrics
+    arguments:
+      - '@entity_type.manager'
+      - '@database'
+      - '@datetime.time'
+      - '@xedc_comic.stats'
+      - '@xedc_comic.import'
+
+  xedc_comic.seo:
+    class: Drupal\xedc_comic\Service\ComicSeoBuilder
+    arguments:
+      - '@file_url_generator'

@@ -1,0 +1,93 @@
+uuid: ec9a6330-8832-479a-8388-5ea9e6d8ce6d
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - node.type.comic
+    - taxonomy.vocabulary.comic_category
+  module:
+    - node
+    - taxonomy
+    - user
+    - xedc_comic
+id: xedc_comic_category
+label: 漫画分类列表
+module: views
+description: '按 comic_category 过滤漫画（供后台与预览；公开页 /comic/category/{term}）'
+tag: xedc_comic
+base_table: node_field_data
+base_field: nid
+display:
+  default:
+    id: default
+    display_title: Default
+    display_plugin: default
+    position: 0
+    display_options:
+      title: 漫画分类
+      fields:
+        title:
+          id: title
+          table: node_field_data
+          field: title
+          entity_type: node
+          plugin_id: field
+          label: 标题
+      pager:
+        type: full
+        options:
+          items_per_page: 24
+      access:
+        type: perm
+        options:
+          perm: 'view published comics'
+      cache:
+        type: tag
+      arguments:
+        field_comic_category_target_id:
+          id: field_comic_category_target_id
+          table: node__field_comic_category
+          field: field_comic_category_target_id
+          plugin_id: numeric
+          default_action: 'not found'
+          default_argument_type: taxonomy_tid
+          default_argument_options:
+            term_page: '1'
+          summary_options: {  }
+          specify_validation: true
+          validate:
+            type: 'entity:taxonomy_term'
+            fail: 'not found'
+          validate_options:
+            bundles:
+              comic_category: comic_category
+            access: true
+      filters:
+        status:
+          id: status
+          table: node_field_data
+          field: status
+          plugin_id: boolean
+          value: '1'
+        type:
+          id: type
+          table: node_field_data
+          field: type
+          plugin_id: bundle
+          value:
+            comic: comic
+      sorts:
+        field_comic_update_time:
+          id: field_comic_update_time
+          table: node__field_comic_update_time
+          field: field_comic_update_time
+          plugin_id: date
+          order: DESC
+      style:
+        type: xedc_comic_card_grid
+      row:
+        type: xedc_comic_card
+      query:
+        type: views_query
+        options:
+          disable_sql_rewrite: false

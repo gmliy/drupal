@@ -118,6 +118,7 @@ function _xedc_admin_navigation_definitions(): array {
         ['title' => t('创建内容'), 'route' => 'entity.node.add_page', 'match' => 'prefix', 'prefix' => '/node/add', 'permission' => 'administer nodes'],
         ['title' => t('图片导入'), 'route' => 'xedc_core.import_list', 'match' => 'prefix', 'prefix' => '/admin/content/image-imports', 'permission' => 'administer xedc image imports'],
         ['title' => t('快速发布'), 'route' => 'xedc_quick.page', 'match' => 'prefix', 'prefix' => '/admin/quick-gallery'],
+        ['title' => t('漫画中心'), 'route' => 'xedc_comic.admin', 'match' => 'prefix', 'prefix' => '/admin/xedc/comic'],
         ['title' => t('标签统计'), 'route' => 'xedc_tags.admin_overview', 'match' => 'prefix', 'prefix' => '/admin/content/tags'],
       ],
     ],

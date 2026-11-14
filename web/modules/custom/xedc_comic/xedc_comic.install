@@ -1,0 +1,392 @@
+<?php
+
+/**
+ * @file
+ * Install, schema and content model for XEDC Comic.
+ */
+
+declare(strict_types=1);
+
+use Drupal\user\Entity\Role;
+
+/**
+ * Implements hook_schema().
+ */
+function xedc_comic_schema(): array {
+  $schema['xedc_comic_import'] = [
+    'description' => '漫画 ZIP 导入任务。',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'uuid' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''],
+      'comic_nid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'chapter_nid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'queued'],
+      'archive_name' => ['type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''],
+      'archive_uri' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'archive_fid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'archive_sha256' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''],
+      'archive_bytes' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'pdf_dpi' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 150],
+      'pdf_format' => ['type' => 'varchar', 'length' => 8, 'not null' => TRUE, 'default' => 'jpg'],
+      'pdf_quality' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 85],
+      'pdf_page_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'pdf_converted' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'pdf_keep_source' => ['type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 1],
+      'work_uri' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'total' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'processed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'success_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'failed_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'skipped_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'import_mode' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'zip'],
+      'progress' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'message' => ['type' => 'text', 'not null' => FALSE],
+      'error' => ['type' => 'text', 'not null' => FALSE],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'changed' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'finished' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'status' => ['status'],
+      'chapter' => ['chapter_nid'],
+      'comic' => ['comic_nid'],
+    ],
+  ];
+
+  $schema['xedc_comic_import_item'] = [
+    'description' => 'ZIP 内单张待处理图片。',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'import_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'weight' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'relative' => ['type' => 'varchar', 'length' => 512, 'not null' => TRUE, 'default' => ''],
+      'temp_uri' => ['type' => 'varchar', 'length' => 2048, 'not null' => TRUE, 'default' => ''],
+      'page_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'status' => ['type' => 'varchar', 'length' => 20, 'not null' => TRUE, 'default' => 'pending'],
+      'pdf_page' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'error' => ['type' => 'text', 'not null' => FALSE],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'import_status' => ['import_id', 'status'],
+    ],
+  ];
+
+  $schema['xedc_comic_import_log'] = [
+    'description' => '导入任务日志。',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'import_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'level' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'info'],
+      'message' => ['type' => 'text', 'not null' => TRUE],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'import' => ['import_id'],
+    ],
+  ];
+
+  $schema['xedc_comic_reading'] = [
+    'description' => '登录用户阅读进度。',
+    'fields' => [
+      'id' => ['type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE],
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'comic_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'chapter_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'page_number' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 1],
+      'progress' => ['type' => 'float', 'not null' => TRUE, 'default' => 0],
+      'reading_mode' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => 'scroll'],
+      'last_read' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'user_comic' => ['uid', 'comic_id'],
+    ],
+    'indexes' => [
+      'user_recent' => ['uid', 'last_read'],
+    ],
+  ];
+
+  $schema['xedc_comic_favorite'] = [
+    'description' => '漫画收藏（模块内存储，不改动 xedc_member）。',
+    'fields' => [
+      'uid' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'comic_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'created' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['uid', 'comic_id'],
+    'indexes' => [
+      'comic' => ['comic_id'],
+    ],
+  ];
+
+  $schema['xedc_comic_stats_daily'] = [
+    'description' => '漫画阅读量按天汇总。',
+    'fields' => [
+      'day' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE],
+      'comic_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'chapter_id' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+      'views' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    ],
+    'primary key' => ['day', 'comic_id', 'chapter_id'],
+    'indexes' => [
+      'comic_day' => ['comic_id', 'day'],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function xedc_comic_install(): void {
+  if (\Drupal::hasService('xedc_comic.content_installer')) {
+    \Drupal::service('xedc_comic.content_installer')->installContentModel();
+  }
+  xedc_comic_grant_roles();
+}
+
+/**
+ * Grants default comic permissions to administrator and content_editor.
+ */
+function xedc_comic_grant_roles(): void {
+  $admin = Role::load('administrator');
+  if ($admin) {
+    foreach (array_keys(xedc_comic_permission_definitions()) as $permission) {
+      $admin->grantPermission($permission);
+    }
+    $admin->save();
+  }
+  $editor = Role::load('content_editor');
+  if ($editor) {
+    foreach ([
+      'create comics',
+      'edit own comics',
+      'manage comic chapters',
+      'manage comic pages',
+      'import comic archives',
+      'view comic statistics',
+      'view published comics',
+    ] as $permission) {
+      $editor->grantPermission($permission);
+    }
+    $editor->save();
+  }
+  $auth = Role::load('authenticated');
+  if ($auth && !$auth->hasPermission('view published comics')) {
+    $auth->grantPermission('view published comics');
+    $auth->save();
+  }
+  $anon = Role::load('anonymous');
+  if ($anon && !$anon->hasPermission('view published comics')) {
+    $anon->grantPermission('view published comics');
+    $anon->save();
+  }
+}
+
+/**
+ * Permission keys for grant helper.
+ *
+ * @return array<string, string>
+ */
+function xedc_comic_permission_definitions(): array {
+  return [
+    'administer comics' => '管理漫画中心',
+    'create comics' => '创建漫画',
+    'edit own comics' => '编辑自己的漫画',
+    'edit any comics' => '编辑任意漫画',
+    'delete comics' => '删除漫画',
+    'manage comic chapters' => '管理漫画章节',
+    'manage comic pages' => '管理漫画页图片',
+    'import comic archives' => '导入漫画 ZIP 压缩包',
+    'view comic statistics' => '查看漫画阅读统计',
+    'view published comics' => '阅读已发布漫画',
+  ];
+}
+
+/**
+ * 补齐字段与 Entity Form/View Display（已启用站点修复仅标题表单问题）。
+ */
+function xedc_comic_update_11001(): string {
+  if (!\Drupal::hasService('xedc_comic.content_installer')) {
+    return 'xedc_comic.content_installer 不可用。';
+  }
+  return \Drupal::service('xedc_comic.content_installer')->repairContentModel();
+}
+
+/**
+ * 导入任务：模式、跳过计数。
+ */
+function xedc_comic_update_11002(): string {
+  $schema = \Drupal::database()->schema();
+  if ($schema->tableExists('xedc_comic_import')) {
+    if (!$schema->fieldExists('xedc_comic_import', 'import_mode')) {
+      $schema->addField('xedc_comic_import', 'import_mode', [
+        'type' => 'varchar',
+        'length' => 16,
+        'not null' => TRUE,
+        'default' => 'zip',
+      ]);
+    }
+    if (!$schema->fieldExists('xedc_comic_import', 'skipped_count')) {
+      $schema->addField('xedc_comic_import', 'skipped_count', [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ]);
+    }
+  }
+  return '已补齐导入任务字段 import_mode、skipped_count。';
+}
+
+/**
+ * content_editor 漫画权限最小化（移除 edit any comics）。
+ */
+function xedc_comic_update_11003(): string {
+  $editor = Role::load('content_editor');
+  if ($editor && $editor->hasPermission('edit any comics')) {
+    $editor->revokePermission('edit any comics');
+    $editor->save();
+    return '已从 content_editor 移除「编辑任意漫画」。';
+  }
+  return 'content_editor 无需调整。';
+}
+
+/**
+ * PDF 导入任务字段与页项 pdf_page。
+ */
+function xedc_comic_update_11005(): string {
+  $schema = \Drupal::database()->schema();
+  $fields = [
+    'archive_bytes' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    'pdf_dpi' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 150],
+    'pdf_format' => ['type' => 'varchar', 'length' => 8, 'not null' => TRUE, 'default' => 'jpg'],
+    'pdf_quality' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 85],
+    'pdf_page_count' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    'pdf_converted' => ['type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0],
+    'pdf_keep_source' => ['type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 1],
+  ];
+  if ($schema->tableExists('xedc_comic_import')) {
+    foreach ($fields as $name => $spec) {
+      if (!$schema->fieldExists('xedc_comic_import', $name)) {
+        $schema->addField('xedc_comic_import', $name, $spec);
+      }
+    }
+  }
+  if ($schema->tableExists('xedc_comic_import_item')) {
+    if (!$schema->fieldExists('xedc_comic_import_item', 'pdf_page')) {
+      $schema->addField('xedc_comic_import_item', 'pdf_page', [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ]);
+    }
+  }
+  $config = \Drupal::configFactory()->getEditable('xedc_comic.settings');
+  if ($config->get('pdf.max_bytes') === NULL) {
+    $config
+      ->set('pdf.max_bytes', 104857600)
+      ->set('pdf.max_pages', 500)
+      ->set('pdf.max_page_pixels', 25000000)
+      ->set('pdf.max_concurrent', 2)
+      ->set('pdf.convert_batch', 2)
+      ->set('pdf.page_timeout', 120)
+      ->set('pdf.keep_source_default', 1)
+      ->save();
+  }
+  return '已补齐 PDF 导入数据库字段与默认配置。';
+}
+
+/**
+ * 安装漫画 Views 与前台主导航（幂等）。
+ */
+function xedc_comic_update_11006(): string {
+  if (\Drupal::hasService('xedc_comic.views_installer')) {
+    $messages = \Drupal::service('xedc_comic.views_installer')->installMissing();
+  }
+  else {
+    $messages = ['服务不可用。'];
+  }
+  return implode(' ', $messages);
+}
+
+/**
+ * 游客可读已发布漫画；修复统计缓存标签失效。
+ */
+/**
+ * 为三套漫画 Views 添加 Block Display（幂等）。
+ */
+function xedc_comic_update_11008(): string {
+  if (\Drupal::hasService('xedc_comic.views_installer')) {
+    return implode(' ', \Drupal::service('xedc_comic.views_installer')->ensureBlockDisplays());
+  }
+  return 'views_installer 不可用。';
+}
+
+/**
+ * 导入队列：注册 runner 并恢复超时 processing 任务。
+ */
+function xedc_comic_update_11009(): string {
+  if (\Drupal::hasService('xedc_comic.import_runner')) {
+    $n = \Drupal::service('xedc_comic.import_runner')->recoverStaleProcessing(900);
+    return '已恢复 ' . $n . ' 个超时导入任务。';
+  }
+  return 'import_runner 不可用。';
+}
+
+function xedc_comic_update_11007(): string {
+  $messages = [];
+  $anon = Role::load('anonymous');
+  if ($anon && !$anon->hasPermission('view published comics')) {
+    $anon->grantPermission('view published comics');
+    $anon->save();
+    $messages[] = '已授予 anonymous view published comics。';
+  }
+  else {
+    $messages[] = 'anonymous 已有 view published comics。';
+  }
+  return implode(' ', $messages);
+}
+
+/**
+ * 为 content_editor 授予漫画最小权限（幂等）。
+ */
+function xedc_comic_update_11004(): string {
+  $editor = Role::load('content_editor');
+  if (!$editor) {
+    return '未找到 content_editor 角色。';
+  }
+  foreach ([
+    'create comics',
+    'edit own comics',
+    'manage comic chapters',
+    'manage comic pages',
+    'import comic archives',
+    'view comic statistics',
+    'view published comics',
+  ] as $permission) {
+    if (!$editor->hasPermission($permission)) {
+      $editor->grantPermission($permission);
+    }
+  }
+  if ($editor->hasPermission('edit any comics')) {
+    $editor->revokePermission('edit any comics');
+  }
+  $editor->save();
+  return '已为 content_editor 配置漫画最小权限。';
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function xedc_comic_uninstall(): void {
+  if (\Drupal::hasService('xedc_comic.content_installer')) {
+    \Drupal::service('xedc_comic.content_installer')->uninstallContentModel();
+  }
+}

@@ -1,0 +1,64 @@
+list:
+  css:
+    theme:
+      css/comic.css: {}
+  dependencies:
+    - core/drupal
+
+detail:
+  css:
+    theme:
+      css/comic.css: {}
+  js:
+    js/comic-detail.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+    - core/drupalSettings
+
+reader:
+  css:
+    theme:
+      css/reader.css: {}
+  js:
+    js/reader.js: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+    - core/once
+
+admin:
+  css:
+    theme:
+      css/admin.css: {}
+  js:
+    js/admin-shell.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+    - xedc_core/mobile_inputs_admin
+
+import_hub:
+  js:
+    js/admin-import.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+
+page_manage:
+  js:
+    js/admin-pages.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+
+member:
+  css:
+    theme:
+      css/comic.css: {}
+  js:
+    js/comic-member.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+    - core/drupalSettings

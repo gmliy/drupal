@@ -1,0 +1,24 @@
+<article class="xedc-comic-card">
+  <a class="xedc-comic-card__link" href="{{ item.url }}">
+    <span class="xedc-comic-card__cover">
+      {% if item.cover %}
+        <img src="{{ item.cover }}" alt="" loading="lazy" width="300" height="400" decoding="async">
+      {% endif %}
+      {% if item.is_vip %}
+        <span class="xedc-comic-card__vip">VIP</span>
+      {% endif %}
+    </span>
+    <span class="xedc-comic-card__body">
+      <span class="xedc-comic-card__title">{{ item.title }}</span>
+      {% if item.author %}<span class="xedc-comic-card__author">{{ item.author }}</span>{% endif %}
+      <span class="xedc-comic-card__meta">
+        {% if item.status_label %}<span>{{ item.status_label }}</span>{% endif %}
+        {% if item.latest_chapter %}<span>{{ item.latest_chapter }}</span>{% endif %}
+      </span>
+      <span class="xedc-comic-card__stats">
+        <span>{{ item.updated|default('') }}</span>
+        <span>{{ '阅读'|t }} {{ item.views|default(0) }}</span>
+      </span>
+    </span>
+  </a>
+</article>

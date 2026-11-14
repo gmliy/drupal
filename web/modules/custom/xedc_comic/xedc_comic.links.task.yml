@@ -1,0 +1,53 @@
+xedc_comic.admin_overview:
+  route_name: xedc_comic.admin
+  title: '概览'
+  base_route: xedc_comic.admin
+  weight: 0
+
+xedc_comic.admin_comics:
+  route_name: xedc_comic.admin_comics
+  title: '漫画'
+  base_route: xedc_comic.admin
+  weight: 1
+
+xedc_comic.admin_chapters:
+  route_name: xedc_comic.admin_chapters
+  title: '章节'
+  base_route: xedc_comic.admin
+  weight: 2
+
+xedc_comic.admin_chapter_batch:
+  route_name: xedc_comic.admin_chapter_batch
+  title: '批量章节'
+  base_route: xedc_comic.admin
+  weight: 15
+
+xedc_comic.admin_pages:
+  route_name: xedc_comic.admin_pages
+  title: '图片'
+  base_route: xedc_comic.admin
+  weight: 3
+
+xedc_comic.import:
+  route_name: xedc_comic.import
+  title: '内容导入'
+  base_route: xedc_comic.admin
+  weight: 4
+
+xedc_comic.import_status:
+  route_name: xedc_comic.import_status
+  title: '导入任务'
+  base_route: xedc_comic.admin
+  weight: 5
+
+xedc_comic.admin_stats:
+  route_name: xedc_comic.admin_stats
+  title: '阅读统计'
+  base_route: xedc_comic.admin
+  weight: 6
+
+xedc_comic.settings:
+  route_name: xedc_comic.settings
+  title: '设置'
+  base_route: xedc_comic.admin
+  weight: 7

@@ -1,0 +1,151 @@
+{% macro nav_icon(key) %}
+  <svg class="xm-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    {% if key == 'overview' %}
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5"></rect>
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.5"></rect>
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.5"></rect>
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.5"></rect>
+    {% elseif key == 'favorites' %}
+      <path d="M7 4.5h10a1 1 0 0 1 1 1V20l-6-3.2L6 20V5.5a1 1 0 0 1 1-1z"></path>
+    {% elseif key == 'likes' %}
+      <path d="M12 19.2s-6.2-3.7-6.2-8.1A3.4 3.4 0 0 1 12 8.6a3.4 3.4 0 0 1 6.2 2.5c0 4.4-6.2 8.1-6.2 8.1z"></path>
+    {% elseif key == 'downloads' %}
+      <path d="M12 4.5v10"></path>
+      <path d="m8 11 4 4 4-4"></path>
+      <path d="M5 19.5h14"></path>
+    {% elseif key == 'membership' %}
+      <path d="M12 3.8 14.4 9l5.6.5-4.3 3.6 1.3 5.4L12 15.8 6.9 18.5 8.2 13 4 9.5 9.6 9z"></path>
+    {% elseif key == 'history' %}
+      <circle cx="12" cy="12" r="8"></circle>
+      <path d="M12 8v4.2l2.8 1.8"></path>
+    {% elseif key == 'comments' %}
+      <path d="M6 6.5h12a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 18 16.5H10l-4 3v-3H6A1.5 1.5 0 0 1 4.5 15V8A1.5 1.5 0 0 1 6 6.5z"></path>
+    {% elseif key == 'submissions' %}
+      <path d="M6 4.5h8l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-10.5A1.5 1.5 0 0 1 4.5 19V6A1.5 1.5 0 0 1 6 4.5z"></path>
+      <path d="M14 4.5V9h4.5"></path>
+    {% elseif key == 'profile' %}
+      <circle cx="12" cy="8.5" r="3"></circle>
+      <path d="M6 19.2a6 6 0 0 1 12 0"></path>
+    {% elseif key == 'security' %}
+      <rect x="5" y="10.5" width="14" height="9" rx="1.5"></rect>
+      <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"></path>
+    {% elseif key == 'messages' %}
+      <path d="M5 6.5h14a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H9l-4 3v-3H5A1.5 1.5 0 0 1 3.5 16V8A1.5 1.5 0 0 1 5 6.5z"></path>
+    {% elseif key == 'notifications' %}
+      <path d="M12 4.5a5 5 0 0 1 5 5v2.2l1.4 2.8H5.6L7 11.7V9.5a5 5 0 0 1 5-5z"></path>
+      <path d="M10 18.5a2 2 0 0 0 4 0"></path>
+    {% elseif key == 'redeem' %}
+      <rect x="4.5" y="7" width="15" height="11" rx="1.5"></rect>
+      <path d="M8 7V5.8A4 4 0 0 1 12 2a4 4 0 0 1 4 3.8V7"></path>
+      <circle cx="12" cy="12.5" r="1.4"></circle>
+    {% elseif key == 'home' %}
+      <path d="M4.5 11.2 12 5l7.5 6.2"></path>
+      <path d="M7 10.5V19h10v-8.5"></path>
+    {% else %}
+      <circle cx="12" cy="12" r="3"></circle>
+    {% endif %}
+  </svg>
+{% endmacro %}
+{% import _self as xmicon %}
+
+{% set groups = [
+  { id: 'overview', label: '总览'|t, keys: ['overview', 'messages', 'notifications'] },
+  { id: 'library', label: '我的内容'|t, keys: ['favorites', 'comic_favorites', 'likes', 'downloads', 'history', 'comic_history', 'comments', 'submissions'] },
+  { id: 'account', label: '账户'|t, keys: ['membership', 'redeem', 'profile', 'security'] },
+] %}
+{% set known = ['overview', 'messages', 'notifications', 'favorites', 'comic_favorites', 'likes', 'downloads', 'membership', 'redeem', 'history', 'comic_history', 'comments', 'submissions', 'profile', 'security'] %}
+{% set indexed = {} %}
+{% for item in nav %}
+  {% set indexed = indexed|merge({ (item.key): item }) %}
+{% endfor %}
+
+<div class="xm" data-xm-root>
+  <div class="xm-topbar">
+    <button type="button" class="xm-icon-btn" data-xm-open aria-controls="xm-drawer" aria-expanded="false">
+      <svg class="xm-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4 7h16M4 12h16M4 17h16"></path>
+      </svg>
+      <span class="visually-hidden">{{ '打开会员导航'|t }}</span>
+    </button>
+    <strong class="xm-topbar__title">{{ '会员中心'|t }}</strong>
+    <a class="xm-icon-btn" href="{{ path('<front>') }}" aria-label="{{ '返回首页'|t }}">
+      {{ xmicon.nav_icon('home') }}
+    </a>
+  </div>
+
+  <div class="xm-backdrop" data-xm-backdrop hidden></div>
+
+  <aside class="xm-side" id="xm-drawer" data-xm-drawer aria-label="{{ '会员中心'|t }}">
+    <div class="xm-brand">
+      <span class="xm-brand__mark" aria-hidden="true">X</span>
+      <span>
+        <strong>{{ '会员中心'|t }}</strong>
+        <small>XEDC</small>
+      </span>
+      <button type="button" class="xm-icon-btn xm-drawer-close" data-xm-close aria-label="{{ '关闭导航'|t }}">
+        <svg class="xm-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M7 7l10 10M17 7 7 17"></path>
+        </svg>
+      </button>
+    </div>
+
+    <a class="xm-user" href="{{ urls.profile }}">
+      <span class="xm-avatar">{% if avatar %}{{ avatar }}{% else %}{{ account.initial }}{% endif %}</span>
+      <span class="xm-user-info">
+        <strong class="xm-user-name">
+          <span>{{ account.name }}</span>
+          {% if account.tier == 'vip' %}
+            <em class="xm-tier xm-tier--vip">VIP</em>
+          {% else %}
+            <em class="xm-tier">{{ '普通'|t }}</em>
+          {% endif %}
+        </strong>
+        <span class="xm-user-since">{{ '加入于 @date'|t({'@date': account.member_since}) }}</span>
+      </span>
+    </a>
+
+    <nav class="xm-nav" aria-label="{{ '会员中心导航'|t }}" data-xm-nav>
+      {% for group in groups %}
+        <div class="xm-nav__group" aria-labelledby="xm-group-{{ group.id }}">
+          <p class="xm-nav__group-label" id="xm-group-{{ group.id }}">{{ group.label }}</p>
+          {% for key in group.keys %}
+            {% if indexed[key] is defined %}
+              {% set item = indexed[key] %}
+              <a href="{{ item.url }}" class="xm-nav__item{% if item.key == active %} is-active{% endif %}"{% if item.key == active %} aria-current="page"{% endif %}>
+                {{ xmicon.nav_icon(item.key) }}
+                <span>{{ item.label }}</span>
+              </a>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endfor %}
+      {% for item in nav %}
+        {% if item.key not in known %}
+          <a href="{{ item.url }}" class="xm-nav__item{% if item.key == active %} is-active{% endif %}"{% if item.key == active %} aria-current="page"{% endif %}>
+            {{ xmicon.nav_icon(item.key) }}
+            <span>{{ item.label }}</span>
+          </a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+
+    <div class="xm-side-foot">
+      <a class="xm-side-foot__link" href="{{ path('<front>') }}">
+        {{ xmicon.nav_icon('home') }}
+        <span>{{ '返回首页'|t }}</span>
+      </a>
+      <a class="xm-side-foot__link" href="{{ urls.logout }}">
+        <svg class="xm-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M10 7V5.5A1.5 1.5 0 0 1 11.5 4H18a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 18 20h-6.5A1.5 1.5 0 0 1 10 18.5V17"></path>
+          <path d="M4 12h10"></path>
+          <path d="m11 8.5 3.5 3.5L11 15.5"></path>
+        </svg>
+        <span>{{ '退出登录'|t }}</span>
+      </a>
+    </div>
+  </aside>
+
+  <div class="xm-main">
+    {{ content }}
+  </div>
+</div>

@@ -172,6 +172,29 @@
   gap: 8px;
 }
 
+.xedc-admin-dashboard__hub {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.xedc-admin-dashboard__hub-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.xedc-admin-dashboard__hub-desc {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--gin-color-text-light, #71717a);
+}
+
+.xedc-admin-dashboard__shortcut-manage {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
 .xedc-admin-dashboard__op {
   display: inline-flex;
   align-items: center;

@@ -1,0 +1,106 @@
+.xedc-comic-reader {
+  background: #111;
+  color: #f5f5f5;
+  min-height: 100vh;
+  padding-bottom: 4rem;
+}
+.xedc-comic-reader__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+}
+
+.xedc-comic-reader__titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 8rem;
+}
+
+.xedc-comic-reader__comic {
+  font-size: 0.8rem;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xedc-comic-reader__chapter {
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xedc-comic-reader__fullscreen {
+  border: 1px solid #555;
+  background: transparent;
+  color: inherit;
+  border-radius: 4px;
+  padding: 0.2rem 0.45rem;
+  line-height: 1.2;
+}
+.xedc-comic-reader__status {
+  text-align: center;
+  padding: 0.5rem 1rem;
+  color: var(--bs-secondary-color, #6b7280);
+  font-size: 0.9rem;
+}
+
+.xedc-comic-reader__stage img.is-error {
+  outline: 2px dashed #dc2626;
+  min-height: 120px;
+  background: var(--bs-tertiary-bg, #f4f4f5);
+}
+
+.xedc-comic-reader__stage {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0.5rem;
+}
+.xedc-comic-reader__stage img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto 0.25rem;
+}
+.xedc-comic-reader__stage.mode-single img,
+.xedc-comic-reader__stage.mode-spread img.page-active {
+  max-height: calc(100vh - 8rem);
+  width: auto;
+  max-width: 100%;
+}
+.xedc-comic-reader__stage.mode-single img:not(.page-active),
+.xedc-comic-reader__stage.mode-spread img:not(.page-active) {
+  display: none;
+}
+.xedc-comic-reader__modes button {
+  background: transparent;
+  border: 1px solid #555;
+  color: inherit;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+.xedc-comic-reader__modes button.active {
+  border-color: #fff;
+}
+.xedc-comic-reader__nav {
+  display: flex;
+  justify-content: space-between;
+  max-width: 980px;
+  margin: 1rem auto;
+  padding: 0 0.75rem;
+}
+@media (max-width: 767px) {
+  .xedc-comic-reader__modes button[data-mode="spread"] {
+    display: none;
+  }
+}

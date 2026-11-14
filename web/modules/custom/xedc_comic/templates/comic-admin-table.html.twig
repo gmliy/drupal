@@ -1,0 +1,38 @@
+<div class="xedc-comic-panel">
+  {% if filters_form %}
+    <div class="xedc-comic-filters xedc-admin-card">{{ filters_form }}</div>
+  {% endif %}
+  <div class="xedc-admin-card xedc-comic-table-wrap">
+    <table class="xedc-comic-table{% if table_class %} {{ table_class }}{% endif %}">
+      <thead>
+        <tr>
+          {% for head in header %}
+            <th scope="col">{{ head }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            {% for cell in row %}
+              <td data-label="{{ header[loop.index0]|default('') }}">
+                {% if cell is iterable and cell['#markup'] is defined %}
+                  {{ cell['#markup']|raw }}
+                {% elseif cell is iterable and cell['#type'] is defined %}
+                  {{ cell }}
+                {% else %}
+                  {{ cell|raw }}
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% else %}
+          <tr><td colspan="{{ header|length }}" class="xedc-comic-muted">{{ empty }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if pager %}
+      <footer class="xedc-comic-pager">{{ pager }}</footer>
+    {% endif %}
+  </div>
+</div>

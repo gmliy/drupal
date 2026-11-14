@@ -1,0 +1,60 @@
+<div class="xedc-comic-pages" data-chapter-id="{{ chapter_id }}">
+  <div class="xedc-comic-pages__toolbar">
+    <div class="xedc-comic-pages__view-toggle" role="tablist" aria-label="{{ '视图'|t }}">
+      <button type="button" class="is-active" data-view="grid" role="tab">{{ '网格'|t }}</button>
+      <button type="button" data-view="list" role="tab">{{ '列表'|t }}</button>
+    </div>
+    <p class="xedc-comic-muted">{{ '拖动列表行可调整顺序；保存前请确认页码。'|t }}</p>
+  </div>
+
+  <div class="xedc-comic-pages__grid" data-pages-grid>
+    {% for row in rows %}
+      <article class="xedc-comic-page-card" data-page-id="{{ row.id }}">
+        <a class="xedc-comic-page-card__thumb" href="{{ row.thumb }}" target="_blank" rel="noopener">
+          {% if row.thumb %}<img src="{{ row.thumb }}" alt="" loading="lazy" width="120" height="160">{% endif %}
+        </a>
+        <h3 class="xedc-comic-page-card__title">{{ '第'|t }} {{ row.page }} {{ '页'|t }}</h3>
+        <ul class="xedc-comic-page-card__meta">
+          <li>#{{ row.id }}</li>
+          <li>{{ row.size }}</li>
+          <li>{{ row.bytes }}</li>
+        </ul>
+      </article>
+    {% else %}
+      <p class="xedc-comic-muted">{{ '本章暂无图片。'|t }}</p>
+    {% endfor %}
+  </div>
+
+  <div class="xedc-comic-pages__list xedc-admin-card" data-pages-list hidden>
+    <table class="xedc-comic-table responsive-enabled">
+      <thead>
+        <tr>
+          <th>{{ 'ID'|t }}</th>
+          <th>{{ '页码'|t }}</th>
+          <th>{{ '预览'|t }}</th>
+          <th>{{ '文件名'|t }}</th>
+          <th>{{ '尺寸'|t }}</th>
+          <th>{{ '大小'|t }}</th>
+          <th>{{ '上传'|t }}</th>
+        </tr>
+      </thead>
+      <tbody class="xedc-comic-pages__sortable">
+        {% for row in rows %}
+          <tr data-page-id="{{ row.id }}">
+            <td data-label="{{ 'ID'|t }}">{{ row.id }}</td>
+            <td data-label="{{ '页码'|t }}">{{ row.page }}</td>
+            <td data-label="{{ '预览'|t }}">
+              {% if row.thumb %}
+                <a href="{{ row.thumb }}" target="_blank" rel="noopener"><img src="{{ row.thumb }}" width="72" height="auto" loading="lazy" alt=""></a>
+              {% endif %}
+            </td>
+            <td data-label="{{ '文件名'|t }}">{{ row.name }}</td>
+            <td data-label="{{ '尺寸'|t }}">{{ row.size }}</td>
+            <td data-label="{{ '大小'|t }}">{{ row.bytes }}</td>
+            <td data-label="{{ '上传'|t }}">{{ row.created }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

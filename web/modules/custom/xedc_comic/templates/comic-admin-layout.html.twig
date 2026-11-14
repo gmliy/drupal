@@ -1,0 +1,49 @@
+{#
+  Unified comic admin shell.
+#}
+<div class="xedc-comic-hub" data-xedc-comic-admin>
+  <header class="xedc-comic-hub__header">
+  {% if breadcrumb is not empty %}
+    <nav class="xedc-comic-hub__breadcrumb" aria-label="{{ '面包屑'|t }}">
+      {% for crumb in breadcrumb %}
+        {% if crumb.url %}
+          <a href="{{ crumb.url }}">{{ crumb.label }}</a>
+          <span class="xedc-comic-hub__sep" aria-hidden="true">/</span>
+        {% else %}
+          <span>{{ crumb.label }}</span>
+        {% endif %}
+      {% endfor %}
+    </nav>
+  {% endif %}
+    <div class="xedc-comic-hub__title-row">
+      <div class="xedc-comic-hub__titles">
+        <h1 class="xedc-comic-hub__title">{{ page_title }}</h1>
+        {% if page_description %}
+          <p class="xedc-comic-hub__desc">{{ page_description }}</p>
+        {% endif %}
+      </div>
+      {% if header_actions is not empty %}
+        <div class="xedc-comic-hub__actions">
+          {% for action in header_actions %}
+            <a class="xedc-admin-button{% if action.primary %} xedc-admin-button--primary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="xedc-comic-hub__body">
+    <nav class="xedc-comic-hub__nav" aria-label="{{ '漫画中心导航'|t }}">
+      <ul class="xedc-comic-hub__nav-scroll">
+        {% for item in nav_items %}
+          <li>
+            <a class="xedc-comic-hub__nav-link{% if item.route == active_route %} is-active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </nav>
+    <div class="xedc-comic-hub__content">
+      {{ content }}
+    </div>
+  </div>
+</div>

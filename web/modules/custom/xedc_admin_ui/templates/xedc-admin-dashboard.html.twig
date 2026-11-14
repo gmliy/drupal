@@ -91,6 +91,20 @@
     </section>
   {% endif %}
 
+  {% if hubs is not empty %}
+    <section class="xedc-admin-dashboard__section">
+      <h2>{{ '业务中心'|t }}</h2>
+      <div class="xedc-admin-dashboard__grid">
+        {% for hub in hubs %}
+          <a class="xedc-admin-dashboard__card xedc-admin-dashboard__hub" href="{{ hub.url }}">
+            <h3 class="xedc-admin-dashboard__hub-title">{{ hub.title }}</h3>
+            <p class="xedc-admin-dashboard__hub-desc">{{ hub.description }}</p>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
   {% if recent is not null %}
     <section class="xedc-admin-dashboard__section">
       <h2>{{ '最近发布'|t }}</h2>
@@ -141,6 +155,17 @@
             <a class="xedc-admin-dashboard__op" href="{{ link.url }}">{{ link.label }}</a>
           {% endfor %}
         </div>
+      {% endif %}
+      {% if shortcut_manage_url or shortcut_settings_url %}
+        <p class="xedc-admin-dashboard__shortcut-manage">
+          {% if shortcut_manage_url %}
+            <a href="{{ shortcut_manage_url }}">{{ '管理快捷方式'|t }}</a>
+          {% endif %}
+          {% if shortcut_settings_url %}
+            {% if shortcut_manage_url %} · {% endif %}
+            <a href="{{ shortcut_settings_url }}">{{ '快捷方式配置'|t }}</a>
+          {% endif %}
+        </p>
       {% endif %}
     </div>
   </section>

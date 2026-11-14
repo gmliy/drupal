@@ -43,6 +43,51 @@
   grid-template-columns: 1fr;
 }
 
+.xedc-admin-grid--hubs {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .xedc-admin-grid--hubs {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
+.xedc-admin-dashboard__hub {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.xedc-admin-dashboard__hub:hover {
+  border-color: var(--xedc-admin-focus, #3b82f6);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.xedc-admin-dashboard__hub-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.xedc-admin-dashboard__hub-desc {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--xedc-admin-muted);
+  line-height: 1.45;
+}
+
+.xedc-admin-dashboard__shortcut-manage {
+  margin: 14px 0 0;
+  font-size: 13px;
+}
+
+.xedc-admin-dashboard__shortcut-manage a {
+  color: var(--xedc-admin-focus, #2563eb);
+  text-decoration: none;
+}
+
 .xedc-admin-stat,
 .xedc-admin-dashboard__card.xedc-admin-stat {
   padding: 16px 18px;

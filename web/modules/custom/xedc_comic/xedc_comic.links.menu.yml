@@ -1,0 +1,12 @@
+xedc_comic.front:
+  title: '漫画'
+  route_name: xedc_comic.home
+  menu_name: main
+  weight: 8
+
+xedc_comic.admin:
+  title: '漫画中心'
+  description: '漫画管理、导入与统计。'
+  route_name: xedc_comic.admin
+  parent: system.admin_content
+  weight: 25

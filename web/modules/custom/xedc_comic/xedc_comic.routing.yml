@@ -1,0 +1,253 @@
+xedc_comic.home:
+  path: '/comic'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicController::home'
+    _title: '漫画中心'
+  requirements:
+    _permission: 'view published comics'
+
+xedc_comic.category:
+  path: '/comic/category/{taxonomy_term}'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicController::category'
+    _title_callback: '\Drupal\taxonomy\Controller\TaxonomyController::termTitle'
+  requirements:
+    _permission: 'view published comics'
+    taxonomy_term: '\d+'
+  options:
+    parameters:
+      taxonomy_term:
+        type: entity:taxonomy_term
+        bundle:
+          - comic_category
+
+xedc_comic.tag:
+  path: '/comic/tag/{taxonomy_term}'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicController::tag'
+    _title_callback: '\Drupal\taxonomy\Controller\TaxonomyController::termTitle'
+  requirements:
+    _permission: 'view published comics'
+    taxonomy_term: '\d+'
+  options:
+    parameters:
+      taxonomy_term:
+        type: entity:taxonomy_term
+        bundle:
+          - tags
+
+xedc_comic.detail:
+  path: '/comic/{comic}'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicController::detail'
+    _title_callback: '\Drupal\Core\Entity\Controller\EntityController::title'
+  requirements:
+    _permission: 'view published comics'
+    comic: '\d+'
+  options:
+    parameters:
+    comic:
+      type: entity:node
+      bundle:
+        - comic
+
+xedc_comic.reader:
+  path: '/comic/{comic}/{chapter}'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicReaderController::read'
+    _title_callback: '\Drupal\Core\Entity\Controller\EntityController::title'
+  requirements:
+    _permission: 'view published comics'
+    comic: '\d+'
+    chapter: '\d+'
+  options:
+    parameters:
+      comic:
+        type: entity:node
+        bundle:
+          - comic
+      chapter:
+        type: entity:node
+        bundle:
+          - comic_chapter
+
+xedc_comic.api_pages:
+  path: '/comic/{comic}/{chapter}/pages'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicApiController::pages'
+  requirements:
+    _custom_access: '\Drupal\xedc_comic\Controller\ComicApiController::pagesAccess'
+    comic: '\d+'
+    chapter: '\d+'
+  methods: [GET]
+  options:
+    parameters:
+      comic:
+        type: entity:node
+      chapter:
+        type: entity:node
+
+xedc_comic.api_progress:
+  path: '/api/comic/reading-progress'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicApiController::saveProgress'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+  methods: [POST]
+
+xedc_comic.member_favorites:
+  path: '/member/comic-favorites'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicMemberController::favorites'
+    _title: '漫画收藏'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _xedc_member_center: 'TRUE'
+  options:
+    no_cache: TRUE
+
+xedc_comic.member_history:
+  path: '/member/comic-history'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicMemberController::history'
+    _title: '漫画阅读记录'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    _xedc_member_center: 'TRUE'
+  options:
+    no_cache: TRUE
+
+xedc_comic.api_history_delete:
+  path: '/api/comic/reading-history/{comic}'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicApiController::deleteHistory'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    comic: '\d+'
+  methods: [DELETE]
+  options:
+    parameters:
+      comic:
+        type: entity:node
+        bundle:
+          - comic
+
+xedc_comic.api_favorite:
+  path: '/api/comic/{comic}/favorite'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicApiController::toggleFavorite'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+    comic: '\d+'
+  methods: [POST]
+  options:
+    parameters:
+      comic:
+        type: entity:node
+        bundle:
+          - comic
+
+xedc_comic.admin:
+  path: '/admin/xedc/comic'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::overview'
+    _title: '漫画中心'
+  requirements:
+    _custom_access: '\Drupal\xedc_comic\Access\ComicHubAccess::access'
+
+xedc_comic.admin_comics:
+  path: '/admin/xedc/comic/comics'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::comicList'
+    _title: '漫画管理'
+  requirements:
+    _permission: 'create comics'
+
+xedc_comic.admin_chapters:
+  path: '/admin/xedc/comic/chapters'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::chapterList'
+    _title: '章节管理'
+  requirements:
+    _permission: 'manage comic chapters'
+
+xedc_comic.admin_chapter_batch:
+  path: '/admin/xedc/comic/chapters/batch'
+  defaults:
+    _form: '\Drupal\xedc_comic\Form\ComicChapterBatchForm'
+    _title: '批量创建章节'
+  requirements:
+    _permission: 'manage comic chapters'
+
+xedc_comic.admin_pages:
+  path: '/admin/xedc/comic/pages'
+  defaults:
+    _form: '\Drupal\xedc_comic\Form\ComicPageManageForm'
+    _title: '漫画图片'
+  requirements:
+    _permission: 'manage comic pages'
+
+xedc_comic.chapter_import:
+  path: '/admin/xedc/comic/chapters/{chapter}/import'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::chapterImport'
+    _title: '章节内容导入'
+  requirements:
+    _permission: 'import comic archives'
+    chapter: '\d+'
+  options:
+    parameters:
+      chapter:
+        type: entity:node
+        bundle:
+          - comic_chapter
+
+xedc_comic.import:
+  path: '/admin/xedc/comic/import'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::importHub'
+    _title: '章节导入中心'
+  requirements:
+    _permission: 'import comic archives'
+
+xedc_comic.import_status:
+  path: '/admin/xedc/comic/import/status'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::importStatus'
+    _title: '导入进度'
+  requirements:
+    _permission: 'import comic archives'
+
+xedc_comic.import_cancel:
+  path: '/admin/xedc/comic/import/{job}/cancel'
+  defaults:
+    _form: '\Drupal\xedc_comic\Form\ComicImportCancelForm'
+    _title: '取消导入'
+  requirements:
+    _permission: 'import comic archives'
+    job: '\d+'
+
+xedc_comic.import_retry:
+  path: '/admin/xedc/comic/import/{job}/retry'
+  defaults:
+    _form: '\Drupal\xedc_comic\Form\ComicImportRetryForm'
+    _title: '重试失败项'
+  requirements:
+    _permission: 'import comic archives'
+    job: '\d+'
+
+xedc_comic.admin_stats:
+  path: '/admin/xedc/comic/statistics'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::stats'
+    _title: '阅读统计'
+  requirements:
+    _permission: 'view comic statistics'
+
+xedc_comic.settings:
+  path: '/admin/xedc/comic/settings'
+  defaults:
+    _form: '\Drupal\xedc_comic\Form\ComicSettingsForm'
+    _title: '漫画设置'
+  requirements:
+    _permission: 'administer comics'

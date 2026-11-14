@@ -1,0 +1,29 @@
+<header class="xm-head xedc-comic-member__head">
+  <div>
+    <h1 class="xm-title">{{ '漫画收藏'|t }}</h1>
+    <p class="xm-sub">{{ '共 @count 部'|t({'@count': total}) }}</p>
+  </div>
+  <a class="btn btn-sm btn-outline-secondary" href="{{ path('xedc_comic.home') }}">{{ '浏览漫画'|t }}</a>
+</header>
+
+{% if items %}
+  <div class="xedc-comic-grid xedc-comic-member__grid">
+    {% for row in items %}
+      <div class="xedc-comic-member__item" data-comic-id="{{ row.card.id }}">
+        {% include '@xedc_comic/templates/comic-card.html.twig' with { item: row.card } %}
+        <p class="xedc-comic-member__meta">{{ '收藏于 @date'|t({'@date': row.favorited_at}) }}</p>
+        <div class="xedc-comic-member__actions">
+          <a class="btn btn-sm btn-primary" href="{{ row.detail_url }}">{{ '进入'|t }}</a>
+          <button type="button" class="btn btn-sm btn-outline-danger xedc-comic-member-unfavorite" data-comic-id="{{ row.card.id }}" data-api="{{ path('xedc_comic.api_favorite', {'comic': row.card.id}) }}">{{ '取消收藏'|t }}</button>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% if pager %}<div class="xedc-comic-member__pager">{{ pager }}</div>{% endif %}
+{% else %}
+  <div class="xm-empty xedc-comic-member__empty">
+    <strong>{{ '还没有收藏漫画'|t }}</strong>
+    <p>{{ '在漫画详情页点击收藏，会显示在这里。'|t }}</p>
+    <a href="{{ path('xedc_comic.home') }}">{{ '去看漫画'|t }}</a>
+  </div>
+{% endif %}

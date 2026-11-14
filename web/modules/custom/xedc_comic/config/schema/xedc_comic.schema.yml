@@ -1,0 +1,48 @@
+xedc_comic.settings:
+  type: config_object
+  label: 'XEDC Comic settings'
+  mapping:
+    import:
+      type: mapping
+      mapping:
+        max_archive_bytes:
+          type: integer
+        max_extracted_bytes:
+          type: integer
+        max_file_bytes:
+          type: integer
+        max_files:
+          type: integer
+        batch_size:
+          type: integer
+    reading:
+      type: mapping
+      mapping:
+        progress_save_interval:
+          type: integer
+        view_flood_threshold:
+          type: integer
+        view_flood_window:
+          type: integer
+    paths:
+      type: mapping
+      mapping:
+        file_prefix:
+          type: string
+    pdf:
+      type: mapping
+      mapping:
+        max_bytes:
+          type: integer
+        max_pages:
+          type: integer
+        max_page_pixels:
+          type: integer
+        max_concurrent:
+          type: integer
+        convert_batch:
+          type: integer
+        page_timeout:
+          type: integer
+        keep_source_default:
+          type: integer

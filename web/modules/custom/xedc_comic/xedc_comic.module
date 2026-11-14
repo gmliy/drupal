@@ -1,0 +1,258 @@
+<?php
+
+/**
+ * @file
+ * XEDC Comic hooks.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\node\NodeInterface;
+
+/**
+ * Implements hook_theme().
+ */
+function xedc_comic_theme(array $existing, $type, $theme, $path): array {
+  return [
+    'comic_card' => [
+      'variables' => ['item' => []],
+      'template' => 'comic-card',
+    ],
+    'xedc_comic_view_grid' => [
+      'variables' => [
+        'rows' => [],
+        'options' => [],
+      ],
+      'template' => 'xedc-comic-view-grid',
+    ],
+    'xedc_comic_list' => [
+      'variables' => [
+        'title' => '',
+        'intro' => '',
+        'total' => 0,
+        'items' => [],
+        'recent' => [],
+        'filters' => [],
+        'categories' => [],
+        'tags' => [],
+        'base_route' => 'xedc_comic.home',
+        'base_route_params' => [],
+        'empty_message' => '',
+        'pager' => NULL,
+        'member_links' => [],
+      ],
+      'template' => 'comic-list',
+    ],
+    'xedc_comic_member_favorites' => [
+      'variables' => [
+        'total' => 0,
+        'items' => [],
+        'pager' => NULL,
+      ],
+      'template' => 'comic-member-favorites',
+    ],
+    'xedc_comic_member_history' => [
+      'variables' => [
+        'total' => 0,
+        'entries' => [],
+        'pager' => NULL,
+      ],
+      'template' => 'comic-member-history',
+    ],
+    'xedc_comic_detail' => [
+      'variables' => [
+        'comic' => [],
+        'description' => '',
+        'description_plain' => '',
+        'chapters' => [],
+        'chapter_total' => 0,
+        'page_total' => 0,
+        'updated_label' => '',
+        'categories' => [],
+        'tags' => [],
+        'start_url' => '',
+        'favorite' => FALSE,
+        'share_url' => '',
+        'related' => [],
+      ],
+      'template' => 'comic-detail',
+    ],
+    'xedc_comic_reader' => [
+      'variables' => [
+        'context' => [],
+      ],
+      'template' => 'comic-reader',
+    ],
+    'xedc_comic_admin_layout' => [
+      'variables' => [
+        'active_route' => '',
+        'page_title' => '',
+        'page_description' => '',
+        'header_actions' => [],
+        'nav_items' => [],
+        'breadcrumb' => [],
+        'content' => [],
+      ],
+      'template' => 'comic-admin-layout',
+    ],
+    'xedc_comic_admin_overview' => [
+      'variables' => [
+        'stat_cards' => [],
+        'quick_ops' => [],
+        'recent_comics' => [],
+        'recent_chapters' => [],
+        'recent_jobs' => [],
+        'failed_jobs' => [],
+        'popular' => [],
+        'import_summary' => [],
+      ],
+      'template' => 'comic-admin-overview',
+    ],
+    'xedc_comic_admin_table' => [
+      'variables' => [
+        'header' => [],
+        'rows' => [],
+        'empty' => '',
+        'filters_form' => NULL,
+        'pager' => NULL,
+        'table_class' => '',
+      ],
+      'template' => 'comic-admin-table',
+    ],
+    'xedc_comic_admin_import_jobs' => [
+      'variables' => [
+        'header' => [],
+        'rows' => [],
+        'job_detail' => NULL,
+        'failed_rows' => [],
+      ],
+      'template' => 'comic-admin-import-jobs',
+    ],
+    'xedc_comic_admin_stats' => [
+      'variables' => [
+        'summary_cards' => [],
+        'header' => [],
+        'rows' => [],
+        'trend_note' => '',
+      ],
+      'template' => 'comic-admin-stats',
+    ],
+    'xedc_comic_admin_pages' => [
+      'variables' => [
+        'rows' => [],
+        'chapter_id' => 0,
+      ],
+      'template' => 'comic-admin-pages',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_entity_delete().
+ */
+function xedc_comic_entity_delete(EntityInterface $entity): void {
+  if (!$entity instanceof NodeInterface) {
+    return;
+  }
+  if ($entity->bundle() === 'comic_chapter') {
+    $ids = \Drupal::entityTypeManager()->getStorage('comic_page')->getQuery()
+      ->accessCheck(FALSE)
+      ->condition('chapter_id', (int) $entity->id())
+      ->execute();
+    if ($ids) {
+      $storage = \Drupal::service('xedc_comic.storage');
+      foreach (\Drupal::entityTypeManager()->getStorage('comic_page')->loadMultiple($ids) as $page) {
+        $storage->deletePage($page);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_node_presave().
+ */
+function xedc_comic_node_presave(NodeInterface $node): void {
+  if ($node->bundle() === 'comic_chapter' && $node->hasField('field_comic_parent')) {
+    if ($node->get('field_comic_parent')->isEmpty()) {
+      throw new \InvalidArgumentException('章节必须关联漫画。');
+    }
+  }
+}
+
+/**
+ * Implements hook_flood().
+ */
+function xedc_comic_flood(): array {
+  return [
+    'xedc_comic_view' => [
+      'name' => '漫画章节阅读',
+      'description' => '限制同一 IP 对章节的刷量。',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_cron().
+ */
+/**
+ * Implements hook_preprocess_HOOK() for xedc_member_shell.
+ */
+/**
+ * Implements hook_form_FORM_ID_alter() for new comic chapters.
+ */
+function xedc_comic_form_node_comic_chapter_form_alter(array &$form, \Drupal\Core\Form\FormStateInterface $form_state, string $form_id): void {
+  $entity = $form_state->getFormObject()->getEntity();
+  if (!$entity instanceof NodeInterface || !$entity->isNew()) {
+    return;
+  }
+  $form['actions']['submit']['#submit'][] = 'xedc_comic_chapter_after_create_redirect';
+}
+
+/**
+ * Submit handler: redirect to chapter import workbench after create.
+ */
+function xedc_comic_chapter_after_create_redirect(array &$form, \Drupal\Core\Form\FormStateInterface $form_state): void {
+  $entity = $form_state->getFormObject()->getEntity();
+  if ($entity instanceof NodeInterface && $entity->id()) {
+    $form_state->setRedirect('xedc_comic.chapter_import', ['chapter' => $entity->id()]);
+    \Drupal::messenger()->addStatus(t('章节已创建，请为本章导入内容。'));
+  }
+}
+
+function xedc_comic_preprocess_xedc_member_shell(array &$variables): void {
+  if (!\Drupal::moduleHandler()->moduleExists('xedc_member')) {
+    return;
+  }
+  $insert = [
+  ['key' => 'comic_favorites', 'label' => t('漫画收藏'), 'url' => \Drupal\Core\Url::fromRoute('xedc_comic.member_favorites')->toString()],
+  ['key' => 'comic_history', 'label' => t('漫画阅读记录'), 'url' => \Drupal\Core\Url::fromRoute('xedc_comic.member_history')->toString()],
+  ];
+  $nav = $variables['nav'] ?? [];
+  $out = [];
+  foreach ($nav as $item) {
+    $out[] = $item;
+    if (($item['key'] ?? '') === 'favorites') {
+      $out[] = $insert[0];
+    }
+    if (($item['key'] ?? '') === 'history') {
+      $out[] = $insert[1];
+    }
+  }
+  $variables['nav'] = $out;
+}
+
+function xedc_comic_cron(): void {
+  $queue = \Drupal::queue('xedc_comic_import');
+  $limit = 5;
+  while ($limit-- > 0 && ($item = $queue->claimItem(30))) {
+    try {
+      \Drupal::service('plugin.manager.queue_worker')->createInstance('xedc_comic_import')->processItem($item->data);
+      $queue->deleteItem($item);
+    }
+    catch (\Throwable) {
+      $queue->releaseItem($item);
+      break;
+    }
+  }
+}
