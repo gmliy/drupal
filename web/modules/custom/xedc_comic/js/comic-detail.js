@@ -30,7 +30,6 @@
         applyContinue(detail, meta);
         applyReadMarks(detail, meta);
         initTabs(detail);
-        initDock(detail);
         initFavorite(detail, meta);
         initDesc(detail);
         initChapters(detail);
@@ -48,7 +47,6 @@
     }
     const item = detail.querySelector('[data-chapter-id="' + saved.chapter_id + '"]');
     const num = item?.getAttribute('data-chapter-number') || '';
-    const title = item?.querySelector('[data-chapter-title]')?.textContent?.trim() || '';
     const locked = item?.querySelector('.comic-detail-chapter.is-locked');
     if (!item || locked) {
       return;
@@ -56,7 +54,7 @@
     const url = '/comic/' + meta.comicId + '/' + saved.chapter_id;
     const label = num
       ? Drupal.t('继续阅读 · 第 @n 话', { '@n': num })
-      : (title ? Drupal.t('继续阅读 · @title', { '@title': title }) : Drupal.t('继续阅读'));
+      : Drupal.t('继续阅读');
     detail.querySelectorAll('[data-read-cta]').forEach((el) => {
       el.setAttribute('href', url);
       el.textContent = label;
@@ -99,8 +97,8 @@
     }
     const barRect = bar.getBoundingClientRect();
     const tabRect = active.getBoundingClientRect();
-    indicator.style.width = tabRect.width + 'px';
-    indicator.style.transform = 'translateX(' + (tabRect.left - barRect.left) + 'px)';
+    const center = tabRect.left - barRect.left + tabRect.width / 2;
+    indicator.style.transform = 'translateX(' + (center - 10) + 'px)';
   }
 
   function initTabs(detail) {
@@ -135,29 +133,6 @@
         }
       });
       syncIndicator();
-    });
-  }
-
-  function initDock(detail) {
-    const dock = detail.querySelector('#comic-detail-dock');
-    const inline = detail.querySelector('.comic-detail-actions--inline');
-    if (!dock || !inline || !window.IntersectionObserver) {
-      return;
-    }
-    if (window.matchMedia('(min-width: 1024px)').matches) {
-      return;
-    }
-    const syncDock = (visible) => {
-      dock.hidden = !!visible;
-    };
-    const io = new IntersectionObserver((entries) => {
-      syncDock(entries[0]?.isIntersecting);
-    }, { threshold: 0, rootMargin: '0px 0px -20px 0px' });
-    io.observe(inline);
-    requestAnimationFrame(() => {
-      const rect = inline.getBoundingClientRect();
-      const inView = rect.bottom > 0 && rect.top < window.innerHeight;
-      syncDock(inView);
     });
   }
 
@@ -208,25 +183,23 @@
       if (!text || !toggle) {
         return;
       }
-      const collapsedMax = () => {
-        const lineHeight = parseFloat(getComputedStyle(text).lineHeight) || 22;
-        return lineHeight * 3;
-      };
-      let fullHeight = text.scrollHeight;
-      const refreshHeights = () => {
+      const lineHeight = () => parseFloat(getComputedStyle(text).lineHeight) || 24.5;
+      const collapsedMax = () => lineHeight() * 4;
+      const refresh = () => {
         text.style.maxHeight = 'none';
-        fullHeight = text.scrollHeight;
+        const full = text.scrollHeight;
         if (wrap.classList.contains('is-collapsed')) {
           text.style.maxHeight = collapsedMax() + 'px';
         }
         else {
-          text.style.maxHeight = fullHeight + 'px';
+          text.style.maxHeight = full + 'px';
         }
+        return full;
       };
       wrap.classList.add('is-collapsed');
-      const needsToggle = (text.textContent || '').trim().length > 80 || fullHeight > collapsedMax() + 4;
-      refreshHeights();
-      if (!needsToggle) {
+      let fullHeight = refresh();
+      const needs = (text.textContent || '').trim().length > 0 && fullHeight > collapsedMax() + 2;
+      if (!needs) {
         wrap.classList.remove('is-collapsed');
         text.style.maxHeight = 'none';
         return;
@@ -235,9 +208,11 @@
       toggle.addEventListener('click', () => {
         const collapsed = wrap.classList.toggle('is-collapsed');
         toggle.textContent = collapsed ? Drupal.t('展开') : Drupal.t('收起');
-        text.style.maxHeight = collapsed ? collapsedMax() + 'px' : fullHeight + 'px';
+        fullHeight = refresh();
+        if (!collapsed) {
+          text.style.maxHeight = fullHeight + 'px';
+        }
       });
-      window.addEventListener('resize', throttleRaf(refreshHeights), { passive: true });
     });
   }
 
@@ -249,16 +224,14 @@
     const list = panel.querySelector('[data-chapter-list]');
     const search = panel.querySelector('[data-chapter-search]');
     const sortBtn = panel.querySelector('[data-chapter-sort]');
+    const sortLabel = sortBtn?.querySelector('[data-sort-label]');
     const rangeSelect = panel.querySelector('[data-chapter-range]');
     const segmentSize = parseInt(list?.getAttribute('data-segment-size') || '50', 10);
     const total = parseInt(detail.getAttribute('data-chapter-total') || '0', 10);
     let reversed = false;
     let activeSegment = 0;
 
-    const buildRangeOptions = () => {
-      if (!rangeSelect || total <= 20) {
-        return;
-      }
+    if (rangeSelect && total > 20) {
       rangeSelect.innerHTML = '';
       const segments = Math.ceil(total / segmentSize);
       for (let i = 0; i < segments; i += 1) {
@@ -266,12 +239,10 @@
         const end = Math.min((i + 1) * segmentSize, total);
         const opt = document.createElement('option');
         opt.value = String(i);
-        opt.textContent = start + '–' + end;
+        opt.textContent = start + '-' + end;
         rangeSelect.appendChild(opt);
       }
-    };
-
-    buildRangeOptions();
+    }
 
     const syncVisibility = () => {
       if (!list) {
@@ -284,7 +255,6 @@
         const matchSearch = q === '' || title.includes(q);
         if (!matchSearch) {
           item.classList.add('is-filtered-out');
-          item.classList.remove('is-segment-hidden');
           return;
         }
         item.classList.remove('is-filtered-out');
@@ -298,9 +268,7 @@
     };
 
     syncVisibility();
-
     search?.addEventListener('input', syncVisibility);
-
     rangeSelect?.addEventListener('change', () => {
       activeSegment = parseInt(rangeSelect.value, 10) || 0;
       syncVisibility();
@@ -311,7 +279,9 @@
         return;
       }
       reversed = !reversed;
-      sortBtn.textContent = reversed ? Drupal.t('正序') : Drupal.t('倒序');
+      if (sortLabel) {
+        sortLabel.textContent = reversed ? Drupal.t('正序') : Drupal.t('倒序');
+      }
       const items = Array.from(list.querySelectorAll('[data-chapter-item]'));
       items.sort((a, b) => {
         const an = parseFloat(a.querySelector('.comic-detail-chapter-list__num')?.textContent || '0');
