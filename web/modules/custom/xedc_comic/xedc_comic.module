@@ -33,16 +33,54 @@ function xedc_comic_theme(array $existing, $type, $theme, $path): array {
         'total' => 0,
         'items' => [],
         'recent' => [],
+        'spotlight' => [],
         'filters' => [],
         'categories' => [],
-        'tags' => [],
+        'hot_tags' => [],
+        'related_tags' => [],
+        'tags_hub_url' => '',
         'base_route' => 'xedc_comic.home',
         'base_route_params' => [],
+        'mode' => 'home',
+        'term_id' => 0,
         'empty_message' => '',
         'pager' => NULL,
         'member_links' => [],
       ],
       'template' => 'comic-list',
+    ],
+    'xedc_comic_tags' => [
+      'variables' => [
+        'title' => '',
+        'lead' => '',
+        'tags' => [],
+        'hot_tags' => [],
+        'groups' => [],
+        'index_letters' => [],
+        'show_alpha' => FALSE,
+        'merge_hot' => FALSE,
+        'trending' => [],
+      ],
+      'template' => 'comic-tags',
+    ],
+    'xedc_comic_tag_list' => [
+      'variables' => [
+        'title' => '',
+        'intro' => '',
+        'total' => 0,
+        'items' => [],
+        'filters' => [],
+        'hot_tags' => [],
+        'related_tags' => [],
+        'trending' => [],
+        'tags_hub_url' => '',
+        'base_route' => 'xedc_comic.tag',
+        'base_route_params' => [],
+        'term_id' => 0,
+        'empty_message' => '',
+        'pager' => NULL,
+      ],
+      'template' => 'comic-tag-list',
     ],
     'xedc_comic_member_favorites' => [
       'variables' => [
@@ -240,6 +278,16 @@ function xedc_comic_preprocess_xedc_member_shell(array &$variables): void {
     }
   }
   $variables['nav'] = $out;
+}
+
+/**
+ * Hides duplicate page title on comic tag pages (title lives in template hero).
+ */
+function xedc_comic_preprocess_page_title(array &$variables): void {
+  $route = \Drupal::routeMatch()->getRouteName();
+  if (in_array($route, ['xedc_comic.tags', 'xedc_comic.tag', 'xedc_comic.detail'], TRUE)) {
+    $variables['title'] = '';
+  }
 }
 
 function xedc_comic_cron(): void {
