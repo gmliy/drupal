@@ -5,138 +5,142 @@
 {% endif %}
 <div class="xedc-comic comic-detail" data-comic-id="{{ comic.id }}" data-chapter-total="{{ chapter_total }}">
   <div class="comic-detail-wrap">
-    <nav class="comic-detail-breadcrumb" aria-label="{{ '面包屑'|t }}">
-      <a href="{{ path('xedc_comic.home') }}">{{ '漫画'|t }}</a>
-      <span class="comic-detail-breadcrumb__sep" aria-hidden="true">/</span>
-      <span class="comic-detail-breadcrumb__current">{{ comic.title }}</span>
-    </nav>
-
-    <div class="comic-detail-layout">
-      <aside class="comic-detail-aside">
-        <header class="comic-detail-head">
-          <div class="comic-detail-head__cover">
-            {% if comic.cover %}
-              <img class="comic-detail-head__cover-img" src="{{ comic.cover }}" alt="" width="360" height="480" loading="eager" decoding="async">
-            {% else %}
-              <div class="comic-detail-head__cover-img comic-detail-head__cover-img--empty" aria-hidden="true"></div>
-            {% endif %}
-            {% if comic.is_vip %}<span class="comic-detail-head__vip">VIP</span>{% endif %}
-          </div>
-          <div class="comic-detail-head__meta">
-            <h1 class="comic-detail-head__title">{{ comic.title }}</h1>
-            {% if comic.author %}<p class="comic-detail-head__author">{{ comic.author }}</p>{% endif %}
-            {% if comic.status_label %}
-              <span class="comic-detail-head__pill comic-detail-head__pill--{{ status_key|clean_class }}">{{ comic.status_label }}</span>
-            {% endif %}
-            <p class="comic-detail-head__updated">{{ '更新'|t }} {{ updated_label }}</p>
-          </div>
-        </header>
-
-        {% if start_url %}
-          <div class="comic-detail-actions">
-            <a class="comic-detail-actions__read" href="{{ start_url }}" data-read-cta>{{ '开始阅读'|t }}</a>
-            <button type="button" class="comic-detail-actions__fav comic-detail-favorite{% if favorite %} is-on{% endif %}" data-api="{{ path('xedc_comic.api_favorite', {'comic': comic.id}) }}" aria-pressed="{{ favorite ? 'true' : 'false' }}" aria-label="{{ favorite ? '已收藏'|t : '收藏'|t }}">
-              <svg class="comic-detail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-            </button>
-          </div>
+    <section class="comic-detail-hero">
+      <div class="comic-detail-hero__bg" aria-hidden="true">
+        {% if comic.cover %}
+          <img src="{{ comic.cover }}" alt="" width="750" height="440" loading="eager" decoding="async">
         {% endif %}
-
-        <div class="comic-detail-stats" role="group" aria-label="{{ '数据统计'|t }}">
-          <div class="comic-detail-stats__cell">
-            <span class="comic-detail-stats__val">{{ comic.views }}</span>
-            <span class="comic-detail-stats__label">{{ '阅读'|t }}</span>
+      </div>
+      <div class="comic-detail-hero__inner">
+        <nav class="comic-detail-breadcrumb" aria-label="{{ '面包屑'|t }}">
+          <a href="{{ path('xedc_comic.home') }}">{{ '漫画'|t }}</a>
+          <span class="comic-detail-breadcrumb__sep" aria-hidden="true">/</span>
+          <span class="comic-detail-breadcrumb__current">{{ comic.title }}</span>
+        </nav>
+        <div class="comic-detail-hero__row">
+          <div class="comic-detail-hero__cover">
+            {% if comic.cover %}
+              <img class="comic-detail-hero__cover-img" src="{{ comic.cover }}" alt="" width="336" height="448" loading="eager" decoding="async">
+            {% else %}
+              <div class="comic-detail-hero__cover-img comic-detail-hero__cover-img--empty" aria-hidden="true"></div>
+            {% endif %}
+            {% if comic.is_vip %}<span class="comic-detail-hero__vip">VIP</span>{% endif %}
           </div>
-          <div class="comic-detail-stats__cell">
-            <span class="comic-detail-stats__val">{{ comic.favorites|default(0) }}</span>
-            <span class="comic-detail-stats__label">{{ '收藏'|t }}</span>
-          </div>
-          <div class="comic-detail-stats__cell">
-            <span class="comic-detail-stats__val">{{ page_total > 0 ? page_total : '—' }}</span>
-            <span class="comic-detail-stats__label">{{ '页数'|t }}</span>
+          <div class="comic-detail-hero__meta">
+            <h1 class="comic-detail-hero__title">{{ comic.title }}</h1>
+            {% if comic.author %}<p class="comic-detail-hero__author">{{ comic.author }}</p>{% endif %}
+            <p class="comic-detail-hero__serial">
+              {% if comic.status_label %}
+                <span class="comic-detail-hero__status-label comic-detail-hero__status-label--{{ status_key|clean_class }}">{{ comic.status_label }}</span>
+              {% endif %}
+              <span class="comic-detail-hero__sep" aria-hidden="true"> · </span>
+              <span>{{ '共 @n 话'|t({'@n': chapter_total}) }}</span>
+            </p>
+            <p class="comic-detail-hero__updated">{{ '更新'|t }} {{ updated_label }}</p>
+            <p class="comic-detail-hero__metrics">
+              {{ comic.views }} {{ '阅读'|t }}
+              <span aria-hidden="true"> · </span>
+              {{ comic.favorites|default(0) }} {{ '收藏'|t }}
+            </p>
           </div>
         </div>
+      </div>
+    </section>
 
-        {% if categories is not empty or tags is not empty %}
-          <div class="comic-detail-tags" tabindex="0" aria-label="{{ '标签'|t }}">
-            {% for cat in categories %}
-              <a class="comic-detail-tag" href="{{ cat.url }}">{{ cat.label }}</a>
-            {% endfor %}
-            {% for tag in tags %}
-              <a class="comic-detail-tag" href="{{ tag.url }}">{{ tag.label }}</a>
-            {% endfor %}
-          </div>
-        {% endif %}
-      </aside>
-
-      <div class="comic-detail-main">
-        {% if desc_body %}
-          <div class="comic-detail-desc is-collapsed" data-comic-desc>
-            <div class="comic-detail-desc__text">{{ desc_body }}</div>
-            <button type="button" class="comic-detail-desc__toggle" data-desc-toggle hidden>{{ '展开'|t }}</button>
-          </div>
-        {% endif %}
-
-        <section class="comic-detail-chapters" data-comic-chapters>
-          <header class="comic-detail-chapters__head">
-            <h2 class="comic-detail-chapters__title">
-              {{ '章节'|t }}
-              <span class="comic-detail-chapters__sub">{{ '共 @n 话'|t({'@n': chapter_total}) }}</span>
-            </h2>
-            <div class="comic-detail-chapters__tools">
-              {% if chapter_total > 5 %}
-                <input type="search" class="comic-detail-chapters__search" placeholder="{{ '搜索章节'|t }}" data-chapter-search aria-label="{{ '搜索章节'|t }}">
-              {% endif %}
-              {% if chapter_total > 30 %}
-                <select class="comic-detail-chapters__range" data-chapter-range hidden aria-label="{{ '话数区间'|t }}"></select>
-              {% endif %}
-              {% if chapter_total > 1 %}
-                <button type="button" class="comic-detail-chapters__sort" data-chapter-sort aria-label="{{ '排序'|t }}">
-                  <svg class="comic-detail-icon comic-detail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  <span data-sort-label>{{ '倒序'|t }}</span>
-                </button>
-              {% endif %}
+    <div class="comic-detail-sheet">
+      <div class="comic-detail-sheet__layout">
+        <div class="comic-detail-sheet__side">
+          {% if start_url %}
+            <div class="comic-detail-actions">
+              <a class="comic-detail-actions__read" href="{{ start_url }}" data-read-cta>{{ '开始阅读'|t }}</a>
+              <button type="button" class="comic-detail-actions__fav comic-detail-favorite{% if favorite %} is-on{% endif %}" data-api="{{ path('xedc_comic.api_favorite', {'comic': comic.id}) }}" aria-pressed="{{ favorite ? 'true' : 'false' }}" aria-label="{{ favorite ? '已收藏'|t : '收藏'|t }}">
+                <svg class="comic-detail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              </button>
             </div>
-          </header>
-
-          <ol class="comic-detail-chapter-list" data-chapter-list data-initial-visible="20" data-segment-size="50">
-            {% for chapter in chapters %}
-              <li class="comic-detail-chapter-item" data-chapter-item data-chapter-id="{{ chapter.id }}" data-chapter-number="{{ chapter.number }}" data-title="{{ chapter.title|lower }}">
-                <a href="{{ chapter.url }}" class="comic-detail-chapter{% if chapter.locked %} is-locked{% endif %}">
-                  <span class="comic-detail-chapter-list__num" hidden>{{ chapter.number }}</span>
-                  <span class="comic-detail-chapter__body">
-                    <span class="comic-detail-chapter__num">{{ '第 @n 话'|t({'@n': chapter.number}) }}</span>
-                    <span class="comic-detail-chapter__title" data-chapter-title>{{ chapter.title }}</span>
-                  </span>
-                  <span class="comic-detail-chapter__meta">
-                    <span class="comic-detail-chapter__badge" data-last-read hidden>{{ '上次阅读'|t }}</span>
-                    <time class="comic-detail-chapter__date" datetime="{{ chapter.published }}">{{ chapter.published }}</time>
-                    {% if chapter.locked %}
-                      <svg class="comic-detail-icon comic-detail-icon--sm comic-detail-icon--lock" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                    {% endif %}
-                    <svg class="comic-detail-chapter__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </span>
-                </a>
-              </li>
-            {% else %}
-              <li class="comic-detail-chapter-item comic-detail-chapter-item--empty">{{ '暂无章节'|t }}</li>
-            {% endfor %}
-          </ol>
-
-          {% if chapter_total > 20 %}
-            <button type="button" class="comic-detail-chapters__more" data-chapter-more>{{ '查看全部'|t }}</button>
           {% endif %}
-        </section>
 
-        {% if related is not empty %}
-          <section class="comic-detail-related">
-            <h2 class="comic-detail-related__title">{{ '相关推荐'|t }}</h2>
-            <div class="comic-detail-related__scroll">
-              {% for item in related %}
-                {% include '@xedc_comic/comic-card.html.twig' with { item: item, variant: 'grid' } only %}
+          {% if categories is not empty or tags is not empty %}
+            <div class="comic-detail-tags" tabindex="0" aria-label="{{ '标签'|t }}">
+              {% for cat in categories %}
+                <a class="comic-detail-tag" href="{{ cat.url }}">{{ cat.label }}</a>
+              {% endfor %}
+              {% for tag in tags %}
+                <a class="comic-detail-tag" href="{{ tag.url }}">{{ tag.label }}</a>
               {% endfor %}
             </div>
+          {% endif %}
+        </div>
+
+        <div class="comic-detail-sheet__main">
+          {% if desc_body %}
+            <div class="comic-detail-desc is-collapsed" data-comic-desc>
+              <div class="comic-detail-desc__text">{{ desc_body }}</div>
+              <button type="button" class="comic-detail-desc__toggle" data-desc-toggle hidden>{{ '展开'|t }}</button>
+            </div>
+          {% endif %}
+
+          <section class="comic-detail-chapters" data-comic-chapters>
+            <header class="comic-detail-chapters__head">
+              <h2 class="comic-detail-chapters__title">
+                {{ '章节'|t }}
+                <span class="comic-detail-chapters__sub">{{ '共 @n 话'|t({'@n': chapter_total}) }}</span>
+              </h2>
+              <div class="comic-detail-chapters__tools">
+                {% if chapter_total > 5 %}
+                  <input type="search" class="comic-detail-chapters__search" placeholder="{{ '搜索章节'|t }}" data-chapter-search aria-label="{{ '搜索章节'|t }}">
+                {% endif %}
+                {% if chapter_total > 30 %}
+                  <select class="comic-detail-chapters__range" data-chapter-range hidden aria-label="{{ '话数区间'|t }}"></select>
+                {% endif %}
+                {% if chapter_total > 1 %}
+                  <button type="button" class="comic-detail-chapters__sort" data-chapter-sort aria-label="{{ '排序'|t }}">
+                    <svg class="comic-detail-icon comic-detail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span data-sort-label>{{ '倒序'|t }}</span>
+                  </button>
+                {% endif %}
+              </div>
+            </header>
+
+            <ol class="comic-detail-chapter-list" data-chapter-list data-initial-visible="20" data-segment-size="50">
+              {% for chapter in chapters %}
+                <li class="comic-detail-chapter-item" data-chapter-item data-chapter-id="{{ chapter.id }}" data-chapter-number="{{ chapter.number }}" data-title="{{ chapter.title|lower }}">
+                  <a href="{{ chapter.url }}" class="comic-detail-chapter{% if chapter.locked %} is-locked{% endif %}">
+                    <span class="comic-detail-chapter-list__num" hidden>{{ chapter.number }}</span>
+                    <span class="comic-detail-chapter__body">
+                      <span class="comic-detail-chapter__num">{{ '第 @n 话'|t({'@n': chapter.number}) }}</span>
+                      <span class="comic-detail-chapter__title" data-chapter-title>{{ chapter.title }}</span>
+                    </span>
+                    <span class="comic-detail-chapter__meta">
+                      <span class="comic-detail-chapter__badge" data-last-read hidden>{{ '上次阅读'|t }}</span>
+                      <time class="comic-detail-chapter__date" datetime="{{ chapter.published }}">{{ chapter.published }}</time>
+                      {% if chapter.locked %}
+                        <svg class="comic-detail-icon comic-detail-icon--sm comic-detail-icon--lock" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                      {% endif %}
+                      <svg class="comic-detail-chapter__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </span>
+                  </a>
+                </li>
+              {% else %}
+                <li class="comic-detail-chapter-item comic-detail-chapter-item--empty">{{ '暂无章节'|t }}</li>
+              {% endfor %}
+            </ol>
+
+            {% if chapter_total > 20 %}
+              <button type="button" class="comic-detail-chapters__more" data-chapter-more>{{ '查看全部'|t }}</button>
+            {% endif %}
           </section>
-        {% endif %}
+
+          {% if related is not empty %}
+            <section class="comic-detail-related">
+              <h2 class="comic-detail-related__title">{{ '相关推荐'|t }}</h2>
+              <div class="comic-detail-related__scroll">
+                {% for item in related %}
+                  {% include '@xedc_comic/comic-card.html.twig' with { item: item, variant: 'grid' } only %}
+                {% endfor %}
+              </div>
+            </section>
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>
