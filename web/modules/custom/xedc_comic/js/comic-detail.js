@@ -171,7 +171,7 @@
     let activeSegment = 0;
     let expanded = total <= initialVisible;
 
-    if (rangeSelect && total > 50) {
+    if (rangeSelect && total > 30) {
       rangeSelect.innerHTML = '';
       const segments = Math.ceil(total / segmentSize);
       for (let i = 0; i < segments; i += 1) {
@@ -221,7 +221,7 @@
           visibleIndex += 1;
           return;
         }
-        if (total > 50 && expanded) {
+        if (total > 30 && expanded) {
           const idx = Array.from(items).indexOf(item);
           const segmentIndex = Math.floor(idx / segmentSize);
           if (segmentIndex !== activeSegment) {
@@ -231,7 +231,7 @@
       });
       updateMoreButton();
       if (rangeSelect) {
-        rangeSelect.hidden = !(expanded && total > 50 && q === '');
+        rangeSelect.hidden = !(expanded && total > 30 && q === '');
       }
     };
 
