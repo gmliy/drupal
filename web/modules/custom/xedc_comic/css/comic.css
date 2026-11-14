@@ -1154,6 +1154,7 @@
 }
 
 .comic-detail-chapter {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1169,12 +1170,15 @@
   background: var(--cd-press);
 }
 
-.comic-detail-chapter-item {
-  border-bottom: 1px solid var(--cd-border);
-}
-
-.comic-detail-chapter-item:last-child {
-  border-bottom: 0;
+.comic-detail-chapter-item:not(:last-child):not(.comic-detail-chapter-item--empty) .comic-detail-chapter::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: calc(64px + 12px);
+  height: 1px;
+  background: var(--cd-border);
+  pointer-events: none;
 }
 
 .comic-detail-chapter.is-locked {
