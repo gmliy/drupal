@@ -1,0 +1,20 @@
+uuid: aa2e16af-58ef-4b79-ad2d-153b5c7e85ef
+langcode: zh-hans
+status: true
+dependencies:
+  module:
+    - node
+id: node.field_comic_favorites
+field_name: field_comic_favorites
+entity_type: node
+type: integer
+settings:
+  unsigned: false
+  size: normal
+module: core
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

@@ -1,0 +1,38 @@
+uuid: 92bcdaa9-4c33-4b3e-a56c-c8a98e943169
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_cover
+    - node.type.comic
+  module:
+    - image
+id: node.comic.field_comic_cover
+field_name: field_comic_cover
+entity_type: node
+bundle: comic
+label: 封面
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:file'
+  handler_settings: {  }
+  file_directory: '[date:custom:Y]-[date:custom:m]'
+  file_extensions: 'png jpg jpeg webp gif'
+  max_filesize: ''
+  max_resolution: ''
+  min_resolution: ''
+  alt_field: true
+  alt_field_required: true
+  title_field: false
+  title_field_required: false
+  default_image:
+    uuid: null
+    alt: ''
+    title: ''
+    width: null
+    height: null
+field_type: image

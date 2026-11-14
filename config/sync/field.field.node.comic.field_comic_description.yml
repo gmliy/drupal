@@ -1,0 +1,22 @@
+uuid: 3bb854d2-a452-4fa3-aa51-fd59c895e7d6
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_description
+    - node.type.comic
+  module:
+    - text
+id: node.comic.field_comic_description
+field_name: field_comic_description
+entity_type: node
+bundle: comic
+label: 简介
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  allowed_formats: {  }
+field_type: text_long

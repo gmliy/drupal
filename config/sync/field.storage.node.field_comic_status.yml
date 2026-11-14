@@ -1,0 +1,30 @@
+uuid: 1ff55ef3-5169-4ba0-b057-0b1dfb6e28fc
+langcode: zh-hans
+status: true
+dependencies:
+  module:
+    - node
+    - options
+id: node.field_comic_status
+field_name: field_comic_status
+entity_type: node
+type: list_string
+settings:
+  allowed_values:
+    -
+      value: ongoing
+      label: 连载中
+    -
+      value: completed
+      label: 已完结
+    -
+      value: paused
+      label: 暂停
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

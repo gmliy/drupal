@@ -30,6 +30,7 @@ dependencies:
     - scheduler
     - system
     - taxonomy
+    - xedc_comic
     - xedc_core
     - xedc_tags
 _core:
@@ -59,6 +60,7 @@ permissions:
   - 'configure navigation layout'
   - 'create and edit custom blocks'
   - 'create article content'
+  - 'create comics'
   - 'create content translations'
   - 'create image media'
   - 'create photo content'
@@ -83,10 +85,14 @@ permissions:
   - 'edit any photo content'
   - 'edit any video content'
   - 'edit any video media'
+  - 'edit own comics'
   - 'edit terms in tags'
   - 'execute xedc_moderation_set_state node'
   - 'ignore 404 requests'
+  - 'import comic archives'
   - 'import photo archives'
+  - 'manage comic chapters'
+  - 'manage comic pages'
   - 'manage xedc tag aliases'
   - 'manage xedc tags'
   - 'notify of path changes'
@@ -105,8 +111,10 @@ permissions:
   - 'use xedc_editorial transition request_changes'
   - 'view all revisions'
   - 'view any unpublished content'
+  - 'view comic statistics'
   - 'view latest version'
   - 'view own unpublished content'
+  - 'view published comics'
   - 'view scheduled content'
   - 'view the administration theme'
   - 'view xedc tag analysis'

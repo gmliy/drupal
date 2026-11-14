@@ -1,0 +1,19 @@
+uuid: 40a52bf4-b2d4-4c30-836f-10dcdbc18711
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_update_time
+    - node.type.comic
+id: node.comic.field_comic_update_time
+field_name: field_comic_update_time
+entity_type: node
+bundle: comic
+label: 最后更新时间
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: timestamp

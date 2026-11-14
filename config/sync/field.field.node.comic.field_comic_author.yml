@@ -1,0 +1,19 @@
+uuid: 853f1098-9b0a-4c2f-9f4c-4740b1a4e601
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_author
+    - node.type.comic
+id: node.comic.field_comic_author
+field_name: field_comic_author
+entity_type: node
+bundle: comic
+label: 作者
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

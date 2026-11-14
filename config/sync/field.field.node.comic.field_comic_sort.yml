@@ -1,0 +1,23 @@
+uuid: f7eb5acf-3257-4492-a4d1-4c92d638828c
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_sort
+    - node.type.comic
+id: node.comic.field_comic_sort
+field_name: field_comic_sort
+entity_type: node
+bundle: comic
+label: 排序
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: null
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: integer

@@ -1,0 +1,30 @@
+uuid: d9d94ec4-83b1-44c6-8fd2-31f746dccc5b
+langcode: zh-hans
+status: true
+dependencies:
+  module:
+    - node
+    - options
+id: node.field_comic_chapter_status
+field_name: field_comic_chapter_status
+entity_type: node
+type: list_string
+settings:
+  allowed_values:
+    -
+      value: draft
+      label: 草稿
+    -
+      value: published
+      label: 已发布
+    -
+      value: hidden
+      label: 已下架
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

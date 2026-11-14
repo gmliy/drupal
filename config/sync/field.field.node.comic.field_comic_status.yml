@@ -1,0 +1,21 @@
+uuid: ace24258-b68d-4bff-9a56-314d70c0c69a
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_status
+    - node.type.comic
+  module:
+    - options
+id: node.comic.field_comic_status
+field_name: field_comic_status
+entity_type: node
+bundle: comic
+label: 连载状态
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: list_string

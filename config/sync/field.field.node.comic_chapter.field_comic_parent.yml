@@ -1,0 +1,24 @@
+uuid: faa976cc-f3a9-4d84-bc13-32a5d848667b
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_parent
+    - node.type.comic
+    - node.type.comic_chapter
+id: node.comic_chapter.field_comic_parent
+field_name: field_comic_parent
+entity_type: node
+bundle: comic_chapter
+label: 所属漫画
+description: ''
+required: true
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:node'
+  handler_settings:
+    target_bundles:
+      comic: comic
+field_type: entity_reference

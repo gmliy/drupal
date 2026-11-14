@@ -1,0 +1,18 @@
+uuid: 6eae55fb-9938-41e3-9502-21ab770c24a1
+langcode: zh-hans
+status: true
+dependencies:
+  module:
+    - node
+id: node.field_comic_vip
+field_name: field_comic_vip
+entity_type: node
+type: boolean
+settings: {  }
+module: core
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

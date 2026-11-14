@@ -1,0 +1,21 @@
+uuid: 8d8374b9-8ecd-43c0-a791-9898c09f5ec5
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_chapter_status
+    - node.type.comic_chapter
+  module:
+    - options
+id: node.comic_chapter.field_comic_chapter_status
+field_name: field_comic_chapter_status
+entity_type: node
+bundle: comic_chapter
+label: 章节状态
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: list_string

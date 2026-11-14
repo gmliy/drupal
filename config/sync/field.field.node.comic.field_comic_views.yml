@@ -1,0 +1,23 @@
+uuid: 6e8a0b67-fde0-47c4-a534-ba2375a707e2
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_views
+    - node.type.comic
+id: node.comic.field_comic_views
+field_name: field_comic_views
+entity_type: node
+bundle: comic
+label: 阅读量
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: null
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: integer

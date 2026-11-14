@@ -1,0 +1,23 @@
+uuid: a3330a0f-f8ef-4932-b862-69702415d018
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_page_count
+    - node.type.comic_chapter
+id: node.comic_chapter.field_comic_page_count
+field_name: field_comic_page_count
+entity_type: node
+bundle: comic_chapter
+label: 图片数量
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: null
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: integer

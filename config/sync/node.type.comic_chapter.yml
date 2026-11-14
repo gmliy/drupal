@@ -1,0 +1,11 @@
+uuid: ddaa444a-bf0f-48a5-8c61-2e17a99a5eb0
+langcode: zh-hans
+status: true
+dependencies: {  }
+name: 漫画章节
+type: comic_chapter
+description: 漫画章节
+help: null
+new_revision: true
+preview_mode: 1
+display_submitted: true

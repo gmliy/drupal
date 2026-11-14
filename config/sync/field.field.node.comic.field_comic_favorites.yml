@@ -1,0 +1,23 @@
+uuid: d445f22a-a70a-431b-8ea1-7543b1c1f96b
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_favorites
+    - node.type.comic
+id: node.comic.field_comic_favorites
+field_name: field_comic_favorites
+entity_type: node
+bundle: comic
+label: 收藏量
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: null
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: integer

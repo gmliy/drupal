@@ -1,0 +1,19 @@
+uuid: 66d60dbf-8a10-46ca-afa5-ea3d24036ce8
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_publish_time
+    - node.type.comic_chapter
+id: node.comic_chapter.field_comic_publish_time
+field_name: field_comic_publish_time
+entity_type: node
+bundle: comic_chapter
+label: 发布时间
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: timestamp

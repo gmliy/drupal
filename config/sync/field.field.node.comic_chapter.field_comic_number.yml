@@ -1,0 +1,23 @@
+uuid: 63ddb32c-6a69-494d-9960-d1c919810e4a
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_number
+    - node.type.comic_chapter
+id: node.comic_chapter.field_comic_number
+field_name: field_comic_number
+entity_type: node
+bundle: comic_chapter
+label: 章节序号
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: null
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: decimal

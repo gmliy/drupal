@@ -20,9 +20,9 @@ dependencies:
     - node
     - search
     - system
+    - xedc_comic
     - xedc_core
     - xedc_notify
-    - xedc_comic
 _core:
   default_config_hash: wkW7P5A53YhGmsgamrmTbfwpZrqdnPYiJdoAZQtdmJg
 id: authenticated

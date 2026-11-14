@@ -1,0 +1,24 @@
+uuid: 60a0c359-ad49-4e80-81cc-e7b4eaaab8f0
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_tags
+    - node.type.comic
+    - taxonomy.vocabulary.tags
+id: node.comic.field_comic_tags
+field_name: field_comic_tags
+entity_type: node
+bundle: comic
+label: 标签
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:taxonomy_term'
+  handler_settings:
+    target_bundles:
+      tags: tags
+field_type: entity_reference

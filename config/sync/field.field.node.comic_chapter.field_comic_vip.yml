@@ -1,0 +1,21 @@
+uuid: fb428604-84f6-4797-8cac-6ca7ece7697f
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_vip
+    - node.type.comic_chapter
+id: node.comic_chapter.field_comic_vip
+field_name: field_comic_vip
+entity_type: node
+bundle: comic_chapter
+label: 'VIP 章节'
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  on_label: 开启
+  off_label: 关闭
+field_type: boolean

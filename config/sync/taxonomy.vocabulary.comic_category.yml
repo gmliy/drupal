@@ -1,0 +1,9 @@
+uuid: c5fb926d-35a2-49b6-be71-433f1a3939ef
+langcode: zh-hans
+status: true
+dependencies: {  }
+name: 漫画分类
+vid: comic_category
+description: 漫画栏目分类。
+weight: 0
+new_revision: false

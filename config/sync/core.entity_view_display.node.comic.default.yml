@@ -1,0 +1,87 @@
+uuid: 84c23950-ea27-4d84-883b-bf00b00dc462
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.field.node.comic.field_comic_author
+    - field.field.node.comic.field_comic_category
+    - field.field.node.comic.field_comic_cover
+    - field.field.node.comic.field_comic_description
+    - field.field.node.comic.field_comic_favorites
+    - field.field.node.comic.field_comic_sort
+    - field.field.node.comic.field_comic_status
+    - field.field.node.comic.field_comic_tags
+    - field.field.node.comic.field_comic_update_time
+    - field.field.node.comic.field_comic_views
+    - node.type.comic
+  module:
+    - image
+    - options
+    - text
+    - user
+id: node.comic.default
+targetEntityType: node
+bundle: comic
+mode: default
+content:
+  field_comic_author:
+    type: string
+    label: inline
+    settings:
+      link_to_entity: false
+      link_rel: canonical
+    third_party_settings: {  }
+    weight: 1
+    region: content
+  field_comic_category:
+    type: entity_reference_label
+    label: inline
+    settings:
+      link: true
+    third_party_settings: {  }
+    weight: 2
+    region: content
+  field_comic_cover:
+    type: image
+    label: above
+    settings:
+      image_link: ''
+      image_style: ''
+      image_loading:
+        attribute: lazy
+    third_party_settings: {  }
+    weight: 0
+    region: content
+  field_comic_description:
+    type: text_default
+    label: above
+    settings: {  }
+    third_party_settings: {  }
+    weight: 4
+    region: content
+  field_comic_status:
+    type: list_default
+    label: inline
+    settings: {  }
+    third_party_settings: {  }
+    weight: 5
+    region: content
+  field_comic_tags:
+    type: entity_reference_label
+    label: above
+    settings:
+      link: true
+    third_party_settings: {  }
+    weight: 3
+    region: content
+  links:
+    settings: {  }
+    third_party_settings: {  }
+    weight: 100
+    region: content
+hidden:
+  field_comic_favorites: true
+  field_comic_sort: true
+  field_comic_update_time: true
+  field_comic_views: true
+  langcode: true

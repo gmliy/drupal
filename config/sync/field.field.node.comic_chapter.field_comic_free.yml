@@ -1,0 +1,21 @@
+uuid: b852146d-6077-4a3f-847d-6ef6c09929f3
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_free
+    - node.type.comic_chapter
+id: node.comic_chapter.field_comic_free
+field_name: field_comic_free
+entity_type: node
+bundle: comic_chapter
+label: 免费章节
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  on_label: 开启
+  off_label: 关闭
+field_type: boolean

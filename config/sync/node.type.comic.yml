@@ -1,0 +1,11 @@
+uuid: edb5e672-acd8-47d0-bfb8-30e4b8bccb1b
+langcode: zh-hans
+status: true
+dependencies: {  }
+name: 漫画
+type: comic
+description: 漫画
+help: null
+new_revision: true
+preview_mode: 1
+display_submitted: true

@@ -1,0 +1,29 @@
+uuid: 568f2b0d-39a2-4592-af11-4a1ce6ebea7f
+langcode: zh-hans
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_comic_category
+    - node.type.comic
+    - taxonomy.vocabulary.comic_category
+id: node.comic.field_comic_category
+field_name: field_comic_category
+entity_type: node
+bundle: comic
+label: 分类
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:taxonomy_term'
+  handler_settings:
+    target_bundles:
+      comic_category: comic_category
+    sort:
+      field: name
+      direction: asc
+    auto_create: true
+    auto_create_bundle: ''
+field_type: entity_reference

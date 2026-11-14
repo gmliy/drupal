@@ -1,0 +1,20 @@
+uuid: da9790d3-50f9-4abc-86d8-ba3bde0cf7ac
+langcode: zh-hans
+status: true
+dependencies:
+  module:
+    - node
+id: node.field_comic_page_count
+field_name: field_comic_page_count
+entity_type: node
+type: integer
+settings:
+  unsigned: false
+  size: normal
+module: core
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false
