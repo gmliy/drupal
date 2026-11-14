@@ -1,0 +1,114 @@
+{% set has_filters = filters.q|default('') != '' or filters.status|default('') != '' or filters.access|default('') != '' or filters.sort|default('update') not in ['update'] %}
+{% set clear_url = path(base_route, base_route_params) %}
+{% set tags_hub = tags_hub_url|default(path('xedc_comic.tags')) %}
+{% set subtitle = intro|default('') %}
+
+<div class="xedc-comic comic-tag-page" data-comic-tag-page data-comic-list data-comic-list-mode="tag">
+  <header class="comic-tag-hero">
+    <div class="comic-tag-hero__card">
+      <a class="comic-tag-hero__back comic-tag-hero__back--text" href="{{ tags_hub }}">
+        <svg class="comic-tag-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>{{ '全部标签'|t }}</span>
+      </a>
+      <div class="comic-tag-hero__body">
+        <h1 class="comic-tag-hero__title"><span class="comic-tag-hero__hash">#</span>{{ title }}</h1>
+        <p class="comic-tag-hero__lead">{{ '共 @n 部漫画'|t({'@n': total}) }}{% if subtitle %} · {{ subtitle }}{% endif %}</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="comic-tag-toolbar" data-comic-tag-toolbar>
+    {% if related_tags is not empty %}
+      <div class="comic-tag-toolbar__row comic-tag-toolbar__row--tags">
+        <div class="comic-tag-toolbar__related" tabindex="0" aria-label="{{ '相关标签'|t }}">
+          <span class="comic-tag-toolbar__related-label">{{ '相关标签'|t }}</span>
+          {% for tag in related_tags %}
+            <a class="comic-tag-chip comic-tag-chip--ghost" href="{{ tag.url }}">
+              <span class="comic-tag-chip__label">{{ tag.label }}</span>
+              <span class="comic-tag-chip__count">{{ tag.count }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <form class="comic-tag-toolbar__row comic-tag-toolbar__filters comic-list-filters" method="get" action="{{ path(base_route, base_route_params) }}" data-comic-list-form>
+      <input type="hidden" name="sort" value="{{ filters.sort|default('update') }}" data-comic-filter-sort>
+      <input type="hidden" name="status" value="{{ filters.status|default('') }}" data-comic-filter-status>
+      <div class="comic-list-segments" role="group" aria-label="{{ '连载状态'|t }}" data-comic-segment="status">
+        <button type="button" class="comic-list-segments__item{% if filters.status|default('') == '' %} is-active{% endif %}" data-segment-value="">{{ '全部'|t }}</button>
+        <button type="button" class="comic-list-segments__item{% if filters.status == 'ongoing' %} is-active{% endif %}" data-segment-value="ongoing">{{ '连载中'|t }}</button>
+        <button type="button" class="comic-list-segments__item{% if filters.status == 'completed' %} is-active{% endif %}" data-segment-value="completed">{{ '已完结'|t }}</button>
+      </div>
+
+      <label class="comic-tag-sort">
+        <span class="visually-hidden">{{ '排序'|t }}</span>
+        <select data-comic-tag-sort aria-label="{{ '排序'|t }}">
+          <option value="update"{% if filters.sort|default('update') == 'update' %} selected{% endif %}>{{ '最新更新'|t }}</option>
+          <option value="views"{% if filters.sort == 'views' %} selected{% endif %}>{{ '热度'|t }}</option>
+          <option value="favorites"{% if filters.sort == 'favorites' %} selected{% endif %}>{{ '评分'|t }}</option>
+        </select>
+      </label>
+
+      <div class="comic-list-filters__view" role="group" aria-label="{{ '视图'|t }}">
+        <button type="button" class="comic-list-view-btn is-active" data-view-mode="grid" aria-pressed="true" title="{{ '网格'|t }}">
+          <svg class="comic-list-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="13" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button type="button" class="comic-list-view-btn" data-view-mode="list" aria-pressed="false" title="{{ '列表'|t }}">
+          <svg class="comic-list-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <section class="comic-tag-results" aria-label="{{ '漫画列表'|t }}">
+    <p class="comic-tag-results__meta">{{ '共 @n 部作品'|t({'@n': total}) }}</p>
+
+    {% if items is not empty %}
+      <div class="comic-list-grid xedc-comic-grid comic-tag-results__grid" data-comic-list-grid>
+        {% for item in items %}
+          {% include '@xedc_comic/comic-card.html.twig' with { item: item, variant: 'grid', eager: loop.index <= 9 } only %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="comic-tag-empty comic-tag-empty--page">
+        <svg class="comic-tag-empty__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 9h8M8 13h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <p>{{ empty_message }}</p>
+        {% if has_filters %}
+          <a class="xc-btn xc-btn--outline" href="{{ clear_url }}">{{ '清除筛选'|t }}</a>
+        {% else %}
+          <a class="xc-btn xc-btn--primary" href="{{ tags_hub }}">{{ '查看全部标签'|t }}</a>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if pager %}
+      <nav class="comic-tag-pager comic-list-pager xedc-comic-pager" aria-label="{{ '分页'|t }}">{{ pager }}</nav>
+    {% endif %}
+  </section>
+
+  {% if hot_tags is not empty %}
+    <footer class="comic-tag-hub__section comic-tag-hot comic-tag-hot--footer">
+      <h2 class="comic-tag-hub__section-title">{{ '热门标签'|t }}</h2>
+      <div class="comic-tag-hot__rail comic-tag-hot__rail--chips" tabindex="0">
+        {% for tag in hot_tags %}
+          <a class="comic-tag-chip" href="{{ tag.url }}">
+            <span class="comic-tag-chip__label">{{ tag.label }}</span>
+            <span class="comic-tag-chip__count">{{ tag.count }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </footer>
+  {% endif %}
+
+  {% if trending is not empty %}
+    <section class="comic-tag-hub__section comic-tag-trending">
+      <h2 class="comic-tag-hub__section-title">{{ '大家都在看'|t }}</h2>
+      <div class="comic-tag-trending__rail" tabindex="0">
+        {% for item in trending %}
+          {% include '@xedc_comic/comic-card.html.twig' with { item: item, variant: 'spotlight' } only %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+</div>

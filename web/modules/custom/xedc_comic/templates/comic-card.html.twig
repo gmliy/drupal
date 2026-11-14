@@ -1,23 +1,44 @@
-<article class="xedc-comic-card">
-  <a class="xedc-comic-card__link" href="{{ item.url }}">
-    <span class="xedc-comic-card__cover">
+{% set variant = variant|default('grid') %}
+{% set eager = eager|default(false) %}
+<article class="comic-list-card comic-list-card--{{ variant }} xedc-comic-card" data-comic-card>
+  <a class="comic-list-card__link" href="{{ item.url }}">
+    <span class="comic-list-card__cover">
       {% if item.cover %}
-        <img src="{{ item.cover }}" alt="" loading="lazy" width="300" height="400" decoding="async">
+        <img src="{{ item.cover }}" alt="" loading="{{ eager ? 'eager' : 'lazy' }}" width="300" height="400" decoding="async">
+      {% else %}
+        <span class="comic-list-card__cover-placeholder" aria-hidden="true"></span>
+      {% endif %}
+      {% if item.status_label %}
+        <span class="comic-list-card__status comic-list-card__status--{{ item.status|default('')|clean_class }}">{{ item.status_label }}</span>
       {% endif %}
       {% if item.is_vip %}
-        <span class="xedc-comic-card__vip">VIP</span>
+        <span class="comic-list-card__vip">VIP</span>
       {% endif %}
-    </span>
-    <span class="xedc-comic-card__body">
-      <span class="xedc-comic-card__title">{{ item.title }}</span>
-      {% if item.author %}<span class="xedc-comic-card__author">{{ item.author }}</span>{% endif %}
-      <span class="xedc-comic-card__meta">
-        {% if item.status_label %}<span>{{ item.status_label }}</span>{% endif %}
-        {% if item.latest_chapter %}<span>{{ item.latest_chapter }}</span>{% endif %}
+      <span class="comic-list-card__chip">
+        {% if item.latest_chapter %}
+          {{ item.latest_chapter }}
+        {% elseif item.views is defined and item.views > 0 %}
+          {% if item.views >= 10000 %}
+            {{ (item.views / 10000)|number_format(1) }}{{ '万'|t }}{{ '阅读'|t }}
+          {% else %}
+            {{ item.views }} {{ '阅读'|t }}
+          {% endif %}
+        {% endif %}
       </span>
-      <span class="xedc-comic-card__stats">
-        <span>{{ item.updated|default('') }}</span>
-        <span>{{ '阅读'|t }} {{ item.views|default(0) }}</span>
+    </span>
+    <span class="comic-list-card__info">
+      <span class="comic-list-card__title">{{ item.title }}</span>
+      {% if item.author %}<span class="comic-list-card__author">{{ item.author }}</span>{% endif %}
+      <span class="comic-list-card__sub">
+        {% if item.author %}
+          {{ item.author }}
+        {% elseif item.status_label %}
+          {{ item.status_label }}
+        {% endif %}
+      </span>
+      <span class="comic-list-card__list-meta">
+        {% if item.latest_chapter %}<span>{{ item.latest_chapter }}</span>{% endif %}
+        {% if item.updated|default('') %}<span>{{ item.updated }}</span>{% endif %}
       </span>
     </span>
   </a>

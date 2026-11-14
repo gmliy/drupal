@@ -10,6 +10,7 @@ dependencies:
     - media
     - search
     - system
+    - xedc_comic
 _core:
   default_config_hash: Tus1ZTNXKIOnrennR1hnTbc7wUPBXHTUm5UdCpEhJSk
 id: anonymous
@@ -24,3 +25,4 @@ permissions:
   - 'search content'
   - 'use text format restricted_html'
   - 'view media'
+  - 'view published comics'

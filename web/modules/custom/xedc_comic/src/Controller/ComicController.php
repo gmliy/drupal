@@ -52,7 +52,7 @@ final class ComicController extends ControllerBase {
   public function home(Request $request): array {
     return $this->listingPage($request, [
       'mode' => 'home',
-      'title' => (string) $this->t('漫画'),
+      'title' => (string) $this->t('全部漫画'),
       'intro' => (string) $this->t('浏览连载漫画，按分类与标签发现作品。'),
       'route' => 'xedc_comic.home',
     ]);
@@ -75,19 +75,48 @@ final class ComicController extends ControllerBase {
     return $build;
   }
 
+  public function tagsHub(): array {
+    $tags = $this->comics->comicTagsWithCounts();
+    $layout = $this->buildTagHubLayout($tags);
+    $trendingNodes = $this->comics->listComics(['sort' => 'views'], 12, 0);
+    $trending = $this->comics->comicCardsBatch($trendingNodes);
+    return [
+      '#theme' => 'xedc_comic_tags',
+      '#title' => (string) $this->t('发现漫画'),
+      '#lead' => (string) $this->t('按标签找到你喜欢的作品'),
+      '#tags' => $tags,
+      '#hot_tags' => $layout['hot_tags'],
+      '#groups' => $layout['groups'],
+      '#index_letters' => $layout['index_letters'],
+      '#show_alpha' => $layout['show_alpha'],
+      '#merge_hot' => $layout['merge_hot'],
+      '#trending' => $trending,
+      '#cache' => [
+        'tags' => ['node_list:comic', 'taxonomy_term_list:tags'],
+      ],
+      '#attached' => ['library' => ['xedc_comic/tags']],
+    ];
+  }
+
   public function tag(TermInterface $taxonomy_term): array {
     if ($taxonomy_term->bundle() !== 'tags') {
       throw new NotFoundHttpException();
     }
     $desc = $taxonomy_term->hasField('description') ? strip_tags((string) $taxonomy_term->get('description')->value) : '';
+    $tid = (int) $taxonomy_term->id();
+    $comicCount = $this->comics->comicTagComicCount($tid);
+    $emptyMessage = $comicCount > 0
+      ? (string) $this->t('暂无符合条件的漫画。')
+      : (string) $this->t('该标签下暂无漫画。');
     $build = $this->listingPage(\Drupal::request(), [
       'mode' => 'tag',
       'title' => $taxonomy_term->label(),
       'intro' => $desc !== '' ? $desc : (string) $this->t('标签「@label」下的漫画', ['@label' => $taxonomy_term->label()]),
       'route' => 'xedc_comic.tag',
-      'route_params' => ['taxonomy_term' => $taxonomy_term->id()],
+      'route_params' => ['taxonomy_term' => $tid],
       'term' => $taxonomy_term,
-    ], ['tag' => (int) $taxonomy_term->id()]);
+      'empty_message' => $emptyMessage,
+    ], ['tag' => $tid]);
     $build += $this->seo->termAttachments($taxonomy_term, 'tag');
     return $build;
   }
@@ -108,35 +137,70 @@ final class ComicController extends ControllerBase {
     $comics = $this->comics->listComics($filters, self::PER_PAGE, $offset);
     $items = $this->comics->comicCardsBatch($comics);
     $categories = $this->categoryOptions();
-    $tags = $this->popularTags();
+    $mode = (string) ($context['mode'] ?? 'home');
+    $routeParams = $context['route_params'] ?? [];
+    $termId = isset($routeParams['taxonomy_term']) ? (int) $routeParams['taxonomy_term'] : 0;
+    $allComicTags = $this->comics->comicTagsWithCounts();
+    $hotTags = [];
+    $trending = [];
+    if ($mode === 'tag') {
+      $filteredHot = array_values(array_filter(
+        $allComicTags,
+        static fn(array $row): bool => (int) $row['id'] !== $termId,
+      ));
+      if (count($filteredHot) >= 3) {
+        $hotTags = array_slice($filteredHot, 0, 12);
+      }
+      $trendingNodes = $this->comics->listComics(['sort' => 'views'], 12, 0);
+      $trending = $this->comics->comicCardsBatch($trendingNodes);
+    }
+    $relatedTags = ($mode === 'tag' && $termId > 0)
+      ? $this->comics->relatedComicTags($termId, 16)
+      : [];
+    $spotlight = [];
+    if (($context['mode'] ?? '') === 'category') {
+      $spotFilters = array_merge($filters, ['sort' => 'views']);
+      $spotlightNodes = $this->comics->listComics($spotFilters, 8, 0);
+      $spotlight = $this->comics->comicCardsBatch($spotlightNodes);
+    }
     $recent = [];
     if ($this->currentUser()->isAuthenticated()) {
+      $recentNodes = [];
       foreach ($this->reading->recentForUser((int) $this->currentUser()->id(), 8) as $row) {
         $node = $this->entityTypeManager()->getStorage('node')->load((int) $row['comic_id']);
         if ($node instanceof NodeInterface) {
-          $recent[] = $this->comics->comicCard($node);
+          $recentNodes[] = $node;
         }
       }
+      $recent = $this->comics->comicCardsBatch($recentNodes);
     }
     $route = (string) $context['route'];
-    $routeParams = $context['route_params'] ?? [];
+    $tagsHubUrl = Url::fromRoute('xedc_comic.tags')->toString();
+    $theme = $mode === 'tag' ? 'xedc_comic_tag_list' : 'xedc_comic_list';
+    $libraries = $mode === 'tag' ? ['xedc_comic/list', 'xedc_comic/tag_list'] : ['xedc_comic/list'];
     $build = [
-      '#theme' => 'xedc_comic_list',
+      '#theme' => $theme,
       '#title' => (string) $context['title'],
       '#intro' => (string) ($context['intro'] ?? ''),
       '#total' => $total,
       '#items' => $items,
       '#recent' => $recent,
+      '#spotlight' => $spotlight,
       '#filters' => $filters,
       '#categories' => $categories,
-      '#tags' => $tags,
+      '#hot_tags' => $hotTags,
+      '#related_tags' => $relatedTags,
+      '#trending' => $trending,
+      '#tags_hub_url' => $tagsHubUrl,
       '#base_route' => $route,
       '#base_route_params' => $routeParams,
-      '#empty_message' => (string) $this->t('暂无符合条件的漫画。'),
+      '#mode' => $mode,
+      '#term_id' => $termId,
+      '#empty_message' => (string) ($context['empty_message'] ?? $this->t('暂无符合条件的漫画。')),
       '#pager' => ['#type' => 'pager'],
       '#cache' => [
         'contexts' => ['url.query_args', 'user'],
-        'tags' => ['node_list:comic', 'taxonomy_term_list'],
+        'tags' => ['node_list:comic', 'taxonomy_term_list:tags'],
       ],
       '#member_links' => $this->currentUser()->isAuthenticated() && \Drupal::moduleHandler()->moduleExists('xedc_member')
         ? [
@@ -144,7 +208,7 @@ final class ComicController extends ControllerBase {
           ['label' => $this->t('阅读记录'), 'url' => Url::fromRoute('xedc_comic.member_history')->toString()],
         ]
         : [],
-      '#attached' => ['library' => ['xedc_comic/list']],
+      '#attached' => ['library' => $libraries],
     ];
     if ($context['mode'] === 'home') {
       $build += $this->seo->listAttachments();
@@ -241,6 +305,8 @@ final class ComicController extends ControllerBase {
     $build['#attached']['library'][] = 'xedc_comic/detail';
     $build['#attached']['drupalSettings']['xedcComicDetail'] = [
       'csrfFavorite' => \Drupal::csrfToken()->get('xedc_comic_favorite'),
+      'comicId' => (int) $comic->id(),
+      'progressKey' => 'xedcComicProgress:' . $comic->id(),
     ];
     if ($this->currentUser()->isAuthenticated()) {
       $build['#attached']['drupalSettings']['xedcComicMemberUrls'] = [
@@ -279,6 +345,46 @@ final class ComicController extends ControllerBase {
   }
 
   /**
+   * @param list<array{id: int, label: string, url: string, count: int, letter: string}> $tags
+   *
+   * @return array{hot_tags: list<array<string, mixed>>, groups: array<string, list<array<string, mixed>>>, index_letters: list<string>, show_alpha: bool, merge_hot: bool}
+   */
+  private function buildTagHubLayout(array $tags): array {
+    $count = count($tags);
+    $mergeHot = $count > 0 && $count <= 12;
+    $showAlpha = $count >= 10;
+    $groups = [];
+    $index = [];
+    if ($showAlpha) {
+      foreach ($tags as $tag) {
+        $letter = (string) $tag['letter'];
+        $groups[$letter][] = $tag;
+      }
+      ksort($groups);
+      if (isset($groups['#'])) {
+        $hash = $groups['#'];
+        unset($groups['#']);
+        $groups['#'] = $hash;
+      }
+      $index = array_keys($groups);
+      sort($index);
+      if (!isset($groups['#'])) {
+        $index = array_values(array_filter($index, static fn(string $l): bool => $l !== '#'));
+      }
+    }
+    else {
+      $groups = ['all' => $tags];
+    }
+    return [
+      'hot_tags' => $mergeHot ? [] : array_slice($tags, 0, 12),
+      'groups' => $groups,
+      'index_letters' => $showAlpha ? $index : [],
+      'show_alpha' => $showAlpha,
+      'merge_hot' => $mergeHot,
+    ];
+  }
+
+  /**
    * @return list<array{id: int, label: string, url: string}>
    */
   private function categoryOptions(): array {
@@ -290,24 +396,6 @@ final class ComicController extends ControllerBase {
           'id' => (int) $term->id(),
           'label' => $term->label(),
           'url' => Url::fromRoute('xedc_comic.category', ['taxonomy_term' => $term->id()])->toString(),
-        ];
-      }
-    }
-    return $options;
-  }
-
-  /**
-   * @return list<array{id: int, label: string, url: string}>
-   */
-  private function popularTags(): array {
-    $options = [];
-    $terms = $this->entityTypeManager()->getStorage('taxonomy_term')->loadTree('tags', 0, NULL, TRUE);
-    foreach (array_slice($terms, 0, 24) as $term) {
-      if ($term instanceof TermInterface) {
-        $options[] = [
-          'id' => (int) $term->id(),
-          'label' => $term->label(),
-          'url' => Url::fromRoute('xedc_comic.tag', ['taxonomy_term' => $term->id()])->toString(),
         ];
       }
     }

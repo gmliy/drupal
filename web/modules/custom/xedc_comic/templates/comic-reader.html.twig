@@ -1,27 +1,133 @@
-<div class="xedc-comic-reader{% if context.chapter.vip %} is-vip{% endif %}" data-chapter-id="{{ context.chapter.id }}">
-  <div class="xedc-comic-reader__toolbar" id="xedc-comic-toolbar">
-    <a class="xedc-comic-reader__back" href="{{ context.comic.url }}">{{ '返回详情'|t }}</a>
-    <div class="xedc-comic-reader__titles">
-      <span class="xedc-comic-reader__comic">{{ context.comic.title }}</span>
-      <span class="xedc-comic-reader__chapter">
-        {% if context.chapter.index %}#{{ context.chapter.index }}/{{ context.chapter.total_chapters }} · {% endif %}{{ context.chapter.title }}
-      </span>
+<div class="reader{% if context.chapter.vip %} reader--vip{% endif %}" id="reader-root" data-chapter-id="{{ context.chapter.id }}">
+  <div class="reader-progress-track" aria-hidden="true">
+    <div class="reader-progress-fill" id="reader-progress-fill"></div>
+  </div>
+
+  <header class="reader-top" id="reader-top">
+    <a class="reader-icon-btn" href="{{ context.comic.url }}" aria-label="{{ '返回'|t }}">
+      <svg class="reader-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <div class="reader-top__center">
+      <span class="reader-top__comic">{{ context.comic.title }}</span>
+      <span class="reader-top__chapter">{{ context.chapter.title }}</span>
+      <span class="reader-top__index">{{ '第 @i 话 / 共 @t 话'|t({'@i': context.chapter.index, '@t': context.chapter.total_chapters}) }}</span>
     </div>
-    <span class="xedc-comic-reader__pager" id="xedc-comic-pager" aria-live="polite">- / {{ context.chapter.pages }}</span>
-    <nav class="xedc-comic-reader__modes" aria-label="{{ '阅读模式'|t }}">
-      <button type="button" data-mode="scroll" class="active">{{ '滚动'|t }}</button>
-      <button type="button" data-mode="single">{{ '单页'|t }}</button>
-      <button type="button" data-mode="spread">{{ '双页'|t }}</button>
-    </nav>
-    <button type="button" class="xedc-comic-reader__fullscreen" id="xedc-comic-fullscreen" aria-label="{{ '全屏'|t }}">⛶</button>
-  </div>
-  <div class="xedc-comic-reader__stage" id="xedc-comic-stage" aria-live="polite"></div>
-  <div class="xedc-comic-reader__nav">
-    {% if context.nav.prev %}
-      <a class="btn btn-sm btn-secondary" href="/comic/{{ context.comic.id }}/{{ context.nav.prev }}">上一章</a>
+    <button type="button" class="reader-icon-btn" id="reader-open-settings" aria-label="{{ '设置'|t }}">
+      <svg class="reader-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </header>
+
+  <main class="reader-canvas" id="reader-canvas">
+    <div class="reader-hitzone" id="reader-hitzone" aria-hidden="true"></div>
+    <div class="reader-stage" id="reader-stage" aria-live="polite"></div>
+    <p class="reader-status" id="reader-status" hidden></p>
+
+    <footer class="reader-end" id="reader-end" hidden>
+      <p class="reader-end__label">{{ '本章完'|t }}</p>
+      {% if context.next_chapter %}
+        <a class="reader-next-card" href="{{ context.nav.next_url }}">
+          {% if context.next_chapter.preview %}
+            <img class="reader-next-card__thumb" src="{{ context.next_chapter.preview }}" alt="" width="72" height="96" loading="lazy" decoding="async">
+          {% else %}
+            <span class="reader-next-card__thumb reader-next-card__thumb--empty" aria-hidden="true"></span>
+          {% endif %}
+          <span class="reader-next-card__body">
+            <span class="reader-next-card__kicker">{{ '下一话'|t }}</span>
+            <span class="reader-next-card__title">{{ context.next_chapter.title }}</span>
+            <time class="reader-next-card__date" datetime="{{ context.next_chapter.published }}">{{ context.next_chapter.published }}</time>
+          </span>
+          <svg class="reader-icon reader-next-card__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        {% if context.prev_chapter %}
+          <a class="reader-btn reader-btn--ghost" href="{{ context.nav.prev_url }}">{{ '上一话'|t }}</a>
+        {% endif %}
+      {% else %}
+        <p class="reader-end__latest">{{ '已是最新章节'|t }}</p>
+        <a class="reader-btn reader-btn--primary" href="{{ context.comic.url }}">{{ '返回详情页'|t }}</a>
+      {% endif %}
+    </footer>
+  </main>
+
+  <nav class="reader-pill" id="reader-pill" aria-label="{{ '阅读菜单'|t }}">
+    {% if context.nav.prev_url %}
+      <a class="reader-pill__item" href="{{ context.nav.prev_url }}" data-reader-nav="prev">
+        <svg class="reader-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>{{ '上一话'|t }}</span>
+      </a>
+    {% else %}
+      <span class="reader-pill__item is-disabled">
+        <svg class="reader-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>{{ '上一话'|t }}</span>
+      </span>
     {% endif %}
-    {% if context.nav.next %}
-      <a class="btn btn-sm btn-primary" href="/comic/{{ context.comic.id }}/{{ context.nav.next }}">下一章</a>
+    <button type="button" class="reader-pill__item" id="reader-open-toc" data-reader-action="toc">
+      <svg class="reader-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>{{ '目录'|t }}</span>
+    </button>
+    <button type="button" class="reader-pill__item" data-reader-action="settings">
+      <svg class="reader-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>{{ '设置'|t }}</span>
+    </button>
+    {% if context.nav.next_url %}
+      <a class="reader-pill__item" href="{{ context.nav.next_url }}" data-reader-nav="next">
+        <svg class="reader-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>{{ '下一话'|t }}</span>
+      </a>
+    {% else %}
+      <span class="reader-pill__item is-disabled">
+        <svg class="reader-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>{{ '下一话'|t }}</span>
+      </span>
     {% endif %}
-  </div>
+  </nav>
+
+  <button type="button" class="reader-overlay" id="reader-overlay" hidden aria-label="{{ '关闭'|t }}"></button>
+
+  <aside class="reader-sheet reader-sheet--toc" id="reader-sheet-toc" aria-hidden="true">
+    <header class="reader-sheet__head">
+      <h2 class="reader-sheet__title">{{ '目录'|t }}</h2>
+      <button type="button" class="reader-icon-btn reader-sheet__close" data-reader-close aria-label="{{ '关闭'|t }}">
+        <svg class="reader-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+    <div class="reader-sheet__toolbar">
+      <button type="button" class="reader-segment" id="reader-toc-sort" data-order="asc">{{ '正序'|t }}</button>
+    </div>
+    <ol class="reader-toc-list" id="reader-toc-list">
+      {% for ch in context.chapters %}
+        <li class="reader-toc-item{% if ch.id == context.chapter.id %} is-current{% endif %}{% if ch.locked %} is-locked{% endif %}" data-number="{{ ch.number }}">
+          <a href="{{ ch.url }}">
+            <span class="reader-toc-item__num">{{ ch.number }}</span>
+            <span class="reader-toc-item__text">
+              <span class="reader-toc-item__title">{{ ch.title }}</span>
+              <time class="reader-toc-item__date">{{ ch.published }}</time>
+            </span>
+          </a>
+        </li>
+      {% endfor %}
+    </ol>
+  </aside>
+
+  <aside class="reader-sheet reader-sheet--settings" id="reader-sheet-settings" aria-hidden="true">
+    <header class="reader-sheet__head">
+      <h2 class="reader-sheet__title">{{ '阅读设置'|t }}</h2>
+      <button type="button" class="reader-icon-btn reader-sheet__close" data-reader-close aria-label="{{ '关闭'|t }}">
+        <svg class="reader-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+    <div class="reader-settings">
+      <label class="reader-settings__row">
+        <span>{{ '夜间模式'|t }}</span>
+        <button type="button" class="reader-toggle" id="reader-night-toggle" role="switch" aria-checked="false"></button>
+      </label>
+      <div class="reader-settings__row">
+        <span>{{ '图片宽度'|t }}</span>
+        <div class="reader-segments" id="reader-width-segments">
+          <button type="button" class="reader-segments__btn" data-width="fit">{{ '适应'|t }}</button>
+          <button type="button" class="reader-segments__btn is-active" data-width="800">800</button>
+          <button type="button" class="reader-segments__btn" data-width="full">{{ '全宽'|t }}</button>
+        </div>
+      </div>
+    </div>
+  </aside>
 </div>

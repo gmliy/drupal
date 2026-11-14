@@ -50,12 +50,7 @@ final class ComicChapterBatchForm extends FormBase {
       '#type' => 'submit',
       '#value' => $this->t('批量创建'),
     ];
-    return \Drupal::service('xedc_comic.admin_shell')->page(
-      $form,
-      'xedc_comic.admin_chapter_batch',
-      (string) $this->t('批量创建章节'),
-      (string) $this->t('按行录入章节标题，自动递增序号。'),
-    );
+    return $form;
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {

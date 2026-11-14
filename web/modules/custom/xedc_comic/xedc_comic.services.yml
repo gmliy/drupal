@@ -73,6 +73,7 @@ services:
       - '@xedc_comic.access'
       - '@xedc_comic.storage'
       - '@xedc_core.storage_delivery'
+      - '@date.formatter'
 
   xedc_comic.access:
     class: Drupal\xedc_comic\Service\ComicAccessManager
@@ -127,7 +128,7 @@ services:
   access_check.xedc_comic.hub:
     class: Drupal\xedc_comic\Access\ComicHubAccess
     tags:
-      - { name: access_check, applies_to: _custom_access }
+      - { name: access_check, applies_to: _access_xedc_comic_hub }
 
   xedc_comic.admin_shell:
     class: Drupal\xedc_comic\Service\ComicAdminShell

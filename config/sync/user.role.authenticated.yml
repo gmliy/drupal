@@ -22,6 +22,7 @@ dependencies:
     - system
     - xedc_core
     - xedc_notify
+    - xedc_comic
 _core:
   default_config_hash: wkW7P5A53YhGmsgamrmTbfwpZrqdnPYiJdoAZQtdmJg
 id: authenticated
@@ -64,3 +65,4 @@ permissions:
   - 'view latest version'
   - 'view media'
   - 'view own unpublished content'
+  - 'view published comics'

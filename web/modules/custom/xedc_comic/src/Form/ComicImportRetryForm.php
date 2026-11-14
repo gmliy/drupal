@@ -42,12 +42,7 @@ final class ComicImportRetryForm extends ConfirmFormBase {
       '#markup' => $this->t('失败项：@n', ['@n' => count($failed)]),
     ];
     $built = parent::buildForm($form, $form_state);
-    return \Drupal::service('xedc_comic.admin_shell')->page(
-      $built,
-      'xedc_comic.import_status',
-      (string) $this->t('重试失败项'),
-      (string) $this->t('仅重新排队失败条目，不改动已成功页面。'),
-    );
+    return $built;
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {

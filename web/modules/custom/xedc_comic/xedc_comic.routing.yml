@@ -21,6 +21,14 @@ xedc_comic.category:
         bundle:
           - comic_category
 
+xedc_comic.tags:
+  path: '/comic/tags'
+  defaults:
+    _controller: '\Drupal\xedc_comic\Controller\ComicController::tagsHub'
+    _title: '漫画标签'
+  requirements:
+    _permission: 'view published comics'
+
 xedc_comic.tag:
   path: '/comic/tag/{taxonomy_term}'
   defaults:
@@ -153,7 +161,7 @@ xedc_comic.admin:
     _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::overview'
     _title: '漫画中心'
   requirements:
-    _custom_access: '\Drupal\xedc_comic\Access\ComicHubAccess::access'
+    _access_xedc_comic_hub: 'TRUE'
 
 xedc_comic.admin_comics:
   path: '/admin/xedc/comic/comics'
@@ -174,7 +182,7 @@ xedc_comic.admin_chapters:
 xedc_comic.admin_chapter_batch:
   path: '/admin/xedc/comic/chapters/batch'
   defaults:
-    _form: '\Drupal\xedc_comic\Form\ComicChapterBatchForm'
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::chapterBatch'
     _title: '批量创建章节'
   requirements:
     _permission: 'manage comic chapters'
@@ -182,7 +190,7 @@ xedc_comic.admin_chapter_batch:
 xedc_comic.admin_pages:
   path: '/admin/xedc/comic/pages'
   defaults:
-    _form: '\Drupal\xedc_comic\Form\ComicPageManageForm'
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::pageManage'
     _title: '漫画图片'
   requirements:
     _permission: 'manage comic pages'
@@ -221,7 +229,7 @@ xedc_comic.import_status:
 xedc_comic.import_cancel:
   path: '/admin/xedc/comic/import/{job}/cancel'
   defaults:
-    _form: '\Drupal\xedc_comic\Form\ComicImportCancelForm'
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::importCancel'
     _title: '取消导入'
   requirements:
     _permission: 'import comic archives'
@@ -230,7 +238,7 @@ xedc_comic.import_cancel:
 xedc_comic.import_retry:
   path: '/admin/xedc/comic/import/{job}/retry'
   defaults:
-    _form: '\Drupal\xedc_comic\Form\ComicImportRetryForm'
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::importRetry'
     _title: '重试失败项'
   requirements:
     _permission: 'import comic archives'
@@ -247,7 +255,7 @@ xedc_comic.admin_stats:
 xedc_comic.settings:
   path: '/admin/xedc/comic/settings'
   defaults:
-    _form: '\Drupal\xedc_comic\Form\ComicSettingsForm'
+    _controller: '\Drupal\xedc_comic\Controller\ComicAdminController::settings'
     _title: '漫画设置'
   requirements:
     _permission: 'administer comics'

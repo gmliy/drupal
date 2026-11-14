@@ -2,8 +2,28 @@ list:
   css:
     theme:
       css/comic.css: {}
+  js:
+    js/comic-list.js: {}
   dependencies:
     - core/drupal
+    - core/once
+
+tags:
+  css:
+    theme:
+      css/comic.css: {}
+  js:
+    js/comic-tags.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+
+tag_list:
+  js:
+    js/comic-tag-list.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
 
 detail:
   css:

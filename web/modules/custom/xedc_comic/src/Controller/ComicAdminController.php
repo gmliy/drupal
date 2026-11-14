@@ -6,14 +6,20 @@ namespace Drupal\xedc_comic\Controller;
 
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\StringTranslation\ByteSizeMarkup;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Pager\PagerManagerInterface;
 use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
+use Drupal\xedc_comic\Form\ComicChapterBatchForm;
 use Drupal\xedc_comic\Form\ComicChapterImportForm;
+use Drupal\xedc_comic\Form\ComicImportCancelForm;
 use Drupal\xedc_comic\Form\ComicImportHubForm;
+use Drupal\xedc_comic\Form\ComicImportRetryForm;
+use Drupal\xedc_comic\Form\ComicPageManageForm;
+use Drupal\xedc_comic\Form\ComicSettingsForm;
 use Drupal\xedc_comic\Repository\ComicPageRepository;
 use Drupal\xedc_comic\Service\ComicAdminMetrics;
 use Drupal\xedc_comic\Service\ComicAdminShell;
@@ -235,6 +241,72 @@ final class ComicAdminController extends ControllerBase {
     );
   }
 
+  public function chapterBatch(): array {
+    $form = $this->formBuilder()->getForm(ComicChapterBatchForm::class);
+    return $this->shell->page(
+      $form,
+      'xedc_comic.admin_chapter_batch',
+      (string) $this->t('批量创建章节'),
+      (string) $this->t('按行录入章节标题，自动递增序号。'),
+    );
+  }
+
+  public function settings(): array {
+    $form = $this->formBuilder()->getForm(ComicSettingsForm::class);
+    return $this->shell->page(
+      $form,
+      'xedc_comic.settings',
+      (string) $this->t('设置'),
+      (string) $this->t('PDF/ZIP 导入限制、存储路径与队列参数。'),
+    );
+  }
+
+  public function importCancel(int $job): array {
+    $form = $this->formBuilder()->getForm(ComicImportCancelForm::class, $job);
+    return $this->shell->page(
+      $form,
+      'xedc_comic.import_status',
+      (string) $this->t('取消导入'),
+      (string) $this->t('确认是否停止队列中的任务。'),
+    );
+  }
+
+  public function importRetry(int $job): array {
+    $form = $this->formBuilder()->getForm(ComicImportRetryForm::class, $job);
+    return $this->shell->page(
+      $form,
+      'xedc_comic.import_status',
+      (string) $this->t('重试失败项'),
+      (string) $this->t('仅重新排队失败条目，不改动已成功页面。'),
+    );
+  }
+
+  /**
+   * Chapter page image management (form built before shell wrap).
+   */
+  public function pageManage(Request $request): array {
+    $form = $this->formBuilder()->getForm(ComicPageManageForm::class);
+    $chapterId = (int) $request->query->get('chapter', 0);
+    $description = (string) $this->t('按章节浏览漫画图片，支持排序与替换。');
+    if ($chapterId > 0) {
+      $chapter = $this->entityTypeManager()->getStorage('node')->load($chapterId);
+      if ($chapter instanceof NodeInterface) {
+        $parent = $chapter->hasField('field_comic_parent') && !$chapter->get('field_comic_parent')->isEmpty()
+          ? $chapter->get('field_comic_parent')->entity : NULL;
+        $comicLabel = $parent instanceof NodeInterface ? $parent->label() : '';
+        $description = $comicLabel !== ''
+          ? (string) $this->t('@chapter · @comic', ['@chapter' => $chapter->label(), '@comic' => $comicLabel])
+          : $chapter->label();
+      }
+    }
+    return $this->shell->page(
+      $form,
+      'xedc_comic.admin_pages',
+      (string) $this->t('图片管理'),
+      $description,
+    );
+  }
+
   /**
    * Import hub wrapped in comic admin shell (form must build before wrap).
    */
@@ -321,7 +393,7 @@ final class ComicAdminController extends ControllerBase {
       if (($job['import_mode'] ?? '') === 'pdf') {
         $detail['pdf_note'] = (string) $this->t('PDF @name（@size）共 @pages 页，DPI @dpi', [
           '@name' => $job['archive_name'],
-          '@size' => format_size((int) ($job['archive_bytes'] ?? 0)),
+          '@size' => (string) ByteSizeMarkup::create((int) ($job['archive_bytes'] ?? 0)),
           '@pages' => (int) ($job['pdf_page_count'] ?? $job['total']),
           '@dpi' => (int) ($job['pdf_dpi'] ?? 150),
         ]);

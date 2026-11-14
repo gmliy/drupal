@@ -1,84 +1,170 @@
-<div class="xedc-comic xedc-comic-list" data-comic-list>
-  <header class="xedc-comic-list__hero">
-    <div class="xedc-comic-list__head">
-      <h1 class="xedc-comic-list__title">{{ title }}</h1>
-      <p class="xedc-comic-list__count">{{ '共 @n 部漫画'|t({'@n': total}) }}</p>
-    </div>
-    {% if intro %}
-      <p class="xedc-comic-list__intro">{{ intro }}</p>
-    {% endif %}
-    {% if member_links %}
-      <p class="xedc-comic-list__member">
-        {% for link in member_links %}
-          <a class="xedc-pill" href="{{ link.url }}">{{ link.label }}</a>
-        {% endfor %}
-      </p>
-    {% endif %}
-    <form class="xedc-comic-filters" method="get" action="{{ path(base_route, base_route_params) }}">
-      <div class="xedc-comic-filters__search">
-        <input type="search" name="q" value="{{ filters.q|default('') }}" placeholder="{{ '搜索漫画'|t }}" autocomplete="off" aria-label="{{ '搜索'|t }}">
+{% set has_filters = filters.q|default('') != '' or filters.status|default('') != '' or filters.access|default('') != '' or filters.sort|default('update') not in ['update'] %}
+{% set clear_url = path(base_route, base_route_params) %}
+{% set home_url = path('xedc_comic.home') %}
+<div class="xedc-comic comic-list" data-comic-list data-comic-list-mode="{{ mode }}">
+  {% if mode == 'home' %}
+    <header class="comic-list-page-head">
+      <h1 class="comic-list-page-head__title">{{ title }}</h1>
+      <div class="comic-list-page-head__actions">
+        {% if member_links %}
+          <nav class="comic-list-page-head__member" aria-label="{{ '账号'|t }}">
+            {% for link in member_links %}
+              <a class="comic-list-page-head__member-link" href="{{ link.url }}">{{ link.label }}</a>
+            {% endfor %}
+          </nav>
+        {% endif %}
+        <button type="button" class="comic-list-search-toggle" data-search-toggle aria-expanded="false" aria-controls="comic-list-search">
+          <svg class="comic-list-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span class="visually-hidden">{{ '搜索'|t }}</span>
+        </button>
       </div>
-      <div class="xedc-comic-filters__pills" role="toolbar" aria-label="{{ '筛选'|t }}">
-        <select name="status" aria-label="{{ '连载'|t }}">
-          <option value="">{{ '全部漫画'|t }}</option>
-          <option value="ongoing"{% if filters.status == 'ongoing' %} selected{% endif %}>{{ '连载中'|t }}</option>
-          <option value="completed"{% if filters.status == 'completed' %} selected{% endif %}>{{ '已完结'|t }}</option>
-          <option value="paused"{% if filters.status == 'paused' %} selected{% endif %}>{{ '暂停'|t }}</option>
-        </select>
-        <select name="access" aria-label="{{ '权限'|t }}">
-          <option value="">{{ '全部'|t }}</option>
-          <option value="vip"{% if filters.access == 'vip' %} selected{% endif %}>VIP</option>
-          <option value="free"{% if filters.access == 'free' %} selected{% endif %}>{{ '免费'|t }}</option>
-        </select>
-        {% if categories is not empty and base_route == 'xedc_comic.home' %}
-          <select name="category" aria-label="{{ '分类'|t }}">
-            <option value="">{{ '全部分类'|t }}</option>
-            {% for cat in categories %}
-              <option value="{{ cat.id }}"{% if filters.category == cat.id %} selected{% endif %}>{{ cat.label }}</option>
-            {% endfor %}
-          </select>
-        {% endif %}
-        {% if tags is not empty and base_route == 'xedc_comic.home' %}
-          <select name="tag" aria-label="{{ '标签'|t }}">
-            <option value="">{{ '全部标签'|t }}</option>
-            {% for tag in tags %}
-              <option value="{{ tag.id }}"{% if filters.tag == tag.id %} selected{% endif %}>{{ tag.label }}</option>
-            {% endfor %}
-          </select>
-        {% endif %}
-        <select name="sort" aria-label="{{ '排序'|t }}">
-          <option value="update"{% if filters.sort == 'update' %} selected{% endif %}>{{ '最新更新'|t }}</option>
-          <option value="created"{% if filters.sort == 'created' %} selected{% endif %}>{{ '最新发布'|t }}</option>
-          <option value="views"{% if filters.sort == 'views' %} selected{% endif %}>{{ '最多阅读'|t }}</option>
-          <option value="favorites"{% if filters.sort == 'favorites' %} selected{% endif %}>{{ '最多收藏'|t }}</option>
-          <option value="title"{% if filters.sort == 'title' %} selected{% endif %}>{{ '名称'|t }}</option>
-        </select>
-        <button type="submit" class="btn btn-dark btn-sm">{{ '应用'|t }}</button>
+    </header>
+    {% if intro %}
+      <p class="comic-list-lead">{{ intro }}</p>
+    {% endif %}
+  {% elseif mode == 'category' %}
+    <header class="comic-list-hero comic-list-hero--category">
+      <h1 class="comic-list-hero__title">{{ title }}</h1>
+      <p class="comic-list-hero__count">{{ '共 @n 部漫画'|t({'@n': total}) }}</p>
+      {% if intro %}
+        <p class="comic-list-hero__intro">{{ intro }}</p>
+      {% endif %}
+    </header>
+  {% endif %}
+
+  <div class="comic-list-sticky" id="comic-list-sticky" data-comic-list-sticky>
+    {% if mode == 'home' and categories is not empty %}
+      <nav class="comic-list-cats" aria-label="{{ '分类'|t }}">
+        <a class="comic-list-cats__pill{% if base_route == 'xedc_comic.home' and filters.category|default(0) == 0 %} is-active{% endif %}" href="{{ home_url }}">{{ '全部'|t }}</a>
+        {% for cat in categories %}
+          <a class="comic-list-cats__pill{% if filters.category == cat.id or (mode == 'category' and term_id == cat.id) %} is-active{% endif %}" href="{{ cat.url }}">{{ cat.label }}</a>
+        {% endfor %}
+      </nav>
+    {% endif %}
+
+    <form class="comic-list-filters" method="get" action="{{ path(base_route, base_route_params) }}" data-comic-list-form>
+      <input type="hidden" name="sort" value="{{ filters.sort|default('update') }}" data-comic-filter-sort>
+      <input type="hidden" name="status" value="{{ filters.status|default('') }}" data-comic-filter-status>
+      <div class="comic-list-filters__row">
+        <div class="comic-list-filters__search{% if filters.q|default('') != '' %} is-open{% endif %}" id="comic-list-search" data-comic-list-search{% if filters.q|default('') == '' %} hidden{% endif %}>
+          <input type="search" name="q" value="{{ filters.q|default('') }}" placeholder="{{ '搜索漫画'|t }}" autocomplete="off" aria-label="{{ '搜索'|t }}">
+        </div>
+
+        <div class="comic-list-segments" role="group" aria-label="{{ '连载状态'|t }}" data-comic-segment="status">
+          <button type="button" class="comic-list-segments__item{% if filters.status|default('') == '' %} is-active{% endif %}" data-segment-value="">{{ '全部'|t }}</button>
+          <button type="button" class="comic-list-segments__item{% if filters.status == 'ongoing' %} is-active{% endif %}" data-segment-value="ongoing">{{ '连载中'|t }}</button>
+          <button type="button" class="comic-list-segments__item{% if filters.status == 'completed' %} is-active{% endif %}" data-segment-value="completed">{{ '已完结'|t }}</button>
+        </div>
+
+        <div class="comic-list-segments comic-list-segments--sort" role="group" aria-label="{{ '排序'|t }}" data-comic-segment="sort">
+          <button type="button" class="comic-list-segments__item{% if filters.sort|default('update') == 'update' %} is-active{% endif %}" data-segment-value="update">{{ '最新'|t }}</button>
+          <button type="button" class="comic-list-segments__item{% if filters.sort == 'views' %} is-active{% endif %}" data-segment-value="views">{{ '热度'|t }}</button>
+          <button type="button" class="comic-list-segments__item{% if filters.sort == 'favorites' %} is-active{% endif %}" data-segment-value="favorites">{{ '评分'|t }}</button>
+        </div>
+
+        <div class="comic-list-filters__view" role="group" aria-label="{{ '视图'|t }}">
+          <button type="button" class="comic-list-view-btn is-active" data-view-mode="grid" aria-pressed="true" title="{{ '网格'|t }}">
+            <svg class="comic-list-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="13" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          </button>
+          <button type="button" class="comic-list-view-btn" data-view-mode="list" aria-pressed="false" title="{{ '列表'|t }}">
+            <svg class="comic-list-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+
+        <details class="comic-list-more">
+          <summary class="comic-list-more__summary">{{ '更多'|t }}</summary>
+          <div class="comic-list-more__body">
+            <label class="comic-list-more__field">
+              <span>{{ '排序'|t }}</span>
+              <select data-comic-list-sort-extra>
+                <option value="update"{% if filters.sort|default('update') == 'update' %} selected{% endif %}>{{ '最新更新'|t }}</option>
+                <option value="created"{% if filters.sort == 'created' %} selected{% endif %}>{{ '最新发布'|t }}</option>
+                <option value="views"{% if filters.sort == 'views' %} selected{% endif %}>{{ '热度'|t }}</option>
+                <option value="favorites"{% if filters.sort == 'favorites' %} selected{% endif %}>{{ '评分'|t }}</option>
+                <option value="title"{% if filters.sort == 'title' %} selected{% endif %}>{{ '名称'|t }}</option>
+              </select>
+            </label>
+            <label class="comic-list-more__field">
+              <span>{{ '状态'|t }}</span>
+              <select data-comic-list-status-extra>
+                <option value=""{% if filters.status|default('') == '' %} selected{% endif %}>{{ '全部'|t }}</option>
+                <option value="ongoing"{% if filters.status == 'ongoing' %} selected{% endif %}>{{ '连载中'|t }}</option>
+                <option value="completed"{% if filters.status == 'completed' %} selected{% endif %}>{{ '已完结'|t }}</option>
+                <option value="paused"{% if filters.status == 'paused' %} selected{% endif %}>{{ '暂停'|t }}</option>
+              </select>
+            </label>
+            <label class="comic-list-more__field">
+              <span>{{ '权限'|t }}</span>
+              <select name="access">
+                <option value=""{% if filters.access|default('') == '' %} selected{% endif %}>{{ '全部'|t }}</option>
+                <option value="free"{% if filters.access == 'free' %} selected{% endif %}>{{ '免费'|t }}</option>
+                <option value="vip"{% if filters.access == 'vip' %} selected{% endif %}>VIP</option>
+              </select>
+            </label>
+            <noscript>
+              <button type="submit" class="xc-btn xc-btn--sm xc-btn--primary">{{ '应用'|t }}</button>
+            </noscript>
+          </div>
+        </details>
       </div>
     </form>
-  </header>
+  </div>
 
   {% if recent is not empty %}
-    <section class="xedc-comic-section">
-      <h2 class="xedc-comic-section__title">{{ '最近阅读'|t }}</h2>
-      <div class="xedc-comic-grid">
+    <section class="comic-list-section">
+      <h2 class="comic-list-section__title">{{ '最近阅读'|t }}</h2>
+      <div class="comic-list-rail comic-list-rail--recent">
         {% for item in recent %}
-          {% include '@xedc_comic/comic-card.html.twig' with { item: item } only %}
+          {% include '@xedc_comic/comic-card.html.twig' with { item: item, variant: 'spotlight' } only %}
         {% endfor %}
       </div>
     </section>
   {% endif %}
 
-  <section class="xedc-comic-section xedc-comic-section--main">
-    <div class="xedc-comic-grid">
-      {% for item in items %}
-        {% include '@xedc_comic/comic-card.html.twig' with { item: item } only %}
-      {% else %}
-        <p class="xedc-comic-empty">{{ empty_message }}</p>
-      {% endfor %}
-    </div>
+  {% if mode == 'category' and spotlight is not empty %}
+    <section class="comic-list-section">
+      <h2 class="comic-list-section__title">{{ '本类热门'|t }}</h2>
+      <div class="comic-list-rail comic-list-rail--spotlight">
+        {% for item in spotlight %}
+          {% include '@xedc_comic/comic-card.html.twig' with { item: item, variant: 'spotlight' } only %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="comic-list-section comic-list-section--main" aria-label="{{ '漫画列表'|t }}">
+    {% if items is not empty %}
+      <div class="comic-list-grid xedc-comic-grid" data-comic-list-grid>
+        {% for item in items %}
+          {% include '@xedc_comic/comic-card.html.twig' with { item: item, variant: 'grid', eager: loop.index <= 9 } only %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="comic-list-empty" data-comic-list-empty>
+        <svg class="comic-list-empty__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 9h8M8 13h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <p class="comic-list-empty__text">{{ empty_message }}</p>
+        {% if has_filters %}
+          <a class="comic-list-empty__clear xc-btn xc-btn--outline" href="{{ clear_url }}">{{ '清除筛选'|t }}</a>
+        {% endif %}
+      </div>
+    {% endif %}
+
     {% if pager %}
-      <nav class="xedc-comic-pager" aria-label="{{ '分页'|t }}">{{ pager }}</nav>
+      <nav class="comic-list-pager xedc-comic-pager" aria-label="{{ '分页'|t }}">{{ pager }}</nav>
     {% endif %}
   </section>
+
+  {% if mode == 'category' and categories is not empty %}
+    <footer class="comic-list-section comic-list-section--foot">
+      <h2 class="comic-list-section__title">{{ '其他分类'|t }}</h2>
+      <div class="comic-list-rail comic-list-rail--cats">
+        {% for cat in categories %}
+          {% if cat.id != term_id %}
+            <a class="comic-list-pill" href="{{ cat.url }}">{{ cat.label }}</a>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </footer>
+  {% endif %}
+
 </div>

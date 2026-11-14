@@ -37,6 +37,14 @@ final class ComicChapterImportForm extends ComicImportHubForm {
 
     $form = $this->buildImportFormElements($form, $form_state);
     unset($form['target']);
+    $form['locked_chapter_id'] = [
+      '#type' => 'hidden',
+      '#value' => (int) $chapter->id(),
+    ];
+    $form['locked_comic_id'] = [
+      '#type' => 'hidden',
+      '#value' => (int) $parent->id(),
+    ];
 
     $form['chapter_banner'] = [
       '#type' => 'container',
@@ -59,8 +67,8 @@ final class ComicChapterImportForm extends ComicImportHubForm {
   }
 
   protected function resolveTarget(FormStateInterface $form_state): array {
-    $chapterId = (int) $form_state->get('locked_chapter_id');
-    $comicId = (int) $form_state->get('locked_comic_id');
+    $chapterId = (int) ($form_state->getValue('locked_chapter_id') ?? $form_state->get('locked_chapter_id'));
+    $comicId = (int) ($form_state->getValue('locked_comic_id') ?? $form_state->get('locked_comic_id'));
     if ($chapterId > 0 && $comicId > 0) {
       $comic = $this->entities->getStorage('node')->load($comicId);
       $chapter = $this->entities->getStorage('node')->load($chapterId);

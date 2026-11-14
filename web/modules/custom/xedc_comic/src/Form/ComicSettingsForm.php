@@ -75,12 +75,7 @@ final class ComicSettingsForm extends ConfigFormBase {
     ];
     $built = parent::buildForm($form, $form_state);
     $built['#attributes']['class'][] = 'xedc-comic-settings-form';
-    return \Drupal::service('xedc_comic.admin_shell')->page(
-      $built,
-      'xedc_comic.settings',
-      (string) $this->t('设置'),
-      (string) $this->t('PDF/ZIP 导入限制、存储路径与队列参数。'),
-    );
+    return $built;
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {

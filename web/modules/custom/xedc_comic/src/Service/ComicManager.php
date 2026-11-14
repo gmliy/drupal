@@ -449,4 +449,142 @@ final class ComicManager {
     }
   }
 
+  /**
+   * Tags used on at least one published comic, with comic counts.
+   *
+   * @return list<array{id: int, label: string, url: string, count: int, letter: string}>
+   */
+  public function comicTagsWithCounts(): array {
+    $cid = 'xedc_comic:tags_with_counts:v2';
+    $cached = $this->cache->get($cid);
+    if ($cached && is_array($cached->data)) {
+      return $cached->data;
+    }
+    $query = $this->database->select('node__field_comic_tags', 'ft');
+    $query->join('node_field_data', 'n', 'n.nid = ft.entity_id');
+    $query->condition('n.default_langcode', 1);
+    $query->addField('ft', 'field_comic_tags_target_id', 'tid');
+    $query->addExpression('COUNT(DISTINCT n.nid)', 'comic_count');
+    $query->condition('n.type', 'comic');
+    $query->condition('n.status', 1);
+    $query->isNotNull('ft.field_comic_tags_target_id');
+    $query->groupBy('ft.field_comic_tags_target_id');
+    $query->having('comic_count > 0');
+    $query->orderBy('comic_count', 'DESC');
+    $query->orderBy('tid', 'ASC');
+    $rows = [];
+    $termStorage = $this->entities->getStorage('taxonomy_term');
+    foreach ($query->execute() as $record) {
+      $tid = (int) $record->tid;
+      $term = $termStorage->load($tid);
+      if ($term === NULL || $term->bundle() !== 'tags') {
+        continue;
+      }
+      $label = $term->label();
+      $rows[] = [
+        'id' => $tid,
+        'label' => $label,
+        'url' => Url::fromRoute('xedc_comic.tag', ['taxonomy_term' => $tid])->toString(),
+        'count' => (int) $record->comic_count,
+        'letter' => $this->comicTagLetter($label),
+      ];
+    }
+    usort($rows, static function (array $a, array $b): int {
+      if ($a['count'] !== $b['count']) {
+        return $b['count'] <=> $a['count'];
+      }
+      return strnatcasecmp($a['label'], $b['label']);
+    });
+    $this->cache->set($cid, $rows, Cache::PERMANENT, ['node_list:comic', 'taxonomy_term_list:tags']);
+    return $rows;
+  }
+
+  /**
+   * Tags that co-occur on comics with the given tag (comic-only).
+   *
+   * @return list<array{id: int, label: string, url: string, count: int, letter: string}>
+   */
+  public function relatedComicTags(int $tagId, int $limit = 16): array {
+    if ($tagId < 1) {
+      return [];
+    }
+    $sub = $this->database->select('node__field_comic_tags', 'c');
+    $sub->join('node_field_data', 'n', 'n.nid = c.entity_id');
+    $sub->condition('n.default_langcode', 1);
+    $sub->condition('c.field_comic_tags_target_id', $tagId);
+    $sub->condition('n.type', 'comic');
+    $sub->condition('n.status', 1);
+    $sub->fields('c', ['entity_id']);
+    $nids = $sub->execute()->fetchCol();
+    if ($nids === []) {
+      return [];
+    }
+    $query = $this->database->select('node__field_comic_tags', 'o');
+    $query->join('node_field_data', 'n', 'n.nid = o.entity_id');
+    $query->condition('n.default_langcode', 1);
+    $query->addField('o', 'field_comic_tags_target_id', 'tid');
+    $query->addExpression('COUNT(DISTINCT n.nid)', 'comic_count');
+    $query->condition('n.nid', $nids, 'IN');
+    $query->condition('n.type', 'comic');
+    $query->condition('n.status', 1);
+    $query->condition('o.field_comic_tags_target_id', $tagId, '<>');
+    $query->groupBy('o.field_comic_tags_target_id');
+    $query->orderBy('comic_count', 'DESC');
+    $query->range(0, $limit);
+    $indexed = $this->indexComicTagsById($this->comicTagsWithCounts());
+    $out = [];
+    foreach ($query->execute() as $record) {
+      $tid = (int) $record->tid;
+      if (!isset($indexed[$tid])) {
+        continue;
+      }
+      $out[] = $indexed[$tid];
+    }
+    return $out;
+  }
+
+  public function comicTagComicCount(int $tagId): int {
+    if ($tagId < 1) {
+      return 0;
+    }
+    foreach ($this->comicTagsWithCounts() as $row) {
+      if ($row['id'] === $tagId) {
+        return (int) $row['count'];
+      }
+    }
+    return 0;
+  }
+
+  /**
+   * @param list<array{id: int, label: string, url: string, count: int, letter: string}> $rows
+   *
+   * @return array<int, array{id: int, label: string, url: string, count: int, letter: string}>
+   */
+  private function indexComicTagsById(array $rows): array {
+    $map = [];
+    foreach ($rows as $row) {
+      $map[(int) $row['id']] = $row;
+    }
+    return $map;
+  }
+
+  private function comicTagLetter(string $label): string {
+    $trim = trim($label);
+    if ($trim === '') {
+      return '#';
+    }
+    $first = mb_substr($trim, 0, 1);
+    if (preg_match('/^[0-9]$/u', $first) || preg_match('/^\p{S}|\p{P}/u', $first)) {
+      return '#';
+    }
+    if (preg_match('/^[A-Za-z]$/u', $first)) {
+      return mb_strtoupper($first);
+    }
+    $roman = \Drupal::service('transliteration')->transliterate($trim, 'zh-hans', '');
+    if (preg_match('/[a-zA-Z]/', $roman, $match)) {
+      return strtoupper($match[0]);
+    }
+    return '#';
+  }
+
 }

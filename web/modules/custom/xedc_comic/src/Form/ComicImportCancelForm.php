@@ -38,12 +38,7 @@ final class ComicImportCancelForm extends ConfirmFormBase {
   public function buildForm(array $form, FormStateInterface $form_state, ?int $job = NULL): array {
     $this->jobId = (int) $job;
     $built = parent::buildForm($form, $form_state);
-    return \Drupal::service('xedc_comic.admin_shell')->page(
-      $built,
-      'xedc_comic.import_status',
-      (string) $this->t('取消导入'),
-      (string) $this->t('确认是否停止队列中的任务。'),
-    );
+    return $built;
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {

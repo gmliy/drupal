@@ -1,9 +1,12 @@
 uuid: 5c903602-aaf3-4503-88ba-58573cc7b81b
 langcode: zh-hans
 status: true
-dependencies: {  }
+dependencies:
+  module:
+    - xedc_comic
 id: vip
 label: 'VIP 会员'
 weight: 4
 is_admin: false
-permissions: {  }
+permissions:
+  - 'view published comics'

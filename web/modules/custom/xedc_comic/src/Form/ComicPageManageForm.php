@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\xedc_comic\Form;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\StringTranslation\ByteSizeMarkup;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -58,12 +59,7 @@ final class ComicPageManageForm extends FormBase {
         '#value' => $this->t('进入图片管理'),
         '#submit' => ['::submitPickChapter'],
       ];
-      return \Drupal::service('xedc_comic.admin_shell')->page(
-        $picker,
-        'xedc_comic.admin_pages',
-        (string) $this->t('图片管理'),
-        (string) $this->t('按章节浏览漫画图片，支持排序与替换。'),
-      );
+      return $picker;
     }
     $chapter = $this->entities->getStorage('node')->load($chapterId);
     $pages = $this->entities->getStorage('comic_page')->loadByProperties(['chapter_id' => $chapterId]);
@@ -117,7 +113,7 @@ final class ComicPageManageForm extends FormBase {
         'thumb' => $url,
         'name' => (string) $page->get('original_filename')->value,
         'size' => (int) $page->get('image_width')->value . '×' . (int) $page->get('image_height')->value,
-        'bytes' => format_size((int) $page->get('file_size')->value),
+        'bytes' => (string) ByteSizeMarkup::create((int) $page->get('file_size')->value),
         'created' => $file ? \Drupal::service('date.formatter')->format((int) $file->getCreatedTime()) : '',
       ];
     }
@@ -148,12 +144,7 @@ final class ComicPageManageForm extends FormBase {
     $form['#attached']['library'][] = 'xedc_comic/admin';
     $form['#attached']['library'][] = 'xedc_comic/page_manage';
     $form['#attributes']['class'][] = 'xedc-comic-page-manage-form';
-    return \Drupal::service('xedc_comic.admin_shell')->page(
-      $form,
-      'xedc_comic.admin_pages',
-      (string) $this->t('图片管理'),
-      (string) $this->t('本章图片资源：网格/列表视图、排序与批量操作。'),
-    );
+    return $form;
   }
 
   public function submitPickChapter(array &$form, FormStateInterface $form_state): void {

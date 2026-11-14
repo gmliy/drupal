@@ -1,0 +1,90 @@
+<div class="xedc-comic comic-tag-hub" data-comic-tag-hub>
+  <header class="comic-tag-hero comic-tag-hero--hub">
+    <div class="comic-tag-hero__card">
+      <div class="comic-tag-hero__body">
+        <h1 class="comic-tag-hero__title">{{ title }}</h1>
+        <p class="comic-tag-hero__lead">{{ lead }}</p>
+      </div>
+      <label class="comic-tag-hub__search">
+        <svg class="comic-tag-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="search" class="comic-tag-hub__search-input" placeholder="{{ '搜索标签'|t }}" aria-label="{{ '搜索标签'|t }}" data-tag-search autocomplete="off">
+      </label>
+    </div>
+  </header>
+
+  {% if tags is not empty %}
+    {% if merge_hot %}
+      <section class="comic-tag-hub__section comic-tag-hot">
+        <h2 class="comic-tag-hub__section-title">{{ '全部标签'|t }}</h2>
+        <div class="comic-tag-hot__rail" tabindex="0">
+          {% for tag in tags %}
+            <a class="comic-tag-hot__card comic-tag-hot__card--{{ (loop.index0 % 4) + 1 }}" href="{{ tag.url }}" data-tag-label="{{ tag.label|lower }}">
+              <span class="comic-tag-hot__name">{{ tag.label }}</span>
+              <span class="comic-tag-hot__count">{{ '@n 部'|t({'@n': tag.count}) }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% else %}
+      {% if hot_tags is not empty %}
+        <section class="comic-tag-hub__section comic-tag-hot">
+          <h2 class="comic-tag-hub__section-title">{{ '热门标签'|t }}</h2>
+          <div class="comic-tag-hot__rail" tabindex="0">
+            {% for tag in hot_tags %}
+              <a class="comic-tag-hot__card comic-tag-hot__card--{{ (loop.index0 % 4) + 1 }}" href="{{ tag.url }}" data-tag-label="{{ tag.label|lower }}">
+                <span class="comic-tag-hot__name">{{ tag.label }}</span>
+                <span class="comic-tag-hot__count">{{ '@n 部'|t({'@n': tag.count}) }}</span>
+              </a>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      {% if show_alpha and index_letters is not empty %}
+        <nav class="comic-tag-alpha" data-tag-alpha aria-label="{{ '字母索引'|t }}">
+          <div class="comic-tag-alpha__inner">
+            {% for letter in index_letters %}
+              <a class="comic-tag-alpha__link" href="#comic-tag-group-{{ letter|clean_class }}" data-alpha-link="{{ letter }}">{{ letter }}</a>
+            {% endfor %}
+          </div>
+        </nav>
+      {% endif %}
+
+      <div class="comic-tag-hub__groups" data-tag-groups>
+        {% for letter, group in groups %}
+          <section class="comic-tag-group" id="comic-tag-group-{{ letter|clean_class }}" data-tag-group data-tag-letter="{{ letter }}">
+            {% if show_alpha %}
+              <h2 class="comic-tag-group__letter">{{ letter }}</h2>
+            {% endif %}
+            <div class="comic-tag-group__chips">
+              {% for tag in group %}
+                <a class="comic-tag-chip" href="{{ tag.url }}" data-tag-label="{{ tag.label|lower }}">
+                  <span class="comic-tag-chip__label">{{ tag.label }}</span>
+                  <span class="comic-tag-chip__count">{{ tag.count }}</span>
+                </a>
+              {% endfor %}
+            </div>
+          </section>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <p class="comic-tag-hub__filter-empty" data-tag-empty hidden>{{ '搜索无匹配标签'|t }}</p>
+  {% else %}
+    <div class="comic-tag-empty">
+      <svg class="comic-tag-empty__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9 12h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <p>{{ '暂无标签'|t }}</p>
+    </div>
+  {% endif %}
+
+  {% if trending is not empty %}
+    <section class="comic-tag-hub__section comic-tag-trending">
+      <h2 class="comic-tag-hub__section-title">{{ '大家都在看'|t }}</h2>
+      <div class="comic-tag-trending__rail" tabindex="0">
+        {% for item in trending %}
+          {% include '@xedc_comic/comic-card.html.twig' with { item: item, variant: 'spotlight' } only %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+</div>

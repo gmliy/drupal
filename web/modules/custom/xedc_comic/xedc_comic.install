@@ -340,6 +340,26 @@ function xedc_comic_update_11009(): string {
   return 'import_runner 不可用。';
 }
 
+/**
+ * 确保导入上传目录存在且 Web 用户可写。
+ */
+function xedc_comic_update_11010(): string {
+  $fs = \Drupal::service('file_system');
+  $paths = ['private://xedc-comic-import', 'private://xedc-comic-import/pdf'];
+  foreach ($paths as $uri) {
+    $fs->prepareDirectory($uri, \Drupal\Core\File\FileSystemInterface::CREATE_DIRECTORY | \Drupal\Core\File\FileSystemInterface::MODIFY_PERMISSIONS);
+    $real = $fs->realpath($uri);
+    if (is_string($real) && is_dir($real) && function_exists('posix_getpwuid')) {
+      $proc = posix_getpwuid(posix_geteuid());
+      $user = is_array($proc) ? ($proc['name'] ?? '') : '';
+      if ($user === 'www-data' && !is_writable($real)) {
+        @chmod($real, 0775);
+      }
+    }
+  }
+  return '已检查漫画导入上传目录。';
+}
+
 function xedc_comic_update_11007(): string {
   $messages = [];
   $anon = Role::load('anonymous');
@@ -352,6 +372,14 @@ function xedc_comic_update_11007(): string {
     $messages[] = 'anonymous 已有 view published comics。';
   }
   return implode(' ', $messages);
+}
+
+/**
+ * 已登录与 VIP 可读已发布漫画（与 anonymous 对齐；修复 11007 仅授予游客）。
+ */
+function xedc_comic_update_11011(): string {
+  xedc_comic_grant_roles();
+  return '已同步漫画前台权限（anonymous / authenticated / vip / content_editor）。';
 }
 
 /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\xedc_comic\Form;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\StringTranslation\ByteSizeMarkup;
 use Drupal\Core\File\FileExists;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\FormBase;
@@ -26,12 +27,12 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class ComicImportHubForm extends FormBase {
 
   public function __construct(
-    private readonly EntityTypeManagerInterface $entities,
-    private readonly ComicImportManager $imports,
-    private readonly ComicPageManager $pages,
-    private readonly ComicPdfConverter $pdfConverter,
-    private readonly ComicPdfImportManager $pdfImports,
-    private readonly FileSystemInterface $fileSystem,
+    protected readonly EntityTypeManagerInterface $entities,
+    protected readonly ComicImportManager $imports,
+    protected readonly ComicPageManager $pages,
+    protected readonly ComicPdfConverter $pdfConverter,
+    protected readonly ComicPdfImportManager $pdfImports,
+    protected readonly FileSystemInterface $fileSystem,
   ) {}
 
   public static function create(ContainerInterface $container): static {
@@ -54,6 +55,9 @@ class ComicImportHubForm extends FormBase {
   }
 
   protected function buildImportFormElements(array $form, FormStateInterface $form_state): array {
+    foreach (['private://xedc-comic-import', 'private://xedc-comic-import/pdf'] as $uri) {
+      $this->fileSystem->prepareDirectory($uri, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
+    }
     $form['#attributes']['class'][] = 'xedc-comic-import-hub';
     $form['#attributes']['enctype'] = 'multipart/form-data';
     $form['target'] = [
@@ -356,12 +360,19 @@ class ComicImportHubForm extends FormBase {
       if (!$item instanceof UploadedFile) {
         continue;
       }
-      $result = $handler->handleFileUpload(
-        new FormUploadedFile($item),
-        $validators,
-        'private://xedc-comic-import',
-        FileExists::Rename,
-      );
+      try {
+        $result = $handler->handleFileUpload(
+          new FormUploadedFile($item),
+          $validators,
+          'private://xedc-comic-import',
+          FileExists::Rename,
+        );
+      }
+      catch (\Throwable $e) {
+        $this->messenger()->addError($this->t('上传失败：@msg', ['@msg' => $e->getMessage()]));
+        \Drupal::logger('xedc_comic')->error('多图上传失败：@m', ['@m' => $e->getMessage()]);
+        continue;
+      }
       if ($result->hasViolations()) {
         foreach ($result->getViolations() as $violation) {
           $this->messenger()->addError($violation->getMessage());
@@ -429,7 +440,7 @@ class ComicImportHubForm extends FormBase {
         ],
       );
       $pages = (int) ($job['pdf_page_count'] ?? $job['total'] ?? 0);
-      $bytes = format_size((int) ($job['archive_bytes'] ?? 0));
+      $bytes = (string) ByteSizeMarkup::create((int) ($job['archive_bytes'] ?? 0));
       $this->messenger()->addStatus($this->t('PDF 任务 @id：@name（@size，@pages 页）', [
         '@id' => $job['id'],
         '@name' => $file->getFilename(),
@@ -453,7 +464,13 @@ class ComicImportHubForm extends FormBase {
       return;
     }
     $validators = ['FileExtension' => ['extensions' => 'png gif jpg jpeg webp']];
-    $uploaded = file_save_upload('image', $validators, 'private://xedc-comic-import', FileSystemInterface::EXISTS_RENAME);
+    try {
+      $uploaded = file_save_upload('image', $validators, 'private://xedc-comic-import', FileExists::Rename);
+    }
+    catch (\Throwable $e) {
+      $this->messenger()->addError($this->t('上传失败：@msg', ['@msg' => $e->getMessage()]));
+      return;
+    }
     if (!$uploaded) {
       $this->messenger()->addError($this->t('请选择一张图片。'));
       return;
