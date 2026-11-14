@@ -104,9 +104,11 @@
         detail.querySelectorAll('.comic-detail-favorite').forEach((el) => {
           el.classList.toggle('is-on', !!data.favorite);
           el.setAttribute('aria-pressed', data.favorite ? 'true' : 'false');
+          const favLabel = data.favorite ? Drupal.t('已收藏') : Drupal.t('收藏');
+          el.setAttribute('aria-label', favLabel);
           const label = el.querySelector('span');
           if (label) {
-            label.textContent = data.favorite ? Drupal.t('已收藏') : Drupal.t('收藏');
+            label.textContent = favLabel;
           }
         });
       });
