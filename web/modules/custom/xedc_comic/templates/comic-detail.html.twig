@@ -1,15 +1,15 @@
 {% set status_key = comic.status|default('') %}
-<div class="xedc-comic comic-detail comic-detail--kk" data-comic-id="{{ comic.id }}" data-chapter-total="{{ chapter_total }}">
+<div class="xedc-comic comic-detail" data-comic-id="{{ comic.id }}" data-chapter-total="{{ chapter_total }}">
   <div class="comic-detail-frame">
-    <div class="comic-detail-banner" aria-hidden="true">
+    <div class="comic-detail-banner">
       {% if comic.cover %}
-        <img class="comic-detail-banner__img" src="{{ comic.cover }}" alt="" width="800" height="400" loading="eager" decoding="async">
+        <img class="comic-detail-banner__media" src="{{ comic.cover }}" alt="" width="750" height="440" loading="eager" decoding="async">
       {% endif %}
-      <div class="comic-detail-banner__shade"></div>
+      <div class="comic-detail-banner__fade"></div>
     </div>
 
     <div class="comic-detail-sheet">
-      <div class="comic-detail-layout">
+      <div class="comic-detail-grid">
         <aside class="comic-detail-aside">
           <div class="comic-detail-head">
             <div class="comic-detail-cover-wrap">
@@ -20,7 +20,7 @@
               {% endif %}
               {% if comic.is_vip %}<span class="comic-detail-cover__vip">VIP</span>{% endif %}
             </div>
-            <div class="comic-detail-head__info">
+            <div class="comic-detail-head__meta">
               <h1 class="comic-detail-title">{{ comic.title }}</h1>
               {% if comic.author %}<p class="comic-detail-author">{{ comic.author }}</p>{% endif %}
               {% if comic.status_label %}
@@ -29,13 +29,13 @@
             </div>
           </div>
 
-          <p class="comic-detail-summary">
+          <p class="comic-detail-stats">
             {{ comic.views }} {{ '阅读'|t }}
-            <span class="comic-detail-summary__dot" aria-hidden="true">·</span>
+            <span aria-hidden="true"> · </span>
             {{ comic.favorites|default(0) }} {{ '收藏'|t }}
-            <span class="comic-detail-summary__dot" aria-hidden="true">·</span>
+            <span aria-hidden="true"> · </span>
             {{ chapter_total }} {{ '话'|t }}
-            <span class="comic-detail-summary__dot" aria-hidden="true">·</span>
+            <span aria-hidden="true"> · </span>
             {{ '更新'|t }} {{ updated_label }}
           </p>
 
@@ -78,7 +78,6 @@
               {% else %}
                 <p class="comic-detail-empty">{{ '暂无简介'|t }}</p>
               {% endif %}
-
               <dl class="comic-detail-kv">
                 {% if comic.author %}
                   <div class="comic-detail-kv__row">
@@ -115,13 +114,12 @@
                   {% endif %}
                   {% if chapter_total > 1 %}
                     <button type="button" class="comic-detail-chapters__sort" data-chapter-sort>
-                      <svg class="comic-detail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      <svg class="comic-detail-icon comic-detail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                       <span data-sort-label>{{ '倒序'|t }}</span>
                     </button>
                   {% endif %}
                 </div>
               </div>
-
               <ol class="comic-detail-chapter-list" data-chapter-list data-segment-size="50">
                 {% for chapter in chapters %}
                   <li class="comic-detail-chapter-item" data-chapter-item data-chapter-id="{{ chapter.id }}" data-chapter-number="{{ chapter.number }}" data-title="{{ chapter.title|lower }}">
@@ -136,10 +134,10 @@
                         <span class="comic-detail-chapter__title" data-chapter-title>{{ chapter.title }}</span>
                         <time class="comic-detail-chapter__date" datetime="{{ chapter.published }}">{{ chapter.published }}</time>
                       </span>
-                      <span class="comic-detail-chapter__aside">
+                      <span class="comic-detail-chapter__end">
                         <span class="comic-detail-chapter__badge" data-last-read hidden>{{ '上次阅读'|t }}</span>
                         {% if chapter.locked %}
-                          <svg class="comic-detail-icon comic-detail-icon--lock" viewBox="0 0 24 24" aria-label="{{ '需会员'|t }}"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                          <svg class="comic-detail-icon comic-detail-icon--sm comic-detail-icon--lock" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                         {% endif %}
                         <svg class="comic-detail-chapter__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                       </span>
@@ -168,7 +166,7 @@
   </div>
 
   {% if start_url %}
-    <footer class="comic-detail-dock" id="comic-detail-dock">
+    <footer class="comic-detail-dock">
       <div class="comic-detail-dock__inner">
         <button type="button" class="comic-detail-dock__fav comic-detail-favorite{% if favorite %} is-on{% endif %}" data-api="{{ path('xedc_comic.api_favorite', {'comic': comic.id}) }}" aria-pressed="{{ favorite ? 'true' : 'false' }}">
           <svg class="comic-detail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
