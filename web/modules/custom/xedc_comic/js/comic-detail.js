@@ -9,27 +9,12 @@
     }
   }
 
-  function throttleRaf(fn) {
-    let queued = false;
-    return function throttled() {
-      if (queued) {
-        return;
-      }
-      queued = true;
-      requestAnimationFrame(() => {
-        queued = false;
-        fn();
-      });
-    };
-  }
-
   Drupal.behaviors.comicDetail = {
     attach(context) {
       once('comic-detail-root', '.comic-detail[data-comic-id]', context).forEach((detail) => {
         const meta = drupalSettings.xedcComicDetail || {};
         applyContinue(detail, meta);
         applyReadMarks(detail, meta);
-        initTabs(detail);
         initFavorite(detail, meta);
         initDesc(detail);
         initChapters(detail);
@@ -53,7 +38,7 @@
     }
     const url = '/comic/' + meta.comicId + '/' + saved.chapter_id;
     const label = num
-      ? Drupal.t('继续阅读 · 第 @n 话', { '@n': num })
+      ? Drupal.t('继续阅读 第 @n 话', { '@n': num })
       : Drupal.t('继续阅读');
     detail.querySelectorAll('[data-read-cta]').forEach((el) => {
       el.setAttribute('href', url);
@@ -85,54 +70,6 @@
       else if (lastNum > 0 && num > 0 && num < lastNum) {
         item.classList.add('is-read');
       }
-    });
-  }
-
-  function syncTabIndicator(tabsRoot) {
-    const bar = tabsRoot.querySelector('.comic-detail-tabs__bar');
-    const indicator = tabsRoot.querySelector('[data-tab-indicator]');
-    const active = tabsRoot.querySelector('.comic-detail-tabs__tab.is-active');
-    if (!bar || !indicator || !active) {
-      return;
-    }
-    const barRect = bar.getBoundingClientRect();
-    const tabRect = active.getBoundingClientRect();
-    const center = tabRect.left - barRect.left + tabRect.width / 2;
-    indicator.style.transform = 'translateX(' + (center - 10) + 'px)';
-  }
-
-  function initTabs(detail) {
-    const tabsRoot = detail.querySelector('[data-comic-tabs]');
-    if (!tabsRoot) {
-      return;
-    }
-    const syncIndicator = throttleRaf(() => syncTabIndicator(tabsRoot));
-    syncIndicator();
-    window.addEventListener('resize', syncIndicator, { passive: true });
-
-    tabsRoot.addEventListener('click', (e) => {
-      const tab = e.target.closest('.comic-detail-tabs__tab');
-      if (!tab) {
-        return;
-      }
-      const key = tab.getAttribute('data-tab');
-      tabsRoot.querySelectorAll('.comic-detail-tabs__tab').forEach((el) => {
-        const active = el === tab;
-        el.classList.toggle('is-active', active);
-        el.setAttribute('aria-selected', active ? 'true' : 'false');
-        el.tabIndex = active ? 0 : -1;
-      });
-      tabsRoot.querySelectorAll('[data-panel]').forEach((panel) => {
-        const show = panel.getAttribute('data-panel') === key;
-        panel.classList.toggle('is-active', show);
-        if (show) {
-          panel.removeAttribute('hidden');
-        }
-        else {
-          panel.setAttribute('hidden', '');
-        }
-      });
-      syncIndicator();
     });
   }
 
@@ -183,8 +120,8 @@
       if (!text || !toggle) {
         return;
       }
-      const lineHeight = () => parseFloat(getComputedStyle(text).lineHeight) || 24.5;
-      const collapsedMax = () => lineHeight() * 4;
+      const lineHeight = () => parseFloat(getComputedStyle(text).lineHeight) || 23.8;
+      const collapsedMax = () => lineHeight() * 3;
       const refresh = () => {
         text.style.maxHeight = 'none';
         const full = text.scrollHeight;
@@ -226,12 +163,15 @@
     const sortBtn = panel.querySelector('[data-chapter-sort]');
     const sortLabel = sortBtn?.querySelector('[data-sort-label]');
     const rangeSelect = panel.querySelector('[data-chapter-range]');
+    const moreBtn = panel.querySelector('[data-chapter-more]');
     const segmentSize = parseInt(list?.getAttribute('data-segment-size') || '50', 10);
+    const initialVisible = parseInt(list?.getAttribute('data-initial-visible') || '20', 10);
     const total = parseInt(detail.getAttribute('data-chapter-total') || '0', 10);
     let reversed = false;
     let activeSegment = 0;
+    let expanded = total <= initialVisible;
 
-    if (rangeSelect && total > 20) {
+    if (rangeSelect && total > 50) {
       rangeSelect.innerHTML = '';
       const segments = Math.ceil(total / segmentSize);
       for (let i = 0; i < segments; i += 1) {
@@ -244,31 +184,69 @@
       }
     }
 
+    const updateMoreButton = () => {
+      if (!moreBtn) {
+        return;
+      }
+      if (expanded || total <= initialVisible) {
+        moreBtn.hidden = true;
+        return;
+      }
+      moreBtn.hidden = false;
+      moreBtn.textContent = Drupal.t('查看全部');
+    };
+
     const syncVisibility = () => {
       if (!list) {
         return;
       }
       const q = search?.value.trim().toLowerCase() || '';
-      const items = list.querySelectorAll('[data-chapter-item]');
-      items.forEach((item, index) => {
+      const items = list.querySelectorAll('[data-chapter-item]:not(.comic-detail-chapter-item--empty)');
+      let visibleIndex = 0;
+      items.forEach((item) => {
         const title = item.getAttribute('data-title') || '';
         const matchSearch = q === '' || title.includes(q);
+        item.classList.remove('is-segment-hidden', 'is-limit-hidden', 'is-filtered-out');
         if (!matchSearch) {
           item.classList.add('is-filtered-out');
           return;
         }
-        item.classList.remove('is-filtered-out');
-        if (q || total <= 20) {
-          item.classList.remove('is-segment-hidden');
+        if (q) {
           return;
         }
-        const segmentIndex = Math.floor(index / segmentSize);
-        item.classList.toggle('is-segment-hidden', segmentIndex !== activeSegment);
+        if (!expanded && total > initialVisible) {
+          if (visibleIndex >= initialVisible) {
+            item.classList.add('is-limit-hidden');
+          }
+          visibleIndex += 1;
+          return;
+        }
+        if (total > 50 && expanded) {
+          const idx = Array.from(items).indexOf(item);
+          const segmentIndex = Math.floor(idx / segmentSize);
+          if (segmentIndex !== activeSegment) {
+            item.classList.add('is-segment-hidden');
+          }
+        }
       });
+      updateMoreButton();
+      if (rangeSelect) {
+        rangeSelect.hidden = !(expanded && total > 50 && q === '');
+      }
     };
 
+    moreBtn?.addEventListener('click', () => {
+      expanded = true;
+      syncVisibility();
+    });
+
     syncVisibility();
-    search?.addEventListener('input', syncVisibility);
+    search?.addEventListener('input', () => {
+      if (search.value.trim()) {
+        expanded = true;
+      }
+      syncVisibility();
+    });
     rangeSelect?.addEventListener('change', () => {
       activeSegment = parseInt(rangeSelect.value, 10) || 0;
       syncVisibility();
@@ -282,7 +260,7 @@
       if (sortLabel) {
         sortLabel.textContent = reversed ? Drupal.t('正序') : Drupal.t('倒序');
       }
-      const items = Array.from(list.querySelectorAll('[data-chapter-item]'));
+      const items = Array.from(list.querySelectorAll('[data-chapter-item]:not(.comic-detail-chapter-item--empty)'));
       items.sort((a, b) => {
         const an = parseFloat(a.querySelector('.comic-detail-chapter-list__num')?.textContent || '0');
         const bn = parseFloat(b.querySelector('.comic-detail-chapter-list__num')?.textContent || '0');
